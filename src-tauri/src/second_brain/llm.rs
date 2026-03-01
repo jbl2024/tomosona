@@ -1,14 +1,10 @@
 use genai::{
-    chat::{ChatMessage, ChatRequest, MessageContent},
+    chat::{ChatMessage, ChatOptions, ChatRequest, ChatStreamEvent, MessageContent},
     Client,
 };
+use futures_util::StreamExt;
 
 use super::config::ProviderProfile;
-
-pub struct LlmAnswer {
-    pub full_text: String,
-    pub chunks: Vec<String>,
-}
 
 fn normalize_model_name(profile: &ProviderProfile) -> String {
     let provider = profile.provider.trim().to_lowercase();
@@ -50,30 +46,11 @@ fn configure_environment(profile: &ProviderProfile) {
     }
 }
 
-fn chunk_text(text: &str, chunk_size: usize) -> Vec<String> {
-    if text.is_empty() {
-        return Vec::new();
-    }
-    let mut chunks = Vec::new();
-    let mut buffer = String::with_capacity(chunk_size);
-    for ch in text.chars() {
-        buffer.push(ch);
-        if buffer.len() >= chunk_size {
-            chunks.push(buffer.clone());
-            buffer.clear();
-        }
-    }
-    if !buffer.is_empty() {
-        chunks.push(buffer);
-    }
-    chunks
-}
-
 pub async fn run_llm(
     profile: &ProviderProfile,
     system_prompt: &str,
     user_prompt: &str,
-) -> Result<LlmAnswer, String> {
+) -> Result<String, String> {
     configure_environment(profile);
 
     let model = normalize_model_name(profile);
@@ -97,24 +74,69 @@ pub async fn run_llm(
             } else {
                 text
             };
-            Ok(LlmAnswer {
-                chunks: chunk_text(&final_text, 56),
-                full_text: final_text,
-            })
+            Ok(final_text)
         }
         Err(err) => Err(format!("Model request failed: {err}")),
+    }
+}
+
+pub async fn run_llm_stream<F>(
+    profile: &ProviderProfile,
+    system_prompt: &str,
+    user_prompt: &str,
+    mut on_chunk: F,
+) -> Result<String, String>
+where
+    F: FnMut(&str),
+{
+    configure_environment(profile);
+
+    let model = normalize_model_name(profile);
+    let client = Client::default();
+
+    let messages = vec![
+        ChatMessage::system(MessageContent::from(system_prompt)),
+        ChatMessage::user(MessageContent::from(user_prompt)),
+    ];
+
+    let request = ChatRequest::new(messages);
+    let options = ChatOptions::default().with_capture_content(true);
+    let mut response = client
+        .exec_chat_stream(&model, request, Some(&options))
+        .await
+        .map_err(|err| format!("Model request failed: {err}"))?;
+
+    let mut full_text = String::new();
+    while let Some(next) = response.stream.next().await {
+        match next {
+            Ok(ChatStreamEvent::Chunk(chunk)) => {
+                if !chunk.content.is_empty() {
+                    full_text.push_str(&chunk.content);
+                    on_chunk(&chunk.content);
+                }
+            }
+            Ok(ChatStreamEvent::End(end)) => {
+                if full_text.trim().is_empty() {
+                    if let Some(captured) = end.captured_first_text() {
+                        full_text = captured.to_string();
+                    }
+                }
+            }
+            Ok(_) => {}
+            Err(err) => return Err(format!("Model stream failed: {err}")),
+        }
+    }
+
+    if full_text.trim().is_empty() {
+        Ok("(Empty assistant response)".to_string())
+    } else {
+        Ok(full_text)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn chunks_text_non_empty() {
-        let out = chunk_text("abcdefghij", 3);
-        assert_eq!(out, vec!["abc", "def", "ghi", "j"]);
-    }
 
     #[test]
     fn normalizes_openai_compatible_model() {

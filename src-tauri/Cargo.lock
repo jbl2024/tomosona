@@ -6005,6 +6005,7 @@ version = "0.8.0"
 dependencies = [
  "directories",
  "fastembed",
+ "futures-util",
  "genai",
  "ignore",
  "notify",

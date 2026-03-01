@@ -45,6 +45,7 @@ const sessionsIndex = ref<SecondBrainSessionSummary[]>([])
 const rightPanelWidth = ref(360)
 const resizing = ref(false)
 const resizeState = ref<{ startX: number; startWidth: number } | null>(null)
+const streamUnsubscribers: Array<() => void> = []
 
 function toRelativePath(path: string): string {
   const value = path.replace(/\\/g, '/')
@@ -236,10 +237,11 @@ async function onSendMessage() {
   sending.value = true
   sendError.value = ''
   const outgoing = inputMessage.value.trim()
+  const tempUserId = `temp-user-${Date.now()}`
   inputMessage.value = ''
 
   messages.value = [...messages.value, {
-    id: `temp-user-${Date.now()}`,
+    id: tempUserId,
     role: 'user',
     mode: 'freestyle',
     content_md: outgoing,
@@ -255,15 +257,21 @@ async function onSendMessage() {
       message: outgoing
     })
 
-    messages.value = [...messages.value, {
-      id: result.assistantMessageId,
-      role: 'assistant',
-      mode: 'freestyle',
-      content_md: '',
-      citations_json: JSON.stringify(contextPaths.value.map((path) => path.replace(`${props.workspacePath}/`, ''))),
-      attachments_json: '[]',
-      created_at_ms: Date.now()
-    }]
+    messages.value = messages.value.map((message) =>
+      message.id === tempUserId ? { ...message, id: result.userMessageId } : message
+    )
+
+    if (!messages.value.some((message) => message.id === result.assistantMessageId)) {
+      messages.value = [...messages.value, {
+        id: result.assistantMessageId,
+        role: 'assistant',
+        mode: 'freestyle',
+        content_md: streamByMessage.value[result.assistantMessageId] ?? '',
+        citations_json: JSON.stringify(contextPaths.value.map((path) => path.replace(`${props.workspacePath}/`, ''))),
+        attachments_json: '[]',
+        created_at_ms: Date.now()
+      }]
+    }
 
     await refreshSessionsIndex()
     const updated = sessionsIndex.value.find((item) => item.session_id === sessionId.value)
@@ -325,30 +333,64 @@ onMounted(async () => {
 
   await initializeSessionOnFirstOpen()
 
-  await subscribeSecondBrainStream('second-brain://assistant-start', (payload) => {
+  streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-start', (payload) => {
+    if (payload.session_id !== sessionId.value) return
     streamByMessage.value = {
       ...streamByMessage.value,
       [payload.message_id]: ''
     }
-  })
-  await subscribeSecondBrainStream('second-brain://assistant-delta', (payload) => {
+    if (!messages.value.some((message) => message.id === payload.message_id)) {
+      messages.value = [...messages.value, {
+        id: payload.message_id,
+        role: 'assistant',
+        mode: 'freestyle',
+        content_md: '',
+        citations_json: JSON.stringify(contextPaths.value.map((path) => path.replace(`${props.workspacePath}/`, ''))),
+        attachments_json: '[]',
+        created_at_ms: Date.now()
+      }]
+    }
+  }))
+  streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-delta', (payload) => {
+    if (payload.session_id !== sessionId.value) return
     const current = streamByMessage.value[payload.message_id] ?? ''
     streamByMessage.value = {
       ...streamByMessage.value,
       [payload.message_id]: `${current}${payload.chunk}`
     }
-  })
-  await subscribeSecondBrainStream('second-brain://assistant-complete', (payload) => {
+    if (!messages.value.some((message) => message.id === payload.message_id)) {
+      messages.value = [...messages.value, {
+        id: payload.message_id,
+        role: 'assistant',
+        mode: 'freestyle',
+        content_md: '',
+        citations_json: JSON.stringify(contextPaths.value.map((path) => path.replace(`${props.workspacePath}/`, ''))),
+        attachments_json: '[]',
+        created_at_ms: Date.now()
+      }]
+    }
+  }))
+  streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-complete', (payload) => {
+    if (payload.session_id !== sessionId.value) return
     streamByMessage.value = {
       ...streamByMessage.value,
       [payload.message_id]: payload.chunk
     }
-  })
+    sending.value = false
+  }))
+  streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-error', (payload) => {
+    if (payload.session_id !== sessionId.value) return
+    sending.value = false
+    sendError.value = payload.error || 'Assistant stream failed.'
+  }))
   window.addEventListener('mousemove', onPointerMove)
   window.addEventListener('mouseup', stopResize)
 })
 
 onBeforeUnmount(() => {
+  for (const unsubscribe of streamUnsubscribers) {
+    unsubscribe()
+  }
   window.removeEventListener('mousemove', onPointerMove)
   window.removeEventListener('mouseup', stopResize)
 })

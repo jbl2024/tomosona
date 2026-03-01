@@ -22,7 +22,7 @@ pub mod session_store;
 
 use config::{active_profile, validate_config, ConfigStatus, SecondBrainConfig};
 use draft::{delete_draft, read_draft, write_draft};
-use llm::run_llm;
+use llm::{run_llm, run_llm_stream};
 use modes::resolve_mode_prompt;
 use session_store::{
     create_session, delete_session, estimate_tokens, insert_message, list_sessions, load_session,
@@ -524,7 +524,26 @@ pub async fn send_second_brain_message(
         },
     );
 
-    let llm_result = run_llm(&active, &mode_prompt, &user_prompt).await;
+    let stream_session_id = payload.session_id.clone();
+    let stream_message_id = assistant_message_id.clone();
+    let app_for_stream = app.clone();
+    let llm_result = if active.capabilities.streaming {
+        run_llm_stream(&active, &mode_prompt, &user_prompt, move |chunk| {
+            let _ = app_for_stream.emit(
+                "second-brain://assistant-delta",
+                StreamEvent {
+                    session_id: stream_session_id.clone(),
+                    message_id: stream_message_id.clone(),
+                    chunk: chunk.to_string(),
+                    done: false,
+                    error: None,
+                },
+            );
+        })
+        .await
+    } else {
+        run_llm(&active, &mode_prompt, &user_prompt).await
+    };
 
     let answer = match llm_result {
         Ok(value) => value,
@@ -543,13 +562,13 @@ pub async fn send_second_brain_message(
         }
     };
 
-    for chunk in &answer.chunks {
+    if !active.capabilities.streaming {
         let _ = app.emit(
             "second-brain://assistant-delta",
             StreamEvent {
                 session_id: payload.session_id.clone(),
                 message_id: assistant_message_id.clone(),
-                chunk: chunk.clone(),
+                chunk: answer.clone(),
                 done: false,
                 error: None,
             },
@@ -566,7 +585,7 @@ pub async fn send_second_brain_message(
         id: assistant_message_id.clone(),
         role: "assistant".to_string(),
         mode: payload.mode,
-        content_md: answer.full_text.clone(),
+        content_md: answer.clone(),
         citations_json: serde_json::to_string(&citations).unwrap_or_else(|_| "[]".to_string()),
         attachments_json: "[]".to_string(),
         created_at_ms: now_ms(),
@@ -578,7 +597,7 @@ pub async fn send_second_brain_message(
         StreamEvent {
             session_id: payload.session_id,
             message_id: assistant_message_id.clone(),
-            chunk: answer.full_text,
+            chunk: answer,
             done: true,
             error: None,
         },
