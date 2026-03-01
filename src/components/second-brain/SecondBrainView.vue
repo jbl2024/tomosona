@@ -182,6 +182,25 @@ async function onCreateSession() {
   await refreshSessionsIndex()
 }
 
+async function initializeSessionOnFirstOpen() {
+  if (sessionId.value) return
+
+  await refreshSessionsIndex()
+
+  if (props.requestedSessionId.trim()) {
+    await loadSession(props.requestedSessionId.trim())
+    return
+  }
+
+  const latest = sessionsIndex.value[0]
+  if (latest?.session_id) {
+    await loadSession(latest.session_id)
+    return
+  }
+
+  await ensureSession()
+}
+
 function displayMessage(message: SecondBrainMessage): string {
   if (message.role === 'assistant') {
     return streamByMessage.value[message.id] ?? message.content_md
@@ -281,8 +300,7 @@ onMounted(async () => {
     configError.value = err instanceof Error ? err.message : 'Could not read config status.'
   }
 
-  await refreshSessionsIndex()
-  await ensureSession()
+  await initializeSessionOnFirstOpen()
 
   await subscribeSecondBrainStream('second-brain://assistant-start', (payload) => {
     streamByMessage.value = {
