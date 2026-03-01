@@ -1,6 +1,12 @@
 import { createApp, defineComponent, h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+type MockWikilinkGraph = {
+  nodes: Array<{ id: string; path: string; label: string; degree: number; tags: string[]; cluster: number | null }>
+  edges: Array<{ source: string; target: string; type: 'wikilink' | 'semantic'; score?: number }>
+  generated_at_ms: number
+}
+
 const hoisted = vi.hoisted(() => ({
   listChildren: vi.fn(async (path: string) => {
     if (path === '/vault') {
@@ -510,18 +516,10 @@ describe('App cosmos integration', () => {
 
   it('closes command palette immediately and shows cosmos loading modal while action is running', async () => {
     window.localStorage.setItem('tomosona.working-folder.path', '/vault')
-    let resolveGraphLoad: ((value: {
-      nodes: Array<{ id: string; path: string; label: string; degree: number; tags: string[]; cluster: number | null }>
-      edges: Array<{ source: string; target: string; type: 'wikilink' | 'semantic'; score?: number }>
-      generated_at_ms: number
-    }) => void) | undefined
+    let resolveGraphLoad: ((value: MockWikilinkGraph | PromiseLike<MockWikilinkGraph>) => void) | undefined
 
     hoisted.getWikilinkGraph.mockImplementationOnce(
-      () => new Promise<{
-        nodes: Array<{ id: string; path: string; label: string; degree: number; tags: string[]; cluster: number | null }>
-        edges: Array<{ source: string; target: string; type: 'wikilink' | 'semantic'; score?: number }>
-        generated_at_ms: number
-      }>((resolve) => {
+      () => new Promise<MockWikilinkGraph>((resolve) => {
         resolveGraphLoad = resolve
       })
     )

@@ -3029,7 +3029,8 @@ async function openQuickOpen(initialQuery = '') {
   document.querySelector<HTMLInputElement>('[data-quick-open-input=\"true\"]')?.focus()
 }
 
-function closeQuickOpen(restoreFocus = true) {
+function closeQuickOpen(restoreFocusOrEvent: boolean | PointerEvent = true) {
+  const restoreFocus = typeof restoreFocusOrEvent === 'boolean' ? restoreFocusOrEvent : true
   quickOpenVisible.value = false
   quickOpenQuery.value = ''
   quickOpenActiveIndex.value = 0
