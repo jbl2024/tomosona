@@ -10,6 +10,8 @@ pub struct SessionSummary {
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     pub context_count: usize,
+    pub target_note_path: String,
+    pub context_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -37,6 +39,7 @@ pub struct SessionPayload {
     pub model: String,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+    pub target_note_path: String,
     pub context_items: Vec<ContextItem>,
     pub messages: Vec<MessageRow>,
     pub draft_content: String,
@@ -66,6 +69,7 @@ pub fn list_sessions(conn: &Connection, limit: usize) -> Result<Vec<SessionSumma
     let mut stmt = conn.prepare(
         "SELECT s.id, s.title, s.created_at_ms, s.updated_at_ms,
                 (SELECT COUNT(*) FROM second_brain_context_items c WHERE c.session_id = s.id) as context_count
+                ,COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), '')
          FROM second_brain_sessions s
          ORDER BY s.updated_at_ms DESC
          LIMIT ?1",
@@ -78,12 +82,26 @@ pub fn list_sessions(conn: &Connection, limit: usize) -> Result<Vec<SessionSumma
             created_at_ms: row.get::<_, i64>(2)? as u64,
             updated_at_ms: row.get::<_, i64>(3)? as u64,
             context_count: row.get::<_, i64>(4)? as usize,
+            target_note_path: row.get::<_, String>(5)?,
+            context_paths: Vec::new(),
         })
     })?;
 
     let mut out = Vec::new();
     for item in rows {
-        out.push(item?);
+        let mut row = item?;
+        let mut context_stmt = conn.prepare(
+            "SELECT path FROM second_brain_context_items WHERE session_id = ?1 ORDER BY sort_order ASC",
+        )?;
+        let context_rows = context_stmt.query_map(params![row.session_id.clone()], |ctx_row| {
+            ctx_row.get::<_, String>(0)
+        })?;
+        let mut context_paths = Vec::new();
+        for path in context_rows {
+            context_paths.push(path?);
+        }
+        row.context_paths = context_paths;
+        out.push(row);
     }
     Ok(out)
 }
@@ -137,13 +155,38 @@ pub fn insert_message(conn: &Connection, msg: &MessageRow, session_id: &str) -> 
     Ok(())
 }
 
+pub fn update_session_title(conn: &Connection, session_id: &str, title: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE second_brain_sessions SET title = ?2, updated_at_ms = ?3 WHERE id = ?1",
+        params![session_id, title, now_ms() as i64],
+    )?;
+    Ok(())
+}
+
+pub fn set_target_note_path(conn: &Connection, session_id: &str, target_note_path: &str) -> Result<()> {
+    conn.execute(
+        "INSERT INTO second_brain_session_targets(session_id, target_note_path, updated_at_ms)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(session_id) DO UPDATE SET target_note_path = excluded.target_note_path, updated_at_ms = excluded.updated_at_ms",
+        params![session_id, target_note_path, now_ms() as i64],
+    )?;
+    conn.execute(
+        "UPDATE second_brain_sessions SET updated_at_ms = ?2 WHERE id = ?1",
+        params![session_id, now_ms() as i64],
+    )?;
+    Ok(())
+}
+
 pub fn load_session(
     conn: &Connection,
     session_id: &str,
     draft_content: String,
 ) -> Result<SessionPayload> {
     let mut session_stmt = conn.prepare(
-        "SELECT id, title, provider, model, created_at_ms, updated_at_ms FROM second_brain_sessions WHERE id = ?1",
+        "SELECT s.id, s.title, s.provider, s.model, s.created_at_ms, s.updated_at_ms,
+                COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), '')
+         FROM second_brain_sessions s
+         WHERE s.id = ?1",
     )?;
 
     let row = session_stmt.query_row(params![session_id], |row| {
@@ -154,10 +197,11 @@ pub fn load_session(
             row.get::<_, String>(3)?,
             row.get::<_, i64>(4)? as u64,
             row.get::<_, i64>(5)? as u64,
+            row.get::<_, String>(6)?,
         ))
     });
 
-    let (id, title, provider, model, created_at_ms, updated_at_ms) = match row {
+    let (id, title, provider, model, created_at_ms, updated_at_ms, target_note_path) = match row {
         Ok(value) => value,
         Err(_) => {
             return Err(AppError::InvalidOperation(
@@ -212,6 +256,7 @@ pub fn load_session(
         model,
         created_at_ms,
         updated_at_ms,
+        target_note_path,
         context_items,
         messages,
         draft_content,

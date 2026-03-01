@@ -76,6 +76,8 @@ export type SecondBrainSessionSummary = {
   created_at_ms: number
   updated_at_ms: number
   context_count: number
+  target_note_path: string
+  context_paths: string[]
 }
 
 export type SecondBrainContextItem = {
@@ -100,6 +102,7 @@ export type SecondBrainSessionPayload = {
   model: string
   created_at_ms: number
   updated_at_ms: number
+  target_note_path: string
   context_items: SecondBrainContextItem[]
   messages: SecondBrainMessage[]
   draft_content: string
@@ -377,4 +380,22 @@ export async function listenSecondBrainStream(
   return await listen<SecondBrainStreamEvent>(eventName, (event) => {
     handler(event.payload)
   })
+}
+
+export async function setSecondBrainSessionTargetNote(payload: {
+  session_id: string
+  target_path: string
+}): Promise<{ target_note_path: string }> {
+  return await invoke('set_second_brain_session_target_note', { payload })
+}
+
+export async function insertSecondBrainAssistantIntoTargetNote(payload: {
+  session_id: string
+  message_id: string
+}): Promise<{ target_note_path: string }> {
+  return await invoke('insert_second_brain_assistant_into_target_note', { payload })
+}
+
+export async function exportSecondBrainSessionMarkdown(sessionId: string): Promise<{ path: string }> {
+  return await invoke('export_second_brain_session_markdown', { sessionId })
 }

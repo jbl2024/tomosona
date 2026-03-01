@@ -25,8 +25,8 @@ use draft::{read_draft, write_draft};
 use llm::run_llm;
 use modes::resolve_mode_prompt;
 use session_store::{
-    create_session, estimate_tokens, insert_message, list_sessions, load_session, upsert_context,
-    ContextItem, MessageRow,
+    create_session, estimate_tokens, insert_message, list_sessions, load_session, set_target_note_path,
+    update_session_title, upsert_context, ContextItem, MessageRow,
 };
 
 const SESSION_PREFIX: &str = "sb";
@@ -120,6 +120,33 @@ pub struct PublishDraftToExistingNotePayload {
     pub target_path: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct SetSessionTargetNotePayload {
+    pub session_id: String,
+    pub target_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SetSessionTargetNoteResult {
+    pub target_note_path: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct InsertAssistantIntoTargetPayload {
+    pub session_id: String,
+    pub message_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InsertAssistantIntoTargetResult {
+    pub target_note_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExportSessionMarkdownResult {
+    pub path: String,
+}
+
 fn conf_path() -> Result<PathBuf> {
     let base_dirs = BaseDirs::new().ok_or_else(|| {
         AppError::InvalidOperation("Could not resolve user home directory.".to_string())
@@ -185,6 +212,29 @@ fn normalize_markdown_path(path: &str) -> Result<String> {
     normalize_workspace_relative_path(&root, &canonical)
 }
 
+fn normalize_workspace_markdown_relative(path: &str) -> Result<String> {
+    let root = active_workspace_root()?;
+    let candidate = PathBuf::from(path);
+    if !candidate.exists() || !candidate.is_file() {
+        return Err(AppError::InvalidPath);
+    }
+    let canonical = fs::canonicalize(candidate)?;
+    if !canonical.starts_with(&root) {
+        return Err(AppError::InvalidPath);
+    }
+    let ext_ok = canonical
+        .extension()
+        .and_then(|item| item.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
+        .unwrap_or(false);
+    if !ext_ok {
+        return Err(AppError::InvalidOperation(
+            "Target note must be markdown.".to_string(),
+        ));
+    }
+    normalize_workspace_relative_path(&root, &canonical)
+}
+
 fn next_id(prefix: &str) -> String {
     let seq = ID_SEQ.fetch_add(1, Ordering::SeqCst);
     format!("{prefix}-{}-{seq}", now_ms())
@@ -240,6 +290,23 @@ fn session_exists(conn: &rusqlite::Connection, session_id: &str) -> Result<bool>
         |row| row.get(0),
     )?;
     Ok(count > 0)
+}
+
+fn normalize_title_from_first_message(raw: &str) -> String {
+    let normalized = raw
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
+    let line = normalized
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("Second Brain Session");
+    let mut compact = line.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.len() > 80 {
+        compact.truncate(80);
+        compact.push_str("...");
+    }
+    compact
 }
 
 #[tauri::command]
@@ -407,6 +474,16 @@ pub async fn send_second_brain_message(
     };
     insert_message(&conn, &user_message, &payload.session_id)?;
 
+    let user_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM second_brain_messages WHERE session_id = ?1 AND role = 'user'",
+        params![payload.session_id.clone()],
+        |row| row.get(0),
+    )?;
+    if user_count <= 1 {
+        let inferred_title = normalize_title_from_first_message(&payload.message);
+        let _ = update_session_title(&conn, &payload.session_id, &inferred_title);
+    }
+
     let context_items = read_session_context(&conn, &payload.session_id)?;
     if context_items.is_empty() {
         return Err(AppError::InvalidOperation(
@@ -496,6 +573,127 @@ pub async fn send_second_brain_message(
     Ok(SendMessageResult {
         user_message_id,
         assistant_message_id,
+    })
+}
+
+#[tauri::command]
+pub fn set_second_brain_session_target_note(
+    payload: SetSessionTargetNotePayload,
+) -> Result<SetSessionTargetNoteResult> {
+    let conn = open_db()?;
+    if !session_exists(&conn, &payload.session_id)? {
+        return Err(AppError::InvalidOperation(
+            "Second Brain session not found.".to_string(),
+        ));
+    }
+    let target_relative = normalize_workspace_markdown_relative(&payload.target_path)?;
+    set_target_note_path(&conn, &payload.session_id, &target_relative)?;
+    Ok(SetSessionTargetNoteResult {
+        target_note_path: target_relative,
+    })
+}
+
+#[tauri::command]
+pub fn insert_second_brain_assistant_into_target_note(
+    payload: InsertAssistantIntoTargetPayload,
+) -> Result<InsertAssistantIntoTargetResult> {
+    let conn = open_db()?;
+    if !session_exists(&conn, &payload.session_id)? {
+        return Err(AppError::InvalidOperation(
+            "Second Brain session not found.".to_string(),
+        ));
+    }
+
+    let target_relative: String = conn
+        .query_row(
+            "SELECT target_note_path FROM second_brain_session_targets WHERE session_id = ?1",
+            params![payload.session_id.clone()],
+            |row| row.get(0),
+        )
+        .map_err(|_| {
+            AppError::InvalidOperation(
+                "No target note is linked to this session.".to_string(),
+            )
+        })?;
+
+    if target_relative.trim().is_empty() {
+        return Err(AppError::InvalidOperation(
+            "No target note is linked to this session.".to_string(),
+        ));
+    }
+
+    let assistant_text: String = conn
+        .query_row(
+            "SELECT content_md FROM second_brain_messages WHERE id = ?1 AND session_id = ?2 AND role = 'assistant'",
+            params![payload.message_id, payload.session_id.clone()],
+            |row| row.get(0),
+        )
+        .map_err(|_| AppError::InvalidOperation("Assistant message not found.".to_string()))?;
+
+    let root = active_workspace_root()?;
+    let target_path = root.join(&target_relative);
+    let existing = fs::read_to_string(&target_path).unwrap_or_default();
+    let next = if existing.trim().is_empty() {
+        assistant_text.clone()
+    } else {
+        format!("{existing}\n\n---\n\n{assistant_text}")
+    };
+    fs::write(&target_path, next)?;
+    reindex_markdown_file_sync(target_path.to_string_lossy().to_string())?;
+
+    Ok(InsertAssistantIntoTargetResult {
+        target_note_path: target_relative,
+    })
+}
+
+#[tauri::command]
+pub fn export_second_brain_session_markdown(
+    session_id: String,
+) -> Result<ExportSessionMarkdownResult> {
+    let conn = open_db()?;
+    if !session_exists(&conn, &session_id)? {
+        return Err(AppError::InvalidOperation(
+            "Second Brain session not found.".to_string(),
+        ));
+    }
+
+    let payload = load_session(&conn, &session_id, read_draft(&session_id)?)?;
+    let root = active_workspace_root()?;
+    let session_dir = root.join(".tomosona").join("second-brain").join("sessions");
+    fs::create_dir_all(&session_dir)?;
+    let out_path = session_dir.join(format!("{session_id}.md"));
+
+    let context_list = payload
+        .context_items
+        .iter()
+        .map(|item| format!("- {}", item.path))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let mut thread = String::new();
+    for msg in &payload.messages {
+        thread.push_str(&format!(
+            "\n### {} ({})\n\n{}\n",
+            if msg.role == "assistant" { "Assistant" } else { "User" },
+            msg.mode,
+            msg.content_md
+        ));
+    }
+
+    let markdown = format!(
+        "---\nsession_id: {}\ntitle: {}\ncreated_at_ms: {}\nupdated_at_ms: {}\ntarget_note_path: {}\n---\n\n## Context\n{}\n\n## Thread{}\n",
+        payload.session_id,
+        payload.title,
+        payload.created_at_ms,
+        payload.updated_at_ms,
+        payload.target_note_path,
+        context_list,
+        thread
+    );
+
+    fs::write(&out_path, markdown)?;
+    Ok(ExportSessionMarkdownResult {
+        path: out_path.to_string_lossy().to_string(),
     })
 }
 

@@ -20,6 +20,7 @@ import EditorRightPane from './components/EditorRightPane.vue'
 import CosmosSidebarPanel from './components/cosmos/CosmosSidebarPanel.vue'
 import CosmosView from './components/cosmos/CosmosView.vue'
 import SecondBrainView from './components/second-brain/SecondBrainView.vue'
+import SecondBrainSessionsView from './components/second-brain/SecondBrainSessionsView.vue'
 import ExplorerTree from './components/explorer/ExplorerTree.vue'
 import UiButton from './components/ui/UiButton.vue'
 import { type DocumentHistoryEntry, useDocumentHistory } from './composables/useDocumentHistory'
@@ -215,6 +216,10 @@ const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const cosmosTabOpen = ref(false)
 const secondBrainTabOpen = ref(false)
+const secondBrainSessionsTabOpen = ref(false)
+const secondBrainSurface = ref<'chat' | 'sessions'>('chat')
+const secondBrainRequestedSessionId = ref('')
+const secondBrainRequestedSessionNonce = ref(0)
 const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
 const wikilinkRewriteQueue: Array<{
@@ -309,6 +314,18 @@ const tabView = computed<TabViewItem[]>(() => {
       draggable: false
     })
   }
+  if (secondBrainSessionsTabOpen.value) {
+    specialTabs.push({
+      path: SECOND_BRAIN_SESSIONS_TAB_PATH,
+      title: 'SB Sessions',
+      pinned: true,
+      dirty: false,
+      saving: false,
+      saveError: '',
+      kind: 'second-brain-sessions',
+      draggable: false
+    })
+  }
 
   return [...fileTabs, ...specialTabs]
 })
@@ -316,7 +333,11 @@ const tabView = computed<TabViewItem[]>(() => {
 const activeFilePath = computed(() => workspace.activeTabPath.value)
 const activeTabPathForView = computed(() => {
   if (workspace.sidebarMode.value === 'cosmos') return COSMOS_TAB_PATH
-  if (workspace.sidebarMode.value === 'second-brain') return SECOND_BRAIN_TAB_PATH
+  if (workspace.sidebarMode.value === 'second-brain') {
+    return secondBrainSurface.value === 'sessions'
+      ? SECOND_BRAIN_SESSIONS_TAB_PATH
+      : SECOND_BRAIN_TAB_PATH
+  }
   return workspace.activeTabPath.value
 })
 const activeStatus = computed(() => editorState.getStatus(activeFilePath.value))
@@ -505,6 +526,7 @@ type PaletteAction = {
 
 const COSMOS_TAB_PATH = '__tomosona_cosmos_view__'
 const SECOND_BRAIN_TAB_PATH = '__tomosona_second_brain_view__'
+const SECOND_BRAIN_SESSIONS_TAB_PATH = '__tomosona_second_brain_sessions_view__'
 
 type TabViewItem = {
   path: string
@@ -513,7 +535,7 @@ type TabViewItem = {
   dirty: boolean
   saving: boolean
   saveError: string
-  kind: 'file' | 'cosmos' | 'second-brain'
+  kind: 'file' | 'cosmos' | 'second-brain' | 'second-brain-sessions'
   draggable: boolean
 }
 
@@ -525,20 +547,21 @@ const paletteActionPriority: Record<string, number> = {
   'open-specific-date': 4,
   'open-cosmos-view': 5,
   'open-second-brain-view': 6,
-  'second-brain-init': 7,
-  'open-note-in-cosmos': 8,
-  'reveal-in-explorer': 9,
-  'show-shortcuts': 10,
-  'create-new-file': 11,
-  'close-other-tabs': 12,
-  'close-all-tabs': 13,
-  'zoom-in': 14,
-  'zoom-out': 15,
-  'zoom-reset': 16,
-  'theme-light': 17,
-  'theme-dark': 18,
-  'theme-system': 19,
-  'close-workspace': 20
+  'open-second-brain-sessions': 7,
+  'second-brain-init': 8,
+  'open-note-in-cosmos': 9,
+  'reveal-in-explorer': 10,
+  'show-shortcuts': 11,
+  'create-new-file': 12,
+  'close-other-tabs': 13,
+  'close-all-tabs': 14,
+  'zoom-in': 15,
+  'zoom-out': 16,
+  'zoom-reset': 17,
+  'theme-light': 18,
+  'theme-dark': 19,
+  'theme-system': 20,
+  'close-workspace': 21
 }
 
 const paletteActions = computed<PaletteAction[]>(() => [
@@ -553,6 +576,12 @@ const paletteActions = computed<PaletteAction[]>(() => [
     id: 'open-second-brain-view',
     label: 'Open Second Brain View',
     run: () => openSecondBrainViewFromPalette(),
+    closeBeforeRun: true
+  },
+  {
+    id: 'open-second-brain-sessions',
+    label: 'Open Second Brain Sessions',
+    run: () => openSecondBrainSessionsFromPalette(),
     closeBeforeRun: true
   },
   {
@@ -1806,6 +1835,7 @@ async function openSecondBrainViewFromPalette() {
   }
 
   secondBrainTabOpen.value = true
+  secondBrainSurface.value = 'chat'
   if (workspace.sidebarMode.value !== 'second-brain') {
     previousNonCosmosMode.value = workspace.sidebarMode.value
     persistPreviousNonCosmosMode()
@@ -1816,6 +1846,37 @@ async function openSecondBrainViewFromPalette() {
     await loadAllFiles()
   }
   return true
+}
+
+async function openSecondBrainSessionsFromPalette() {
+  if (!filesystem.hasWorkspace.value) {
+    filesystem.errorMessage.value = 'Open a workspace first.'
+    return false
+  }
+  secondBrainSessionsTabOpen.value = true
+  secondBrainSurface.value = 'sessions'
+  if (workspace.sidebarMode.value !== 'second-brain') {
+    previousNonCosmosMode.value = workspace.sidebarMode.value
+    persistPreviousNonCosmosMode()
+    workspace.setSidebarMode('second-brain')
+    persistSidebarMode()
+  }
+  return true
+}
+
+function openSecondBrainSessionFromHistory(sessionId: string) {
+  if (!sessionId.trim()) return
+  secondBrainRequestedSessionId.value = sessionId.trim()
+  secondBrainRequestedSessionNonce.value += 1
+  secondBrainTabOpen.value = true
+  secondBrainSessionsTabOpen.value = true
+  secondBrainSurface.value = 'chat'
+  if (workspace.sidebarMode.value !== 'second-brain') {
+    previousNonCosmosMode.value = workspace.sidebarMode.value
+    persistPreviousNonCosmosMode()
+    workspace.setSidebarMode('second-brain')
+    persistSidebarMode()
+  }
 }
 
 function applySecondBrainInitPreset(provider: 'openai' | 'anthropic' | 'custom') {
@@ -1989,6 +2050,7 @@ async function closeWorkspace() {
   cosmos.clearState()
   cosmosTabOpen.value = false
   secondBrainTabOpen.value = false
+  secondBrainSessionsTabOpen.value = false
   filesystem.selectedCount.value = 0
   filesystem.clearWorkspacePath()
   try {
@@ -2534,6 +2596,16 @@ async function onTabClick(tab: TabViewItem) {
     if (workspace.sidebarMode.value !== 'second-brain') {
       setSidebarMode('second-brain')
     }
+    secondBrainSurface.value = 'chat'
+    secondBrainTabOpen.value = true
+    return
+  }
+  if (tab.kind === 'second-brain-sessions') {
+    if (workspace.sidebarMode.value !== 'second-brain') {
+      setSidebarMode('second-brain')
+    }
+    secondBrainSessionsTabOpen.value = true
+    secondBrainSurface.value = 'sessions'
     return
   }
   const opened = await setActiveTabWithAutosave(tab.path)
@@ -2578,7 +2650,24 @@ function closeCosmosTab() {
 function closeSecondBrainTab() {
   if (!secondBrainTabOpen.value) return
   secondBrainTabOpen.value = false
-  if (workspace.sidebarMode.value === 'second-brain') {
+  if (secondBrainSessionsTabOpen.value) {
+    secondBrainSurface.value = 'sessions'
+  }
+  if (workspace.sidebarMode.value === 'second-brain' && !secondBrainSessionsTabOpen.value) {
+    previousNonCosmosMode.value = 'explorer'
+    persistPreviousNonCosmosMode()
+    workspace.setSidebarMode('explorer')
+    persistSidebarMode()
+  }
+}
+
+function closeSecondBrainSessionsTab() {
+  if (!secondBrainSessionsTabOpen.value) return
+  secondBrainSessionsTabOpen.value = false
+  if (secondBrainTabOpen.value) {
+    secondBrainSurface.value = 'chat'
+  }
+  if (workspace.sidebarMode.value === 'second-brain' && !secondBrainTabOpen.value) {
     previousNonCosmosMode.value = 'explorer'
     persistPreviousNonCosmosMode()
     workspace.setSidebarMode('explorer')
@@ -2593,6 +2682,10 @@ function onTabClose(tab: TabViewItem) {
   }
   if (tab.kind === 'second-brain') {
     closeSecondBrainTab()
+    return
+  }
+  if (tab.kind === 'second-brain-sessions') {
+    closeSecondBrainSessionsTab()
     return
   }
   workspace.closeTab(tab.path)
@@ -2670,6 +2763,7 @@ function setSidebarMode(mode: SidebarMode) {
   if (mode === 'second-brain') {
     if (current === 'second-brain') return
     secondBrainTabOpen.value = true
+    secondBrainSurface.value = 'chat'
     previousNonCosmosMode.value = current
     persistPreviousNonCosmosMode()
     workspace.setSidebarMode('second-brain')
@@ -3883,7 +3977,11 @@ function onWindowKeydown(event: KeyboardEvent) {
       return
     }
     if (workspace.sidebarMode.value === 'second-brain') {
-      closeSecondBrainTab()
+      if (secondBrainSurface.value === 'sessions') {
+        closeSecondBrainSessionsTab()
+      } else {
+        closeSecondBrainTab()
+      }
       return
     }
     workspace.closeCurrentTab()
@@ -4325,6 +4423,7 @@ onBeforeUnmount(() => {
                 <span class="tab-name">
                   <ShareIcon v-if="tab.kind === 'cosmos'" class="tab-cosmos-icon" aria-hidden="true" />
                   <CpuChipIcon v-else-if="tab.kind === 'second-brain'" class="tab-cosmos-icon" aria-hidden="true" />
+                  <CommandLineIcon v-else-if="tab.kind === 'second-brain-sessions'" class="tab-cosmos-icon" aria-hidden="true" />
                   <span>{{ tab.title }}</span>
                 </span>
                 <span v-if="tab.saving" class="tab-state" title="Saving">~</span>
@@ -4563,9 +4662,11 @@ onBeforeUnmount(() => {
             />
             <SecondBrainView
               v-if="secondBrainTabOpen"
-              v-show="workspace.sidebarMode.value === 'second-brain'"
+              v-show="workspace.sidebarMode.value === 'second-brain' && secondBrainSurface === 'chat'"
               :workspace-path="filesystem.workingFolderPath.value"
               :all-workspace-files="allWorkspaceFiles"
+              :requested-session-id="secondBrainRequestedSessionId"
+              :requested-session-nonce="secondBrainRequestedSessionNonce"
               :open-file="openFile"
               :save-file="saveFile"
               :rename-file-from-title="renameFileFromTitle"
@@ -4575,6 +4676,11 @@ onBeforeUnmount(() => {
               :save-property-type-schema="savePropertyTypeSchema"
               :open-link-target="openWikilinkTarget"
               @open-note="void openTabWithAutosave($event)"
+            />
+            <SecondBrainSessionsView
+              v-if="secondBrainSessionsTabOpen"
+              v-show="workspace.sidebarMode.value === 'second-brain' && secondBrainSurface === 'sessions'"
+              @open-session="openSecondBrainSessionFromHistory"
             />
             <EditorView
               v-show="workspace.sidebarMode.value !== 'cosmos' && workspace.sidebarMode.value !== 'second-brain'"

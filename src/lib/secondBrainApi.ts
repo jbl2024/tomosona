@@ -1,14 +1,17 @@
 import {
   appendMessageToDraft,
   createSecondBrainSession,
+  publishDraftToExistingNote,
+  publishDraftToNewNote,
   listSecondBrainSessions,
   loadSecondBrainSession,
   listenSecondBrainStream,
-  publishDraftToExistingNote,
-  publishDraftToNewNote,
   readSecondBrainConfigStatus,
   saveSecondBrainDraft,
   sendSecondBrainMessage,
+  setSecondBrainSessionTargetNote,
+  insertSecondBrainAssistantIntoTargetNote,
+  exportSecondBrainSessionMarkdown,
   updateSecondBrainContext,
   type SecondBrainAttachmentMeta,
   type SecondBrainConfigStatus,
@@ -124,6 +127,24 @@ export async function publishSessionDraftToNewNote(payload: {
  */
 export async function publishSessionDraftToExistingNote(sessionId: string, targetPath: string): Promise<void> {
   await publishDraftToExistingNote({ session_id: sessionId, target_path: targetPath })
+}
+
+/** Links a persisted target note to a session. */
+export async function linkSessionTargetNote(sessionId: string, targetPath: string): Promise<string> {
+  const result = await setSecondBrainSessionTargetNote({ session_id: sessionId, target_path: targetPath })
+  return result.target_note_path
+}
+
+/** Appends an assistant message into the linked target note. */
+export async function insertAssistantMessageIntoTarget(sessionId: string, messageId: string): Promise<string> {
+  const result = await insertSecondBrainAssistantIntoTargetNote({ session_id: sessionId, message_id: messageId })
+  return result.target_note_path
+}
+
+/** Exports a session markdown artifact under internal second-brain folder. */
+export async function exportSessionMarkdown(sessionId: string): Promise<string> {
+  const result = await exportSecondBrainSessionMarkdown(sessionId)
+  return result.path
 }
 
 /**

@@ -1017,6 +1017,12 @@ fn init_db() -> Result<()> {
       content_md TEXT NOT NULL DEFAULT '',
       updated_at_ms INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS second_brain_session_targets (
+      session_id TEXT PRIMARY KEY,
+      target_note_path TEXT NOT NULL DEFAULT '',
+      updated_at_ms INTEGER NOT NULL DEFAULT 0
+    );
   "#,
   )?;
 
@@ -2630,6 +2636,9 @@ pub fn run() {
             second_brain::load_second_brain_session,
             second_brain::update_second_brain_context,
             second_brain::send_second_brain_message,
+            second_brain::set_second_brain_session_target_note,
+            second_brain::insert_second_brain_assistant_into_target_note,
+            second_brain::export_second_brain_session_markdown,
             second_brain::save_second_brain_draft,
             second_brain::append_message_to_second_brain_draft,
             second_brain::publish_second_brain_draft_to_new_note,

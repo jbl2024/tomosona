@@ -25,14 +25,18 @@ describe('SecondBrainSessionsList', () => {
                 title: 'Alpha Session',
                 created_at_ms: 1,
                 updated_at_ms: 1,
-                context_count: 1
+                context_count: 1,
+                target_note_path: '',
+                context_paths: []
               },
               {
                 session_id: 's2',
                 title: 'Beta Session',
                 created_at_ms: 1,
                 updated_at_ms: 1,
-                context_count: 1
+                context_count: 1,
+                target_note_path: '',
+                context_paths: []
               }
             ],
             activeSessionId: selected.value,
