@@ -1,15 +1,35 @@
-# tomosona
+# Tomosona
 
-tomosona is a local-first desktop Markdown workspace built with Tauri 2, Vue 3, and Rust.
+**Your local-first second brain — where your notes connect.**
 
-At a high level, it provides:
-- Local folder-based notes and files
-- Markdown editing and navigation
-- Full-text search across your workspace
-- Daily-note and wiki-link workflows
-- Cross-platform desktop packaging through Tauri
+Tomosona is a powerful Markdown workspace built for personal knowledge management. Whether you're building a second brain, keeping a daily journal, or organizing project notes, Tomosona helps your ideas flow and connect.
+
+---
+
+## What can you do with Tomosona?
+
+### Build a connected knowledge network
+Link your notes together with `[[wikilinks]]` — just type `[[` to autocomplete. See every connection in the **Cosmos graph view**, an interactive visualization of your notes and how they relate. Hover, click, and zoom to explore your knowledge from new angles.
+
+### Open today's note instantly
+Press `Cmd/Ctrl + D` and you're there. Daily notes are created only when you write — no empty files cluttering your folder. Navigate between dates effortlessly, building a chronological journal that grows with you.
+
+### Write without friction
+A powerful block-based editor with slash commands (`/`), drag handles, and rich formatting. Code blocks, tables, checklists, Mermaid diagrams, callouts — it's all there. Optimized for large documents too, handling 40K+ characters smoothly.
+
+### Search everywhere, find anything
+Full-text search across your entire workspace. Or switch to **semantic search** and let AI find notes that are conceptually related, even if they don't share the same words. Combine both with hybrid search for the best results.
+
+### Let AI help you think
+Chat with AI about your notes in the **Second Brain** panel. Select relevant notes and ask questions — Tomosona feeds them to your LLM as context. Supports OpenAI, Anthropic Claude, Groq, or local models via Ollama. Streamed responses appear in real-time, and you can save conversations or insert AI output as new notes.
+
+### Your data stays yours
+Plain `.md` files on your disk. No cloud, no account required. SQLite indexes your notes for fast search and graph building, but everything lives locally. Your second brain, your machine, your rules.
+
+---
 
 ## Requirements
+
 - Node.js 20+ (22+ recommended)
 - npm
 - Rust stable toolchain
@@ -18,6 +38,7 @@ At a high level, it provides:
   - Linux: WebKitGTK and related Tauri dependencies
 
 ## Install
+
 ```bash
 npm install
 ```
@@ -51,7 +72,7 @@ npm run tauri:build
 Second Brain reads its LLM settings from a global user file:
 
 - `~/.tomosona/conf.json` (macOS/Linux)
-- `%USERPROFILE%\\.tomosona\\conf.json` (Windows)
+- `%USERPROFILE%\.tomosona\conf.json` (Windows)
 
 Schema:
 
