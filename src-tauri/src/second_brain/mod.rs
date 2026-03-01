@@ -21,11 +21,12 @@ pub mod modes;
 pub mod session_store;
 
 use config::{active_profile, validate_config, ConfigStatus, SecondBrainConfig};
-use draft::{read_draft, write_draft};
+use draft::{delete_draft, read_draft, write_draft};
 use llm::run_llm;
 use modes::resolve_mode_prompt;
 use session_store::{
-    create_session, estimate_tokens, insert_message, list_sessions, load_session, set_target_note_path,
+    create_session, delete_session, estimate_tokens, insert_message, list_sessions, load_session,
+    set_target_note_path,
     update_session_title, upsert_context, ContextItem, MessageRow,
 };
 
@@ -404,6 +405,19 @@ pub fn load_second_brain_session(session_id: String) -> Result<session_store::Se
     let conn = open_db()?;
     let draft_content = read_draft(&session_id)?;
     load_session(&conn, &session_id, draft_content)
+}
+
+#[tauri::command]
+pub fn delete_second_brain_session(session_id: String) -> Result<()> {
+    let conn = open_db()?;
+    if !session_exists(&conn, &session_id)? {
+        return Err(AppError::InvalidOperation(
+            "Second Brain session not found.".to_string(),
+        ));
+    }
+    delete_session(&conn, &session_id)?;
+    delete_draft(&session_id)?;
+    Ok(())
 }
 
 #[tauri::command]

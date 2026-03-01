@@ -1,6 +1,7 @@
 import {
   appendMessageToDraft,
   createSecondBrainSession,
+  deleteSecondBrainSession,
   publishDraftToExistingNote,
   publishDraftToNewNote,
   listSecondBrainSessions,
@@ -57,6 +58,11 @@ export async function createDeliberationSession(payload: {
  */
 export async function loadDeliberationSession(sessionId: string): Promise<SecondBrainSessionPayload> {
   return await loadSecondBrainSession(sessionId)
+}
+
+/** Deletes a persisted second brain session. */
+export async function removeDeliberationSession(sessionId: string): Promise<void> {
+  await deleteSecondBrainSession(sessionId)
 }
 
 /**

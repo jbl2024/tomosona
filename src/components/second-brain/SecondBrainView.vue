@@ -7,6 +7,7 @@ import {
   fetchSecondBrainConfigStatus,
   fetchSecondBrainSessions,
   loadDeliberationSession,
+  removeDeliberationSession,
   replaceSessionContext,
   runDeliberation,
   subscribeSecondBrainStream
@@ -180,6 +181,28 @@ async function onCreateSession() {
   streamByMessage.value = {}
   emit('context-changed', contextPaths.value)
   await refreshSessionsIndex()
+}
+
+async function onDeleteSession(sessionToDelete: string) {
+  if (!sessionToDelete.trim()) return
+  await removeDeliberationSession(sessionToDelete)
+  await refreshSessionsIndex()
+
+  if (sessionId.value !== sessionToDelete) return
+
+  const next = sessionsIndex.value[0]
+  if (next?.session_id) {
+    await loadSession(next.session_id)
+    return
+  }
+
+  sessionId.value = ''
+  sessionTitle.value = 'Second Brain Session'
+  contextPaths.value = []
+  contextTokenEstimate.value = {}
+  messages.value = []
+  streamByMessage.value = {}
+  emit('context-changed', [])
 }
 
 async function initializeSessionOnFirstOpen() {
@@ -437,6 +460,7 @@ watch(
         :loading="loading"
         @select="loadSession"
         @create="onCreateSession"
+        @delete="onDeleteSession"
       />
       </div>
     </aside>
@@ -457,12 +481,12 @@ watch(
   min-height: 0;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  background: rgb(255 255 255 / 90%);
+  background: #f8fafc;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
-.sb-right { padding: 10px 10px 10px 0; }
+.sb-right { padding: 10px; }
 .sb-right-head,
 .sb-center-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .sb-right-head h3,
@@ -581,7 +605,6 @@ watch(
 :global(.ide-root.dark) .sb-col,
 :global(.ide-root.dark) .sb-thread,
 :global(.ide-root.dark) .sb-context-summary,
-:global(.ide-root.dark) .sb-note-item,
 :global(.ide-root.dark) .card,
 :global(.ide-root.dark) .msg,
 :global(.ide-root.dark) .insert,
@@ -590,10 +613,9 @@ watch(
 :global(.ide-root.dark) .sb-textarea,
 :global(.ide-root.dark) .sb-btn {
   border-color: #3e4451;
-  background: #282c34;
+  background: #21252b;
   color: #abb2bf;
 }
-:global(.ide-root.dark) .msg.assistant,
 :global(.ide-root.dark) .msg.assistant { background: #2c313c; }
 :global(.ide-root.dark) .msg.user { background: #21252b; }
 :global(.ide-root.dark) .send-icon-btn:disabled {

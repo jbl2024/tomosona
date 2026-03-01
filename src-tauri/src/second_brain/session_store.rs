@@ -263,6 +263,32 @@ pub fn load_session(
     })
 }
 
+pub fn delete_session(conn: &Connection, session_id: &str) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "DELETE FROM second_brain_context_items WHERE session_id = ?1",
+        params![session_id],
+    )?;
+    tx.execute(
+        "DELETE FROM second_brain_messages WHERE session_id = ?1",
+        params![session_id],
+    )?;
+    tx.execute(
+        "DELETE FROM second_brain_drafts WHERE session_id = ?1",
+        params![session_id],
+    )?;
+    tx.execute(
+        "DELETE FROM second_brain_session_targets WHERE session_id = ?1",
+        params![session_id],
+    )?;
+    tx.execute(
+        "DELETE FROM second_brain_sessions WHERE id = ?1",
+        params![session_id],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

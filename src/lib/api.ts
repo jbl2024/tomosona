@@ -323,6 +323,10 @@ export async function loadSecondBrainSession(sessionId: string): Promise<SecondB
   return await invoke('load_second_brain_session', { sessionId })
 }
 
+export async function deleteSecondBrainSession(sessionId: string): Promise<void> {
+  await invoke('delete_second_brain_session', { sessionId })
+}
+
 export async function updateSecondBrainContext(payload: {
   session_id: string
   context_paths: string[]

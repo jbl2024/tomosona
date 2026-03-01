@@ -37,6 +37,14 @@ pub fn write_draft(session_id: &str, content_md: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn delete_draft(session_id: &str) -> Result<()> {
+    let path = draft_file_path(session_id)?;
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
