@@ -492,6 +492,28 @@ type TabViewItem = {
   draggable: boolean
 }
 
+const paletteActionPriority: Record<string, number> = {
+  'open-file': 0,
+  'open-workspace': 1,
+  'open-today': 2,
+  'open-yesterday': 3,
+  'open-specific-date': 4,
+  'open-cosmos-view': 5,
+  'open-note-in-cosmos': 6,
+  'reveal-in-explorer': 7,
+  'show-shortcuts': 8,
+  'create-new-file': 9,
+  'close-other-tabs': 10,
+  'close-all-tabs': 11,
+  'zoom-in': 12,
+  'zoom-out': 13,
+  'zoom-reset': 14,
+  'theme-light': 15,
+  'theme-dark': 16,
+  'theme-system': 17,
+  'close-workspace': 18
+}
+
 const paletteActions = computed<PaletteAction[]>(() => [
   {
     id: 'open-cosmos-view',
@@ -613,8 +635,29 @@ const quickOpenResults = computed<QuickOpenResult[]>(() => {
 const quickOpenActionResults = computed(() => {
   if (!quickOpenIsActionMode.value) return []
   const q = quickOpenActionQuery.value
-  if (!q) return paletteActions.value
-  return paletteActions.value.filter((item) => item.label.toLowerCase().includes(q))
+  const withRank = paletteActions.value
+    .map((item) => {
+      const label = item.label.toLowerCase()
+      const matchRank = !q
+        ? 0
+        : label === q
+          ? 0
+          : label.startsWith(q)
+            ? 1
+            : label.includes(q)
+              ? 2
+              : 99
+      const priority = paletteActionPriority[item.id] ?? Number.MAX_SAFE_INTEGER
+      return { item, matchRank, priority, label }
+    })
+    .filter((entry) => entry.matchRank < 99)
+    .sort((left, right) =>
+      left.matchRank - right.matchRank ||
+      left.priority - right.priority ||
+      left.label.localeCompare(right.label)
+    )
+
+  return withRank.map((entry) => entry.item)
 })
 
 const quickOpenItemCount = computed(() =>
