@@ -711,7 +711,7 @@ watch(
   text-overflow: ellipsis;
 }
 .card .x { border: 0; background: transparent; font-size: 16px; line-height: 1; color: #64748b; }
-.sb-thread { flex: 1; min-height: 0; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.sb-thread { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .msg { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; }
 .msg.user { background: #f8fafc; }
 .msg.assistant { background: #eff6ff; }
@@ -755,7 +755,7 @@ watch(
 }
 .assistant-markdown :deep(a) { color: #2563eb; text-decoration: underline; }
 .insert { border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 11px; padding: 3px 8px; }
-.sb-input-row { display: flex; flex-direction: column; gap: 6px; }
+.sb-input-row { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
 .sb-composer { position: relative; width: 100%; }
 .composer-action {
   position: absolute;
