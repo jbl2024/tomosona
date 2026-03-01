@@ -824,6 +824,12 @@ function persistPreviousNonCosmosMode() {
   window.sessionStorage.setItem(PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY, previousNonCosmosMode.value)
 }
 
+function resolvedNoteNavigationFallback(): SidebarMode {
+  const current = previousNonCosmosMode.value
+  if (current === 'search' || current === 'explorer') return current
+  return 'explorer'
+}
+
 function toRelativePath(path: string): string {
   const root = filesystem.workingFolderPath.value
   if (!root) return path
@@ -2275,7 +2281,7 @@ async function setActiveTabWithAutosave(path: string, options: NavigateOptions =
 
 function exitCosmosForNoteNavigation() {
   if (workspace.sidebarMode.value !== 'cosmos' && workspace.sidebarMode.value !== 'second-brain') return
-  const fallback = previousNonCosmosMode.value
+  const fallback = resolvedNoteNavigationFallback()
   workspace.setSidebarMode(fallback)
   persistSidebarMode()
 }
@@ -3102,7 +3108,7 @@ async function onCosmosOpenNode(path: string) {
     : path
   const opened = await openTabWithAutosave(targetPath)
   if (!opened) return
-  const fallback = previousNonCosmosMode.value
+  const fallback = resolvedNoteNavigationFallback()
   workspace.setSidebarMode(fallback)
   persistSidebarMode()
   await nextTick()
