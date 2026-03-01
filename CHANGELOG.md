@@ -18,6 +18,43 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.8.0] - 2026-03-01
+
+### Added
+- feat(cosmos): add cosmos tab integration and fix quick-open note activation from cosmos (9ebc8b8)
+- feat(search): add hybrid/semantic/lexical modes with discoverable chips in global and cosmos search (05b26f8)
+- feat(cosmos): migrate graph renderer from 3d-force-graph to force-graph 2d (638c83e)
+- feat(index-ui): redesign index status modal as actionable dashboard (07dab8e)
+- feat(index): precompute and persist semantic edges for full and partial index updates (d21b987)
+- feat(index-modal): add copyable semantic debug commands in index info modal (3eb6e8a)
+- feat(search): add local semantic indexing, hybrid rerank, and cosmos semantic links (edea2cb)
+
+### Changed
+- style(ui): tip -> hint (2a3fb04)
+- style(search): english (8998cdf)
+- refactor(status-bar): remove embeddings status and dead filesystem state (68af4ce)
+- style(index-modal): widen modal and tighten log panel with nowrap timestamps (20c63f2)
+- refactor(index-modal): remove debug command section and use fixed-height scrollable logs (d3fa319)
+- style(cosmos): replace locate text button with icon-only control (ab94b15)
+- chore(logging): reduce semantic edge trace logs to start/done summaries (18a1285)
+- chore(debug): inspect db (6743b59)
+
+### Fixed
+- fix(quick-open): keep active command visible during keyboard navigation (746b5b0)
+- fix(quick-open): keep active command visible during keyboard navigation (1f00dcc)
+- fix(cosmos): prevent auto-refresh on refocus to keep graph viewport stable (3976521)
+- fix(cosmos): close palette reliably and retry node focus after open-in-cosmos (55345f6)
+- fix(cosmos): make node double-click always enable focus mode (0bd73ec)
+- fix(index-debug): make progress/state accurate and simplify status modal (9c2f86a)
+- fix(semantic): recreate sqlite-vec table when embedding dimension changes (2b17257)
+- fix(cosmos): make active-note open resilient to transient reindex/database failures (c1c534c)
+- fix(cosmos): ignore stale graph refresh failures and clear error on latest success (a38f071)
+- fix(ui): prevent confirm modal width override on index status modal (c104109)
+- fix(index): normalize wikilink/note keys with unicode NFC to restore accented backlinks (aa2ec75)
+- fix(cosmos): debounce semantic query search and run fts_search in spawn_blocking (eaf75a5)
+- fix(cosmos): debounce semantic query search and run fts_search in spawn_blocking (7ecbf84)
+- fix(cosmos): add graph refresh retry and sqlite busy timeout to avoid transient load failures (0652a52)
+
 ## [0.7.0] - 2026-03-01
 
 ### Changed
