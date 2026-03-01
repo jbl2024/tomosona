@@ -601,7 +601,7 @@ watch(
             </button>
           </div>
         </div>
-        <div class="actions">
+        <div v-if="loading || sendError" class="actions">
           <span v-if="loading" class="hint">Loading...</span>
           <span v-if="sendError" class="sb-error">{{ sendError }}</span>
         </div>
@@ -790,7 +790,7 @@ watch(
   border-radius: 999px;
   animation: sb-spin 0.75s linear infinite;
 }
-.sb-input-row .actions { display: flex; align-items: center; gap: 10px; min-height: 18px; }
+.sb-input-row .actions { display: flex; align-items: center; gap: 10px; }
 .sb-error { color: #b91c1c; font-size: 12px; }
 .hint { color: #64748b; font-size: 12px; }
 .sb-right-inner { width: 360px; min-width: 0; height: 100%; display: flex; flex-direction: column; }
