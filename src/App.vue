@@ -220,6 +220,12 @@ const secondBrainSessionsTabOpen = ref(false)
 const secondBrainSurface = ref<'chat' | 'sessions'>('chat')
 const secondBrainRequestedSessionId = ref('')
 const secondBrainRequestedSessionNonce = ref(0)
+const secondBrainRequestedTargetPath = ref('')
+const secondBrainRequestedTargetNonce = ref(0)
+const secondBrainRequestedContextTogglePath = ref('')
+const secondBrainRequestedContextToggleNonce = ref(0)
+const secondBrainContextPaths = ref<string[]>([])
+const secondBrainTargetPath = ref('')
 const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
 const wikilinkRewriteQueue: Array<{
@@ -1879,6 +1885,26 @@ function openSecondBrainSessionFromHistory(sessionId: string) {
   }
 }
 
+function onSecondBrainSidebarOpen(path: string) {
+  if (!path.trim()) return
+  secondBrainRequestedTargetPath.value = path
+  secondBrainRequestedTargetNonce.value += 1
+}
+
+function onSecondBrainSidebarToggleContext(path: string) {
+  if (!path.trim()) return
+  secondBrainRequestedContextTogglePath.value = path
+  secondBrainRequestedContextToggleNonce.value += 1
+}
+
+function onSecondBrainContextChanged(paths: string[]) {
+  secondBrainContextPaths.value = [...paths]
+}
+
+function onSecondBrainTargetChanged(path: string) {
+  secondBrainTargetPath.value = path
+}
+
 function applySecondBrainInitPreset(provider: 'openai' | 'anthropic' | 'custom') {
   secondBrainInitProvider.value = provider
   secondBrainInitModalError.value = ''
@@ -2051,6 +2077,12 @@ async function closeWorkspace() {
   cosmosTabOpen.value = false
   secondBrainTabOpen.value = false
   secondBrainSessionsTabOpen.value = false
+  secondBrainRequestedTargetPath.value = ''
+  secondBrainRequestedTargetNonce.value = 0
+  secondBrainRequestedContextTogglePath.value = ''
+  secondBrainRequestedContextToggleNonce.value = 0
+  secondBrainContextPaths.value = []
+  secondBrainTargetPath.value = ''
   filesystem.selectedCount.value = 0
   filesystem.clearWorkspacePath()
   try {
@@ -4393,7 +4425,24 @@ onBeforeUnmount(() => {
             />
           </div>
           <div v-else-if="workspace.sidebarMode.value === 'second-brain'" class="panel-fill">
-            <div class="placeholder">Second Brain est ouvert dans la zone centrale.</div>
+            <ExplorerTree
+              v-if="filesystem.hasWorkspace.value"
+              ref="explorerRef"
+              :folder-path="filesystem.workingFolderPath.value"
+              :active-path="secondBrainTargetPath || activeFilePath"
+              :context-paths="secondBrainContextPaths"
+              row-action-mode="context-toggle"
+              @open="onSecondBrainSidebarOpen"
+              @toggle-context="onSecondBrainSidebarToggleContext"
+              @path-renamed="onExplorerPathRenamed"
+              @request-create="onExplorerRequestCreate"
+              @select="onExplorerSelection"
+              @error="onExplorerError"
+            />
+            <div v-else class="placeholder empty-explorer">
+              <span>No workspace selected.</span>
+              <button type="button" class="inline-link-btn" @click="onSelectWorkingFolder">Open folder</button>
+            </div>
           </div>
 
           <div v-else class="placeholder">No panel selected</div>
@@ -4667,6 +4716,10 @@ onBeforeUnmount(() => {
               :all-workspace-files="allWorkspaceFiles"
               :requested-session-id="secondBrainRequestedSessionId"
               :requested-session-nonce="secondBrainRequestedSessionNonce"
+              :requested-target-path="secondBrainRequestedTargetPath"
+              :requested-target-nonce="secondBrainRequestedTargetNonce"
+              :requested-context-toggle-path="secondBrainRequestedContextTogglePath"
+              :requested-context-toggle-nonce="secondBrainRequestedContextToggleNonce"
               :open-file="openFile"
               :save-file="saveFile"
               :rename-file-from-title="renameFileFromTitle"
@@ -4676,6 +4729,8 @@ onBeforeUnmount(() => {
               :save-property-type-schema="savePropertyTypeSchema"
               :open-link-target="openWikilinkTarget"
               @open-note="void openTabWithAutosave($event)"
+              @context-changed="onSecondBrainContextChanged"
+              @target-changed="onSecondBrainTargetChanged"
             />
             <SecondBrainSessionsView
               v-if="secondBrainSessionsTabOpen"

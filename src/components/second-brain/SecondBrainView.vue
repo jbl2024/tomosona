@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EditorView from '../EditorView.vue'
 import {
   createDeliberationSession,
@@ -9,7 +9,6 @@ import {
   insertAssistantMessageIntoTarget,
   linkSessionTargetNote,
   loadDeliberationSession,
-  parseMessageCitations,
   replaceSessionContext,
   runDeliberation,
   subscribeSecondBrainStream
@@ -22,6 +21,10 @@ const props = defineProps<{
   allWorkspaceFiles: string[]
   requestedSessionId: string
   requestedSessionNonce: number
+  requestedTargetPath: string
+  requestedTargetNonce: number
+  requestedContextTogglePath: string
+  requestedContextToggleNonce: number
   openFile: (path: string) => Promise<string>
   saveFile: (path: string, text: string, options: { explicit: boolean }) => Promise<{ persisted: boolean }>
   renameFileFromTitle: (path: string, title: string) => Promise<{ path: string; title: string }>
@@ -30,10 +33,14 @@ const props = defineProps<{
   loadPropertyTypeSchema: () => Promise<Record<string, string>>
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
+  createTargetNoteFromApp: () => Promise<string>
+  chooseTargetNoteFromApp: () => Promise<string>
 }>()
 
 const emit = defineEmits<{
   'open-note': [path: string]
+  'context-changed': [paths: string[]]
+  'target-changed': [path: string]
 }>()
 
 type EditorViewExposed = {
@@ -53,39 +60,24 @@ const contextTokenEstimate = ref<Record<string, number>>({})
 const selectedModeId = ref('freestyle')
 const inputMessage = ref('')
 const messages = ref<SecondBrainMessage[]>([])
-const citationsByMessage = ref<Record<string, string[]>>({})
 const streamByMessage = ref<Record<string, string>>({})
 const sending = ref(false)
 const sendError = ref('')
 const targetNotePath = ref('')
-const targetPickerVisible = ref(false)
-const targetPickerQuery = ref('')
-const targetNewName = ref('')
-const targetPickerError = ref('')
 const sessionsIndex = ref<SecondBrainSessionSummary[]>([])
 const editorTargetRef = ref<EditorViewExposed | null>(null)
+const rightPanelWidth = ref(420)
+const resizing = ref(false)
+const resizeState = ref<{ startX: number; startWidth: number } | null>(null)
 
-function fuzzySubsequenceMatch(text: string, query: string): boolean {
-  const source = text.toLowerCase()
-  const needle = query.toLowerCase().trim()
-  if (!needle) return true
-  let idx = 0
-  for (let i = 0; i < source.length && idx < needle.length; i += 1) {
-    if (source[i] === needle[idx]) idx += 1
-  }
-  return idx === needle.length
+function toRelativePath(path: string): string {
+  const value = path.replace(/\\/g, '/')
+  const root = props.workspacePath.replace(/\\/g, '/').replace(/\/+$/, '')
+  if (!root) return value
+  if (value === root) return '.'
+  if (value.startsWith(`${root}/`)) return value.slice(root.length + 1)
+  return value
 }
-
-const candidateNotes = computed(() => {
-  const markdown = props.allWorkspaceFiles.filter((path) => /\.(md|markdown)$/i.test(path))
-  const q = targetPickerVisible.value
-    ? targetPickerQuery.value.trim().toLowerCase()
-    : leftSearchQuery.value.trim().toLowerCase()
-  if (!q) return markdown
-  return markdown.filter((path) => fuzzySubsequenceMatch(path, q))
-})
-
-const leftSearchQuery = ref('')
 
 const modeUi = computed(() => {
   const mode = modeById.get(selectedModeId.value)
@@ -114,7 +106,7 @@ const modeUi = computed(() => {
 
 const contextCards = computed(() =>
   contextPaths.value.map((path) => {
-    const normalized = path.replace(/\\/g, '/')
+    const normalized = toRelativePath(path)
     const parts = normalized.split('/')
     const name = parts[parts.length - 1]
     const parent = parts.slice(0, -1).join('/') || '.'
@@ -141,11 +133,13 @@ function toggleContextPath(path: string) {
   } else {
     contextPaths.value = [...contextPaths.value, path]
   }
+  emit('context-changed', contextPaths.value)
   void syncContextWithBackend()
 }
 
 function removeContextPath(path: string) {
   contextPaths.value = contextPaths.value.filter((item) => item !== path)
+  emit('context-changed', contextPaths.value)
   void syncContextWithBackend()
 }
 
@@ -162,20 +156,6 @@ async function syncContextWithBackend() {
   } catch (err) {
     sendError.value = err instanceof Error ? err.message : 'Could not update context.'
   }
-}
-
-function todayIso(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = `${now.getMonth() + 1}`.padStart(2, '0')
-  const d = `${now.getDate()}`.padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function defaultNewTargetPath() {
-  const root = props.workspacePath || ''
-  if (!root) return ''
-  return `${root}/Untitled_${todayIso()}.md`
 }
 
 function asAbsolute(pathRelativeOrAbs: string): string {
@@ -195,6 +175,7 @@ async function ensureSession(seedPath?: string) {
     sessionId.value = created.sessionId
     contextPaths.value = [seed]
     contextTokenEstimate.value = { [seed]: Math.max(1, Math.round((seed.length + 400) / 4)) }
+    emit('context-changed', contextPaths.value)
     await refreshSessionsIndex()
   } finally {
     loading.value = false
@@ -218,17 +199,9 @@ async function loadSession(nextSessionId: string) {
     contextTokenEstimate.value = nextTokens
 
     messages.value = payload.messages
-    const nextCitations: Record<string, string[]> = {}
-    for (const msg of payload.messages) {
-      nextCitations[msg.id] = parseMessageCitations(msg)
-    }
-    citationsByMessage.value = nextCitations
-
     targetNotePath.value = payload.target_note_path ? asAbsolute(payload.target_note_path) : ''
-    if (!targetNotePath.value) {
-      targetNewName.value = defaultNewTargetPath()
-      targetPickerVisible.value = true
-    }
+    emit('context-changed', contextPaths.value)
+    emit('target-changed', targetNotePath.value)
   } catch (err) {
     sendError.value = err instanceof Error ? err.message : 'Could not load session.'
   } finally {
@@ -301,8 +274,7 @@ async function onInsertIntoTarget(message: SecondBrainMessage) {
   if (!sessionId.value) return
   if (message.role !== 'assistant') return
   if (!targetNotePath.value) {
-    targetPickerVisible.value = true
-    targetPickerError.value = 'Choose a target note first.'
+    sendError.value = 'Choose or create a target note first.'
     return
   }
 
@@ -318,33 +290,53 @@ async function linkTargetPath(absolutePath: string) {
   if (!sessionId.value) return
   const linkedRelative = await linkSessionTargetNote(sessionId.value, absolutePath)
   targetNotePath.value = asAbsolute(linkedRelative)
+  emit('target-changed', targetNotePath.value)
 }
 
-async function chooseExistingTarget(path: string) {
+async function onChooseTargetFromApp() {
   try {
-    targetPickerError.value = ''
-    await linkTargetPath(path)
-    targetPickerVisible.value = false
+    sendError.value = ''
+    const selected = await props.chooseTargetNoteFromApp()
+    if (!selected) return
+    await linkTargetPath(selected)
   } catch (err) {
-    targetPickerError.value = err instanceof Error ? err.message : 'Could not set target note.'
+    sendError.value = err instanceof Error ? err.message : 'Could not set target note.'
   }
 }
 
-async function createAndChooseTarget() {
-  const nextPath = targetNewName.value.trim() || defaultNewTargetPath()
-  if (!nextPath) return
+async function onCreateTargetFromApp() {
   try {
-    targetPickerError.value = ''
-    await props.saveFile(nextPath, '# Untitled\n', { explicit: true })
-    await linkTargetPath(nextPath)
-    targetPickerVisible.value = false
+    sendError.value = ''
+    const created = await props.createTargetNoteFromApp()
+    if (!created) return
+    await linkTargetPath(created)
   } catch (err) {
-    targetPickerError.value = err instanceof Error ? err.message : 'Could not create target note.'
+    sendError.value = err instanceof Error ? err.message : 'Could not create target note.'
   }
 }
 
 function openContextNote(path: string) {
   emit('open-note', path)
+}
+
+function beginResize(event: MouseEvent) {
+  event.preventDefault()
+  resizeState.value = {
+    startX: event.clientX,
+    startWidth: rightPanelWidth.value
+  }
+  resizing.value = true
+}
+
+function onPointerMove(event: MouseEvent) {
+  if (!resizeState.value) return
+  const delta = resizeState.value.startX - event.clientX
+  rightPanelWidth.value = Math.max(320, Math.min(760, resizeState.value.startWidth + delta))
+}
+
+function stopResize() {
+  resizing.value = false
+  resizeState.value = null
 }
 
 async function onExportSession() {
@@ -390,6 +382,13 @@ onMounted(async () => {
       [payload.message_id]: payload.chunk
     }
   })
+  window.addEventListener('mousemove', onPointerMove)
+  window.addEventListener('mouseup', stopResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onPointerMove)
+  window.removeEventListener('mouseup', stopResize)
 })
 
 watch(
@@ -400,31 +399,28 @@ watch(
     void loadSession(id)
   }
 )
+
+watch(
+  () => `${props.requestedTargetPath}::${props.requestedTargetNonce}`,
+  (value) => {
+    const [path] = value.split('::')
+    if (!path.trim()) return
+    void linkTargetPath(path)
+  }
+)
+
+watch(
+  () => `${props.requestedContextTogglePath}::${props.requestedContextToggleNonce}`,
+  (value) => {
+    const [path] = value.split('::')
+    if (!path.trim()) return
+    toggleContextPath(path)
+  }
+)
 </script>
 
 <template>
   <div class="sb-layout">
-    <aside class="sb-col sb-left">
-      <header class="sb-left-head">
-        <h3>Pick notes</h3>
-      </header>
-      <input v-model="leftSearchQuery" class="sb-input" type="text" placeholder="Search notes (fuzzy)">
-      <div class="sb-note-list">
-        <button
-          v-for="path in candidateNotes"
-          :key="path"
-          type="button"
-          class="sb-note-item"
-          :class="{ inctx: isInContext(path) }"
-          @click="toggleContextPath(path)"
-        >
-          <span class="dot" :class="{ inctx: isInContext(path) }"></span>
-          <span class="name">{{ path.split('/').pop() }}</span>
-          <span class="parent">{{ path.replace(/\\/g, '/').split('/').slice(0, -1).join('/') || '.' }}</span>
-        </button>
-      </div>
-    </aside>
-
     <section class="sb-col sb-center">
       <header class="sb-center-head">
         <div>
@@ -498,20 +494,28 @@ watch(
         </div>
       </footer>
     </section>
-
+    <div class="sb-splitter" :class="{ active: resizing }" @mousedown="beginResize"></div>
     <aside class="sb-col sb-right">
+      <div class="sb-right-inner" :style="{ width: `${rightPanelWidth}px` }">
       <header class="sb-right-head">
         <h3>Target note</h3>
-        <button type="button" class="sb-btn secondary" @click="targetPickerVisible = true">Change target</button>
+        <div class="sb-target-actions">
+          <button type="button" class="sb-btn secondary" @click="onChooseTargetFromApp">Choose</button>
+          <button type="button" class="sb-btn" @click="onCreateTargetFromApp">New note</button>
+        </div>
       </header>
 
       <div v-if="!targetNotePath" class="target-empty">
         <p>No target note linked.</p>
-        <button type="button" class="sb-btn" @click="targetPickerVisible = true">Choose target note</button>
+        <div class="sb-target-actions">
+          <button type="button" class="sb-btn secondary" @click="onChooseTargetFromApp">Choose</button>
+          <button type="button" class="sb-btn" @click="onCreateTargetFromApp">New note</button>
+        </div>
       </div>
+      <p v-if="targetNotePath" class="sb-target-path">{{ toRelativePath(targetNotePath) }}</p>
 
       <EditorView
-        v-else
+        v-if="targetNotePath"
         ref="editorTargetRef"
         :path="targetNotePath"
         :open-paths="[targetNotePath]"
@@ -524,45 +528,19 @@ watch(
         :save-property-type-schema="props.savePropertyTypeSchema"
         :open-link-target="props.openLinkTarget"
       />
-    </aside>
-
-    <div v-if="targetPickerVisible" class="modal-overlay" @click.self="targetPickerVisible = false">
-      <div class="modal sb-target-modal" role="dialog" aria-modal="true">
-        <h3>Quelle note editez-vous ?</h3>
-        <input v-model="targetPickerQuery" class="sb-input" placeholder="Choose existing note...">
-        <div class="existing-list">
-          <button
-            v-for="path in candidateNotes"
-            :key="`target-${path}`"
-            type="button"
-            class="existing-item"
-            @click="chooseExistingTarget(path)"
-          >
-            {{ path }}
-          </button>
-        </div>
-
-        <p class="create-label">Ou creer une nouvelle note</p>
-        <input v-model="targetNewName" class="sb-input" :placeholder="defaultNewTargetPath()">
-
-        <p v-if="targetPickerError" class="sb-error">{{ targetPickerError }}</p>
-        <div class="modal-actions">
-          <button type="button" class="sb-btn secondary" @click="targetPickerVisible = false">Cancel</button>
-          <button type="button" class="sb-btn" @click="createAndChooseTarget">Create + link</button>
-        </div>
       </div>
-    </div>
+    </aside>
   </div>
 </template>
 
 <style scoped>
 .sb-layout {
   display: grid;
-  grid-template-columns: 300px 1fr 420px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 8px auto;
+  gap: 0;
   min-height: 0;
   height: 100%;
-  padding: 10px;
+  padding: 10px 10px 10px 0;
   background: linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f1f5f9);
 }
 .sb-col {
@@ -574,19 +552,14 @@ watch(
   display: flex;
   flex-direction: column;
 }
-.sb-left,
-.sb-right { padding: 10px; }
-.sb-left-head,
+.sb-right { padding: 10px 10px 10px 0; }
 .sb-right-head,
 .sb-center-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.sb-left-head h3,
 .sb-right-head h3,
 .sb-center-head h2,
 .tone,
-.row,
-.create-label { margin: 0; }
+.row { margin: 0; }
 .tone { font-size: 12px; color: #64748b; }
-.sb-link { border: 0; background: transparent; color: #2563eb; font-size: 12px; }
 .sb-input,
 .sb-textarea,
 .sb-mode,
@@ -601,13 +574,6 @@ watch(
 .sb-textarea { min-height: 92px; padding: 8px; resize: vertical; }
 .sb-btn { height: 32px; padding: 0 10px; }
 .sb-btn.secondary { background: #f8fafc; }
-.sb-note-list { margin-top: 8px; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
-.sb-note-item { display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 6px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; padding: 6px; text-align: left; }
-.sb-note-item .name { font-size: 12px; }
-.sb-note-item .parent { font-size: 11px; color: #64748b; display: block; }
-.dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: #cbd5e1; }
-.dot.inctx { background: #2563eb; }
-.sb-note-item.inctx { border-color: #2563eb; background: #eff6ff; }
 .sb-center { padding: 10px; gap: 8px; }
 .sb-context-summary { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; background: #fff; }
 .sb-context-summary .row { display: flex; justify-content: space-between; font-size: 12px; }
@@ -631,24 +597,41 @@ watch(
 .sb-input-row .actions { grid-column: 1 / span 2; display: flex; align-items: center; gap: 10px; }
 .sb-error { color: #b91c1c; font-size: 12px; }
 .hint { color: #64748b; font-size: 12px; }
+.sb-target-actions { display: flex; align-items: center; gap: 8px; }
+.sb-target-path { margin: 8px 0 6px; color: #64748b; font-size: 12px; }
 .target-empty { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; justify-content: center; height: 100%; color: #64748b; font-size: 12px; }
-.sb-target-modal { width: min(780px, calc(100vw - 30px)); max-height: calc(100vh - 50px); overflow: auto; }
-.existing-list { max-height: 240px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 8px; }
-.existing-item { width: 100%; border: 0; border-bottom: 1px solid #e2e8f0; background: #fff; padding: 8px; text-align: left; font-size: 12px; }
-.existing-item:last-child { border-bottom: 0; }
-.create-label { margin-top: 10px; font-size: 12px; color: #475569; }
-.modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.sb-right-inner { width: 420px; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+.sb-splitter {
+  width: 8px;
+  cursor: col-resize;
+  background: linear-gradient(180deg, transparent, #cbd5e1 30%, #cbd5e1 70%, transparent);
+  border-radius: 999px;
+  margin: 12px 0;
+}
+.sb-splitter.active {
+  background: linear-gradient(180deg, transparent, #2563eb 30%, #2563eb 70%, transparent);
+}
 
 @media (max-width: 1320px) {
   .sb-layout {
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 1fr;
     grid-template-rows: 1fr 340px;
+    gap: 8px;
+    padding: 10px;
   }
-  .sb-right { grid-column: 1 / span 2; }
+  .sb-right {
+    padding: 10px;
+  }
+  .sb-right-inner {
+    width: 100% !important;
+  }
+  .sb-splitter {
+    display: none;
+  }
 }
 
 :global(.ide-root.dark) .sb-layout {
-  background: linear-gradient(140deg, #020617, #0f172a 40%, #082f49);
+  background: linear-gradient(145deg, #1f232b, #20252f 45%, #252b36);
 }
 :global(.ide-root.dark) .sb-col,
 :global(.ide-root.dark) .sb-thread,
@@ -660,21 +643,26 @@ watch(
 :global(.ide-root.dark) .sb-input,
 :global(.ide-root.dark) .sb-textarea,
 :global(.ide-root.dark) .sb-mode,
-:global(.ide-root.dark) .sb-btn,
-:global(.ide-root.dark) .existing-list,
-:global(.ide-root.dark) .existing-item {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
+:global(.ide-root.dark) .sb-btn {
+  border-color: #3e4451;
+  background: #282c34;
+  color: #abb2bf;
 }
 :global(.ide-root.dark) .msg.assistant,
-:global(.ide-root.dark) .sb-note-item.inctx { background: #082f49; }
-:global(.ide-root.dark) .msg.user { background: #111827; }
+:global(.ide-root.dark) .msg.assistant { background: #2c313c; }
+:global(.ide-root.dark) .msg.user { background: #21252b; }
 :global(.ide-root.dark) .tone,
 :global(.ide-root.dark) .card span,
 :global(.ide-root.dark) .sb-v2-hint,
 :global(.ide-root.dark) .hint,
 :global(.ide-root.dark) .target-empty,
-:global(.ide-root.dark) .create-label,
-:global(.ide-root.dark) .sb-note-item .parent { color: #94a3b8; }
+:global(.ide-root.dark) .sb-target-path { color: #94a3b8; }
+:global(.ide-root.dark) .sb-error { color: #e06c75; }
+:global(.ide-root.dark) .fill { background: linear-gradient(90deg, #61afef, #56b6c2); }
+:global(.ide-root.dark) .sb-splitter {
+  background: linear-gradient(180deg, transparent, #3e4451 30%, #3e4451 70%, transparent);
+}
+:global(.ide-root.dark) .sb-splitter.active {
+  background: linear-gradient(180deg, transparent, #61afef 30%, #61afef 70%, transparent);
+}
 </style>

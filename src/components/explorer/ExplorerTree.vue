@@ -32,6 +32,8 @@ import UiButton from '../ui/UiButton.vue'
 const props = defineProps<{
   folderPath: string
   activePath?: string
+  contextPaths?: string[]
+  rowActionMode?: 'menu' | 'context-toggle'
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +42,7 @@ const emit = defineEmits<{
   error: [message: string]
   'path-renamed': [payload: { from: string; to: string }]
   'request-create': [payload: { parentPath: string; entryKind: EntryKind }]
+  'toggle-context': [path: string]
 }>()
 
 type VisibleRow = { kind: 'node'; path: string; depth: number }
@@ -83,6 +86,8 @@ const isMac = navigator.platform.toLowerCase().includes('mac')
 
 const selectionPaths = computed(() => selectionManager.selectedPaths.value)
 const canPaste = computed(() => Boolean(clipboard.value?.paths.length && props.folderPath))
+const rowActionMode = computed(() => props.rowActionMode ?? 'menu')
+const contextPathSet = computed(() => new Set(props.contextPaths ?? []))
 
 const visibleRows = computed<VisibleRow[]>(() => {
   const rows: VisibleRow[] = []
@@ -652,6 +657,11 @@ function onRowAction(payload: { event: MouseEvent; node: TreeNode }) {
   openContextMenu(payload.event, payload.node.path)
 }
 
+function onContextToggle(node: TreeNode) {
+  if (!node.is_markdown) return
+  emit('toggle-context', node.path)
+}
+
 function onNodeContextMenu(payload: { event: MouseEvent; node: TreeNode }) {
   openContextMenu(payload.event, payload.node.path)
 }
@@ -1135,11 +1145,14 @@ onBeforeUnmount(() => {
           :cut-pending="Boolean(clipboard?.mode === 'cut' && clipboard.paths.includes(row.path))"
           :editing="editingPath === row.path"
           :rename-value="editingValue"
+          :show-context-toggle="rowActionMode === 'context-toggle'"
+          :context-active="contextPathSet.has(row.path)"
           @toggle="toggleExpand"
           @click="handleRowClick"
           @doubleclick="handleDoubleClick"
           @contextmenu="onNodeContextMenu"
           @rowaction="onRowAction"
+          @contexttoggle="onContextToggle"
           @rename-update="editingValue = $event"
           @rename-confirm="confirmRename"
           @rename-cancel="cancelRename"
