@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.9.1] - 2026-03-01
+
+### Fixed
+- fix(ci): use ubuntu-24.04 for linux-amd64 release build (7536ea9)
+
 ## [0.9.0] - 2026-03-01
 
 ### Added
