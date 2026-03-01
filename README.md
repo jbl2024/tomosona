@@ -48,9 +48,10 @@ npm run tauri:build
 
 ## Second Brain config (`.tomosona/conf.json`)
 
-Second Brain reads its LLM settings from your workspace file:
+Second Brain reads its LLM settings from a global user file:
 
-- `<workspace>/.tomosona/conf.json`
+- `~/.tomosona/conf.json` (macOS/Linux)
+- `%USERPROFILE%\\.tomosona\\conf.json` (Windows)
 
 Schema:
 

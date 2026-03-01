@@ -2624,6 +2624,7 @@ pub fn run() {
             read_property_type_schema,
             write_property_type_schema,
             second_brain::read_second_brain_config_status,
+            second_brain::write_second_brain_global_config,
             second_brain::list_second_brain_sessions,
             second_brain::create_second_brain_session,
             second_brain::load_second_brain_session,

@@ -4,13 +4,14 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use directories::BaseDirs;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
 use super::{
     active_workspace_root, normalize_workspace_relative_path, now_ms, open_db,
-    reindex_markdown_file_sync, AppError, Result, INTERNAL_DIR_NAME,
+    reindex_markdown_file_sync, AppError, Result,
 };
 
 pub mod config;
@@ -120,8 +121,18 @@ pub struct PublishDraftToExistingNotePayload {
 }
 
 fn conf_path() -> Result<PathBuf> {
-    let root = active_workspace_root()?;
-    Ok(root.join(INTERNAL_DIR_NAME).join("conf.json"))
+    let base_dirs = BaseDirs::new().ok_or_else(|| {
+        AppError::InvalidOperation("Could not resolve user home directory.".to_string())
+    })?;
+    Ok(base_dirs.home_dir().join(".tomosona").join("conf.json"))
+}
+
+fn ensure_conf_parent(path: &Path) -> Result<()> {
+    let Some(parent) = path.parent() else {
+        return Err(AppError::InvalidPath);
+    };
+    fs::create_dir_all(parent)?;
+    Ok(())
 }
 
 fn load_config() -> Result<SecondBrainConfig> {
@@ -139,6 +150,16 @@ fn load_config() -> Result<SecondBrainConfig> {
         AppError::InvalidOperation(format!("Second Brain configuration error: {message}"))
     })?;
     Ok(parsed)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct WriteGlobalConfigPayload {
+    pub content_json: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct WriteGlobalConfigResult {
+    pub path: String,
 }
 
 fn normalize_markdown_path(path: &str) -> Result<String> {
@@ -250,6 +271,27 @@ pub fn read_second_brain_config_status() -> Result<ConfigStatus> {
             error: Some(err.to_string()),
         }),
     }
+}
+
+#[tauri::command]
+pub fn write_second_brain_global_config(
+    payload: WriteGlobalConfigPayload,
+) -> Result<WriteGlobalConfigResult> {
+    let parsed: SecondBrainConfig =
+        serde_json::from_str(payload.content_json.trim()).map_err(|_| {
+            AppError::InvalidOperation("Second Brain configuration is invalid JSON.".to_string())
+        })?;
+    validate_config(&parsed).map_err(|message| {
+        AppError::InvalidOperation(format!("Second Brain configuration error: {message}"))
+    })?;
+
+    let path = conf_path()?;
+    ensure_conf_parent(&path)?;
+    fs::write(&path, format!("{}\n", payload.content_json.trim()))?;
+
+    Ok(WriteGlobalConfigResult {
+        path: path.to_string_lossy().to_string(),
+    })
 }
 
 #[tauri::command]

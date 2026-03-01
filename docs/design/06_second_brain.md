@@ -22,7 +22,7 @@ Second Brain provides a dedicated deliberation view where AI answers are constra
 - Draft file storage in `.tomosona/second-brain/drafts/<session_id>.md` via `draft.rs`.
 
 ## Config schema
-`<workspace>/.tomosona/conf.json`:
+`~/.tomosona/conf.json` (or `%USERPROFILE%\\.tomosona\\conf.json` on Windows):
 - `active_profile`
 - `profiles[]` with:
   - `provider`

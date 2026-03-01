@@ -87,7 +87,11 @@ pub async fn run_llm(
     let request = ChatRequest::new(messages);
     match client.exec_chat(&model, request, None).await {
         Ok(response) => {
-            let text = response.first_text().map(str::trim).unwrap_or("").to_string();
+            let text = response
+                .first_text()
+                .map(str::trim)
+                .unwrap_or("")
+                .to_string();
             let final_text = if text.is_empty() {
                 "(Empty assistant response)".to_string()
             } else {

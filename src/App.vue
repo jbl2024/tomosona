@@ -54,6 +54,7 @@ import {
   listenWorkspaceFsChanged,
   updateWikilinksForRename,
   writePropertyTypeSchema,
+  writeSecondBrainGlobalConfig,
   writeTextFile
 } from './lib/api'
 import { parseSearchSnippet } from './lib/searchSnippets'
@@ -1893,11 +1894,6 @@ function buildSecondBrainConfJson(): string {
 }
 
 async function submitSecondBrainInitModal() {
-  const root = filesystem.workingFolderPath.value
-  if (!root) {
-    secondBrainInitModalError.value = 'Working folder is not set.'
-    return false
-  }
   if (!secondBrainInitApiKey.value.trim()) {
     secondBrainInitModalError.value = 'API key is required.'
     return false
@@ -1916,13 +1912,8 @@ async function submitSecondBrainInitModal() {
   }
 
   try {
-    const internalDir = `${root}/.tomosona`
-    if (!(await pathExists(internalDir))) {
-      await createEntry(root, '.tomosona', 'folder', 'fail')
-    }
-    const confPath = `${internalDir}/conf.json`
-    await writeTextFile(confPath, `${buildSecondBrainConfJson()}\n`)
-    filesystem.notifySuccess('Second Brain config initialized.')
+    const result = await writeSecondBrainGlobalConfig(buildSecondBrainConfJson())
+    filesystem.notifySuccess(`Second Brain config initialized at ${result.path}.`)
     closeSecondBrainInitModal()
     return true
   } catch (err) {
@@ -1932,10 +1923,6 @@ async function submitSecondBrainInitModal() {
 }
 
 async function openSecondBrainInitFromPalette() {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
   await openSecondBrainInitModal()
   return true
 }
@@ -4956,7 +4943,7 @@ onBeforeUnmount(() => {
       >
         <h3 id="second-brain-init-title" class="confirm-title">Second Brain: Init</h3>
         <p id="second-brain-init-description" class="confirm-text">
-          Create <code>.tomosona/conf.json</code> for a provider profile.
+          Create <code>~/.tomosona/conf.json</code> for a provider profile.
         </p>
 
         <label class="modal-field-label" for="second-brain-provider">Provider preset</label>

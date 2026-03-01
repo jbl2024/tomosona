@@ -301,6 +301,10 @@ export async function readSecondBrainConfigStatus(): Promise<SecondBrainConfigSt
   return await invoke('read_second_brain_config_status')
 }
 
+export async function writeSecondBrainGlobalConfig(contentJson: string): Promise<{ path: string }> {
+  return await invoke('write_second_brain_global_config', { payload: { content_json: contentJson } })
+}
+
 export async function listSecondBrainSessions(limit = 80): Promise<SecondBrainSessionSummary[]> {
   return await invoke('list_second_brain_sessions', { limit })
 }
