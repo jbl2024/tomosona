@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.9.2] - 2026-03-02
+
+### Added
+- feat(settings): add unified LLM/embeddings modal with external embedding provider support (896ea5a)
+
+### Changed
+- docs(readme): add marketing copy with feature examples (4e2d52b)
+
 ## [0.9.1] - 2026-03-01
 
 ### Fixed
