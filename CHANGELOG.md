@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.1] - 2026-03-03
+
+### Fixed
+- fix(second-brain): resolve dropdown typing errors and enforce dark theme styling (99f801e)
+
 ## [0.10.0] - 2026-03-03
 
 ### Added
