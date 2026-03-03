@@ -18,6 +18,30 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.0] - 2026-03-03
+
+### Added
+- feat(second-brain): send bounded session history and optional context with markdown-only freestyle prompt (2855262)
+- feat(second-brain): switch to @-based context and dropdown session UX (f26cc80)
+- feat(panes): make cosmos and second-brain pane-native typed surfaces with v2 layout persistence (5879d1f)
+- feat(editor): add multi-pane layout with per-pane tabs, commands, toolbar, and session persistence (545aef6)
+- feat(wikilinks): auto-add alias when inserting deep path wikilinks (5e2c05f)
+
+### Changed
+- refactor(second-brain): switch session controls to gear menu and dedicated plus action (928c9af)
+- style(toolbar): remove active highlight for cosmos and second-brain buttons (a7ea0d1)
+- style(toolbar): use SparklesIcon for second brain action (694cd44)
+- refactor(multi-pane): remove versioned persistence and legacy migration for KISS state hydration (a7a4b92)
+
+### Fixed
+- fix(ui): use toolbar cosmos icon in pane tab bar (ac1e0bc)
+- fix(ui): replace second brain tab dot icon with sparkles heroicon (0d23e3b)
+- fix(second-brain): block new session creation when current session is empty (32abc02)
+- fix(cosmos): prevent tiny zoom on reset view by trimming outliers and clamping minimum zoom (e6501b2)
+- fix(cosmos): restore locate-selected and reset-view actions in pane-native surfaces (b74cae8)
+- fix(style): dark mode opacity (8449580)
+- fix(semantic): sanitize non-finite embeddings before sqlite-vec JSON upsert (66a62ca)
+
 ## [0.9.4] - 2026-03-02
 
 ### Fixed
