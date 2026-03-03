@@ -852,9 +852,6 @@ watch(
   border-color: #3e4451;
 }
 :global(.ide-root.dark) .assistant-markdown :deep(a) { color: #61afef; }
-:global(.ide-root.dark) .send-icon-btn:disabled {
-  opacity: 0.35;
-}
 :global(.ide-root.dark) .card span,
 :global(.ide-root.dark) .hint { color: #94a3b8; }
 :global(.ide-root.dark) .sb-error { color: #e06c75; }
