@@ -4,6 +4,7 @@ import { type Editor } from '@tiptap/vue-3'
 import { TIPTAP_NODE_TYPES } from '../lib/tiptap/types'
 import { WIKILINK_STATE_KEY, getWikilinkPluginState } from '../lib/tiptap/plugins/wikilinkState'
 import { parseWikilinkToken, type WikilinkEditingRange } from '../lib/tiptap/extensions/wikilinkCommands'
+import { buildWikilinkToken } from '../lib/wikilinks'
 
 /**
  * Module: useEditorWikilinkOverlayState
@@ -151,8 +152,8 @@ export function useEditorWikilinkOverlayState(options: UseEditorWikilinkOverlayS
     if (!trimmedTarget) return
     const range = wikilinkEditingRange.value
     const currentToken = editor.state.doc.textBetween(range.from, range.to, '', '')
-    const alias = extractAliasFromDraftToken(currentToken)
-    const token = alias ? `[[${trimmedTarget}|${alias}]]` : `[[${trimmedTarget}]]`
+    const explicitAlias = extractAliasFromDraftToken(currentToken)
+    const token = buildWikilinkToken(trimmedTarget, explicitAlias)
     const tr = editor.state.tr.insertText(token, range.from, range.to)
     const nextPos = placement === 'inside'
       ? range.from + token.length - 2

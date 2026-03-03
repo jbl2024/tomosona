@@ -185,4 +185,82 @@ describe('useEditorWikilinkOverlayState', () => {
     expect(dispatch).toHaveBeenCalled()
     selectionSpy.mockRestore()
   })
+
+  it('auto-adds alias when selecting deep path candidate', () => {
+    const selectionSpy = vi.spyOn(TextSelection, 'create').mockReturnValue({} as any)
+    const { editor, tr } = createEditor()
+    ;(editor.state.doc.textBetween as any).mockReturnValue('[[directory/foo')
+    getWikilinkPluginStateMock.mockReturnValue({
+      open: true,
+      mode: 'editing',
+      editingRange: { from: 20, to: 40 },
+      selectedIndex: 0,
+      candidates: [{ target: 'directory/foo.md', label: 'foo.md', exists: true }]
+    })
+
+    const wikilink = useEditorWikilinkOverlayState({
+      getEditor: () => editor as any,
+      holder: ref(document.createElement('div')),
+      blockMenuOpen: ref(false),
+      isDragMenuOpen: () => false,
+      closeBlockMenu: () => {}
+    })
+
+    wikilink.syncWikilinkUiFromPluginState()
+    wikilink.onWikilinkMenuSelect('directory/foo.md')
+    expect((tr.insertText as any).mock.calls.at(-1)).toEqual(['[[directory/foo.md|foo]]', 20, 40])
+    selectionSpy.mockRestore()
+  })
+
+  it('does not add alias for root-level path candidate', () => {
+    const selectionSpy = vi.spyOn(TextSelection, 'create').mockReturnValue({} as any)
+    const { editor, tr } = createEditor()
+    ;(editor.state.doc.textBetween as any).mockReturnValue('[[foo')
+    getWikilinkPluginStateMock.mockReturnValue({
+      open: true,
+      mode: 'editing',
+      editingRange: { from: 20, to: 40 },
+      selectedIndex: 0,
+      candidates: [{ target: 'foo.md', label: 'foo.md', exists: true }]
+    })
+
+    const wikilink = useEditorWikilinkOverlayState({
+      getEditor: () => editor as any,
+      holder: ref(document.createElement('div')),
+      blockMenuOpen: ref(false),
+      isDragMenuOpen: () => false,
+      closeBlockMenu: () => {}
+    })
+
+    wikilink.syncWikilinkUiFromPluginState()
+    wikilink.onWikilinkMenuSelect('foo.md')
+    expect((tr.insertText as any).mock.calls.at(-1)).toEqual(['[[foo.md]]', 20, 40])
+    selectionSpy.mockRestore()
+  })
+
+  it('auto-adds alias when creating new deep path', () => {
+    const selectionSpy = vi.spyOn(TextSelection, 'create').mockReturnValue({} as any)
+    const { editor, tr } = createEditor()
+    ;(editor.state.doc.textBetween as any).mockReturnValue('[[sub/note')
+    getWikilinkPluginStateMock.mockReturnValue({
+      open: true,
+      mode: 'editing',
+      editingRange: { from: 20, to: 40 },
+      selectedIndex: 0,
+      candidates: [{ target: 'sub/note.md', label: 'Create "sub/note.md"', exists: false, isCreate: true }]
+    })
+
+    const wikilink = useEditorWikilinkOverlayState({
+      getEditor: () => editor as any,
+      holder: ref(document.createElement('div')),
+      blockMenuOpen: ref(false),
+      isDragMenuOpen: () => false,
+      closeBlockMenu: () => {}
+    })
+
+    wikilink.syncWikilinkUiFromPluginState()
+    wikilink.onWikilinkMenuSelect('sub/note.md')
+    expect((tr.insertText as any).mock.calls.at(-1)).toEqual(['[[sub/note.md|note]]', 20, 40])
+    selectionSpy.mockRestore()
+  })
 })

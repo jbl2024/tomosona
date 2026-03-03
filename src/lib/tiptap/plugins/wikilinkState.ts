@@ -7,6 +7,7 @@ import {
   insertWikilinkDraft,
   type WikilinkEditingRange
 } from '../extensions/wikilinkCommands'
+import { buildWikilinkToken } from '../../wikilinks'
 
 export type WikilinkCandidate = {
   target: string
@@ -264,8 +265,8 @@ function applySelectedCandidateToken(
   if (!target) return true
 
   const currentToken = view.state.doc.textBetween(range.from, range.to, '', '')
-  const alias = extractAliasFromDraftToken(currentToken)
-  const token = alias ? `[[${target}|${alias}]]` : `[[${target}]]`
+  const explicitAlias = extractAliasFromDraftToken(currentToken)
+  const token = buildWikilinkToken(target, explicitAlias)
   const tr = view.state.tr.insertText(token, range.from, range.to)
   const nextPos = placement === 'inside'
     ? range.from + token.length - 2
