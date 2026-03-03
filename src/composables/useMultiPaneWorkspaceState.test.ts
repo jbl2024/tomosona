@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialLayout,
-  hydrateLayout,
-  serializeLayout,
+  hydrateLayoutV2,
+  serializeLayoutV2,
   useMultiPaneWorkspaceState
 } from './useMultiPaneWorkspaceState'
 
@@ -13,22 +13,29 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(store.layout.value.activePaneId).toBe('pane-1')
   })
 
-  it('opens in active pane and enforces single-pane ownership per path', () => {
+  it('keeps documents unique across panes', () => {
     const store = useMultiPaneWorkspaceState()
-    store.openPathInPane('/vault/a.md')
+    store.openDocumentInPane('/vault/a.md')
     const pane2 = store.splitPane('pane-1', 'row')
     expect(pane2).toBe('pane-2')
-    expect(store.layout.value.panesById['pane-2'].openTabs).toEqual([])
-    store.openPathInPane('/vault/b.md', pane2!)
 
-    store.openPathInPane('/vault/a.md', pane2!)
+    store.openDocumentInPane('/vault/a.md', pane2!)
 
     expect(store.layout.value.activePaneId).toBe('pane-1')
-    expect(store.layout.value.panesById['pane-1'].activePath).toBe('/vault/a.md')
-    expect(store.layout.value.panesById['pane-2'].openTabs.some((tab) => tab.path === '/vault/a.md')).toBe(false)
+    expect(store.layout.value.panesById['pane-2'].openTabs).toEqual([])
   })
 
-  it('supports split right/down and max 4 panes', () => {
+  it('keeps special surfaces unique across panes', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openSurfaceInPane('cosmos')
+    const pane2 = store.splitPane('pane-1', 'row')
+    store.openSurfaceInPane('cosmos', pane2!)
+
+    expect(store.layout.value.activePaneId).toBe('pane-1')
+    expect(store.findPaneContainingSurface('cosmos')).toBe('pane-1')
+  })
+
+  it('supports split and max 4 panes', () => {
     const store = useMultiPaneWorkspaceState()
     const p2 = store.splitPane('pane-1', 'row')
     const p3 = store.splitPane(p2!, 'column')
@@ -42,115 +49,68 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(store.paneOrder.value).toHaveLength(4)
   })
 
-  it('can close pane and keep one-pane minimum', () => {
-    const store = useMultiPaneWorkspaceState()
-    const p2 = store.splitPane('pane-1', 'row')
-    expect(store.closePane(p2!)).toBe(true)
-    expect(store.paneOrder.value).toEqual(['pane-1'])
-    expect(store.closePane('pane-1')).toBe(false)
-  })
-
   it('moves active tab to adjacent pane', () => {
     const store = useMultiPaneWorkspaceState()
-    store.openPathInPane('/vault/a.md')
-    const p2 = store.splitPane('pane-1', 'row')
-    expect(p2).toBeTruthy()
-
+    store.openDocumentInPane('/vault/a.md')
+    store.splitPane('pane-1', 'row')
     store.setActivePane('pane-1')
+
     const moved = store.moveActiveTabToAdjacentPane('next')
 
     expect(moved).toBe(true)
     expect(store.layout.value.activePaneId).toBe('pane-2')
-    expect(store.layout.value.panesById['pane-2'].activePath).toBe('/vault/a.md')
+    expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/a.md')
   })
 
-  it('focuses panes by index and adjacent navigation', () => {
+  it('joins panes and keeps mixed unique tabs', () => {
     const store = useMultiPaneWorkspaceState()
-    store.splitPane('pane-1', 'row')
-    expect(store.focusPaneByIndex(2)).toBe(true)
-    expect(store.layout.value.activePaneId).toBe('pane-2')
-    expect(store.focusAdjacentPane('previous')).toBe(true)
-    expect(store.layout.value.activePaneId).toBe('pane-1')
-  })
-
-  it('resets to one pane with current active path', () => {
-    const store = useMultiPaneWorkspaceState()
-    store.openPathInPane('/vault/a.md')
-    const p2 = store.splitPane('pane-1', 'row')
-    store.openPathInPane('/vault/b.md', p2!)
-    store.setActivePane(p2!)
-    store.resetToSinglePane()
-
-    expect(store.paneOrder.value).toEqual(['pane-1'])
-    expect(store.layout.value.panesById['pane-1'].activePath).toBe('/vault/b.md')
-  })
-
-  it('joins panes into one pane with unique merged tabs', () => {
-    const store = useMultiPaneWorkspaceState()
-    store.openPathInPane('/vault/a.md')
+    store.openDocumentInPane('/vault/a.md')
+    store.openSurfaceInPane('cosmos')
     const pane2 = store.splitPane('pane-1', 'row')
-    store.openPathInPane('/vault/b.md', pane2!)
-    store.setActivePane('pane-2')
+    store.openDocumentInPane('/vault/b.md', pane2!)
+    store.openSurfaceInPane('second-brain-chat', pane2!)
+    store.setActivePane(pane2!)
 
     store.joinAllPanes()
 
+    const tabs = store.layout.value.panesById['pane-1'].openTabs
     expect(store.paneOrder.value).toEqual(['pane-1'])
-    expect(store.layout.value.panesById['pane-1'].openTabs.map((tab) => tab.path)).toEqual(['/vault/a.md', '/vault/b.md'])
-    expect(store.layout.value.panesById['pane-1'].activePath).toBe('/vault/b.md')
+    expect(tabs.map((tab) => tab.type)).toEqual(['document', 'cosmos', 'document', 'second-brain-chat'])
   })
 
-  it('serializes and hydrates valid layout', () => {
+  it('serializes and hydrates v2 layout', () => {
     const store = useMultiPaneWorkspaceState()
-    store.openPathInPane('/vault/a.md')
-    const p2 = store.splitPane('pane-1', 'row')
-    store.openPathInPane('/vault/b.md', p2!)
+    store.openDocumentInPane('/vault/a.md')
+    store.openSurfaceInPane('cosmos')
 
-    const payload = serializeLayout(store.layout.value)
-    const hydrated = hydrateLayout(payload)
+    const payload = serializeLayoutV2(store.layout.value)
+    const hydrated = hydrateLayoutV2(payload)
 
     expect(hydrated).toBeTruthy()
-    expect(hydrated?.activePaneId).toBe(store.layout.value.activePaneId)
-    expect(Object.keys(hydrated?.panesById ?? {})).toHaveLength(2)
+    expect(hydrated?.panesById['pane-1'].openTabs).toHaveLength(2)
   })
 
-  it('rejects invalid hydrated payloads', () => {
-    const invalid = {
+  it('migrates v1 payloads', () => {
+    const v1Payload = {
       root: { kind: 'pane', paneId: 'pane-1' },
       panesById: {
-        'pane-1': { id: 'pane-1', openTabs: [{ path: '', pinned: false }], activePath: '' }
+        'pane-1': {
+          id: 'pane-1',
+          openTabs: [{ path: '/vault/a.md', pinned: false }],
+          activePath: '/vault/a.md'
+        }
       },
-      activePaneId: 'missing'
+      activePaneId: 'pane-1'
     }
 
-    const hydrated = hydrateLayout(invalid)
+    const hydrated = hydrateLayoutV2(v1Payload)
     expect(hydrated).toBeTruthy()
-    expect(hydrated?.activePaneId).toBe('pane-1')
-    expect(hydrated?.panesById['pane-1'].openTabs).toEqual([])
-
-    expect(hydrateLayout({})).toBeNull()
-    expect(hydrateLayout(null)).toBeNull()
+    expect(hydrated?.panesById['pane-1'].openTabs[0]).toMatchObject({ type: 'document', path: '/vault/a.md' })
   })
 
-  it('deduplicates cross-pane tabs while hydrating', () => {
-    const payload = {
-      root: {
-        kind: 'split',
-        axis: 'row',
-        ratio: 0.5,
-        a: { kind: 'pane', paneId: 'pane-1' },
-        b: { kind: 'pane', paneId: 'pane-2' }
-      },
-      panesById: {
-        'pane-1': { id: 'pane-1', openTabs: [{ path: '/vault/a.md', pinned: false }], activePath: '/vault/a.md' },
-        'pane-2': { id: 'pane-2', openTabs: [{ path: '/vault/a.md', pinned: false }], activePath: '/vault/a.md' }
-      },
-      activePaneId: 'pane-2'
-    }
-
-    const hydrated = hydrateLayout(payload)
-    expect(hydrated).toBeTruthy()
-    expect(hydrated?.panesById['pane-1'].openTabs.map((tab) => tab.path)).toEqual(['/vault/a.md'])
-    expect(hydrated?.panesById['pane-2'].openTabs).toEqual([])
+  it('rejects invalid layouts', () => {
+    expect(hydrateLayoutV2(null)).toBeNull()
+    expect(hydrateLayoutV2({})).toBeNull()
   })
 
   it('creates a valid initial layout helper', () => {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PaneState } from '../../composables/useMultiPaneWorkspaceState'
+import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 
 export type FileEditorStatus = {
   dirty: boolean
@@ -16,18 +16,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'pane-focus': [payload: { paneId: string }]
-  'tab-click': [payload: { paneId: string; path: string }]
-  'tab-close': [payload: { paneId: string; path: string }]
-  'tab-close-others': [payload: { paneId: string; path: string }]
+  'tab-click': [payload: { paneId: string; tabId: string }]
+  'tab-close': [payload: { paneId: string; tabId: string }]
+  'tab-close-others': [payload: { paneId: string; tabId: string }]
   'tab-close-all': [payload: { paneId: string }]
   'request-move-tab': [payload: { paneId: string; direction: 'next' | 'previous' }]
 }>()
 
 const tabs = computed(() => props.pane.openTabs.map((tab) => {
-  const status = props.getStatus(tab.path)
+  const status = tab.type === 'document'
+    ? props.getStatus(tab.path)
+    : { dirty: false, saving: false, saveError: '' }
   return {
     ...tab,
-    title: fileName(tab.path),
+    title: tabTitle(tab),
+    icon: tabIcon(tab),
     dirty: status.dirty,
     saving: status.saving
   }
@@ -38,6 +41,20 @@ function fileName(path: string): string {
   const parts = normalized.split('/')
   return parts[parts.length - 1] || path
 }
+
+function tabTitle(tab: PaneTab): string {
+  if (tab.type === 'document') return fileName(tab.path)
+  if (tab.type === 'cosmos') return 'Cosmos'
+  if (tab.type === 'second-brain-chat') return 'Second Brain'
+  return 'SB Sessions'
+}
+
+function tabIcon(tab: PaneTab): string {
+  if (tab.type === 'cosmos') return '◎'
+  if (tab.type === 'second-brain-chat') return '◉'
+  if (tab.type === 'second-brain-sessions') return '≡'
+  return ''
+}
 </script>
 
 <template>
@@ -45,18 +62,19 @@ function fileName(path: string): string {
     <div class="pane-tabs-scroll">
       <div
         v-for="tab in tabs"
-        :key="tab.path"
+        :key="tab.id"
         role="button"
         tabindex="0"
         class="pane-tab-item"
         :class="{
-          active: pane.activePath === tab.path,
-          'active-pane': pane.activePath === tab.path && isActivePane
+          active: pane.activeTabId === tab.id,
+          'active-pane': pane.activeTabId === tab.id && isActivePane
         }"
-        @click="emit('tab-click', { paneId: pane.id, path: tab.path })"
-        @keydown.enter.prevent="emit('tab-click', { paneId: pane.id, path: tab.path })"
-        @keydown.space.prevent="emit('tab-click', { paneId: pane.id, path: tab.path })"
+        @click="emit('tab-click', { paneId: pane.id, tabId: tab.id })"
+        @keydown.enter.prevent="emit('tab-click', { paneId: pane.id, tabId: tab.id })"
+        @keydown.space.prevent="emit('tab-click', { paneId: pane.id, tabId: tab.id })"
       >
+        <span v-if="tab.icon" class="pane-tab-icon">{{ tab.icon }}</span>
         <span class="pane-tab-name">{{ tab.title }}</span>
         <span v-if="tab.saving" class="pane-tab-state" title="Saving">~</span>
         <span v-else-if="tab.dirty" class="pane-tab-state" title="Unsaved">•</span>
@@ -64,7 +82,7 @@ function fileName(path: string): string {
           type="button"
           class="pane-tab-close"
           aria-label="Close tab"
-          @click.stop="emit('tab-close', { paneId: pane.id, path: tab.path })"
+          @click.stop="emit('tab-close', { paneId: pane.id, tabId: tab.id })"
         >
           x
         </button>
@@ -77,8 +95,8 @@ function fileName(path: string): string {
       <button
         type="button"
         class="pane-tab-action"
-        :disabled="!pane.activePath"
-        @click="emit('tab-close-others', { paneId: pane.id, path: pane.activePath })"
+        :disabled="!pane.activeTabId"
+        @click="emit('tab-close-others', { paneId: pane.id, tabId: pane.activeTabId })"
         title="Close other tabs"
       >
         O
@@ -151,6 +169,11 @@ function fileName(path: string): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+
+.pane-tab-icon {
+  font-size: 0.7rem;
+  opacity: 0.78;
 }
 
 .pane-tab-state {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
-import EditorView from '../EditorView.vue'
 import EditorPaneTabs, { type FileEditorStatus } from './EditorPaneTabs.vue'
-import type { MultiPaneLayout, PaneState } from '../../composables/useMultiPaneWorkspaceState'
+import PaneSurfaceHost from './PaneSurfaceHost.vue'
+import type { MultiPaneLayout, PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { WikilinkAnchor } from '../../lib/wikilinks'
 
 export type EditorPaneGridExposed = {
@@ -23,6 +23,7 @@ type EditorViewExposed = EditorPaneGridExposed
 
 const props = defineProps<{
   layout: MultiPaneLayout
+  activeDocumentPath: string
   getStatus: (path: string) => FileEditorStatus
   openFile: (path: string) => Promise<string>
   saveFile: (path: string, text: string, options: { explicit: boolean }) => Promise<{ persisted: boolean }>
@@ -32,19 +33,66 @@ const props = defineProps<{
   loadPropertyTypeSchema: () => Promise<Record<string, string>>
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
+  cosmos: {
+    graph: any
+    loading: boolean
+    error: string
+    selectedNodeId: string
+    focusMode: boolean
+    focusDepth: number
+    summary: { nodes: number; edges: number }
+    query: string
+    matches: any[]
+    showSemanticEdges: boolean
+    selectedNode: any | null
+    selectedLinkCount: number
+    preview: string
+    previewLoading: boolean
+    previewError: string
+    outgoingNodes: any[]
+    incomingNodes: any[]
+  }
+  secondBrain: {
+    workspacePath: string
+    allWorkspaceFiles: string[]
+    requestedSessionId: string
+    requestedSessionNonce: number
+    requestedContextTogglePath: string
+    requestedContextToggleNonce: number
+    contextPaths: string[]
+  }
 }>()
 
 const emit = defineEmits<{
   'pane-focus': [payload: { paneId: string }]
-  'pane-tab-click': [payload: { paneId: string; path: string }]
-  'pane-tab-close': [payload: { paneId: string; path: string }]
-  'pane-tab-close-others': [payload: { paneId: string; path: string }]
+  'pane-tab-click': [payload: { paneId: string; tabId: string }]
+  'pane-tab-close': [payload: { paneId: string; tabId: string }]
+  'pane-tab-close-others': [payload: { paneId: string; tabId: string }]
   'pane-tab-close-all': [payload: { paneId: string }]
   'pane-request-move-tab': [payload: { paneId: string; direction: 'next' | 'previous' }]
   status: [payload: { path: string; dirty: boolean; saving: boolean; saveError: string }]
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'cosmos-query-update': [value: string]
+  'cosmos-search-enter': []
+  'cosmos-select-match': [nodeId: string]
+  'cosmos-toggle-focus-mode': [value: boolean]
+  'cosmos-toggle-semantic-edges': [value: boolean]
+  'cosmos-expand-neighborhood': []
+  'cosmos-jump-related': [nodeId: string]
+  'cosmos-open-selected': []
+  'cosmos-locate-selected': []
+  'cosmos-reset-view': []
+  'cosmos-select-node': [nodeId: string]
+  'open-note': [path: string]
+  'second-brain-context-changed': [paths: string[]]
+  'second-brain-toggle-context': [path: string]
+  'open-second-brain-session': [sessionId: string]
+  'explorer-error': [message: string]
+  'explorer-path-renamed': [payload: { from: string; to: string }]
+  'explorer-request-create': [payload: { parentPath: string; entryKind: 'file' | 'folder' }]
+  'explorer-select': [paths: string[]]
 }>()
 
 // Keep instance refs out of Vue reactivity to avoid render-feedback loops.
@@ -110,6 +158,17 @@ function paneGridPosition(index: number): { gridColumn: string; gridRow: string 
     gridColumn: colLeft ? '1' : '3',
     gridRow: rowTop ? '1' : '3'
   }
+}
+
+function paneActiveTab(pane: PaneState): PaneTab | null {
+  if (!pane.activeTabId) return null
+  return pane.openTabs.find((tab) => tab.id === pane.activeTabId) ?? null
+}
+
+function paneDocumentPaths(pane: PaneState): string[] {
+  return pane.openTabs
+    .filter((tab): tab is Extract<PaneTab, { type: 'document' }> => tab.type === 'document')
+    .map((tab) => tab.path)
 }
 
 function onResizerPointerDown(axis: 'column' | 'row', event: PointerEvent) {
@@ -253,10 +312,15 @@ onBeforeUnmount(() => {
         @request-move-tab="emit('pane-request-move-tab', $event)"
       />
 
-      <EditorView
+      <PaneSurfaceHost
         :ref="(instance: unknown) => setEditorRef(pane.id, instance)"
-        :path="pane.activePath"
-        :openPaths="pane.openTabs.map((tab) => tab.path)"
+        :pane-id="pane.id"
+        :active-tab="paneActiveTab(pane)"
+        :open-document-paths="paneDocumentPaths(pane)"
+        :active-document-path="activeDocumentPath"
+        :cosmos="cosmos"
+        :second-brain="secondBrain"
+        :get-status="getStatus"
         :openFile="openFile"
         :saveFile="saveFile"
         :renameFileFromTitle="renameFileFromTitle"
@@ -269,6 +333,25 @@ onBeforeUnmount(() => {
         @path-renamed="emit('path-renamed', $event)"
         @outline="emit('outline', $event)"
         @properties="emit('properties', $event)"
+        @cosmos-query-update="emit('cosmos-query-update', $event)"
+        @cosmos-search-enter="emit('cosmos-search-enter')"
+        @cosmos-select-match="emit('cosmos-select-match', $event)"
+        @cosmos-toggle-focus-mode="emit('cosmos-toggle-focus-mode', $event)"
+        @cosmos-toggle-semantic-edges="emit('cosmos-toggle-semantic-edges', $event)"
+        @cosmos-expand-neighborhood="emit('cosmos-expand-neighborhood')"
+        @cosmos-jump-related="emit('cosmos-jump-related', $event)"
+        @cosmos-open-selected="emit('cosmos-open-selected')"
+        @cosmos-locate-selected="emit('cosmos-locate-selected')"
+        @cosmos-reset-view="emit('cosmos-reset-view')"
+        @cosmos-select-node="emit('cosmos-select-node', $event)"
+        @open-note="emit('open-note', $event)"
+        @second-brain-context-changed="emit('second-brain-context-changed', $event)"
+        @second-brain-toggle-context="emit('second-brain-toggle-context', $event)"
+        @open-second-brain-session="emit('open-second-brain-session', $event)"
+        @explorer-error="emit('explorer-error', $event)"
+        @explorer-path-renamed="emit('explorer-path-renamed', $event)"
+        @explorer-request-create="emit('explorer-request-create', $event)"
+        @explorer-select="emit('explorer-select', $event)"
       />
     </section>
 
