@@ -31,7 +31,7 @@ const emit = defineEmits<{
   </div>
 </template>
 
-<style scoped>
+<style>
 .sb-at-menu {
   position: absolute;
   left: 0;
@@ -70,17 +70,17 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-:global(.ide-root.dark) .sb-at-menu {
+.ide-root.dark .sb-at-menu {
   border-color: #334155;
   background: #0f172a;
 }
 
-:global(.ide-root.dark) .sb-at-item {
+.ide-root.dark .sb-at-item {
   color: #e2e8f0;
 }
 
-:global(.ide-root.dark) .sb-at-item.active,
-:global(.ide-root.dark) .sb-at-item:hover {
+.ide-root.dark .sb-at-item.active,
+.ide-root.dark .sb-at-item:hover {
   background: #1e293b;
 }
 </style>

@@ -49,6 +49,29 @@ function onDelete(sessionId: string) {
   emit('delete', sessionId)
 }
 
+function asSessionItem(item: unknown): SessionDropdownItem | null {
+  if (!item || typeof item !== 'object') return null
+  const row = item as Partial<SessionDropdownItem>
+  if (typeof row.sessionId !== 'string') return null
+  if (typeof row.title !== 'string') return null
+  if (typeof row.updatedAtMs !== 'number') return null
+  return row as SessionDropdownItem
+}
+
+function itemSessionId(item: unknown): string {
+  return asSessionItem(item)?.sessionId ?? ''
+}
+
+function itemTitle(item: unknown): string {
+  return asSessionItem(item)?.title ?? 'Session'
+}
+
+function itemUpdatedAtLabel(item: unknown): string {
+  const value = asSessionItem(item)?.updatedAtMs
+  if (typeof value !== 'number') return ''
+  return dateLabel(value)
+}
+
 </script>
 
 <template>
@@ -80,10 +103,10 @@ function onDelete(sessionId: string) {
       </template>
 
       <template #item="{ item }">
-        <div class="sb-session-option" :data-active="item.sessionId === activeSessionId ? 'true' : 'false'">
+        <div class="sb-session-option" :data-active="itemSessionId(item) === activeSessionId ? 'true' : 'false'">
           <div class="meta">
-            <strong>{{ item.title }}</strong>
-            <span>{{ dateLabel(item.updatedAtMs) }}</span>
+            <strong>{{ itemTitle(item) }}</strong>
+            <span>{{ itemUpdatedAtLabel(item) }}</span>
           </div>
           <span
             class="delete"
@@ -91,8 +114,8 @@ function onDelete(sessionId: string) {
             tabindex="0"
             title="Delete session"
             @mousedown.stop
-            @click.stop.prevent="onDelete(item.sessionId)"
-            @keydown.enter.prevent.stop="onDelete(item.sessionId)"
+            @click.stop.prevent="onDelete(itemSessionId(item))"
+            @keydown.enter.prevent.stop="onDelete(itemSessionId(item))"
           >×</span>
         </div>
       </template>
@@ -104,7 +127,7 @@ function onDelete(sessionId: string) {
   </div>
 </template>
 
-<style scoped>
+<style>
 .sb-session-dropdown {
   position: relative;
 }
@@ -169,21 +192,21 @@ function onDelete(sessionId: string) {
   border: 1px solid #fecaca;
 }
 
-:global(.ide-root.dark) .sb-session-gear-btn {
+.ide-root.dark .sb-session-gear-btn {
   border-color: #334155;
   background: #0f172a;
   color: #e2e8f0;
 }
 
-:global(.ide-root.dark) .sb-session-option .meta span {
+.ide-root.dark .sb-session-option .meta span {
   color: #94a3b8;
 }
 
-:global(.ide-root.dark) .sb-session-option[data-active='true'] strong {
+.ide-root.dark .sb-session-option[data-active='true'] strong {
   color: #93c5fd;
 }
 
-:global(.ide-root.dark) .sb-session-option .delete {
+.ide-root.dark .sb-session-option .delete {
   color: #fca5a5;
   background: #3f1d24;
   border-color: #7f1d1d;

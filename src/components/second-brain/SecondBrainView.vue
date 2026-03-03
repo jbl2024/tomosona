@@ -708,7 +708,7 @@ watch(
   </div>
 </template>
 
-<style scoped>
+<style>
 .sb-layout {
   min-height: 0;
   height: 100%;
@@ -818,46 +818,46 @@ watch(
   line-height: 1.5;
 }
 
-.assistant-markdown :deep(p) {
+.assistant-markdown p {
   margin: 0 0 8px;
 }
 
-.assistant-markdown :deep(p:last-child) {
+.assistant-markdown p:last-child {
   margin-bottom: 0;
 }
 
-.assistant-markdown :deep(h1),
-.assistant-markdown :deep(h2),
-.assistant-markdown :deep(h3),
-.assistant-markdown :deep(h4),
-.assistant-markdown :deep(h5),
-.assistant-markdown :deep(h6) {
+.assistant-markdown h1,
+.assistant-markdown h2,
+.assistant-markdown h3,
+.assistant-markdown h4,
+.assistant-markdown h5,
+.assistant-markdown h6 {
   margin: 10px 0 6px;
   line-height: 1.3;
   font-weight: 700;
 }
 
-.assistant-markdown :deep(ul),
-.assistant-markdown :deep(ol) {
+.assistant-markdown ul,
+.assistant-markdown ol {
   margin: 6px 0 8px 18px;
   padding: 0;
 }
 
-.assistant-markdown :deep(blockquote) {
+.assistant-markdown blockquote {
   margin: 6px 0 8px;
   border-left: 3px solid #cbd5e1;
   padding: 2px 0 2px 10px;
   color: #475569;
 }
 
-.assistant-markdown :deep(code) {
+.assistant-markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   background: #e2e8f0;
   border-radius: 4px;
   padding: 1px 4px;
 }
 
-.assistant-markdown :deep(pre) {
+.assistant-markdown pre {
   margin: 8px 0;
   background: #e2e8f0;
   border: 1px solid #cbd5e1;
@@ -866,13 +866,13 @@ watch(
   overflow: auto;
 }
 
-.assistant-markdown :deep(pre code) {
+.assistant-markdown pre code {
   background: transparent;
   padding: 0;
   border-radius: 0;
 }
 
-.assistant-markdown :deep(a) {
+.assistant-markdown a {
   color: #2563eb;
   text-decoration: underline;
 }
@@ -1009,44 +1009,62 @@ watch(
   }
 }
 
-:global(.ide-root.dark) .sb-center,
-:global(.ide-root.dark) .sb-thread,
-:global(.ide-root.dark) .msg,
-:global(.ide-root.dark) .insert,
-:global(.ide-root.dark) .sb-session-create-btn,
-:global(.ide-root.dark) .sb-composer,
-:global(.ide-root.dark) .sb-textarea,
-:global(.ide-root.dark) .send-icon-btn {
+.ide-root.dark .sb-center,
+.ide-root.dark .sb-thread,
+.ide-root.dark .msg,
+.ide-root.dark .insert,
+.ide-root.dark .sb-session-create-btn,
+.ide-root.dark .sb-composer,
+.ide-root.dark .sb-textarea,
+.ide-root.dark .send-icon-btn {
   border-color: #334155;
   background: #0f172a;
   color: #e2e8f0;
 }
 
-:global(.ide-root.dark) .msg.user {
+.ide-root.dark .sb-layout {
+  background: linear-gradient(135deg, #0b1220, #0f172a 45%, #111827);
+}
+
+.ide-root.dark .sb-center {
+  background: #0b1220;
+}
+
+.ide-root.dark .title-wrap h2 {
+  color: #e2e8f0;
+}
+
+.ide-root.dark .msg header strong,
+.ide-root.dark .msg pre,
+.ide-root.dark .assistant-markdown {
+  color: #dbe7ff;
+}
+
+.ide-root.dark .msg.user {
   background: #111827;
 }
 
-:global(.ide-root.dark) .msg.assistant {
+.ide-root.dark .msg.assistant {
   background: #082f49;
 }
 
-:global(.ide-root.dark) .sb-chip {
+.ide-root.dark .sb-chip {
   border-color: #1e3a8a;
   background: #0b1f3a;
 }
 
-:global(.ide-root.dark) .sb-chip-main span,
-:global(.ide-root.dark) .hint {
+.ide-root.dark .sb-chip-main span,
+.ide-root.dark .hint {
   color: #94a3b8;
 }
 
-:global(.ide-root.dark) .assistant-markdown :deep(code),
-:global(.ide-root.dark) .assistant-markdown :deep(pre) {
+.ide-root.dark .assistant-markdown code,
+.ide-root.dark .assistant-markdown pre {
   background: #1e293b;
   border-color: #334155;
 }
 
-:global(.ide-root.dark) .assistant-markdown :deep(blockquote) {
+.ide-root.dark .assistant-markdown blockquote {
   border-left-color: #475569;
   color: #cbd5e1;
 }
