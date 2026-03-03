@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { SparklesIcon } from '@heroicons/vue/24/outline'
+import { ShareIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 
 export type FileEditorStatus = {
@@ -50,7 +50,7 @@ function tabTitle(tab: PaneTab): string {
 }
 
 function tabIcon(tab: PaneTab): string {
-  if (tab.type === 'cosmos') return '◎'
+  if (tab.type === 'cosmos') return ''
   if (tab.type === 'second-brain-chat') return ''
   return ''
 }
@@ -73,7 +73,10 @@ function tabIcon(tab: PaneTab): string {
         @keydown.enter.prevent="emit('tab-click', { paneId: pane.id, tabId: tab.id })"
         @keydown.space.prevent="emit('tab-click', { paneId: pane.id, tabId: tab.id })"
       >
-        <span v-if="tab.type === 'second-brain-chat'" class="pane-tab-icon pane-tab-icon--hero">
+        <span v-if="tab.type === 'cosmos'" class="pane-tab-icon pane-tab-icon--hero">
+          <ShareIcon />
+        </span>
+        <span v-else-if="tab.type === 'second-brain-chat'" class="pane-tab-icon pane-tab-icon--hero">
           <SparklesIcon />
         </span>
         <span v-else-if="tab.icon" class="pane-tab-icon">{{ tab.icon }}</span>
