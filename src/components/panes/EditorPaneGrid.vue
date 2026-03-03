@@ -17,6 +17,8 @@ export type EditorPaneGridExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
+  resetCosmosView: () => void
+  focusCosmosNodeById: (nodeId: string) => boolean
 }
 
 type EditorViewExposed = EditorPaneGridExposed
@@ -265,6 +267,14 @@ function getZoom() {
   return ensureCall((editor) => editor.getZoom(), 1)
 }
 
+function resetCosmosView() {
+  ensureCall((editor) => editor.resetCosmosView(), undefined)
+}
+
+function focusCosmosNodeById(nodeId: string): boolean {
+  return ensureCall((editor) => editor.focusCosmosNodeById(nodeId), false)
+}
+
 defineExpose<EditorPaneGridExposed>({
   saveNow,
   reloadCurrent,
@@ -276,7 +286,9 @@ defineExpose<EditorPaneGridExposed>({
   zoomIn,
   zoomOut,
   resetZoom,
-  getZoom
+  getZoom,
+  resetCosmosView,
+  focusCosmosNodeById
 })
 
 onBeforeUnmount(() => {

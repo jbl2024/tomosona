@@ -40,6 +40,7 @@ const emit = defineEmits<{
 
 const panelWidth = ref(320)
 const dragState = ref<{ startX: number; startWidth: number } | null>(null)
+const cosmosViewRef = ref<{ resetView: () => void; focusNodeById: (nodeId: string) => boolean } | null>(null)
 
 const layoutStyle = computed(() => ({
   gridTemplateColumns: `${panelWidth.value}px 6px minmax(0, 1fr)`
@@ -71,6 +72,20 @@ function onResizeEnd() {
 onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onResizeMove)
   window.removeEventListener('pointerup', onResizeEnd)
+})
+
+function resetView() {
+  cosmosViewRef.value?.resetView()
+}
+
+function focusNodeById(nodeId: string): boolean {
+  if (!nodeId.trim()) return false
+  return cosmosViewRef.value?.focusNodeById(nodeId) ?? false
+}
+
+defineExpose({
+  resetView,
+  focusNodeById
 })
 </script>
 
@@ -109,6 +124,7 @@ onBeforeUnmount(() => {
 
     <div class="cosmos-pane-main">
       <CosmosView
+        ref="cosmosViewRef"
         :graph="graph"
         :loading="loading"
         :error="error"

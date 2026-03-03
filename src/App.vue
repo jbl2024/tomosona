@@ -3036,6 +3036,7 @@ async function onCosmosOpenNode(path: string) {
 function onCosmosResetView() {
   cosmos.selectedNodeId.value = ''
   cosmos.focusMode.value = false
+  editorRef.value?.resetCosmosView()
   recordCosmosHistorySnapshot()
 }
 
@@ -3062,11 +3063,13 @@ function onCosmosSelectNode(nodeId: string) {
 function onCosmosSearchEnter() {
   const nodeId = cosmos.searchEnter()
   if (!nodeId) return
+  editorRef.value?.focusCosmosNodeById(nodeId)
   recordCosmosHistorySnapshot()
 }
 
 function onCosmosMatchClick(nodeId: string) {
   cosmos.focusMatch(nodeId)
+  editorRef.value?.focusCosmosNodeById(nodeId)
   recordCosmosHistorySnapshot()
 }
 
@@ -3077,12 +3080,14 @@ function onCosmosExpandNeighborhood() {
 
 function onCosmosJumpToRelatedNode(nodeId: string) {
   cosmos.jumpToRelated(nodeId)
+  editorRef.value?.focusCosmosNodeById(nodeId)
   recordCosmosHistorySnapshot()
 }
 
 function onCosmosLocateSelectedNode() {
   const selected = cosmos.selectedNode.value
   if (!selected) return
+  editorRef.value?.focusCosmosNodeById(selected.id)
   recordCosmosHistorySnapshot()
 }
 

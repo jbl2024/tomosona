@@ -90,9 +90,12 @@ type EditorSurfaceExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
+  resetCosmosView: () => void
+  focusCosmosNodeById: (nodeId: string) => boolean
 }
 
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
+const cosmosSurfaceRef = ref<{ resetView: () => void; focusNodeById: (nodeId: string) => boolean } | null>(null)
 
 function withEditor<T>(run: (editor: EditorSurfaceExposed) => T, fallback: T): T {
   const editor = editorSurfaceRef.value
@@ -111,7 +114,9 @@ defineExpose<EditorSurfaceExposed>({
   zoomIn: () => withEditor((editor) => editor.zoomIn(), 1),
   zoomOut: () => withEditor((editor) => editor.zoomOut(), 1),
   resetZoom: () => withEditor((editor) => editor.resetZoom(), 1),
-  getZoom: () => withEditor((editor) => editor.getZoom(), 1)
+  getZoom: () => withEditor((editor) => editor.getZoom(), 1),
+  resetCosmosView: () => cosmosSurfaceRef.value?.resetView(),
+  focusCosmosNodeById: (nodeId: string) => cosmosSurfaceRef.value?.focusNodeById(nodeId) ?? false
 })
 </script>
 
@@ -137,6 +142,7 @@ defineExpose<EditorSurfaceExposed>({
 
   <CosmosPaneSurface
     v-else-if="activeTab?.type === 'cosmos'"
+    ref="cosmosSurfaceRef"
     :graph="cosmos.graph"
     :loading="cosmos.loading"
     :error="cosmos.error"
