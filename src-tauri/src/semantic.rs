@@ -305,11 +305,22 @@ pub fn runtime_status() -> SemanticRuntimeStatus {
 
 /// L2-normalizes a vector in-place.
 pub fn normalize_in_place(vector: &mut [f32]) {
+    for value in vector.iter_mut() {
+        if !value.is_finite() {
+            *value = 0.0;
+        }
+    }
+
     let norm_sq: f32 = vector.iter().map(|value| value * value).sum();
-    if norm_sq <= f32::EPSILON {
+    if !norm_sq.is_finite() || norm_sq <= f32::EPSILON {
         return;
     }
+
     let norm = norm_sq.sqrt();
+    if !norm.is_finite() || norm <= f32::EPSILON {
+        return;
+    }
+
     for value in vector.iter_mut() {
         *value /= norm;
     }
@@ -382,7 +393,8 @@ pub fn vector_to_json(vector: &[f32]) -> String {
         if index > 0 {
             out.push(',');
         }
-        out.push_str(&format!("{value:.7}"));
+        let safe_value = if value.is_finite() { *value } else { 0.0 };
+        out.push_str(&format!("{safe_value:.7}"));
     }
     out.push(']');
     out
@@ -469,6 +481,7 @@ pub fn try_delete_note_vector(conn: &Connection, path: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     #[test]
     fn vector_roundtrip_serialization() {
@@ -493,5 +506,38 @@ mod tests {
     #[test]
     fn cosine_similarity_handles_dimension_mismatch() {
         assert!(cosine_similarity(&[1.0, 0.0], &[1.0]).is_none());
+    }
+
+    #[test]
+    fn normalize_in_place_sanitizes_non_finite_values() {
+        let mut vector = vec![3.0f32, f32::NAN, f32::INFINITY, -4.0];
+        normalize_in_place(&mut vector);
+
+        assert!(vector.iter().all(|value| value.is_finite()));
+        let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-5);
+        assert!(vector[1].abs() < 1e-7);
+        assert!(vector[2].abs() < 1e-7);
+    }
+
+    #[test]
+    fn normalize_in_place_handles_all_non_finite_vector() {
+        let mut vector = vec![f32::NAN, f32::INFINITY, f32::NEG_INFINITY];
+        normalize_in_place(&mut vector);
+
+        assert!(vector.iter().all(|value| value.is_finite()));
+        assert!(vector.iter().all(|value| value.abs() < 1e-7));
+    }
+
+    #[test]
+    fn vector_to_json_replaces_non_finite_values() {
+        let payload = vector_to_json(&[0.25, f32::NAN, f32::INFINITY, f32::NEG_INFINITY]);
+        assert_eq!(payload, "[0.2500000,0.0000000,0.0000000,0.0000000]");
+        assert!(!payload.contains("NaN"));
+        assert!(!payload.contains("inf"));
+
+        let parsed: Value = serde_json::from_str(&payload).expect("valid json");
+        let array = parsed.as_array().expect("array");
+        assert_eq!(array.len(), 4);
     }
 }
