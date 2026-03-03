@@ -1,7 +1,7 @@
 # Second Brain v1 Design
 
 ## Goal
-Second Brain provides a dedicated deliberation view where AI answers are constrained to an explicit note context and transformed into reusable graph-linked outputs.
+Second Brain provides a dedicated chat view where AI answers can use explicit note context when present, while still supporting normal assistant behavior without mandatory sources.
 
 ## Frontend architecture
 - Entry point in `App.vue` as a dedicated special tab (`second-brain-chat`).
@@ -27,6 +27,28 @@ Second Brain provides a dedicated deliberation view where AI answers are constra
 - LLM execution bridge in `llm.rs`.
 - Session persistence in SQLite via `session_store.rs`.
 - Draft file storage in `.tomosona/second-brain/drafts/<session_id>.md` via `draft.rs`.
+
+## Prompt construction
+- Runtime prompt is composed from three blocks:
+  - optional `Contexte fourni` (selected notes content),
+  - `Historique recent` (window of last session messages),
+  - `Demande utilisateur` (current message).
+- The model is always asked to answer in markdown.
+- Source citations are not forced by default; they are included only when explicitly requested by the user.
+
+## Context and history budget policy
+- Prompt token budgeting uses the `estimate_tokens` heuristic.
+- Defaults:
+  - total prompt budget: `10000` tokens,
+  - history cap: `3000` tokens,
+  - context cap: `6500` tokens,
+  - max per context file: `1200` tokens,
+  - history window: last `12` messages.
+- Context selection priority:
+  - files mentioned in current message via `@relative/path.md`,
+  - then remaining session context in stored order.
+- If a file exceeds budget, content is truncated using a visible marker: `[CONTENU TRONQUE]`.
+- If context is empty or excluded by budget, the request still proceeds (no blocking error).
 
 ## Config schema
 `~/.tomosona/conf.json` (or `%USERPROFILE%\\.tomosona\\conf.json` on Windows):

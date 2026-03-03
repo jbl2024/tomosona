@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -29,6 +30,13 @@ use session_store::{
 };
 
 const SESSION_PREFIX: &str = "sb";
+const SB_HISTORY_WINDOW: usize = 12;
+const SB_PROMPT_BUDGET_TOKENS: usize = 10_000;
+const SB_HISTORY_BUDGET_TOKENS: usize = 3_000;
+const SB_CONTEXT_BUDGET_TOKENS: usize = 6_500;
+const SB_MAX_FILE_TOKENS: usize = 1_200;
+const SB_PROMPT_OVERHEAD_TOKENS: usize = 500;
+const TRUNCATION_MARKER: &str = "\n[CONTENU TRONQUE]\n";
 
 static ID_SEQ: AtomicU64 = AtomicU64::new(1);
 
@@ -231,15 +239,201 @@ fn load_context_items(paths: &[String]) -> Result<Vec<ContextItem>> {
     Ok(out)
 }
 
-fn build_context_prompt(session_id: &str, context_items: &[ContextItem]) -> Result<String> {
-    let root = active_workspace_root()?;
-    let mut out = String::new();
-    out.push_str(&format!("Session: {session_id}\n\nContexte fourni:\n"));
-    for item in context_items {
-        let content = fs::read_to_string(root.join(&item.path))?;
-        out.push_str(&format!("\n--- SOURCE: {} ---\n{}\n", item.path, content));
+#[derive(Debug, Clone)]
+struct ContextPromptEntry {
+    path: String,
+    content: String,
+}
+
+#[derive(Debug, Clone)]
+struct BuiltPrompt {
+    user_prompt: String,
+    included_context_paths: Vec<String>,
+}
+
+fn normalize_mention_candidate(raw: &str) -> Option<String> {
+    let trimmed = raw.trim_matches(|ch: char| {
+        matches!(
+            ch,
+            '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '"' | '\'' | '`' | ',' | '.' | ';'
+                | ':' | '!' | '?'
+        )
+    });
+    if !trimmed.starts_with('@') {
+        return None;
     }
-    Ok(out)
+    let path = trimmed[1..].trim();
+    if path.is_empty() {
+        return None;
+    }
+    let normalized = path.trim_start_matches("./").replace('\\', "/");
+    let lower = normalized.to_lowercase();
+    if lower.ends_with(".md") || lower.ends_with(".markdown") {
+        Some(normalized)
+    } else {
+        None
+    }
+}
+
+fn extract_mentioned_markdown_paths(message: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for token in message.split_whitespace() {
+        if let Some(path) = normalize_mention_candidate(token) {
+            let key = path.to_lowercase();
+            if seen.insert(key) {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+fn prioritize_context_items(context_items: &[ContextItem], mentions: &[String]) -> Vec<ContextItem> {
+    let mention_set: HashSet<String> = mentions.iter().map(|item| item.to_lowercase()).collect();
+    let mut prioritized = Vec::with_capacity(context_items.len());
+    for item in context_items {
+        if mention_set.contains(&item.path.to_lowercase()) {
+            prioritized.push(item.clone());
+        }
+    }
+    for item in context_items {
+        if !mention_set.contains(&item.path.to_lowercase()) {
+            prioritized.push(item.clone());
+        }
+    }
+    prioritized
+}
+
+fn truncate_text_for_tokens(text: &str, max_tokens: usize) -> String {
+    if max_tokens == 0 {
+        return String::new();
+    }
+    if estimate_tokens(text) <= max_tokens {
+        return text.to_string();
+    }
+
+    let max_chars = max_tokens.saturating_mul(4);
+    let marker_len = TRUNCATION_MARKER.chars().count();
+    if max_chars <= marker_len + 32 {
+        return TRUNCATION_MARKER.trim().to_string();
+    }
+
+    let keep_each = (max_chars - marker_len) / 2;
+    let start: String = text.chars().take(keep_each).collect();
+    let end_vec: Vec<char> = text.chars().rev().take(keep_each).collect();
+    let end: String = end_vec.into_iter().rev().collect();
+    format!("{start}{TRUNCATION_MARKER}{end}")
+}
+
+fn build_history_section(
+    history_messages: &[MessageRow],
+    history_budget_tokens: usize,
+    max_messages: usize,
+) -> String {
+    let mut selected: Vec<String> = Vec::new();
+    let mut consumed = 0usize;
+    for item in history_messages.iter().rev() {
+        if selected.len() >= max_messages {
+            break;
+        }
+        let entry = format!("[{}]\n{}\n", item.role, item.content_md.trim());
+        let entry_tokens = estimate_tokens(&entry);
+        let remaining = history_budget_tokens.saturating_sub(consumed);
+        if entry_tokens <= remaining {
+            selected.push(entry);
+            consumed = consumed.saturating_add(entry_tokens);
+            continue;
+        }
+        if selected.is_empty() && remaining >= 32 {
+            selected.push(truncate_text_for_tokens(&entry, remaining));
+        }
+        break;
+    }
+    selected.reverse();
+    selected.join("\n")
+}
+
+fn build_context_section(
+    session_id: &str,
+    context_entries: &[ContextPromptEntry],
+    context_budget_tokens: usize,
+) -> (String, Vec<String>) {
+    if context_entries.is_empty() || context_budget_tokens == 0 {
+        return (String::new(), Vec::new());
+    }
+
+    let mut section = format!("Session: {session_id}\n\nContexte fourni:\n");
+    let mut consumed = estimate_tokens(&section);
+    let mut included_paths = Vec::new();
+    for entry in context_entries {
+        let remaining = context_budget_tokens.saturating_sub(consumed);
+        if remaining < 64 {
+            break;
+        }
+        let header = format!("\n--- SOURCE: {} ---\n", entry.path);
+        let header_tokens = estimate_tokens(&header);
+        if header_tokens >= remaining {
+            break;
+        }
+        let content_budget = remaining
+            .saturating_sub(header_tokens)
+            .min(SB_MAX_FILE_TOKENS);
+        if content_budget < 32 {
+            break;
+        }
+        let content = truncate_text_for_tokens(&entry.content, content_budget);
+        section.push_str(&header);
+        section.push_str(&content);
+        section.push('\n');
+        consumed = consumed.saturating_add(estimate_tokens(&header) + estimate_tokens(&content));
+        included_paths.push(entry.path.clone());
+    }
+
+    if included_paths.is_empty() {
+        (String::new(), Vec::new())
+    } else {
+        (section, included_paths)
+    }
+}
+
+fn build_user_prompt(
+    session_id: &str,
+    message: &str,
+    history_messages: &[MessageRow],
+    context_entries: &[ContextPromptEntry],
+) -> BuiltPrompt {
+    let user_tokens = estimate_tokens(message);
+    let available_budget = SB_PROMPT_BUDGET_TOKENS
+        .saturating_sub(SB_PROMPT_OVERHEAD_TOKENS)
+        .saturating_sub(user_tokens);
+    let history_budget = available_budget.min(SB_HISTORY_BUDGET_TOKENS);
+    let context_budget = available_budget
+        .saturating_sub(history_budget)
+        .min(SB_CONTEXT_BUDGET_TOKENS);
+
+    let (context_section, included_context_paths) =
+        build_context_section(session_id, context_entries, context_budget);
+    let history_section = build_history_section(history_messages, history_budget, SB_HISTORY_WINDOW);
+
+    let mut prompt = String::new();
+    if !context_section.is_empty() {
+        prompt.push_str(&context_section);
+        prompt.push_str("\n\n");
+    }
+    if !history_section.is_empty() {
+        prompt.push_str("Historique recent:\n");
+        prompt.push_str(&history_section);
+        prompt.push_str("\n\n");
+    }
+    prompt.push_str("Demande utilisateur:\n");
+    prompt.push_str(message.trim());
+    prompt.push_str("\n\nReponds en markdown.");
+
+    BuiltPrompt {
+        user_prompt: prompt,
+        included_context_paths,
+    }
 }
 
 fn read_session_context(conn: &rusqlite::Connection, session_id: &str) -> Result<Vec<ContextItem>> {
@@ -258,6 +452,31 @@ fn read_session_context(conn: &rusqlite::Connection, session_id: &str) -> Result
         items.push(row?);
     }
     Ok(items)
+}
+
+fn read_session_messages(conn: &rusqlite::Connection, session_id: &str) -> Result<Vec<MessageRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, role, mode, content_md, citations_json, attachments_json, created_at_ms
+         FROM second_brain_messages
+         WHERE session_id = ?1
+         ORDER BY created_at_ms ASC",
+    )?;
+    let rows = stmt.query_map(params![session_id], |row| {
+        Ok(MessageRow {
+            id: row.get::<_, String>(0)?,
+            role: row.get::<_, String>(1)?,
+            mode: row.get::<_, String>(2)?,
+            content_md: row.get::<_, String>(3)?,
+            citations_json: row.get::<_, String>(4)?,
+            attachments_json: row.get::<_, String>(5)?,
+            created_at_ms: row.get::<_, i64>(6)? as u64,
+        })
+    })?;
+    let mut messages = Vec::new();
+    for row in rows {
+        messages.push(row?);
+    }
+    Ok(messages)
 }
 
 fn session_exists(conn: &rusqlite::Connection, session_id: &str) -> Result<bool> {
@@ -471,19 +690,30 @@ pub async fn send_second_brain_message(
     }
 
     let context_items = read_session_context(&conn, &payload.session_id)?;
-    if context_items.is_empty() {
-        return Err(AppError::InvalidOperation(
-            "Second Brain context is empty. Add at least one note.".to_string(),
-        ));
+    let mentions = extract_mentioned_markdown_paths(&payload.message);
+    let prioritized_context = prioritize_context_items(&context_items, &mentions);
+    let root = active_workspace_root()?;
+    let mut context_entries = Vec::new();
+    for item in prioritized_context {
+        let content = fs::read_to_string(root.join(&item.path))?;
+        context_entries.push(ContextPromptEntry {
+            path: item.path,
+            content,
+        });
     }
+    let history_messages = read_session_messages(&conn, &payload.session_id)?
+        .into_iter()
+        .filter(|item| item.id != user_message_id)
+        .collect::<Vec<_>>();
 
     let mode_prompt = resolve_mode_prompt(&payload.mode);
-    let context_prompt = build_context_prompt(&payload.session_id, &context_items)?;
-
-    let user_prompt = format!(
-        "{context_prompt}\n\nInstruction utilisateur:\n{}\n\nReponse attendue en markdown avec citations de sources.",
-        payload.message
+    let built_prompt = build_user_prompt(
+        &payload.session_id,
+        &payload.message,
+        &history_messages,
+        &context_entries,
     );
+    let user_prompt = built_prompt.user_prompt.clone();
 
     let _ = app.emit(
         "second-brain://assistant-start",
@@ -547,11 +777,7 @@ pub async fn send_second_brain_message(
         );
     }
 
-    let citations: Vec<String> = context_items
-        .iter()
-        .map(|item| item.path.clone())
-        .take(12)
-        .collect();
+    let citations: Vec<String> = built_prompt.included_context_paths.into_iter().take(12).collect();
 
     let assistant_message = MessageRow {
         id: assistant_message_id.clone(),
@@ -893,6 +1119,18 @@ fn chrono_like_today() -> String {
 mod tests {
     use super::*;
 
+    fn message(id: &str, role: &str, content: &str) -> MessageRow {
+        MessageRow {
+            id: id.to_string(),
+            role: role.to_string(),
+            mode: "freestyle".to_string(),
+            content_md: content.to_string(),
+            citations_json: "[]".to_string(),
+            attachments_json: "[]".to_string(),
+            created_at_ms: 0,
+        }
+    }
+
     #[test]
     fn sanitizes_filename_and_adds_md() {
         assert_eq!(sanitize_file_name("hello"), "hello.md");
@@ -905,5 +1143,87 @@ mod tests {
         assert_eq!(v.len(), 10);
         assert_eq!(&v[4..5], "-");
         assert_eq!(&v[7..8], "-");
+    }
+
+    #[test]
+    fn extracts_markdown_mentions_and_deduplicates() {
+        let mentions = extract_mentioned_markdown_paths(
+            "Use @foo/bar.md and @foo/bar.md plus (@journal/2026-03-03.markdown).",
+        );
+        assert_eq!(
+            mentions,
+            vec!["foo/bar.md".to_string(), "journal/2026-03-03.markdown".to_string()]
+        );
+    }
+
+    #[test]
+    fn prioritizes_mentioned_context_items_first() {
+        let items = vec![
+            ContextItem {
+                path: "notes/a.md".to_string(),
+                token_estimate: 10,
+            },
+            ContextItem {
+                path: "notes/b.md".to_string(),
+                token_estimate: 10,
+            },
+            ContextItem {
+                path: "notes/c.md".to_string(),
+                token_estimate: 10,
+            },
+        ];
+        let mentions = vec!["notes/c.md".to_string()];
+        let ordered = prioritize_context_items(&items, &mentions);
+        assert_eq!(ordered[0].path, "notes/c.md");
+        assert_eq!(ordered[1].path, "notes/a.md");
+        assert_eq!(ordered[2].path, "notes/b.md");
+    }
+
+    #[test]
+    fn truncates_text_with_marker_when_budget_is_small() {
+        let long_text = "x".repeat(20_000);
+        let truncated = truncate_text_for_tokens(&long_text, 50);
+        assert!(truncated.contains("[CONTENU TRONQUE]"));
+        assert!(estimate_tokens(&truncated) <= 70);
+    }
+
+    #[test]
+    fn history_section_keeps_recent_window() {
+        let history = (0..20)
+            .map(|idx| message(&format!("m{idx}"), "user", &format!("msg-{idx}")))
+            .collect::<Vec<_>>();
+        let section = build_history_section(&history, 10_000, 12);
+        assert!(!section.contains("msg-0"));
+        assert!(section.contains("msg-19"));
+        assert!(section.contains("msg-8"));
+    }
+
+    #[test]
+    fn user_prompt_without_context_is_valid() {
+        let history = vec![message("m1", "assistant", "old answer")];
+        let built = build_user_prompt("s1", "nouvelle demande", &history, &[]);
+        assert!(built.user_prompt.contains("Historique recent"));
+        assert!(built.user_prompt.contains("Demande utilisateur"));
+        assert!(built.user_prompt.contains("Reponds en markdown."));
+        assert!(built.included_context_paths.is_empty());
+    }
+
+    #[test]
+    fn user_prompt_includes_only_context_that_fits_budget() {
+        let history = vec![message("m1", "assistant", "ok")];
+        let contexts = vec![
+            ContextPromptEntry {
+                path: "a.md".to_string(),
+                content: "a".repeat(8_000),
+            },
+            ContextPromptEntry {
+                path: "b.md".to_string(),
+                content: "b".repeat(8_000),
+            },
+        ];
+        let built = build_user_prompt("s1", "question", &history, &contexts);
+        assert!(built.user_prompt.contains("--- SOURCE: a.md ---"));
+        assert!(built.user_prompt.contains("[CONTENU TRONQUE]"));
+        assert!(!built.included_context_paths.is_empty());
     }
 }

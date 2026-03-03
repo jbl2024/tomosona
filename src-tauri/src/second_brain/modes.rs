@@ -24,7 +24,7 @@ pub fn default_mode_specs() -> Vec<ModeSpec> {
             id: "freestyle".to_string(),
             label: "Freestyle".to_string(),
             kind: ModeKind::PromptTemplate,
-            prompt_template: "Tu es un assistant de deliberation. Reponds uniquement a partir du contexte fourni. Cite explicitement tes sources de contexte."
+            prompt_template: "Tu es un assistant polyvalent. Execute la demande utilisateur avec precision. Utilise le contexte fourni s'il existe et signale clairement les incertitudes lorsqu'il manque des informations. Reponds en markdown. Ne cite des sources que si l'utilisateur le demande explicitement."
                 .to_string(),
             agent_id: None,
             skill_ref: None,
@@ -84,7 +84,7 @@ pub fn resolve_mode_prompt(mode: &str) -> String {
         .find(|item| item.id == mode_trimmed)
         .map(|item| item.prompt_template)
         .unwrap_or_else(|| {
-            "Tu es un assistant de deliberation. Reponds uniquement a partir du contexte fourni. Cite explicitement tes sources."
+            "Tu es un assistant polyvalent. Execute la demande utilisateur avec precision. Utilise le contexte fourni s'il existe et signale clairement les incertitudes lorsqu'il manque des informations. Reponds en markdown. Ne cite des sources que si l'utilisateur le demande explicitement."
                 .to_string()
         })
 }
@@ -103,5 +103,13 @@ mod tests {
     fn has_freestyle_mode() {
         let modes = default_mode_specs();
         assert!(modes.iter().any(|item| item.id == "freestyle"));
+    }
+
+    #[test]
+    fn freestyle_prompt_is_markdown_without_forced_citations() {
+        let prompt = resolve_mode_prompt("freestyle");
+        assert!(prompt.contains("Reponds en markdown"));
+        assert!(prompt.contains("Ne cite des sources que si l'utilisateur le demande"));
+        assert!(!prompt.contains("assistant de deliberation"));
     }
 }
