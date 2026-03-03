@@ -68,8 +68,8 @@ import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
 import {
   createInitialLayout,
-  hydrateLayoutV2,
-  serializeLayoutV2,
+  hydrateLayout,
+  serializeLayout,
   useMultiPaneWorkspaceState
 } from './composables/useMultiPaneWorkspaceState'
 
@@ -140,8 +140,7 @@ type IndexActivityRow = {
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
 const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
-const MULTI_PANE_STORAGE_KEY = 'tomosona:editor:multi-pane:v2'
-const MULTI_PANE_STORAGE_KEY_V1 = 'tomosona:editor:multi-pane:v1'
+const MULTI_PANE_STORAGE_KEY = 'tomosona:editor:multi-pane'
 const VIEW_MODE_STORAGE_KEY = 'tomosona:view:active'
 const PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY = 'tomosona:view:last-non-cosmos'
 
@@ -222,10 +221,9 @@ const secondBrainRequestedContextToggleNonce = ref(0)
 const secondBrainContextPaths = ref<string[]>([])
 const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
-const hydratedMultiPane = hydrateLayoutV2(
+const hydratedMultiPane = hydrateLayout(
   (() => {
     const raw = window.sessionStorage.getItem(MULTI_PANE_STORAGE_KEY)
-      ?? window.sessionStorage.getItem(MULTI_PANE_STORAGE_KEY_V1)
     if (!raw) return null
     try {
       return JSON.parse(raw)
@@ -4178,7 +4176,7 @@ watch(
 watch(
   () => multiPane.layout.value,
   (layout) => {
-    window.sessionStorage.setItem(MULTI_PANE_STORAGE_KEY, JSON.stringify(serializeLayoutV2(layout)))
+    window.sessionStorage.setItem(MULTI_PANE_STORAGE_KEY, JSON.stringify(serializeLayout(layout)))
   },
   { deep: true }
 )

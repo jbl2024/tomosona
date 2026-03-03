@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialLayout,
-  hydrateLayoutV2,
-  serializeLayoutV2,
+  hydrateLayout,
+  serializeLayout,
   useMultiPaneWorkspaceState
 } from './useMultiPaneWorkspaceState'
 
@@ -78,39 +78,21 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(tabs.map((tab) => tab.type)).toEqual(['document', 'cosmos', 'document', 'second-brain-chat'])
   })
 
-  it('serializes and hydrates v2 layout', () => {
+  it('serializes and hydrates current layout', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')
     store.openSurfaceInPane('cosmos')
 
-    const payload = serializeLayoutV2(store.layout.value)
-    const hydrated = hydrateLayoutV2(payload)
+    const payload = serializeLayout(store.layout.value)
+    const hydrated = hydrateLayout(payload)
 
     expect(hydrated).toBeTruthy()
     expect(hydrated?.panesById['pane-1'].openTabs).toHaveLength(2)
   })
 
-  it('migrates v1 payloads', () => {
-    const v1Payload = {
-      root: { kind: 'pane', paneId: 'pane-1' },
-      panesById: {
-        'pane-1': {
-          id: 'pane-1',
-          openTabs: [{ path: '/vault/a.md', pinned: false }],
-          activePath: '/vault/a.md'
-        }
-      },
-      activePaneId: 'pane-1'
-    }
-
-    const hydrated = hydrateLayoutV2(v1Payload)
-    expect(hydrated).toBeTruthy()
-    expect(hydrated?.panesById['pane-1'].openTabs[0]).toMatchObject({ type: 'document', path: '/vault/a.md' })
-  })
-
   it('rejects invalid layouts', () => {
-    expect(hydrateLayoutV2(null)).toBeNull()
-    expect(hydrateLayoutV2({})).toBeNull()
+    expect(hydrateLayout(null)).toBeNull()
+    expect(hydrateLayout({})).toBeNull()
   })
 
   it('creates a valid initial layout helper', () => {

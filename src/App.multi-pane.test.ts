@@ -234,7 +234,7 @@ describe('App multi-pane', () => {
 
   it('hydrates multi-pane layout from session storage', async () => {
     window.sessionStorage.setItem(
-      'tomosona:editor:multi-pane:v1',
+      'tomosona:editor:multi-pane',
       JSON.stringify({
         root: {
           kind: 'split',
@@ -244,8 +244,8 @@ describe('App multi-pane', () => {
           b: { kind: 'pane', paneId: 'pane-2' }
         },
         panesById: {
-          'pane-1': { id: 'pane-1', openTabs: [], activePath: '' },
-          'pane-2': { id: 'pane-2', openTabs: [], activePath: '' }
+          'pane-1': { id: 'pane-1', openTabs: [], activeTabId: '', activePath: '' },
+          'pane-2': { id: 'pane-2', openTabs: [], activeTabId: '', activePath: '' }
         },
         activePaneId: 'pane-2'
       })

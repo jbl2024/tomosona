@@ -14,10 +14,6 @@ export type PaneState = {
   id: PaneId
   openTabs: PaneTab[]
   activeTabId: string
-  /**
-   * Compatibility mirror for legacy document-only integrations.
-   * Empty when the active tab is not a document.
-   */
   activePath?: string
 }
 
@@ -38,18 +34,6 @@ export type MultiPaneLayout = {
 }
 
 export type MoveDirection = 'next' | 'previous'
-
-type LegacyV1PaneState = {
-  id: string
-  openTabs: Array<{ path: string; pinned: boolean }>
-  activePath: string
-}
-
-type LegacyV1Layout = {
-  root: SplitNode
-  panesById: Record<string, LegacyV1PaneState>
-  activePaneId: string
-}
 
 const MAX_PANES = 4
 
@@ -166,67 +150,8 @@ function documentPathForTabId(openTabs: PaneTab[], tabId: string): string {
   return active && active.type === 'document' ? active.path : ''
 }
 
-function legacyToV2(payload: LegacyV1Layout): MultiPaneLayout {
-  const paneIds = listPaneIdsInOrder(payload.root)
-  const seenDocumentPaths = new Set<string>()
-  const panesById: Record<string, PaneState> = {}
-
-  for (const paneId of paneIds) {
-    const pane = payload.panesById[paneId]
-    if (!pane) continue
-    const openTabs: PaneTab[] = []
-    for (const tab of pane.openTabs ?? []) {
-      const path = (tab.path ?? '').trim()
-      if (!path || seenDocumentPaths.has(path)) continue
-      seenDocumentPaths.add(path)
-      openTabs.push({
-        id: documentTabId(path),
-        type: 'document',
-        path,
-        pinned: Boolean(tab.pinned)
-      })
-    }
-
-    const activePath = (pane.activePath ?? '').trim()
-    const activeTabId = openTabs.find((tab) => tab.type === 'document' && tab.path === activePath)?.id ?? (openTabs[0]?.id ?? '')
-
-    panesById[paneId] = {
-      id: paneId,
-      openTabs,
-      activeTabId,
-      activePath: documentPathForTabId(openTabs, activeTabId)
-    }
-  }
-
-  const activePaneId = panesById[payload.activePaneId] ? payload.activePaneId : (paneIds[0] ?? 'pane-1')
-
-  return {
-    root: cloneNode(payload.root),
-    panesById,
-    activePaneId
-  }
-}
-
-export function hydrateLayoutV2(payload: unknown): MultiPaneLayout | null {
+export function hydrateLayout(payload: unknown): MultiPaneLayout | null {
   if (!payload || typeof payload !== 'object') return null
-
-  // v1 migration path
-  const maybeLegacy = payload as Partial<LegacyV1Layout>
-  if (maybeLegacy.panesById && typeof maybeLegacy.panesById === 'object') {
-    const firstPane = Object.values(maybeLegacy.panesById)[0] as unknown
-    if (firstPane && typeof firstPane === 'object' && 'activePath' in (firstPane as object)) {
-      const firstPaneObj = firstPane as Partial<PaneState>
-      if (typeof firstPaneObj.activeTabId === 'string') {
-        // v2 payload with compatibility `activePath` field.
-      } else {
-      try {
-        return legacyToV2(maybeLegacy as LegacyV1Layout)
-      } catch {
-        return null
-      }
-      }
-    }
-  }
 
   const maybe = payload as Partial<MultiPaneLayout>
   if (!maybe.root || !maybe.panesById || typeof maybe.panesById !== 'object') return null
@@ -283,7 +208,7 @@ export function hydrateLayoutV2(payload: unknown): MultiPaneLayout | null {
   }
 }
 
-export function serializeLayoutV2(layout: MultiPaneLayout): MultiPaneLayout {
+export function serializeLayout(layout: MultiPaneLayout): MultiPaneLayout {
   return {
     root: cloneNode(layout.root),
     panesById: Object.fromEntries(
@@ -302,7 +227,7 @@ export function serializeLayoutV2(layout: MultiPaneLayout): MultiPaneLayout {
 }
 
 export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInitialLayout()) {
-  const layout = ref<MultiPaneLayout>(serializeLayoutV2(initial))
+  const layout = ref<MultiPaneLayout>(serializeLayout(initial))
 
   const paneOrder = computed(() => listPaneIdsInOrder(layout.value.root))
 
@@ -802,18 +727,4 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     setActivePathInPane,
     findPaneContainingPath
   }
-}
-
-/**
- * @deprecated use `hydrateLayoutV2`.
- */
-export function hydrateLayout(payload: unknown): MultiPaneLayout | null {
-  return hydrateLayoutV2(payload)
-}
-
-/**
- * @deprecated use `serializeLayoutV2`.
- */
-export function serializeLayout(layout: MultiPaneLayout): MultiPaneLayout {
-  return serializeLayoutV2(layout)
 }

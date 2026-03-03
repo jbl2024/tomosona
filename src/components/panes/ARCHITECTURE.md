@@ -42,8 +42,7 @@ This module provides a VS Code-style multi-pane shell for mixed editor surfaces:
 5. Session snapshot is persisted in `sessionStorage` and restored on reload.
 
 ## Persistence
-- Storage key: `tomosona:editor:multi-pane:v2`.
-- Backward-compatible hydration accepts legacy `v1` payload format and migrates to typed tabs.
+- Storage key: `tomosona:editor:multi-pane`.
 - Persist only serializable layout state (no editor instances).
 - Hydration validates shape and constraints; invalid payload falls back to one pane.
 
