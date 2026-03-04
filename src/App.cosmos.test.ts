@@ -2,6 +2,18 @@ import { createApp, defineComponent, h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const hoisted = vi.hoisted(() => ({
+  workspaceFsChangedHandler: null as null | ((payload: {
+    session_id: number
+    root: string
+    changes: Array<{
+      kind: 'created' | 'removed' | 'renamed' | 'modified'
+      path?: string
+      old_path?: string
+      new_path?: string
+      is_dir?: boolean
+    }>
+    ts_ms: number
+  }) => void),
   getWikilinkGraph: vi.fn(async () => ({
     nodes: [
       {
@@ -68,7 +80,12 @@ vi.mock('./lib/api', () => ({
     embeddings: { mode: 'internal', external: null }
   })),
   writeAppSettings: vi.fn(async () => ({ path: '/Users/test/.tomosona/conf.json', embeddings_changed: false })),
-  listenWorkspaceFsChanged: vi.fn(async () => () => {}),
+  listenWorkspaceFsChanged: vi.fn(async (handler: typeof hoisted.workspaceFsChangedHandler) => {
+    hoisted.workspaceFsChangedHandler = handler
+    return () => {
+      hoisted.workspaceFsChangedHandler = null
+    }
+  }),
   getWikilinkGraph: hoisted.getWikilinkGraph
 }))
 
@@ -182,5 +199,53 @@ describe('App pane-native surfaces', () => {
     expect(mounted.root.querySelector('[data-pane-grid-stub]')?.textContent).toContain('second-brain-chat')
 
     mounted.app.unmount()
+  })
+
+  it('refreshes semantic panels automatically after delayed semantic batch', async () => {
+    vi.useFakeTimers()
+    try {
+      window.localStorage.setItem('tomosona.working-folder.path', '/vault')
+      const mounted = mountApp()
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
+      await nextTick()
+
+      mounted.root.querySelector<HTMLButtonElement>('button[aria-label="Cosmos view"]')?.click()
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
+      await nextTick()
+
+      const api = await import('./lib/api')
+      const refreshSemanticEdgesMock = vi.mocked(api.refreshSemanticEdgesCacheNow)
+      const semanticReindexMock = vi.mocked(api.reindexMarkdownFileSemantic)
+      const baselineGraphCalls = hoisted.getWikilinkGraph.mock.calls.length
+
+      expect(hoisted.workspaceFsChangedHandler).toBeTypeOf('function')
+      hoisted.workspaceFsChangedHandler?.({
+        session_id: 1,
+        root: '/vault',
+        changes: [{ kind: 'modified', path: '/vault/a.md', is_dir: false }],
+        ts_ms: Date.now()
+      })
+
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
+      await nextTick()
+
+      const beforeSemanticDelayCalls = hoisted.getWikilinkGraph.mock.calls.length
+      await vi.advanceTimersByTimeAsync(15_000)
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
+      await nextTick()
+
+      expect(semanticReindexMock).toHaveBeenCalled()
+      expect(refreshSemanticEdgesMock).toHaveBeenCalled()
+      expect(hoisted.getWikilinkGraph.mock.calls.length).toBeGreaterThan(beforeSemanticDelayCalls)
+      expect(hoisted.getWikilinkGraph.mock.calls.length).toBeGreaterThanOrEqual(baselineGraphCalls + 1)
+
+      mounted.app.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

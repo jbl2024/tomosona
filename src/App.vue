@@ -1243,6 +1243,11 @@ async function runSemanticReindexWorker() {
       if (updated > 0) {
         try {
           await refreshSemanticEdgesCacheNow()
+          // Refresh visible consumers once per semantic batch to avoid stale panels.
+          await refreshBacklinks()
+          if (multiPane.findPaneContainingSurface('cosmos') !== null) {
+            await cosmos.refreshGraph()
+          }
         } catch {
           hadSemanticError = true
           console.warn('[index] semantic:refresh:error')
