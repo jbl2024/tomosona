@@ -481,6 +481,7 @@ pub fn try_delete_note_vector(conn: &Connection, path: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::Connection;
     use serde_json::Value;
 
     #[test]
@@ -539,5 +540,72 @@ mod tests {
         let parsed: Value = serde_json::from_str(&payload).expect("valid json");
         let array = parsed.as_array().expect("array");
         assert_eq!(array.len(), 4);
+    }
+
+    #[test]
+    fn vector_to_json_handles_empty_input() {
+        assert_eq!(vector_to_json(&[]), "[]");
+    }
+
+    #[test]
+    fn parse_vec_embedding_dim_parses_valid_create_sql() {
+        let sql = "CREATE VIRTUAL TABLE note_embeddings_vec USING vec0(path TEXT PRIMARY KEY, embedding FLOAT[1536])";
+        assert_eq!(parse_vec_embedding_dim(sql), Some(1536));
+    }
+
+    #[test]
+    fn parse_vec_embedding_dim_returns_none_for_invalid_sql() {
+        let sql = "CREATE VIRTUAL TABLE note_embeddings_vec USING vec0(path TEXT PRIMARY KEY, embedding BLOB)";
+        assert_eq!(parse_vec_embedding_dim(sql), None);
+    }
+
+    #[test]
+    fn try_upsert_note_vector_writes_sanitized_json_payload() {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute(
+            "CREATE TABLE note_embeddings_vec(path TEXT PRIMARY KEY, embedding TEXT NOT NULL)",
+            [],
+        )
+        .expect("create note_embeddings_vec");
+
+        let vector = [0.5f32, f32::NAN, f32::INFINITY];
+        try_upsert_note_vector(&conn, "notes/a.md", &vector).expect("upsert vector");
+
+        let payload: String = conn
+            .query_row(
+                "SELECT embedding FROM note_embeddings_vec WHERE path = ?1",
+                params!["notes/a.md"],
+                |row| row.get(0),
+            )
+            .expect("select payload");
+        assert_eq!(payload, "[0.5000000,0.0000000,0.0000000]");
+    }
+
+    #[test]
+    fn try_upsert_note_vector_includes_fallback_insert_error_details() {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute(
+            "CREATE TABLE note_embeddings_vec(path TEXT PRIMARY KEY, embedding TEXT NOT NULL, required TEXT NOT NULL)",
+            [],
+        )
+        .expect("create note_embeddings_vec");
+
+        let err = try_upsert_note_vector(&conn, "notes/a.md", &[0.1, 0.2]).expect_err("upsert should fail");
+        assert!(err.contains("replace_err="));
+        assert!(err.contains("fallback_insert_err="));
+    }
+
+    #[test]
+    fn try_upsert_note_vector_includes_fallback_delete_error_details() {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute(
+            "CREATE TABLE note_embeddings_vec(id INTEGER PRIMARY KEY, embedding TEXT)",
+            [],
+        )
+        .expect("create note_embeddings_vec");
+
+        let err = try_upsert_note_vector(&conn, "notes/a.md", &[0.1, 0.2]).expect_err("upsert should fail");
+        assert!(err.contains("replace_err="));
+        assert!(err.contains("fallback_delete_err="));
     }
 }
