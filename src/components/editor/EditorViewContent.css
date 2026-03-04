@@ -279,6 +279,29 @@
   overflow: auto;
 }
 
+.editor-holder .tomosona-quote {
+  margin: 0.24rem 0;
+  padding-left: 0.7rem;
+  border-left: 3px solid #7ba9d6;
+}
+
+.editor-holder .tomosona-quote-preview {
+  border-radius: 0.3rem;
+  padding: 0.62rem 0.72rem;
+}
+
+.editor-holder .tomosona-quote-paragraph {
+  font-size: calc(0.95rem * var(--editor-zoom, 1));
+  line-height: 1.48;
+}
+
+.editor-holder .tomosona-quote-source {
+  min-height: 72px;
+  font-size: calc(0.95rem * var(--editor-zoom, 1));
+  line-height: 1.48;
+  padding: 0.62rem 0.72rem;
+}
+
 .editor-holder .tomosona-code-node {
   margin: 0.5rem 0;
 }

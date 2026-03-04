@@ -52,6 +52,26 @@ const MermaidBlockNode = Node.create({
   }
 })
 
+const WikilinkNode = Node.create({
+  name: 'wikilink',
+  inline: true,
+  atom: true,
+  group: 'inline',
+  addAttributes() {
+    return {
+      target: { default: '' },
+      label: { default: null },
+      exists: { default: true }
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'a[data-wikilink="true"]' }]
+  },
+  renderHTML({ node }) {
+    return ['a', { 'data-wikilink': 'true', 'data-target': String(node.attrs.target ?? '') }, String(node.attrs.label ?? node.attrs.target ?? '')]
+  }
+})
+
 const TURN_INTO_TYPES: TurnIntoType[] = [
   'paragraph',
   'heading1',
@@ -115,7 +135,8 @@ function createEditor(firstNode: JSONContent): Editor {
       TableCell,
       QuoteBlockNode,
       CalloutBlockNode,
-      MermaidBlockNode
+      MermaidBlockNode,
+      WikilinkNode
     ],
     content: {
       type: 'doc',
@@ -239,6 +260,26 @@ describe('blockMenu turnInto', () => {
     const converted = editor.state.doc.child(0)
     expect(converted.type.name).toBe('quoteBlock')
     expect(String(converted.attrs.text ?? '')).toBe('paragraph text')
+  })
+
+  it('preserves inline wikilink node and text marks when converting paragraph to task list', () => {
+    const editor = createEditor({
+      type: 'paragraph',
+      content: [
+        { type: 'wikilink', attrs: { target: 'Note.md', label: null, exists: true } },
+        { type: 'text', text: ' ' },
+        { type: 'text', text: 'bold', marks: [{ type: 'bold' }] }
+      ]
+    })
+
+    expect(turnInto(editor, createTarget(editor), 'taskList')).toBe(true)
+    const taskList = editor.state.doc.child(0)
+    expect(taskList.type.name).toBe('taskList')
+    const paragraph = taskList.child(0).child(0)
+    expect(paragraph.type.name).toBe('paragraph')
+    expect(paragraph.child(0).type.name).toBe('wikilink')
+    expect(String(paragraph.child(0).attrs.target ?? '')).toBe('Note.md')
+    expect(paragraph.child(2).marks.some((mark) => mark.type.name === 'bold')).toBe(true)
   })
 
   it('converts every source/target pair without dropping non-empty content', () => {

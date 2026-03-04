@@ -61,7 +61,7 @@ import {
 } from './lib/api'
 import { parseSearchSnippet } from './lib/searchSnippets'
 import { applySearchMode, detectSearchMode, type SearchMode } from './lib/searchMode'
-import { shouldBlockGlobalShortcutsFromTarget } from './lib/shortcutTargets'
+import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from './lib/shortcutTargets'
 import { parseWikilinkTarget } from './lib/wikilinks'
 import { buildCosmosGraph } from './lib/graphIndex'
 import { useEditorState } from './composables/useEditorState'
@@ -4177,6 +4177,9 @@ function onWindowKeydown(event: KeyboardEvent) {
   }
 
   if (key === 'b') {
+    if (hasActiveTextSelectionInEditor(event.target)) {
+      return
+    }
     event.preventDefault()
     workspace.toggleSidebar()
     return

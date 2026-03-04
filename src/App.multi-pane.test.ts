@@ -210,6 +210,49 @@ describe('App multi-pane', () => {
     mounted.app.unmount()
   })
 
+  it('keeps Mod+B sidebar toggle when editor selection is empty', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    expect(mounted.root.querySelector('.left-sidebar')).toBeTruthy()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true }))
+    await flushUi()
+    expect(mounted.root.querySelector('.left-sidebar')).toBeNull()
+
+    mounted.app.unmount()
+  })
+
+  it('defers Mod+B to editor when text selection is non-empty', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    const shell = document.createElement('div')
+    shell.className = 'editor-shell'
+    const editable = document.createElement('div')
+    editable.setAttribute('contenteditable', 'true')
+    editable.textContent = 'bold me'
+    shell.appendChild(editable)
+    document.body.appendChild(shell)
+
+    const text = editable.firstChild as Text | null
+    if (!text) throw new Error('Expected editable text node')
+    const range = document.createRange()
+    range.setStart(text, 0)
+    range.setEnd(text, 4)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    expect(mounted.root.querySelector('.left-sidebar')).toBeTruthy()
+    editable.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true }))
+    await flushUi()
+    expect(mounted.root.querySelector('.left-sidebar')).toBeTruthy()
+
+    selection?.removeAllRanges()
+    shell.remove()
+    mounted.app.unmount()
+  })
+
   it('opens explorer file in currently focused pane', async () => {
     const mounted = mountApp()
     await flushUi()

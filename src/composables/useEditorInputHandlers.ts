@@ -31,8 +31,12 @@ export type UseEditorInputHandlersOptions = {
     getEditor: () => Editor | null
     currentPath: Ref<string>
     captureCaret: (path: string) => void
-    currentTextSelectionContext: () => { text: string; nodeType: string } | null
-    insertBlockFromDescriptor: (type: string, data: Record<string, unknown>) => boolean
+    currentTextSelectionContext: () => { text: string; nodeType: string; from: number; to: number } | null
+    insertBlockFromDescriptor: (
+      type: string,
+      data: Record<string, unknown>,
+      options?: { replaceRange?: { from: number; to: number } | null }
+    ) => boolean
   }
   menusPort: {
     visibleSlashCommands: Ref<SlashCommand[]>
@@ -138,7 +142,9 @@ export function useEditorInputHandlers(options: UseEditorInputHandlersOptions) {
       if (transform) {
         event.preventDefault()
         options.menusPort.closeSlashMenu()
-        options.editingPort.insertBlockFromDescriptor(transform.type, transform.data)
+        options.editingPort.insertBlockFromDescriptor(transform.type, transform.data, {
+          replaceRange: { from: context.from, to: context.to }
+        })
         return
       }
     }
@@ -147,7 +153,9 @@ export function useEditorInputHandlers(options: UseEditorInputHandlersOptions) {
       const marker = context.text.trim()
       if (marker === '```') {
         event.preventDefault()
-        options.editingPort.insertBlockFromDescriptor('code', { code: '' })
+        options.editingPort.insertBlockFromDescriptor('code', { code: '' }, {
+          replaceRange: { from: context.from, to: context.to }
+        })
       }
     }
 

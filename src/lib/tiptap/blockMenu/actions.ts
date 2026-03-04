@@ -19,15 +19,35 @@ function createInlineContent(schema: Schema, text = ''): ProseNode[] | undefined
   return content.length ? content : undefined
 }
 
-function createParagraph(schema: Schema, text = ''): ProseNode | null {
+function extractInlineFragmentFromNode(node: ProseNode): Fragment | null {
+  if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+    return node.content.size > 0 ? node.content : null
+  }
+
+  if (node.type.name === 'listItem' || node.type.name === 'taskItem') {
+    for (let i = 0; i < node.childCount; i += 1) {
+      const child = node.child(i)
+      if (child.type.name !== 'paragraph') continue
+      return child.content.size > 0 ? child.content : null
+    }
+  }
+
+  return null
+}
+
+function createParagraph(schema: Schema, text = '', inlineFragment?: Fragment | null): ProseNode | null {
   const paragraph = schema.nodes.paragraph
   if (!paragraph) return null
+  if (inlineFragment && inlineFragment.size > 0) {
+    return paragraph.create(null, inlineFragment)
+  }
   const content = createInlineContent(schema, text)
   return paragraph.create(null, content)
 }
 
-function createTurnIntoNode(schema: Schema, type: TurnIntoType, text: string): ProseNode | null {
-  const paragraph = createParagraph(schema, text)
+function createTurnIntoNode(schema: Schema, type: TurnIntoType, sourceNode: ProseNode, text: string): ProseNode | null {
+  const inlineFragment = extractInlineFragmentFromNode(sourceNode)
+  const paragraph = createParagraph(schema, text, inlineFragment)
   if (!paragraph) return null
 
   if (type === 'paragraph') return paragraph
@@ -266,7 +286,7 @@ export function deleteNode(editor: Editor, target: BlockMenuTarget): boolean {
 export function turnInto(editor: Editor, target: BlockMenuTarget, type: TurnIntoType): boolean {
   const node = editor.state.doc.nodeAt(target.pos)
   if (!node) return false
-  const replacement = createTurnIntoNode(editor.state.schema, type, sourceTextForTurnInto(node))
+  const replacement = createTurnIntoNode(editor.state.schema, type, node, sourceTextForTurnInto(node))
   if (!replacement) return false
 
   const tr = editor.state.tr.replaceWith(target.pos, target.pos + node.nodeSize, replacement)

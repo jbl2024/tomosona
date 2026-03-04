@@ -27,6 +27,14 @@ describe('applyMarkdownShortcut', () => {
       data: { text: '', level: 3 }
     })
   })
+
+  it('maps heading markdown with text to header block with preserved text', () => {
+    const result = applyMarkdownShortcut('## roadmap')
+    expect(result).toEqual({
+      type: 'header',
+      data: { text: 'roadmap', level: 2 }
+    })
+  })
 })
 
 describe('zoom shortcut helpers', () => {

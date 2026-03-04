@@ -8,6 +8,10 @@ export type SlashInsertionContext = {
   to: number
 }
 
+export type BlockInsertOptions = {
+  replaceRange?: { from: number; to: number } | null
+}
+
 /**
  * Runtime dependencies required by {@link useEditorSlashInsertion}.
  *
@@ -17,7 +21,7 @@ export type SlashInsertionContext = {
  */
 export type UseEditorSlashInsertionOptions = {
   getEditor: () => Editor | null
-  currentTextSelectionContext: () => { text: string; nodeType: string } | null
+  currentTextSelectionContext: () => { text: string; nodeType: string; from: number; to: number } | null
   readSlashContext: () => SlashInsertionContext | null
 }
 
@@ -38,18 +42,21 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
    * Failure behavior:
    * - Returns `false` when editor or selection context is unavailable.
    */
-  function insertBlockFromDescriptor(type: string, data: Record<string, unknown>) {
+  function insertBlockFromDescriptor(type: string, data: Record<string, unknown>, insertOptions?: BlockInsertOptions) {
     const editor = options.getEditor()
     if (!editor) return false
     const context = options.currentTextSelectionContext()
     if (!context) return false
     const slashContext = options.readSlashContext()
+    const replaceRange = insertOptions?.replaceRange ?? null
 
     if (type === 'list') {
       const style = data.style === 'ordered' ? 'ordered' : data.style === 'checklist' ? 'checklist' : 'unordered'
       const chain = editor.chain().focus()
       if (slashContext) {
         chain.deleteRange({ from: slashContext.from, to: slashContext.to })
+      } else if (replaceRange) {
+        chain.deleteRange(replaceRange)
       }
       if (style === 'ordered') {
         chain.toggleOrderedList().run()
@@ -66,7 +73,13 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     const content: JSONContent | null = (() => {
       switch (type) {
         case 'header':
-          return { type: 'heading', attrs: { level: Number(data.level ?? 2) }, content: [] }
+          return {
+            type: 'heading',
+            attrs: { level: Number(data.level ?? 2) },
+            content: String(data.text ?? '').trim()
+              ? [{ type: 'text', text: String(data.text ?? '').trim() }]
+              : []
+          }
         case 'table':
           return {
             type: 'table',
@@ -95,6 +108,8 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     if (!content) return false
     if (slashContext) {
       editor.chain().focus().deleteRange({ from: slashContext.from, to: slashContext.to }).insertContent(content).run()
+    } else if (replaceRange) {
+      editor.chain().focus().deleteRange(replaceRange).insertContent(content).run()
     } else {
       editor.chain().focus().insertContent(content).run()
     }

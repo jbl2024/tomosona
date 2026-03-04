@@ -23,5 +23,8 @@ describe('editor content styles contract', () => {
     expect(editorStyles).toContain('.editor-holder .ProseMirror table')
     expect(editorStyles).toContain('.editor-holder .ProseMirror th')
     expect(editorStyles).toContain('.editor-holder .ProseMirror td')
+    expect(editorStyles).toContain('.editor-holder .tomosona-quote-source')
+    expect(editorStyles).toContain('min-height: 72px;')
+    expect(editorStyles).toContain('font-size: calc(0.95rem * var(--editor-zoom, 1));')
   })
 })

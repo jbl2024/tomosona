@@ -23,6 +23,15 @@ function emptyListData(style: ListStyle, checked = false) {
  * Converts typed markdown block markers into EditorJS block replacements.
  */
 export function applyMarkdownShortcut(marker: string): { type: string; data: Record<string, unknown> } | null {
+  // Detects ATX heading content, e.g. "## Roadmap".
+  const headingWithTextMatch = marker.match(/^(#{1,6})\s+(.+)$/)
+  if (headingWithTextMatch) {
+    return {
+      type: 'header',
+      data: { text: headingWithTextMatch[2].trim(), level: headingWithTextMatch[1].length }
+    }
+  }
+
   // Detects checklist markers, e.g. "[ ]", "[x]", "- [x]".
   const checklistMatch = marker.match(/^(-\s*)?\[([ xX]?)\]$/)
   if (checklistMatch) {
