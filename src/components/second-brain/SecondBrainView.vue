@@ -825,7 +825,6 @@ watch(
 .sb-center {
   min-height: 0;
   height: 100%;
-  border: 1px solid #cbd5e1;
   border-radius: 12px;
   background: #f8fafc;
   overflow: hidden;
@@ -1046,13 +1045,19 @@ watch(
 
 .sb-chip-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
   gap: 6px;
   margin-bottom: 8px;
+  padding-bottom: 2px;
 }
 
 .sb-chip {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   border: 1px solid #dbeafe;
