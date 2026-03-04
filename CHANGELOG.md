@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.4] - 2026-03-04
+
+### Added
+- feat(semantic): inject workspace-relative note path into first chunk context (fb72508)
+
 ## [0.10.3] - 2026-03-04
 
 ### Added
