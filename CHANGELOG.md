@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.10] - 2026-03-04
+
+### Added
+- feat(second-brain): use horizontal scrolling chips and simplify nested panel borders (438fd49)
+
+### Changed
+- style(second-brain): tighten panel spacing for a denser and cleaner layout (eb1c786)
+
 ## [0.10.9] - 2026-03-04
 
 ### Fixed
