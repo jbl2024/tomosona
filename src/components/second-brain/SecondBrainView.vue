@@ -39,14 +39,24 @@ const contextTokenEstimate = ref<Record<string, number>>({})
 const inputMessage = ref('')
 const messages = ref<SecondBrainMessage[]>([])
 const streamByMessage = ref<Record<string, string>>({})
+const copiedByMessageId = ref<Record<string, boolean>>({})
 const sending = ref(false)
 const sendError = ref('')
 const creatingSession = ref(false)
 const sessionsIndex = ref<SecondBrainSessionSummary[]>([])
 const mentionInfo = ref('')
+const copyToast = ref<{ visible: boolean; kind: 'success' | 'error'; message: string }>({
+  visible: false,
+  kind: 'success',
+  message: ''
+})
 const composerContextPaths = ref<string[]>([])
 const composerRef = ref<HTMLTextAreaElement | null>(null)
 const streamUnsubscribers: Array<() => void> = []
+let copyToastTimer: ReturnType<typeof setTimeout> | null = null
+const copyFeedbackTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+const COPY_FEEDBACK_MS = 1300
+const COPY_TOAST_MS = 2000
 
 const workspacePathRef = computed(() => props.workspacePath)
 const allWorkspaceFilesRef = computed(() => props.allWorkspaceFiles)
@@ -514,8 +524,41 @@ async function onCopyAssistantMessage(message: SecondBrainMessage) {
 
   try {
     await navigator.clipboard.writeText(content)
+    copiedByMessageId.value = {
+      ...copiedByMessageId.value,
+      [message.id]: true
+    }
+    if (copyFeedbackTimers[message.id]) {
+      clearTimeout(copyFeedbackTimers[message.id])
+    }
+    copyFeedbackTimers[message.id] = setTimeout(() => {
+      const next = { ...copiedByMessageId.value }
+      delete next[message.id]
+      copiedByMessageId.value = next
+      delete copyFeedbackTimers[message.id]
+    }, COPY_FEEDBACK_MS)
+
+    if (copyToastTimer) clearTimeout(copyToastTimer)
+    copyToast.value = {
+      visible: true,
+      kind: 'success',
+      message: 'Copied to clipboard.'
+    }
+    copyToastTimer = setTimeout(() => {
+      copyToast.value.visible = false
+      copyToastTimer = null
+    }, COPY_TOAST_MS)
   } catch (err) {
-    sendError.value = err instanceof Error ? err.message : 'Could not copy assistant response.'
+    if (copyToastTimer) clearTimeout(copyToastTimer)
+    copyToast.value = {
+      visible: true,
+      kind: 'error',
+      message: err instanceof Error ? err.message : 'Could not copy assistant response.'
+    }
+    copyToastTimer = setTimeout(() => {
+      copyToast.value.visible = false
+      copyToastTimer = null
+    }, COPY_TOAST_MS + 700)
   }
 }
 
@@ -591,6 +634,13 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  if (copyToastTimer) {
+    clearTimeout(copyToastTimer)
+    copyToastTimer = null
+  }
+  for (const timer of Object.values(copyFeedbackTimers)) {
+    clearTimeout(timer)
+  }
   for (const unsubscribe of streamUnsubscribers) {
     unsubscribe()
   }
@@ -648,7 +698,8 @@ watch(
               v-if="message.role === 'assistant'"
               type="button"
               class="insert"
-              title="Copy to clipboard"
+              :class="{ copied: copiedByMessageId[message.id] }"
+              :title="copiedByMessageId[message.id] ? 'Copied' : 'Copy to clipboard'"
               @click="onCopyAssistantMessage(message)"
             >
               <ClipboardDocumentIcon class="h-4 w-4" />
@@ -704,6 +755,18 @@ watch(
           <span v-if="sendError" class="sb-error">{{ sendError }}</span>
         </div>
       </footer>
+
+      <transition name="sb-toast-fade">
+        <div
+          v-if="copyToast.visible"
+          class="sb-toast"
+          :class="copyToast.kind === 'error' ? 'error' : 'success'"
+          role="status"
+          aria-live="polite"
+        >
+          {{ copyToast.message }}
+        </div>
+      </transition>
     </section>
   </div>
 </template>
@@ -916,6 +979,12 @@ watch(
   transform: translateY(0);
 }
 
+.insert.copied {
+  border-color: #16a34a;
+  background: #ecfdf3;
+  color: #166534;
+}
+
 .sb-input-row {
   display: flex;
   flex-direction: column;
@@ -1031,6 +1100,37 @@ watch(
   color: #64748b;
 }
 
+.sb-toast {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 35;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 22%);
+}
+
+.sb-toast.error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.sb-toast-fade-enter-active,
+.sb-toast-fade-leave-active {
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.sb-toast-fade-enter-from,
+.sb-toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
 @keyframes sb-spin {
   from {
     transform: rotate(0deg);
@@ -1098,5 +1198,23 @@ watch(
 .ide-root.dark .assistant-markdown blockquote {
   border-left-color: #475569;
   color: #cbd5e1;
+}
+
+.ide-root.dark .insert.copied {
+  border-color: #166534;
+  background: #052e16;
+  color: #86efac;
+}
+
+.ide-root.dark .sb-toast {
+  border-color: #166534;
+  background: #052e16;
+  color: #86efac;
+}
+
+.ide-root.dark .sb-toast.error {
+  border-color: #7f1d1d;
+  background: #3f1d24;
+  color: #fecaca;
 }
 </style>
