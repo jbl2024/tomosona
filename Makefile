@@ -72,4 +72,7 @@ prepare-release:
 	echo "  git commit -m \"chore(release): prepare v$$VERSION_NO_V\""; \
 	echo "  git tag v$$VERSION_NO_V"; \
 	echo "  git push origin $$CURRENT_BRANCH"; \
-	echo "  git push origin v$$VERSION_NO_V"
+	echo "  git push origin v$$VERSION_NO_V"; \
+	echo ""; \
+	echo "One-liner command:"; \
+	echo "  git commit -m \"chore(release): prepare v$$VERSION_NO_V\" && git tag v$$VERSION_NO_V && git push origin $$CURRENT_BRANCH && git push origin v$$VERSION_NO_V"
