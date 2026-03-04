@@ -839,8 +839,28 @@ watch(
 
 .assistant-markdown ul,
 .assistant-markdown ol {
-  margin: 6px 0 8px 18px;
-  padding: 0;
+  margin: 6px 0 8px;
+  padding-left: 18px;
+}
+
+.assistant-markdown ul {
+  list-style: disc outside;
+}
+
+.assistant-markdown ol {
+  list-style: decimal outside;
+}
+
+.assistant-markdown li {
+  margin: 2px 0;
+}
+
+.assistant-markdown ul ul {
+  list-style-type: circle;
+}
+
+.assistant-markdown ol ol {
+  list-style-type: lower-alpha;
 }
 
 .assistant-markdown blockquote {
@@ -883,6 +903,17 @@ watch(
   background: #fff;
   font-size: 11px;
   padding: 3px 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.msg.assistant:hover .insert,
+.msg.assistant:focus-within .insert {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .sb-input-row {
