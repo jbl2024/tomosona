@@ -31,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-mark': [mark: InlineFormatMark]
   'open-link': []
+  'wrap-wikilink': []
   'apply-link': []
   unlink: []
   'cancel-link': []
@@ -123,6 +124,17 @@ function onLinkInputKeydown(event: KeyboardEvent) {
       @click="emit('toggle-mark', 'code')"
     >
       <CodeBracketIcon class="h-4 w-4" />
+    </button>
+    <button
+      type="button"
+      class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-mono transition-all duration-150 hover:bg-slate-100 hover:text-slate-900 active:translate-y-px active:scale-[0.98] active:bg-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:active:bg-slate-700"
+      data-action="wikilink"
+      aria-label="Wikilink"
+      title="Wikilink"
+      @mousedown.prevent
+      @click="emit('wrap-wikilink')"
+    >
+      [[ ]]
     </button>
     <button
       type="button"

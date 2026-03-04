@@ -979,6 +979,7 @@ defineExpose({
             :link-error="inlineFormatToolbar.linkError.value"
             @toggle-mark="inlineFormatToolbar.toggleMark"
             @open-link="inlineFormatToolbar.openLinkPopover"
+            @wrap-wikilink="inlineFormatToolbar.wrapSelectionWithWikilink"
             @apply-link="inlineFormatToolbar.applyLink"
             @unlink="inlineFormatToolbar.unlinkLink"
             @cancel-link="inlineFormatToolbar.cancelLink"

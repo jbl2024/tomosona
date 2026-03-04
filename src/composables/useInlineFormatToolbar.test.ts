@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import { useInlineFormatToolbar } from './useInlineFormatToolbar'
+import { WIKILINK_STATE_KEY } from '../lib/tiptap/plugins/wikilinkState'
 
 type FakeChain = {
   focus: ReturnType<typeof vi.fn>
@@ -46,22 +47,37 @@ function createFakeChain(): FakeChain {
 function createFakeEditor(options?: { href?: string; selection?: { from: number; to: number; empty: boolean } }) {
   const chain = createFakeChain()
   const selection = options?.selection ?? { from: 2, to: 8, empty: false }
+  const tr = {
+    doc: { content: { size: 500 } },
+    insertText: vi.fn(),
+    setSelection: vi.fn(),
+    setMeta: vi.fn()
+  }
+  tr.insertText.mockReturnValue(tr)
+  tr.setSelection.mockReturnValue(tr)
+  tr.setMeta.mockReturnValue(tr)
+
   const editor = {
     state: {
-      selection
+      selection,
+      doc: {
+        textBetween: vi.fn(() => 'My selected note')
+      },
+      tr
     },
     view: {
       coordsAtPos: vi.fn((pos: number) => {
         if (pos === selection.from) return { left: 100, right: 120, top: 80 }
         return { left: 200, right: 250, top: 84 }
-      })
+      }),
+      dispatch: vi.fn()
     },
     chain: vi.fn(() => chain),
     isActive: vi.fn(() => false),
     getAttributes: vi.fn(() => ({ href: options?.href }))
   }
 
-  return { editor: editor as unknown as Editor, chain, selection }
+  return { editor: editor as unknown as Editor, chain, selection, tr, dispatch: editor.view.dispatch }
 }
 
 describe('useInlineFormatToolbar', () => {
@@ -220,5 +236,25 @@ describe('useInlineFormatToolbar', () => {
     expect(toolbar.linkPopoverOpen.value).toBe(false)
     expect(fake.chain.setLink).not.toHaveBeenCalled()
     expect(fake.chain.unsetLink).not.toHaveBeenCalled()
+  })
+
+  it('wraps selection as wikilink and starts wikilink editing mode', () => {
+    const holder = ref<HTMLElement | null>(null)
+    const fake = createFakeEditor()
+    const toolbar = useInlineFormatToolbar({
+      holder,
+      getEditor: () => fake.editor,
+      sanitizeHref: (raw) => raw
+    })
+
+    toolbar.wrapSelectionWithWikilink()
+
+    expect(fake.tr.insertText).toHaveBeenCalledWith('[[My selected note]]', 2, 8)
+    expect(fake.tr.setMeta).toHaveBeenCalledWith(
+      WIKILINK_STATE_KEY,
+      { type: 'startEditing', range: { from: 2, to: 22 } }
+    )
+    expect(fake.dispatch).toHaveBeenCalledTimes(2)
+    expect(toolbar.formatToolbarOpen.value).toBe(false)
   })
 })

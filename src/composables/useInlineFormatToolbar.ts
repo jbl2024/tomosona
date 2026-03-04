@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import { NodeSelection } from '@tiptap/pm/state'
+import { WIKILINK_STATE_KEY } from '../lib/tiptap/plugins/wikilinkState'
 
 /**
  * Inline text marks controlled by the floating formatting toolbar.
@@ -156,6 +157,34 @@ export function useInlineFormatToolbar(options: UseInlineFormatToolbarOptions) {
   }
 
   /**
+   * Replaces current selection with a wikilink draft and enters wikilink edit mode.
+   */
+  function wrapSelectionWithWikilink() {
+    const editor = options.getEditor()
+    if (!editor) return
+    if (editor.state.selection instanceof NodeSelection) return
+    const { from, to, empty } = editor.state.selection
+    if (empty || from === to) return
+
+    const selectedText = editor.state.doc.textBetween(from, to, ' ', ' ')
+    const target = selectedText
+      .replace(/\r?\n/g, ' ')
+      .replace(/[\[\]\|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const token = target ? `[[${target}]]` : '[[]]'
+    const caret = target ? from + token.length - 2 : from + 2
+
+    const tr = editor.state.tr.insertText(token, from, to)
+    editor.view.dispatch(tr)
+    editor.chain().focus().setTextSelection(caret).run()
+
+    const range = { from, to: from + token.length }
+    editor.view.dispatch(editor.state.tr.setMeta(WIKILINK_STATE_KEY, { type: 'startEditing', range }))
+    closeToolbar()
+  }
+
+  /**
    * Applies link edits:
    * - empty URL => remove link
    * - invalid URL => keep popover open with validation error
@@ -227,6 +256,7 @@ export function useInlineFormatToolbar(options: UseInlineFormatToolbarOptions) {
     isMarkActive,
     toggleMark,
     openLinkPopover,
+    wrapSelectionWithWikilink,
     applyLink,
     unlinkLink,
     cancelLink,
