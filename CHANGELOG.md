@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.9] - 2026-03-04
+
+### Fixed
+- fix(editor): convert whole parent list to task list and preserve wikilinks (288bd57)
+
 ## [0.10.8] - 2026-03-04
 
 ### Fixed
