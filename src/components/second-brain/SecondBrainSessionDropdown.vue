@@ -127,16 +127,25 @@ function itemUpdatedAtLabel(item: unknown): string {
   </div>
 </template>
 
-<style>
+<style scoped>
 .sb-session-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sb-session-dropdown :deep(.ui-filterable-dropdown) {
   position: relative;
 }
 
-:deep(.ui-filterable-dropdown-menu) {
+.sb-session-dropdown :deep(.ui-filterable-dropdown-menu) {
+  position: absolute !important;
+  top: calc(100% + 6px);
   right: 0;
   left: auto;
   width: min(520px, calc(100vw - 36px));
   max-width: min(520px, calc(100vw - 36px));
+  z-index: 70;
 }
 
 .sb-session-gear-btn {
