@@ -485,24 +485,25 @@ const paletteActionPriority: Record<string, number> = {
   'create-new-file': 11,
   'close-other-tabs': 12,
   'close-all-tabs': 13,
-  'split-pane-right': 14,
-  'split-pane-down': 15,
-  'focus-pane-1': 16,
-  'focus-pane-2': 17,
-  'focus-pane-3': 18,
-  'focus-pane-4': 19,
-  'focus-next-pane': 20,
-  'move-tab-next-pane': 21,
-  'close-active-pane': 22,
-  'join-panes': 23,
-  'reset-pane-layout': 24,
-  'zoom-in': 25,
-  'zoom-out': 26,
-  'zoom-reset': 27,
-  'theme-light': 28,
-  'theme-dark': 29,
-  'theme-system': 30,
-  'close-workspace': 31
+  'close-all-tabs-current-pane': 14,
+  'split-pane-right': 15,
+  'split-pane-down': 16,
+  'focus-pane-1': 17,
+  'focus-pane-2': 18,
+  'focus-pane-3': 19,
+  'focus-pane-4': 20,
+  'focus-next-pane': 21,
+  'move-tab-next-pane': 22,
+  'close-active-pane': 23,
+  'join-panes': 24,
+  'reset-pane-layout': 25,
+  'zoom-in': 26,
+  'zoom-out': 27,
+  'zoom-reset': 28,
+  'theme-light': 29,
+  'theme-dark': 30,
+  'theme-system': 31,
+  'close-workspace': 32
 }
 
 const paletteActions = computed<PaletteAction[]>(() => [
@@ -545,7 +546,8 @@ const paletteActions = computed<PaletteAction[]>(() => [
   { id: 'open-yesterday', label: 'Open Yesterday', run: () => openYesterdayNote() },
   { id: 'open-specific-date', label: 'Open Specific Date', run: () => openSpecificDateNote() },
   { id: 'create-new-file', label: 'New Note', run: () => createNewFileFromPalette() },
-  { id: 'close-all-tabs', label: 'Close All Tabs', run: () => closeAllTabsFromPalette() },
+  { id: 'close-all-tabs', label: 'Close All Tabs (All Panes)', run: () => closeAllTabsFromPalette() },
+  { id: 'close-all-tabs-current-pane', label: 'Close All Tabs on Current Pane', run: () => closeAllTabsOnCurrentPaneFromPalette() },
   { id: 'close-other-tabs', label: 'Close Other Tabs', run: () => closeOtherTabsFromPalette() },
   { id: 'split-pane-right', label: 'Split Pane Right', run: () => splitPaneFromPalette('row') },
   { id: 'split-pane-down', label: 'Split Pane Down', run: () => splitPaneFromPalette('column') },
@@ -2678,16 +2680,9 @@ function onPaneTabCloseOthers(payload: { paneId: string; tabId: string }) {
 }
 
 function onPaneTabCloseAll(payload: { paneId: string }) {
-  const pane = multiPane.layout.value.panesById[payload.paneId]
-  if (!pane) return
-  const paths = pane.openTabs
-    .filter((tab) => tab.type === 'document')
-    .map((tab) => (tab.type === 'document' ? tab.path : ''))
-    .filter(Boolean)
+  const paths = documentPathsForPane(payload.paneId)
   multiPane.closeAllTabsInPane(payload.paneId)
-  for (const path of paths) {
-    editorState.clearStatus(path)
-  }
+  clearEditorStatusForPaths(paths)
 }
 
 function onEditorStatus(payload: { path: string; dirty: boolean; saving: boolean; saveError: string }) {
@@ -3467,9 +3462,40 @@ async function submitNewFolderFromModal() {
   }
 }
 
+function documentPathsForPane(paneId: string): string[] {
+  const pane = multiPane.layout.value.panesById[paneId]
+  if (!pane) return []
+  return pane.openTabs
+    .filter((tab) => tab.type === 'document')
+    .map((tab) => (tab.type === 'document' ? tab.path : ''))
+    .filter(Boolean)
+}
+
+function clearEditorStatusForPaths(paths: string[]) {
+  for (const path of paths) {
+    editorState.clearStatus(path)
+  }
+}
+
 function closeAllTabsFromPalette() {
+  const allDocumentPaths = Object.values(multiPane.layout.value.panesById)
+    .flatMap((pane) =>
+      pane.openTabs
+        .filter((tab) => tab.type === 'document')
+        .map((tab) => (tab.type === 'document' ? tab.path : ''))
+        .filter(Boolean)
+    )
+  multiPane.closeAllTabsAndResetLayout()
+  clearEditorStatusForPaths(allDocumentPaths)
+  editorState.setActiveOutline([])
+  return true
+}
+
+function closeAllTabsOnCurrentPaneFromPalette() {
   const paneId = multiPane.layout.value.activePaneId
+  const panePaths = documentPathsForPane(paneId)
   multiPane.closeAllTabsInPane(paneId)
+  clearEditorStatusForPaths(panePaths)
   editorState.setActiveOutline([])
   return true
 }

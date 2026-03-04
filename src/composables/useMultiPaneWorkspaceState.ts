@@ -509,20 +509,31 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
   }
 
   function moveActiveTabToAdjacentPane(direction: MoveDirection): boolean {
-    const order = paneOrder.value
-    if (order.length <= 1) return false
-
     const sourceId = layout.value.activePaneId
+    let order = paneOrder.value
+    let targetId = ''
+    if (order.length <= 1) {
+      if (direction !== 'next') return false
+      const createdPaneId = splitPane(sourceId, 'row')
+      if (!createdPaneId) return false
+      targetId = createdPaneId
+      order = paneOrder.value
+      setActivePane(sourceId)
+    }
+
     const source = layout.value.panesById[sourceId]
     if (!source || !source.activeTabId) return false
 
     const sourceTab = source.openTabs.find((tab) => tab.id === source.activeTabId)
     if (!sourceTab) return false
 
-    const sourceIndex = order.indexOf(sourceId)
-    if (sourceIndex < 0) return false
-    const step = direction === 'next' ? 1 : -1
-    const targetId = order[(sourceIndex + step + order.length) % order.length]
+    if (!targetId) {
+      const sourceIndex = order.indexOf(sourceId)
+      if (sourceIndex < 0) return false
+      const step = direction === 'next' ? 1 : -1
+      targetId = order[(sourceIndex + step + order.length) % order.length]
+    }
+
     const target = layout.value.panesById[targetId]
     if (!target) return false
 
@@ -541,18 +552,18 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
         ...layout.value,
         panesById: {
           ...layout.value.panesById,
-        [sourceId]: {
-          ...source,
-          openTabs: sourceTabs,
-          activeTabId: nextSourceActive,
-          activePath: documentPathForTabId(sourceTabs, nextSourceActive)
+          [sourceId]: {
+            ...source,
+            openTabs: sourceTabs,
+            activeTabId: nextSourceActive,
+            activePath: documentPathForTabId(sourceTabs, nextSourceActive)
+          },
+          [targetId]: {
+            ...target,
+            activeTabId: duplicateInTarget.id,
+            activePath: duplicateInTarget.type === 'document' ? duplicateInTarget.path : ''
+          }
         },
-        [targetId]: {
-          ...target,
-          activeTabId: duplicateInTarget.id,
-          activePath: duplicateInTarget.type === 'document' ? duplicateInTarget.path : ''
-        }
-      },
         activePaneId: targetId
       }
       return true
@@ -579,6 +590,10 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     }
 
     return true
+  }
+
+  function closeAllTabsAndResetLayout() {
+    layout.value = createInitialLayout()
   }
 
   function replacePath(fromPath: string, toPath: string) {
@@ -713,6 +728,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     closeTabInPane,
     closeOtherTabsInPane,
     closeAllTabsInPane,
+    closeAllTabsAndResetLayout,
     splitPane,
     closePane,
     moveActiveTabToAdjacentPane,

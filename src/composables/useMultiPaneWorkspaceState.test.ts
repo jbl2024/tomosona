@@ -62,6 +62,18 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/a.md')
   })
 
+  it('creates a pane when moving active tab to next pane from single-pane layout', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openDocumentInPane('/vault/a.md')
+
+    const moved = store.moveActiveTabToAdjacentPane('next')
+
+    expect(moved).toBe(true)
+    expect(store.paneOrder.value).toEqual(['pane-1', 'pane-2'])
+    expect(store.layout.value.panesById['pane-1'].openTabs).toEqual([])
+    expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/a.md')
+  })
+
   it('joins panes and keeps mixed unique tabs', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')
@@ -120,5 +132,18 @@ describe('useMultiPaneWorkspaceState', () => {
     const initial = createInitialLayout()
     expect(initial.root.kind).toBe('pane')
     expect(initial.activePaneId).toBe('pane-1')
+  })
+
+  it('closes all tabs globally and resets to a single pane', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openDocumentInPane('/vault/a.md')
+    const pane2 = store.splitPane('pane-1', 'row')
+    store.openDocumentInPane('/vault/b.md', pane2!)
+
+    store.closeAllTabsAndResetLayout()
+
+    expect(store.paneOrder.value).toEqual(['pane-1'])
+    expect(store.layout.value.activePaneId).toBe('pane-1')
+    expect(store.layout.value.panesById['pane-1'].openTabs).toEqual([])
   })
 })
