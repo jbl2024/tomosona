@@ -43,6 +43,7 @@ const messages = ref<SecondBrainMessage[]>([])
 const streamByMessage = ref<Record<string, string>>({})
 const copiedByMessageId = ref<Record<string, boolean>>({})
 const sending = ref(false)
+const requestInFlight = ref(false)
 const sendError = ref('')
 const creatingSession = ref(false)
 const sessionsIndex = ref<SecondBrainSessionSummary[]>([])
@@ -54,7 +55,10 @@ const copyToast = ref<{ visible: boolean; kind: 'success' | 'error'; message: st
 })
 const composerContextPaths = ref<string[]>([])
 const composerRef = ref<HTMLTextAreaElement | null>(null)
+const threadRef = ref<HTMLElement | null>(null)
+const activeAssistantStreamMessageId = ref<string | null>(null)
 const streamUnsubscribers: Array<() => void> = []
+const ignoredAssistantMessageIds = new Set<string>()
 let copyToastTimer: ReturnType<typeof setTimeout> | null = null
 const copyFeedbackTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 const COPY_FEEDBACK_MS = 1300
@@ -491,11 +495,20 @@ function onComposerKeydown(event: KeyboardEvent) {
   }
 }
 
+async function scrollThreadToBottom() {
+  await nextTick()
+  const thread = threadRef.value
+  if (!thread) return
+  thread.scrollTop = thread.scrollHeight
+}
+
 async function onSendMessage() {
-  if (!sessionId.value || !inputMessage.value.trim()) return
+  if (!sessionId.value || !inputMessage.value.trim() || requestInFlight.value) return
+  requestInFlight.value = true
   sending.value = true
   sendError.value = ''
   mentionInfo.value = ''
+  activeAssistantStreamMessageId.value = null
   const outgoing = inputMessage.value.trim()
 
   const mentionResolution = mentions.resolveMentionedPaths(outgoing)
@@ -530,6 +543,7 @@ async function onSendMessage() {
     attachments_json: '[]',
     created_at_ms: Date.now()
   }]
+  void scrollThreadToBottom()
 
   try {
     const result = await runDeliberation({
@@ -552,6 +566,7 @@ async function onSendMessage() {
         attachments_json: '[]',
         created_at_ms: Date.now()
       }]
+      void scrollThreadToBottom()
     }
 
     await refreshSessionsIndex()
@@ -563,6 +578,17 @@ async function onSendMessage() {
     sendError.value = err instanceof Error ? err.message : 'Could not send message.'
   } finally {
     sending.value = false
+    requestInFlight.value = false
+    activeAssistantStreamMessageId.value = null
+  }
+}
+
+function onStopStreaming() {
+  if (!requestInFlight.value || !sending.value) return
+  sending.value = false
+  const activeId = activeAssistantStreamMessageId.value
+  if (activeId) {
+    ignoredAssistantMessageIds.add(activeId)
   }
 }
 
@@ -629,6 +655,8 @@ onMounted(async () => {
 
   streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-start', (payload) => {
     if (payload.session_id !== sessionId.value) return
+    activeAssistantStreamMessageId.value = payload.message_id
+    if (ignoredAssistantMessageIds.has(payload.message_id)) return
     streamByMessage.value = {
       ...streamByMessage.value,
       [payload.message_id]: ''
@@ -643,11 +671,13 @@ onMounted(async () => {
         attachments_json: '[]',
         created_at_ms: Date.now()
       }]
+      void scrollThreadToBottom()
     }
   }))
 
   streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-delta', (payload) => {
     if (payload.session_id !== sessionId.value) return
+    if (ignoredAssistantMessageIds.has(payload.message_id)) return
     const current = streamByMessage.value[payload.message_id] ?? ''
     streamByMessage.value = {
       ...streamByMessage.value,
@@ -664,19 +694,40 @@ onMounted(async () => {
         created_at_ms: Date.now()
       }]
     }
+    void scrollThreadToBottom()
   }))
 
   streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-complete', (payload) => {
     if (payload.session_id !== sessionId.value) return
+    if (ignoredAssistantMessageIds.has(payload.message_id)) {
+      ignoredAssistantMessageIds.delete(payload.message_id)
+      if (activeAssistantStreamMessageId.value === payload.message_id) {
+        activeAssistantStreamMessageId.value = null
+      }
+      return
+    }
     streamByMessage.value = {
       ...streamByMessage.value,
       [payload.message_id]: payload.chunk
+    }
+    if (activeAssistantStreamMessageId.value === payload.message_id) {
+      activeAssistantStreamMessageId.value = null
     }
     sending.value = false
   }))
 
   streamUnsubscribers.push(await subscribeSecondBrainStream('second-brain://assistant-error', (payload) => {
     if (payload.session_id !== sessionId.value) return
+    if (ignoredAssistantMessageIds.has(payload.message_id)) {
+      ignoredAssistantMessageIds.delete(payload.message_id)
+      if (activeAssistantStreamMessageId.value === payload.message_id) {
+        activeAssistantStreamMessageId.value = null
+      }
+      return
+    }
+    if (activeAssistantStreamMessageId.value === payload.message_id) {
+      activeAssistantStreamMessageId.value = null
+    }
     sending.value = false
     sendError.value = payload.error || 'Assistant stream failed.'
   }))
@@ -734,7 +785,7 @@ watch(
         </div>
       </header>
 
-      <section class="sb-thread">
+      <section ref="threadRef" class="sb-thread">
         <article
           v-for="message in messages"
           :key="message.id"
@@ -791,8 +842,18 @@ watch(
           ></textarea>
 
           <div class="composer-action">
-            <span v-if="sending" class="sb-loader" aria-label="Thinking"></span>
-            <button v-else type="button" class="send-icon-btn" :disabled="!sessionId || !inputMessage.trim()" @click="onSendMessage">
+            <button
+              v-if="sending"
+              type="button"
+              class="send-icon-btn send-icon-btn-stop"
+              :disabled="!requestInFlight"
+              title="Stop generation"
+              aria-label="Stop generation"
+              @click="onStopStreaming"
+            >
+              <span class="sb-loader" aria-label="Thinking"></span>
+            </button>
+            <button v-else type="button" class="send-icon-btn" :disabled="!sessionId || !inputMessage.trim() || requestInFlight" @click="onSendMessage">
               <PaperAirplaneIcon class="h-4 w-4" />
             </button>
           </div>

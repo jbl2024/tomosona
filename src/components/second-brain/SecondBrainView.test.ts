@@ -86,6 +86,16 @@ describe('SecondBrainView', () => {
     return { root, app }
   }
 
+  function deferredPromise<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  }
+
   it('renders persisted context chips from loaded session', async () => {
     const mounted = mountView()
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length === 0; i += 1) {
@@ -179,6 +189,124 @@ describe('SecondBrainView', () => {
       mode: 'freestyle',
       message: 'Send via shortcut'
     })
+
+    mounted.app.unmount()
+  })
+
+  it('auto-scrolls discussion to bottom after send', async () => {
+    const mounted = mountView()
+    await flushUi()
+
+    const thread = mounted.root.querySelector<HTMLElement>('.sb-thread')
+    const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    const sendBtn = mounted.root.querySelector<HTMLButtonElement>('.send-icon-btn')
+    expect(thread).toBeTruthy()
+    expect(textarea).toBeTruthy()
+    expect(sendBtn).toBeTruthy()
+    if (!thread || !textarea || !sendBtn) return
+
+    Object.defineProperty(thread, 'scrollHeight', { value: 420, configurable: true })
+    thread.scrollTop = 0
+
+    textarea.value = 'scroll after send'
+    textarea.selectionStart = textarea.value.length
+    textarea.selectionEnd = textarea.value.length
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    sendBtn.click()
+    await flushUi()
+
+    expect(thread.scrollTop).toBe(420)
+
+    mounted.app.unmount()
+  })
+
+  it('stops streaming updates when stop button is clicked', async () => {
+    const streamHandlers = new Map<string, (payload: {
+      session_id: string
+      message_id: string
+      chunk: string
+      done: boolean
+      error: string | null
+    }) => void>()
+    api.subscribeSecondBrainStream.mockImplementation(async (eventName: string, handler: (payload: {
+      session_id: string
+      message_id: string
+      chunk: string
+      done: boolean
+      error: string | null
+    }) => void) => {
+      streamHandlers.set(eventName, handler)
+      return () => {}
+    })
+
+    const pendingRun = deferredPromise<{ userMessageId: string; assistantMessageId: string }>()
+    api.runDeliberation.mockReturnValueOnce(pendingRun.promise)
+
+    const mounted = mountView()
+    await flushUi()
+
+    const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    const sendBtn = mounted.root.querySelector<HTMLButtonElement>('.send-icon-btn')
+    expect(textarea).toBeTruthy()
+    expect(sendBtn).toBeTruthy()
+    if (!textarea || !sendBtn) return
+
+    textarea.value = 'streaming stop test'
+    textarea.selectionStart = textarea.value.length
+    textarea.selectionEnd = textarea.value.length
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    sendBtn.click()
+    await flushUi()
+
+    streamHandlers.get('second-brain://assistant-start')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: '',
+      done: false,
+      error: null
+    })
+    streamHandlers.get('second-brain://assistant-delta')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: 'alpha',
+      done: false,
+      error: null
+    })
+    await flushUi()
+
+    expect(mounted.root.textContent).toContain('alpha')
+
+    const stopBtn = mounted.root.querySelector<HTMLButtonElement>('.send-icon-btn-stop')
+    expect(stopBtn).toBeTruthy()
+    if (!stopBtn) return
+    stopBtn.click()
+    await flushUi()
+
+    streamHandlers.get('second-brain://assistant-delta')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: 'beta',
+      done: false,
+      error: null
+    })
+    streamHandlers.get('second-brain://assistant-complete')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: 'alphabeta',
+      done: true,
+      error: null
+    })
+    await flushUi()
+
+    expect(mounted.root.textContent).toContain('alpha')
+    expect(mounted.root.textContent).not.toContain('alphabeta')
+
+    pendingRun.resolve({ userMessageId: 'u1', assistantMessageId: 'a-stream' })
+    await flushUi()
 
     mounted.app.unmount()
   })
