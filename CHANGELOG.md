@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.12] - 2026-03-05
+
+### Fixed
+- fix(semantic): avoid JSON query vector parsing in semantic edge rebuild (787bfba)
+
 ## [0.10.11] - 2026-03-05
 
 ### Changed
