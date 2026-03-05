@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.11] - 2026-03-05
+
+### Changed
+- docs(adr): define file-backed second brain sessions with sqlite as disposable cache (81b4a86)
+
+### Fixed
+- fix(editor): restore cmd/ctrl+click navigation for plain ISO date tokens (2c263dc)
+
 ## [0.10.10] - 2026-03-04
 
 ### Added
