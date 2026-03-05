@@ -25,6 +25,10 @@ cd "$ROOT_DIR"
 
 node -e 'const fs=require("fs");const p="package.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
 
+if [ -f package-lock.json ]; then
+  node -e 'const fs=require("fs");const p="package-lock.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];if(d.packages&&d.packages[""]){d.packages[""].version=process.argv[1];}fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
+fi
+
 node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
 
 tmp_file="$(mktemp)"
@@ -51,4 +55,8 @@ awk -v v="$VERSION" '
 ' src-tauri/Cargo.lock > "$tmp_file"
 mv "$tmp_file" src-tauri/Cargo.lock
 
-echo "Updated versions to $VERSION in package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+if [ -f package-lock.json ]; then
+  echo "Updated versions to $VERSION in package.json, package-lock.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+else
+  echo "Updated versions to $VERSION in package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+fi
