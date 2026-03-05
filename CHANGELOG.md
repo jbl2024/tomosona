@@ -18,6 +18,23 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.10.13] - 2026-03-05
+
+### Added
+- feat(second-brain): add server-side stream cancellation from stop button (30e3c7d)
+- feat(second-brain): auto-scroll discussion to bottom after sending messages (00354d2)
+- feat(second-brain): add cmd/ctrl+enter shortcut to send composer message (2ae46a7)
+- feat(settings): add codex model discovery in llm settings (28721a9)
+- feat(second-brain): add openai-codex provider with CLI OAuth and settings preset (0005344)
+
+### Changed
+- refactor(settings): extract SettingsModal component and keep codex model UX (db5f358)
+- style(settings): redesign modal UX with grouped model controls and clear primary actions (74aaced)
+- chore(codex): remove raw discovery logging and keep manual model entry (8cb5176)
+
+### Fixed
+- fix(release): sync package-lock.json version in prepare-version script (bf425a8)
+
 ## [0.10.12] - 2026-03-05
 
 ### Fixed
