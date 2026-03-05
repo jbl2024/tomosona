@@ -43,10 +43,12 @@ import {
   reindexMarkdownFileSemantic,
   readPropertyTypeSchema,
   readAppSettings,
+  discoverCodexModels as discoverCodexModelsApi,
   revealInFileManager,
   setWorkingFolder,
   selectWorkingFolder,
   type AppSettingsView,
+  type CodexDiscoveredModel,
   type FileMetadata,
   type IndexLogEntry,
   type IndexRuntimeStatus,
@@ -215,6 +217,8 @@ const settingsLlmModel = ref('gpt-4.1')
 const settingsLlmBaseUrl = ref('')
 const settingsLlmCustomProvider = ref('openai')
 const settingsLlmLabel = ref('OpenAI Remote')
+const settingsLlmCodexModels = ref<CodexDiscoveredModel[]>([])
+const settingsLlmCodexModelsLoading = ref(false)
 const settingsEmbeddingsMode = ref<'internal' | 'external'>('internal')
 const settingsEmbeddingsProvider = ref<'openai'>('openai')
 const settingsEmbeddingsApiKey = ref('')
@@ -2104,6 +2108,9 @@ function applySettingsLlmPreset(provider: 'openai' | 'anthropic' | 'codex' | 'cu
     settingsLlmCustomProvider.value = 'openai-codex'
     settingsLlmModel.value = 'gpt-5.2-codex'
     settingsLlmBaseUrl.value = ''
+    if (!settingsLlmCodexModels.value.length && !settingsLlmCodexModelsLoading.value) {
+      void discoverCodexModels()
+    }
     return
   }
   settingsLlmLabel.value = 'Custom LLM'
@@ -2117,6 +2124,8 @@ function applySettingsDefaults() {
   settingsConfigPath.value = '~/.tomosona/conf.json'
   settingsLlmApiKey.value = ''
   settingsLlmHasStoredApiKey.value = false
+  settingsLlmCodexModels.value = []
+  settingsLlmCodexModelsLoading.value = false
   applySettingsLlmPreset('openai')
   settingsEmbeddingsMode.value = 'internal'
   settingsEmbeddingsProvider.value = 'openai'
@@ -2126,6 +2135,23 @@ function applySettingsDefaults() {
   settingsEmbeddingsApiKey.value = ''
   settingsEmbeddingsHasStoredApiKey.value = false
   settingsModalError.value = ''
+}
+
+async function discoverCodexModels() {
+  settingsLlmCodexModelsLoading.value = true
+  settingsModalError.value = ''
+  try {
+    const models = await discoverCodexModelsApi()
+    settingsLlmCodexModels.value = models
+    if (models.length && !models.some((item) => item.id === settingsLlmModel.value)) {
+      settingsLlmModel.value = models[0]!.id
+    }
+  } catch (err) {
+    settingsLlmCodexModels.value = []
+    settingsModalError.value = err instanceof Error ? err.message : 'Could not discover Codex models.'
+  } finally {
+    settingsLlmCodexModelsLoading.value = false
+  }
 }
 
 function hydrateSettingsFromConfig(view: AppSettingsView) {
@@ -2179,6 +2205,9 @@ async function openSettingsModal() {
   try {
     const view = await readAppSettings()
     hydrateSettingsFromConfig(view)
+    if (settingsLlmProviderPreset.value === 'codex') {
+      void discoverCodexModels()
+    }
   } catch (err) {
     settingsModalError.value = err instanceof Error ? err.message : 'Could not read settings.'
   }
@@ -5365,6 +5394,30 @@ onBeforeUnmount(() => {
           <p v-if="settingsLlmProviderPreset === 'codex'" class="modal-field-hint">
             Utilise la session Codex CLI (<code>~/.codex/auth.json</code>).
           </p>
+          <div v-if="settingsLlmProviderPreset === 'codex'" class="settings-codex-discovery">
+            <UiButton
+              size="sm"
+              variant="ghost"
+              :disabled="settingsLlmCodexModelsLoading"
+              @click="discoverCodexModels"
+            >
+              {{ settingsLlmCodexModelsLoading ? 'Discovering...' : 'Discover models' }}
+            </UiButton>
+            <select
+              v-if="settingsLlmCodexModels.length > 0"
+              class="tool-input"
+              :value="settingsLlmModel"
+              @change="settingsLlmModel = ($event.target as HTMLSelectElement).value"
+            >
+              <option
+                v-for="item in settingsLlmCodexModels"
+                :key="item.id"
+                :value="item.id"
+              >
+                {{ item.display_name }} ({{ item.id }})
+              </option>
+            </select>
+          </div>
 
           <label class="modal-field-label" for="settings-llm-apikey">API key</label>
           <input
@@ -7203,6 +7256,13 @@ onBeforeUnmount(() => {
   margin: 6px 0 8px;
   font-size: 12px;
   color: #475569;
+}
+
+.settings-codex-discovery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 6px;
 }
 
 .ide-root.dark .confirm-text {

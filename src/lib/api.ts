@@ -145,6 +145,11 @@ export type WriteAppSettingsResult = {
   embeddings_changed: boolean
 }
 
+export type CodexDiscoveredModel = {
+  id: string
+  display_name: string
+}
+
 export type SecondBrainAttachmentMeta = {
   id: string
   kind: string
@@ -391,6 +396,10 @@ export async function readAppSettings(): Promise<AppSettingsView> {
 /** Writes app settings and reports whether embedding identity changed. */
 export async function writeAppSettings(payload: SaveAppSettingsPayload): Promise<WriteAppSettingsResult> {
   return await invoke('write_app_settings', { payload })
+}
+
+export async function discoverCodexModels(): Promise<CodexDiscoveredModel[]> {
+  return await invoke('discover_codex_models')
 }
 
 export async function listenWorkspaceFsChanged(

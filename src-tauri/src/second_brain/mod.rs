@@ -25,7 +25,7 @@ use config::{active_profile, validate_config, ConfigStatus, SecondBrainConfig};
 use draft::{delete_draft, read_draft, write_draft};
 use llm::{run_llm, run_llm_stream};
 use modes::resolve_mode_prompt;
-use openai_codex::has_codex_tokens;
+use openai_codex::{discover_models, has_codex_tokens, CodexDiscoveredModel};
 use session_store::{
     create_session, delete_session, estimate_tokens, insert_message, list_sessions, load_session,
     set_target_note_path, update_session_title, upsert_context, ContextItem, MessageRow,
@@ -566,6 +566,11 @@ pub fn read_second_brain_config_status() -> Result<ConfigStatus> {
             error: Some(err.to_string()),
         }),
     }
+}
+
+#[tauri::command]
+pub async fn discover_codex_models() -> Result<Vec<CodexDiscoveredModel>> {
+    discover_models().await.map_err(AppError::InvalidOperation)
 }
 
 #[tauri::command]

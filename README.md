@@ -169,6 +169,7 @@ Codex prerequisites:
 - Authenticate Codex CLI first: `codex auth login`
 - Ensure `~/.codex/auth.json` exists and has valid tokens
 - `api_key` is not used by `openai-codex` in V1
+- In Settings > LLM > OpenAI Codex, use **Discover models** to fetch available model IDs
 
 ### Example: Groq
 

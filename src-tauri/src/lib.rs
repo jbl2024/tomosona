@@ -2883,6 +2883,7 @@ pub fn run() {
             settings::read_app_settings,
             settings::write_app_settings,
             second_brain::read_second_brain_config_status,
+            second_brain::discover_codex_models,
             second_brain::write_second_brain_global_config,
             second_brain::list_second_brain_sessions,
             second_brain::create_second_brain_session,

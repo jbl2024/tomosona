@@ -28,7 +28,11 @@ const hoisted = vi.hoisted(() => ({
     },
     embeddings: { mode: 'internal', external: null }
   })),
-  writeAppSettings: vi.fn(async () => ({ path: '/Users/test/.tomosona/conf.json', embeddings_changed: false }))
+  writeAppSettings: vi.fn(async () => ({ path: '/Users/test/.tomosona/conf.json', embeddings_changed: false })),
+  discoverCodexModels: vi.fn(async () => [
+    { id: 'gpt-5.3-codex', display_name: 'GPT-5.3 Codex' },
+    { id: 'gpt-5.2-codex', display_name: 'GPT-5.2 Codex' }
+  ])
 }))
 
 vi.mock('./lib/api', () => ({
@@ -74,6 +78,7 @@ vi.mock('./lib/api', () => ({
   writePropertyTypeSchema: vi.fn(async () => {}),
   readAppSettings: hoisted.readAppSettings,
   writeAppSettings: hoisted.writeAppSettings,
+  discoverCodexModels: hoisted.discoverCodexModels,
   listenWorkspaceFsChanged: vi.fn(async () => () => {}),
   getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() }))
 }))
@@ -229,6 +234,8 @@ describe('App settings modal', () => {
       provider.dispatchEvent(new Event('change', { bubbles: true }))
     }
     await flushUi()
+    expect(hoisted.discoverCodexModels).toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('Discover models')
 
     const saveBtn = Array.from(mounted.root.querySelectorAll('button')).find((item) => item.textContent === 'Save')
     saveBtn?.click()

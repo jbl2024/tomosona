@@ -1,7 +1,8 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use futures_util::StreamExt;
+use serde::Serialize;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -116,6 +117,155 @@ fn load_credentials() -> Result<(String, String), String> {
         "OpenAI Codex account is missing. Run `codex auth login` again.".to_string()
     })?;
     Ok((tokens.access_token, account_id))
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CodexDiscoveredModel {
+    pub id: String,
+    pub display_name: String,
+}
+
+const CODEX_MODELS_ENDPOINT: &str = "https://chatgpt.com/backend-api/codex/models";
+const CODEX_MODELS_CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+fn looks_like_model_id(value: &str) -> bool {
+    if value.trim().is_empty() || value.len() > 120 {
+        return false;
+    }
+    if value.chars().any(char::is_whitespace) {
+        return false;
+    }
+    value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | ':'))
+}
+
+fn format_model_display_name(model_id: &str) -> String {
+    let mut parts = Vec::new();
+    for part in model_id.split('-') {
+        let item = match part {
+            "gpt" => "GPT".to_string(),
+            "codex" => "Codex".to_string(),
+            "mini" => "Mini".to_string(),
+            "max" => "Max".to_string(),
+            other => {
+                if other.is_empty() {
+                    continue;
+                }
+                let mut chars = other.chars();
+                match chars.next() {
+                    Some(first) => {
+                        let mut chunk = String::new();
+                        chunk.push(first.to_ascii_uppercase());
+                        chunk.push_str(chars.as_str());
+                        chunk
+                    }
+                    None => continue,
+                }
+            }
+        };
+        parts.push(item);
+    }
+    if parts.is_empty() {
+        model_id.to_string()
+    } else {
+        parts.join(" ")
+    }
+}
+
+fn normalize_model_display_name(model_id: &str, display_name: Option<&str>) -> String {
+    let normalized = display_name
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(model_id);
+    if normalized == model_id {
+        return format_model_display_name(model_id);
+    }
+    normalized.to_string()
+}
+
+fn parse_model_entry(entry: &Value) -> Option<CodexDiscoveredModel> {
+    let object = entry.as_object()?;
+    let model_id = object
+        .get("id")
+        .or_else(|| object.get("slug"))
+        .or_else(|| object.get("model"))
+        .and_then(Value::as_str)?;
+    if !looks_like_model_id(model_id) {
+        return None;
+    }
+    let display_name = object
+        .get("display_name")
+        .or_else(|| object.get("displayName"))
+        .or_else(|| object.get("name"))
+        .or_else(|| object.get("title"))
+        .and_then(Value::as_str);
+    Some(CodexDiscoveredModel {
+        id: model_id.to_string(),
+        display_name: normalize_model_display_name(model_id, display_name),
+    })
+}
+
+fn collect_candidate_items<'a>(value: &'a Value, out: &mut Vec<&'a Value>) {
+    match value {
+        Value::Array(items) => out.extend(items),
+        Value::Object(map) => {
+            for key in ["models", "data", "items", "results", "available"] {
+                if let Some(nested) = map.get(key) {
+                    collect_candidate_items(nested, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn parse_models_payload(payload: &Value) -> Vec<CodexDiscoveredModel> {
+    let mut candidates = Vec::new();
+    collect_candidate_items(payload, &mut candidates);
+    let mut models = Vec::new();
+    let mut seen = HashSet::new();
+    for item in candidates {
+        if let Some(model) = parse_model_entry(item) {
+            if seen.insert(model.id.clone()) {
+                models.push(model);
+            }
+        }
+    }
+    models
+}
+
+pub async fn discover_models() -> Result<Vec<CodexDiscoveredModel>, String> {
+    let (access_token, account_id) = load_credentials()?;
+    let client = reqwest::Client::new();
+    let url = format!("{CODEX_MODELS_ENDPOINT}?client_version={CODEX_MODELS_CLIENT_VERSION}");
+    let response = client
+        .get(url)
+        .header("Authorization", format!("Bearer {access_token}"))
+        .header("chatgpt-account-id", account_id)
+        .header("originator", "pi")
+        .header("accept", "application/json")
+        .send()
+        .await
+        .map_err(|_| "OpenAI Codex model discovery failed.".to_string())?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|_| "OpenAI Codex model discovery failed.".to_string())?;
+    if !status.is_success() {
+        return Err(format!(
+            "OpenAI Codex model discovery returned HTTP {status}."
+        ));
+    }
+    let payload: Value = serde_json::from_str(&body)
+        .map_err(|_| "OpenAI Codex model discovery returned invalid JSON.".to_string())?;
+    let models = parse_models_payload(&payload);
+    if models.is_empty() {
+        return Err("OpenAI Codex model discovery returned no models.".to_string());
+    }
+    Ok(models)
 }
 
 fn codex_request_body(model: &str, system_prompt: &str, user_prompt: &str) -> Value {
@@ -329,5 +479,35 @@ mod tests {
         assert_eq!(parse_sse_line("data: hello"), Some("hello"));
         assert_eq!(parse_sse_line("event: x"), None);
         assert_eq!(parse_sse_line(""), None);
+    }
+
+    #[test]
+    fn parse_models_payload_reads_models_array() {
+        let payload = serde_json::json!({
+            "models": [
+                {"id": "gpt-5.3-codex", "name": "GPT-5.3 Codex"},
+                {"slug": "gpt-5.2-codex"}
+            ]
+        });
+        let models = parse_models_payload(&payload);
+        assert_eq!(models.len(), 2);
+        assert_eq!(models[0].id, "gpt-5.3-codex");
+        assert_eq!(models[1].id, "gpt-5.2-codex");
+    }
+
+    #[test]
+    fn parse_models_payload_dedupes_and_filters_invalid() {
+        let payload = serde_json::json!({
+            "data": {
+                "items": [
+                    {"id": "gpt-5.2-codex"},
+                    {"id": "gpt-5.2-codex"},
+                    {"id": "bad model id"}
+                ]
+            }
+        });
+        let models = parse_models_payload(&payload);
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "gpt-5.2-codex");
     }
 }
