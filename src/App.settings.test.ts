@@ -213,4 +213,47 @@ describe('App settings modal', () => {
     expect((mounted.root.textContent ?? '').toLowerCase()).toContain('out of sync')
     mounted.app.unmount()
   })
+
+  it('writes codex preset without api key', async () => {
+    const mounted = mountApp()
+    await flushUi()
+    mounted.root.querySelector<HTMLButtonElement>('button[aria-label="View options"]')?.click()
+    await flushUi()
+    const settingsBtn = Array.from(mounted.root.querySelectorAll('button')).find((item) => item.textContent?.includes('Open Settings'))
+    settingsBtn?.click()
+    await flushUi()
+
+    const provider = mounted.root.querySelector<HTMLSelectElement>('#settings-llm-provider')
+    if (provider) {
+      provider.value = 'codex'
+      provider.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    await flushUi()
+
+    const saveBtn = Array.from(mounted.root.querySelectorAll('button')).find((item) => item.textContent === 'Save')
+    saveBtn?.click()
+    await flushUi()
+
+    expect(hoisted.writeAppSettings).toHaveBeenCalledTimes(1)
+    const firstCall = hoisted.writeAppSettings.mock.calls[0]
+    expect(firstCall).toBeDefined()
+    if (!firstCall) throw new Error('Expected writeAppSettings to be called')
+    const rawPayload = (firstCall as unknown[])[0]
+    if (!rawPayload || typeof rawPayload !== 'object') throw new Error('Expected payload object')
+    const payload = rawPayload as {
+      llm: {
+        profiles: Array<{
+          provider: string
+          model: string
+          preserve_existing_api_key: boolean
+          api_key?: string
+        }>
+      }
+    }
+    expect(payload.llm.profiles[0]?.provider).toBe('openai-codex')
+    expect(payload.llm.profiles[0]?.model).toBe('gpt-5.2-codex')
+    expect(payload.llm.profiles[0]?.preserve_existing_api_key).toBe(false)
+    expect(payload.llm.profiles[0]?.api_key).toBeUndefined()
+    mounted.app.unmount()
+  })
 })

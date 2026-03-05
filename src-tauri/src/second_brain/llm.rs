@@ -5,6 +5,11 @@ use genai::{
 };
 
 use super::config::ProviderProfile;
+use super::openai_codex::{run_codex, run_codex_stream};
+
+fn is_openai_codex(profile: &ProviderProfile) -> bool {
+    profile.provider.trim().eq_ignore_ascii_case("openai-codex")
+}
 
 fn normalize_model_name(profile: &ProviderProfile) -> String {
     let provider = profile.provider.trim().to_lowercase();
@@ -51,6 +56,10 @@ pub async fn run_llm(
     system_prompt: &str,
     user_prompt: &str,
 ) -> Result<String, String> {
+    if is_openai_codex(profile) {
+        return run_codex(&profile.model, system_prompt, user_prompt).await;
+    }
+
     configure_environment(profile);
 
     let model = normalize_model_name(profile);
@@ -89,6 +98,10 @@ pub async fn run_llm_stream<F>(
 where
     F: FnMut(&str),
 {
+    if is_openai_codex(profile) {
+        return run_codex_stream(&profile.model, system_prompt, user_prompt, on_chunk).await;
+    }
+
     configure_environment(profile);
 
     let model = normalize_model_name(profile);
@@ -151,5 +164,35 @@ mod tests {
             capabilities: Default::default(),
         };
         assert_eq!(normalize_model_name(&profile), "openai::gpt-oss");
+    }
+
+    #[test]
+    fn detects_codex_provider_case_insensitive() {
+        let profile = ProviderProfile {
+            id: "p1".to_string(),
+            label: "Codex".to_string(),
+            provider: "OpenAI-Codex".to_string(),
+            model: "gpt-5.2-codex".to_string(),
+            api_key: String::new(),
+            base_url: None,
+            default_mode: None,
+            capabilities: Default::default(),
+        };
+        assert!(is_openai_codex(&profile));
+    }
+
+    #[test]
+    fn keeps_non_codex_provider_out_of_codex_path() {
+        let profile = ProviderProfile {
+            id: "p1".to_string(),
+            label: "OpenAI".to_string(),
+            provider: "openai".to_string(),
+            model: "gpt-4.1".to_string(),
+            api_key: "x".to_string(),
+            base_url: None,
+            default_mode: None,
+            capabilities: Default::default(),
+        };
+        assert!(!is_openai_codex(&profile));
     }
 }

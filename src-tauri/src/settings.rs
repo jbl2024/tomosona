@@ -351,29 +351,40 @@ fn apply_save_payload(
         .profiles
         .iter()
         .map(|profile| {
+            let provider = profile.provider.trim().to_lowercase();
             let existing_api_key = existing_llm.and_then(|cfg| {
                 cfg.profiles
                     .iter()
                     .find(|item| item.id.trim() == profile.id.trim())
                     .map(|item| item.api_key.as_str())
             });
-            let api_key = resolve_api_key(
-                profile.api_key.as_deref(),
-                profile.preserve_existing_api_key,
-                existing_api_key,
-                "LLM profile",
-            )?;
-            validate_base_url(&profile.base_url, "LLM base_url")?;
+            let api_key = if provider == "openai-codex" {
+                String::new()
+            } else {
+                resolve_api_key(
+                    profile.api_key.as_deref(),
+                    profile.preserve_existing_api_key,
+                    existing_api_key,
+                    "LLM profile",
+                )?
+            };
+            if provider != "openai-codex" {
+                validate_base_url(&profile.base_url, "LLM base_url")?;
+            }
             Ok(ProviderProfile {
                 id: profile.id.trim().to_string(),
                 label: profile.label.trim().to_string(),
                 provider: profile.provider.trim().to_string(),
                 model: profile.model.trim().to_string(),
                 api_key,
-                base_url: profile
-                    .base_url
-                    .as_ref()
-                    .map(|item| item.trim().to_string()),
+                base_url: if provider == "openai-codex" {
+                    None
+                } else {
+                    profile
+                        .base_url
+                        .as_ref()
+                        .map(|item| item.trim().to_string())
+                },
                 default_mode: profile
                     .default_mode
                     .as_ref()
@@ -595,5 +606,32 @@ mod tests {
             }),
         };
         assert_ne!(embedding_identity(&left), embedding_identity(&right));
+    }
+
+    #[test]
+    fn allows_codex_profile_without_api_key() {
+        let payload = SaveAppSettingsPayload {
+            llm: SaveLlmConfigInput {
+                active_profile: "codex-profile".to_string(),
+                profiles: vec![SaveLlmProfileInput {
+                    id: "codex-profile".to_string(),
+                    label: "OpenAI Codex".to_string(),
+                    provider: "openai-codex".to_string(),
+                    model: "gpt-5.2-codex".to_string(),
+                    api_key: None,
+                    preserve_existing_api_key: false,
+                    base_url: Some("https://ignored.example".to_string()),
+                    default_mode: Some("freestyle".to_string()),
+                    capabilities: ProfileCapabilities::default(),
+                }],
+            },
+            embeddings: SaveEmbeddingsInput {
+                mode: EMBEDDINGS_MODE_INTERNAL.to_string(),
+                external: None,
+            },
+        };
+        let settings = apply_save_payload(payload, None).expect("codex settings");
+        assert_eq!(settings.llm.profiles[0].api_key, "");
+        assert_eq!(settings.llm.profiles[0].base_url, None);
     }
 }

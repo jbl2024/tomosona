@@ -68,7 +68,8 @@ pub fn validate_config(config: &SecondBrainConfig) -> Result<(), String> {
         if profile.model.trim().is_empty() {
             return Err("profile.model is required.".to_string());
         }
-        if profile.api_key.trim().is_empty() {
+        let provider = profile.provider.trim().to_lowercase();
+        if provider != "openai-codex" && profile.api_key.trim().is_empty() {
             return Err("profile.api_key is required.".to_string());
         }
         if let Some(base_url) = &profile.base_url {
@@ -135,6 +136,32 @@ mod tests {
     fn fails_on_invalid_base_url() {
         let mut config = base_config();
         config.profiles[0].base_url = Some("ftp://localhost".to_string());
+        assert!(validate_config(&config).is_err());
+    }
+
+    #[test]
+    fn allows_codex_without_api_key() {
+        let config = SecondBrainConfig {
+            active_profile: "codex".to_string(),
+            profiles: vec![ProviderProfile {
+                id: "codex".to_string(),
+                label: "Codex".to_string(),
+                provider: "openai-codex".to_string(),
+                model: "gpt-5.2-codex".to_string(),
+                api_key: "".to_string(),
+                base_url: None,
+                default_mode: Some("freestyle".to_string()),
+                capabilities: ProfileCapabilities::default(),
+            }],
+        };
+        assert!(validate_config(&config).is_ok());
+    }
+
+    #[test]
+    fn requires_api_key_for_non_codex() {
+        let mut config = base_config();
+        config.profiles[0].provider = "openai".to_string();
+        config.profiles[0].api_key = String::new();
         assert!(validate_config(&config).is_err());
     }
 }

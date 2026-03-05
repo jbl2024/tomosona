@@ -18,12 +18,14 @@ pub mod config;
 pub mod draft;
 pub mod llm;
 pub mod modes;
+pub mod openai_codex;
 pub mod session_store;
 
 use config::{active_profile, validate_config, ConfigStatus, SecondBrainConfig};
 use draft::{delete_draft, read_draft, write_draft};
 use llm::{run_llm, run_llm_stream};
 use modes::resolve_mode_prompt;
+use openai_codex::has_codex_tokens;
 use session_store::{
     create_session, delete_session, estimate_tokens, insert_message, list_sessions, load_session,
     set_target_note_path, update_session_title, upsert_context, ContextItem, MessageRow,
@@ -255,8 +257,22 @@ fn normalize_mention_candidate(raw: &str) -> Option<String> {
     let trimmed = raw.trim_matches(|ch: char| {
         matches!(
             ch,
-            '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '"' | '\'' | '`' | ',' | '.' | ';'
-                | ':' | '!' | '?'
+            '(' | ')'
+                | '['
+                | ']'
+                | '{'
+                | '}'
+                | '<'
+                | '>'
+                | '"'
+                | '\''
+                | '`'
+                | ','
+                | '.'
+                | ';'
+                | ':'
+                | '!'
+                | '?'
         )
     });
     if !trimmed.starts_with('@') {
@@ -289,7 +305,10 @@ fn extract_mentioned_markdown_paths(message: &str) -> Vec<String> {
     out
 }
 
-fn prioritize_context_items(context_items: &[ContextItem], mentions: &[String]) -> Vec<ContextItem> {
+fn prioritize_context_items(
+    context_items: &[ContextItem],
+    mentions: &[String],
+) -> Vec<ContextItem> {
     let mention_set: HashSet<String> = mentions.iter().map(|item| item.to_lowercase()).collect();
     let mut prioritized = Vec::with_capacity(context_items.len());
     for item in context_items {
@@ -414,7 +433,8 @@ fn build_user_prompt(
 
     let (context_section, included_context_paths) =
         build_context_section(session_id, context_entries, context_budget);
-    let history_section = build_history_section(history_messages, history_budget, SB_HISTORY_WINDOW);
+    let history_section =
+        build_history_section(history_messages, history_budget, SB_HISTORY_WINDOW);
 
     let mut prompt = String::new();
     if !context_section.is_empty() {
@@ -510,6 +530,20 @@ pub fn read_second_brain_config_status() -> Result<ConfigStatus> {
             let active = active_profile(&config).ok_or_else(|| {
                 AppError::InvalidOperation("active profile is missing from config.".to_string())
             })?;
+            if active.provider.trim().eq_ignore_ascii_case("openai-codex") && !has_codex_tokens() {
+                return Ok(ConfigStatus {
+                    configured: false,
+                    provider: Some(active.provider.clone()),
+                    model: Some(active.model.clone()),
+                    profile_id: Some(active.id.clone()),
+                    supports_streaming: false,
+                    supports_image_input: false,
+                    supports_audio_input: false,
+                    error: Some(
+                        "OpenAI Codex is not authenticated. Run `codex auth login`.".to_string(),
+                    ),
+                });
+            }
             Ok(ConfigStatus {
                 configured: true,
                 provider: Some(active.provider.clone()),
@@ -777,7 +811,11 @@ pub async fn send_second_brain_message(
         );
     }
 
-    let citations: Vec<String> = built_prompt.included_context_paths.into_iter().take(12).collect();
+    let citations: Vec<String> = built_prompt
+        .included_context_paths
+        .into_iter()
+        .take(12)
+        .collect();
 
     let assistant_message = MessageRow {
         id: assistant_message_id.clone(),
@@ -1152,7 +1190,10 @@ mod tests {
         );
         assert_eq!(
             mentions,
-            vec!["foo/bar.md".to_string(), "journal/2026-03-03.markdown".to_string()]
+            vec![
+                "foo/bar.md".to_string(),
+                "journal/2026-03-03.markdown".to_string()
+            ]
         );
     }
 

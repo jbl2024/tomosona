@@ -60,6 +60,13 @@ Second Brain provides a dedicated chat view where AI answers can use explicit no
   - optional `base_url`
   - capability flags (`text`, `streaming`, `image_input`, `audio_input`, `tool_calling`)
 
+### OpenAI Codex provider (KISS V1)
+- Provider id: `openai-codex`.
+- Auth source: local Codex CLI session from `~/.codex/auth.json`.
+- No fallback to API key/base URL when Codex tokens are missing.
+- Status endpoint reports a clear action (`codex auth login`) when not authenticated.
+- Model discovery is not implemented in V1; model id is configured manually.
+
 ## Streaming contract
 Events:
 - `second-brain://assistant-start`

@@ -208,7 +208,7 @@ const openDateModalError = ref('')
 const settingsModalVisible = ref(false)
 const settingsActiveTab = ref<'llm' | 'embeddings'>('llm')
 const settingsConfigPath = ref('~/.tomosona/conf.json')
-const settingsLlmProviderPreset = ref<'openai' | 'anthropic' | 'custom'>('openai')
+const settingsLlmProviderPreset = ref<'openai' | 'anthropic' | 'codex' | 'custom'>('openai')
 const settingsLlmApiKey = ref('')
 const settingsLlmHasStoredApiKey = ref(false)
 const settingsLlmModel = ref('gpt-4.1')
@@ -2082,7 +2082,7 @@ function onSecondBrainSessionChanged(sessionId: string) {
   setSecondBrainSessionId(sessionId)
 }
 
-function applySettingsLlmPreset(provider: 'openai' | 'anthropic' | 'custom') {
+function applySettingsLlmPreset(provider: 'openai' | 'anthropic' | 'codex' | 'custom') {
   settingsLlmProviderPreset.value = provider
   settingsModalError.value = ''
   if (provider === 'openai') {
@@ -2096,6 +2096,13 @@ function applySettingsLlmPreset(provider: 'openai' | 'anthropic' | 'custom') {
     settingsLlmLabel.value = 'Anthropic Claude'
     settingsLlmCustomProvider.value = 'anthropic'
     settingsLlmModel.value = 'claude-3-7-sonnet-latest'
+    settingsLlmBaseUrl.value = ''
+    return
+  }
+  if (provider === 'codex') {
+    settingsLlmLabel.value = 'OpenAI Codex'
+    settingsLlmCustomProvider.value = 'openai-codex'
+    settingsLlmModel.value = 'gpt-5.2-codex'
     settingsLlmBaseUrl.value = ''
     return
   }
@@ -2130,6 +2137,8 @@ function hydrateSettingsFromConfig(view: AppSettingsView) {
       ? 'openai'
       : provider === 'anthropic'
         ? 'anthropic'
+        : provider === 'openai-codex'
+          ? 'codex'
         : 'custom'
     settingsLlmCustomProvider.value = active.provider
     settingsLlmLabel.value = active.label
@@ -2183,11 +2192,17 @@ function buildSaveSettingsPayload(): SaveAppSettingsPayload {
     ? 'openai'
     : settingsLlmProviderPreset.value === 'anthropic'
       ? 'anthropic'
+      : settingsLlmProviderPreset.value === 'codex'
+        ? 'openai-codex'
       : settingsLlmCustomProvider.value.trim()
-  const llmProfileId = settingsLlmProviderPreset.value === 'custom' ? 'custom-profile' : `${llmProvider}-profile`
+  const llmProfileId = settingsLlmProviderPreset.value === 'custom'
+    ? 'custom-profile'
+    : settingsLlmProviderPreset.value === 'codex'
+      ? 'openai-codex-profile'
+      : `${llmProvider}-profile`
   const capabilities = {
     text: true,
-    image_input: settingsLlmProviderPreset.value !== 'custom',
+    image_input: settingsLlmProviderPreset.value !== 'custom' && settingsLlmProviderPreset.value !== 'codex',
     audio_input: false,
     tool_calling: true,
     streaming: true
@@ -2197,11 +2212,17 @@ function buildSaveSettingsPayload(): SaveAppSettingsPayload {
     label: settingsLlmLabel.value.trim(),
     provider: llmProvider,
     model: settingsLlmModel.value.trim(),
-    preserve_existing_api_key: settingsLlmHasStoredApiKey.value && !settingsLlmApiKey.value.trim(),
+    preserve_existing_api_key: settingsLlmProviderPreset.value !== 'codex'
+      && settingsLlmHasStoredApiKey.value
+      && !settingsLlmApiKey.value.trim(),
     capabilities,
     default_mode: 'freestyle',
-    ...(settingsLlmApiKey.value.trim() ? { api_key: settingsLlmApiKey.value.trim() } : {}),
-    ...(settingsLlmBaseUrl.value.trim() ? { base_url: settingsLlmBaseUrl.value.trim() } : {})
+    ...(settingsLlmProviderPreset.value !== 'codex' && settingsLlmApiKey.value.trim()
+      ? { api_key: settingsLlmApiKey.value.trim() }
+      : {}),
+    ...(settingsLlmProviderPreset.value !== 'codex' && settingsLlmBaseUrl.value.trim()
+      ? { base_url: settingsLlmBaseUrl.value.trim() }
+      : {})
   }
 
   const payload: SaveAppSettingsPayload = {
@@ -2240,7 +2261,11 @@ async function submitSettingsModal() {
     settingsModalError.value = 'Custom LLM provider is required.'
     return false
   }
-  if (!settingsLlmHasStoredApiKey.value && !settingsLlmApiKey.value.trim()) {
+  if (
+    settingsLlmProviderPreset.value !== 'codex'
+    && !settingsLlmHasStoredApiKey.value
+    && !settingsLlmApiKey.value.trim()
+  ) {
     settingsModalError.value = 'LLM API key is required.'
     return false
   }
@@ -5303,10 +5328,11 @@ onBeforeUnmount(() => {
             id="settings-llm-provider"
             class="tool-input"
             :value="settingsLlmProviderPreset"
-            @change="applySettingsLlmPreset(($event.target as HTMLSelectElement).value as 'openai' | 'anthropic' | 'custom')"
+            @change="applySettingsLlmPreset(($event.target as HTMLSelectElement).value as 'openai' | 'anthropic' | 'codex' | 'custom')"
           >
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
+            <option value="codex">OpenAI Codex</option>
             <option value="custom">Custom</option>
           </select>
 
@@ -5326,14 +5352,19 @@ onBeforeUnmount(() => {
           <label class="modal-field-label" for="settings-llm-model">Model</label>
           <input id="settings-llm-model" v-model="settingsLlmModel" class="tool-input" placeholder="Model name" @keydown="onSettingsInputKeydown" />
 
-          <label class="modal-field-label" for="settings-llm-base-url">Base URL (optional)</label>
+          <label v-if="settingsLlmProviderPreset !== 'codex'" class="modal-field-label" for="settings-llm-base-url">Base URL (optional)</label>
           <input
+            v-if="settingsLlmProviderPreset !== 'codex'"
             id="settings-llm-base-url"
             v-model="settingsLlmBaseUrl"
             class="tool-input"
             placeholder="https://... or http://localhost:11434/v1"
             @keydown="onSettingsInputKeydown"
           />
+
+          <p v-if="settingsLlmProviderPreset === 'codex'" class="modal-field-hint">
+            Utilise la session Codex CLI (<code>~/.codex/auth.json</code>).
+          </p>
 
           <label class="modal-field-label" for="settings-llm-apikey">API key</label>
           <input
@@ -5342,7 +5373,12 @@ onBeforeUnmount(() => {
             data-settings-llm-apikey="true"
             class="tool-input"
             type="password"
-            :placeholder="settingsLlmHasStoredApiKey ? 'stored key (leave empty to keep)' : 'api key'"
+            :placeholder="settingsLlmProviderPreset === 'codex'
+              ? 'not used for Codex'
+              : settingsLlmHasStoredApiKey
+                ? 'stored key (leave empty to keep)'
+                : 'api key'"
+            :disabled="settingsLlmProviderPreset === 'codex'"
             @keydown="onSettingsInputKeydown"
           />
         </div>
@@ -7163,11 +7199,21 @@ onBeforeUnmount(() => {
   color: #475569;
 }
 
+.modal-field-hint {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
 .ide-root.dark .confirm-text {
   color: #94a3b8;
 }
 
 .ide-root.dark .modal-field-label {
+  color: #94a3b8;
+}
+
+.ide-root.dark .modal-field-hint {
   color: #94a3b8;
 }
 

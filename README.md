@@ -21,7 +21,7 @@ A powerful block-based editor with slash commands (`/`), drag handles, and rich 
 Full-text search across your entire workspace. Or switch to **semantic search** and let AI find notes that are conceptually related, even if they don't share the same words. Combine both with hybrid search for the best results.
 
 ### Let AI help you think
-Chat with AI about your notes in the **Second Brain** panel. Select relevant notes and ask questions — Tomosona feeds them to your LLM as context. Supports OpenAI, Anthropic Claude, Groq, or local models via Ollama. Streamed responses appear in real-time, and you can save conversations or insert AI output as new notes.
+Chat with AI about your notes in the **Second Brain** panel. Select relevant notes and ask questions — Tomosona feeds them to your LLM as context. Supports OpenAI, OpenAI Codex, Anthropic Claude, Groq, or local models via Ollama. Streamed responses appear in real-time, and you can save conversations or insert AI output as new notes.
 
 ### Your data stays yours
 Plain `.md` files on your disk. No cloud, no account required. SQLite indexes your notes for fast search and graph building, but everything lives locally. Your second brain, your machine, your rules.
@@ -82,7 +82,7 @@ Schema:
 Each profile supports:
 
 - `id`, `label`
-- `provider` (for example: `openai`, `openai_compatible`, `groq`, `anthropic`)
+- `provider` (for example: `openai`, `openai-codex`, `openai_compatible`, `groq`, `anthropic`)
 - `model`
 - `api_key`
 - optional `base_url` (for local/OpenAI-compatible endpoints)
@@ -139,6 +139,36 @@ Each profile supports:
   ]
 }
 ```
+
+### Example: OpenAI Codex (OAuth via Codex CLI)
+
+```json
+{
+  "active_profile": "openai-codex-profile",
+  "profiles": [
+    {
+      "id": "openai-codex-profile",
+      "label": "OpenAI Codex",
+      "provider": "openai-codex",
+      "model": "gpt-5.2-codex",
+      "api_key": "",
+      "capabilities": {
+        "text": true,
+        "image_input": false,
+        "audio_input": false,
+        "tool_calling": true,
+        "streaming": true
+      },
+      "default_mode": "freestyle"
+    }
+  ]
+}
+```
+
+Codex prerequisites:
+- Authenticate Codex CLI first: `codex auth login`
+- Ensure `~/.codex/auth.json` exists and has valid tokens
+- `api_key` is not used by `openai-codex` in V1
 
 ### Example: Groq
 

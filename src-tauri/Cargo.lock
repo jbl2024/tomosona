@@ -2298,6 +2298,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
+ "webpki-roots 1.0.6",
 ]
 
 [[package]]
@@ -4553,6 +4554,8 @@ dependencies = [
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
+ "quinn",
+ "rustls",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -4560,6 +4563,7 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-native-tls",
+ "tokio-rustls",
  "tokio-util",
  "tower",
  "tower-http",
@@ -4569,6 +4573,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams 0.4.2",
  "web-sys",
+ "webpki-roots 1.0.6",
 ]
 
 [[package]]
@@ -6003,6 +6008,7 @@ checksum = "ab16f14aed21ee8bfd8ec22513f7287cd4a91aa92e44edfe2c17ddd004e92607"
 name = "tomosona"
 version = "0.10.12"
 dependencies = [
+ "base64 0.22.1",
  "directories",
  "fastembed",
  "futures-util",
@@ -6010,6 +6016,7 @@ dependencies = [
  "ignore",
  "notify",
  "open",
+ "reqwest 0.12.28",
  "rfd",
  "rusqlite",
  "serde",
