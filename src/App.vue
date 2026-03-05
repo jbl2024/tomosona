@@ -2213,7 +2213,6 @@ async function openSettingsModal() {
   }
   settingsModalVisible.value = true
   await nextTick()
-  document.querySelector<HTMLInputElement>('[data-settings-llm-apikey="true"]')?.focus()
 }
 
 function buildSaveSettingsPayload(): SaveAppSettingsPayload {
@@ -5345,7 +5344,6 @@ onBeforeUnmount(() => {
         tabindex="-1"
       >
         <h3 id="settings-title" class="confirm-title">Settings</h3>
-        <p class="confirm-text">Config path: <code>{{ settingsConfigPath }}</code></p>
         <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
           <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'llm' }" @click="settingsActiveTab = 'llm'">LLM</button>
           <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'embeddings' }" @click="settingsActiveTab = 'embeddings'">Embeddings</button>
@@ -5379,33 +5377,21 @@ onBeforeUnmount(() => {
           />
 
           <label class="modal-field-label" for="settings-llm-model">Model</label>
-          <input id="settings-llm-model" v-model="settingsLlmModel" class="tool-input" placeholder="Model name" @keydown="onSettingsInputKeydown" />
-
-          <label v-if="settingsLlmProviderPreset !== 'codex'" class="modal-field-label" for="settings-llm-base-url">Base URL (optional)</label>
-          <input
-            v-if="settingsLlmProviderPreset !== 'codex'"
-            id="settings-llm-base-url"
-            v-model="settingsLlmBaseUrl"
-            class="tool-input"
-            placeholder="https://... or http://localhost:11434/v1"
-            @keydown="onSettingsInputKeydown"
-          />
-
-          <p v-if="settingsLlmProviderPreset === 'codex'" class="modal-field-hint">
-            Utilise la session Codex CLI (<code>~/.codex/auth.json</code>).
-            Tu peux aussi saisir manuellement n'importe quel model ID.
-          </p>
-          <div v-if="settingsLlmProviderPreset === 'codex'" class="settings-codex-discovery">
-            <UiButton
-              size="sm"
-              variant="ghost"
-              :disabled="settingsLlmCodexModelsLoading"
-              @click="discoverCodexModels"
-            >
-              {{ settingsLlmCodexModelsLoading ? 'Discovering...' : 'Discover models' }}
-            </UiButton>
+          <div class="settings-model-group">
+            <div class="settings-model-input-row">
+              <input id="settings-llm-model" v-model="settingsLlmModel" class="tool-input" placeholder="Model name" @keydown="onSettingsInputKeydown" />
+              <button
+                v-if="settingsLlmProviderPreset === 'codex'"
+                type="button"
+                class="settings-discover-btn"
+                :disabled="settingsLlmCodexModelsLoading"
+                @click="discoverCodexModels"
+              >
+                {{ settingsLlmCodexModelsLoading ? 'Discovering...' : 'Discover models' }}
+              </button>
+            </div>
             <select
-              v-if="settingsLlmCodexModels.length > 0"
+              v-if="settingsLlmProviderPreset === 'codex' && settingsLlmCodexModels.length > 0"
               class="tool-input"
               :value="settingsLlmModel"
               @change="settingsLlmModel = ($event.target as HTMLSelectElement).value"
@@ -5419,6 +5405,20 @@ onBeforeUnmount(() => {
               </option>
             </select>
           </div>
+          <p v-if="settingsLlmProviderPreset === 'codex'" class="modal-field-hint">
+            Utilise la session Codex CLI (<code>~/.codex/auth.json</code>).
+            Tu peux aussi saisir manuellement n'importe quel model ID.
+          </p>
+
+          <label v-if="settingsLlmProviderPreset !== 'codex'" class="modal-field-label" for="settings-llm-base-url">Base URL (optional)</label>
+          <input
+            v-if="settingsLlmProviderPreset !== 'codex'"
+            id="settings-llm-base-url"
+            v-model="settingsLlmBaseUrl"
+            class="tool-input"
+            placeholder="https://... or http://localhost:11434/v1"
+            @keydown="onSettingsInputKeydown"
+          />
 
           <label class="modal-field-label" for="settings-llm-apikey">API key</label>
           <input
@@ -5475,9 +5475,12 @@ onBeforeUnmount(() => {
         </div>
 
         <p v-if="settingsModalError" class="modal-input-error">{{ settingsModalError }}</p>
-        <div class="confirm-actions">
-          <UiButton size="sm" variant="ghost" @click="closeSettingsModal">Close</UiButton>
-          <UiButton size="sm" @click="submitSettingsModal">Save</UiButton>
+        <div class="settings-footer">
+          <p class="settings-config-path"><code>{{ settingsConfigPath }}</code></p>
+          <div class="settings-footer-actions">
+            <button type="button" class="settings-cancel-btn" @click="closeSettingsModal">Cancel</button>
+            <UiButton size="sm" variant="primary" @click="submitSettingsModal">Save</UiButton>
+          </div>
         </div>
       </div>
     </div>
@@ -6189,10 +6192,21 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
+.tool-input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .ide-root.dark .tool-input {
   border-color: #3e4451;
   background: #282c34;
   color: #abb2bf;
+}
+
+.ide-root.dark .tool-input:disabled {
+  background: #21252b;
+  color: #7d8595;
 }
 
 .ide-root.dark .search-mode-chip {
@@ -7137,28 +7151,34 @@ onBeforeUnmount(() => {
 .settings-tabs {
   display: inline-flex;
   gap: 6px;
-  margin: 2px 0 10px;
+  margin: 2px 0 0;
 }
 
 .settings-tab-btn {
   border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  border-radius: 8px;
+  border-bottom-color: transparent;
+  background: #f1f5f9;
+  border-radius: 8px 8px 0 0;
   font-size: 12px;
   padding: 6px 10px;
   color: #334155;
 }
 
 .settings-tab-btn.active {
-  border-color: #60a5fa;
-  background: #dbeafe;
+  border-color: #e2e8f0;
+  border-bottom-color: #f8fafc;
+  background: #f8fafc;
   color: #1e3a8a;
+  position: relative;
+  z-index: 1;
 }
 
 .settings-tab-panel {
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px;
+  border-top: 0;
+  border-radius: 0 8px 8px 8px;
+  padding: 12px;
+  background: #f8fafc;
 }
 
 .settings-checkbox-row {
@@ -7169,12 +7189,14 @@ onBeforeUnmount(() => {
 
 .ide-root.dark .settings-tab-btn {
   border-color: #3e4451;
+  border-bottom-color: transparent;
   background: #21252b;
   color: #cbd5e1;
 }
 
 .ide-root.dark .settings-tab-btn.active {
   border-color: #61afef;
+  border-bottom-color: rgba(30, 41, 59, 0.35);
   background: #1e3a5f;
   color: #dbeafe;
 }
@@ -7249,21 +7271,86 @@ onBeforeUnmount(() => {
 .modal-field-label {
   display: block;
   margin: 8px 0 4px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: #475569;
 }
 
 .modal-field-hint {
-  margin: 6px 0 8px;
-  font-size: 12px;
+  margin: 6px 0 10px;
+  font-size: 11px;
   color: #475569;
 }
 
-.settings-codex-discovery {
+.settings-model-group {
+  margin: 0 0 8px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 8px 0 6px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.settings-model-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-discover-btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #334155;
+  background: #e2e8f0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.settings-discover-btn:hover:not(:disabled) {
+  background: #cbd5e1;
+}
+
+.settings-discover-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.settings-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-config-path {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.settings-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-cancel-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.settings-cancel-btn:hover {
+  color: #334155;
 }
 
 .ide-root.dark .confirm-text {
@@ -7276,6 +7363,31 @@ onBeforeUnmount(() => {
 
 .ide-root.dark .modal-field-hint {
   color: #94a3b8;
+}
+
+.ide-root.dark .settings-model-group {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.ide-root.dark .settings-discover-btn {
+  background: #2c313a;
+  color: #cbd5e1;
+}
+
+.ide-root.dark .settings-discover-btn:hover:not(:disabled) {
+  background: #3e4451;
+}
+
+.ide-root.dark .settings-config-path {
+  color: #94a3b8;
+}
+
+.ide-root.dark .settings-cancel-btn {
+  color: #94a3b8;
+}
+
+.ide-root.dark .settings-cancel-btn:hover {
+  color: #cbd5e1;
 }
 
 .modal-input-error {
