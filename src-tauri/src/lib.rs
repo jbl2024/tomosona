@@ -1533,7 +1533,7 @@ fn min_max_normalize(values: &[f64]) -> Vec<f64> {
 fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Result<()> {
     let started_at = Instant::now();
     let mut source_paths: Vec<String> = {
-        let mut stmt = conn.prepare("SELECT path FROM note_embeddings ORDER BY path")?;
+        let mut stmt = conn.prepare("SELECT path FROM note_embeddings_vec ORDER BY path")?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
         let mut items = Vec::new();
         for row in rows {
@@ -1549,7 +1549,12 @@ fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Res
         SEMANTIC_THRESHOLD
     ));
 
-    conn.execute("DELETE FROM semantic_edges", [])?;
+    conn.execute("DELETE FROM semantic_edges", []).map_err(|err| {
+        log_index(&format!(
+            "semantic_edges:refresh_error stage=clear_cache err={err}"
+        ));
+        AppError::Sqlite(err)
+    })?;
     let updated_at_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_millis() as i64)
@@ -1563,34 +1568,14 @@ fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Res
     let mut total_skipped_threshold = 0usize;
     let mut total_skipped_existing_link = 0usize;
     let mut total_skipped_missing_target_key = 0usize;
-    let mut total_missing_vector = 0usize;
+    let total_missing_vector = 0usize;
 
     for source_path in source_paths {
-        let vector_blob = match conn.query_row(
-            "SELECT vector, dim FROM note_embeddings WHERE path = ?1",
-            params![source_path.clone()],
-            |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, i64>(1)?)),
-        ) {
-            Ok((blob, dim)) => {
-                let Some(vector) = semantic::blob_to_vector(&blob, dim as usize) else {
-                    total_missing_vector += 1;
-                    continue;
-                };
-                sources_with_vector += 1;
-                vector
-            }
-            Err(_) => {
-                total_missing_vector += 1;
-                continue;
-            }
-        };
-
-        let payload = semantic::vector_to_json(&vector_blob);
         let mut stmt = match conn.prepare(
             r#"
             SELECT path, distance
             FROM note_embeddings_vec
-            WHERE embedding MATCH ?1
+            WHERE embedding MATCH (SELECT embedding FROM note_embeddings_vec WHERE path = ?1)
             ORDER BY distance ASC
             LIMIT ?2
         "#,
@@ -1598,27 +1583,43 @@ fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Res
             Ok(value) => value,
             Err(err) => {
                 log_index(&format!(
-                    "semantic_edges:refresh_error stage=prepare err={err}"
+                    "semantic_edges:refresh_error stage=prepare source_path={source_path} err={err}"
                 ));
                 return Err(AppError::Sqlite(err));
             }
         };
-        let mut rows = match stmt.query(params![payload, SEMANTIC_TOP_K_PER_NOTE + 1]) {
+        let mut rows = match stmt.query(params![source_path.clone(), SEMANTIC_TOP_K_PER_NOTE + 1]) {
             Ok(value) => value,
             Err(err) => {
                 log_index(&format!(
-                    "semantic_edges:refresh_error stage=query err={err}"
+                    "semantic_edges:refresh_error stage=query source_path={source_path} err={err}"
                 ));
                 return Err(AppError::Sqlite(err));
             }
         };
+        sources_with_vector += 1;
         sources_query_ok += 1;
 
         let mut added_for_source = 0i64;
-        while let Some(row) = rows.next()? {
+        while let Some(row) = rows.next().map_err(|err| {
+            log_index(&format!(
+                "semantic_edges:refresh_error stage=rows_next source_path={source_path} err={err}"
+            ));
+            AppError::Sqlite(err)
+        })? {
             total_candidates += 1;
-            let target_path: String = row.get(0)?;
-            let distance: f32 = row.get(1)?;
+            let target_path: String = row.get(0).map_err(|err| {
+                log_index(&format!(
+                    "semantic_edges:refresh_error stage=row_target source_path={source_path} err={err}"
+                ));
+                AppError::Sqlite(err)
+            })?;
+            let distance: f32 = row.get(1).map_err(|err| {
+                log_index(&format!(
+                    "semantic_edges:refresh_error stage=row_distance source_path={source_path} target_path={target_path} err={err}"
+                ));
+                AppError::Sqlite(err)
+            })?;
             if target_path == source_path {
                 total_skipped_self += 1;
                 continue;
@@ -1645,18 +1646,31 @@ fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Res
                 total_skipped_existing_link += 1;
                 continue;
             }
+            if let Err(err) = &exists {
+                if !matches!(err, rusqlite::Error::QueryReturnedNoRows) {
+                    log_index(&format!(
+                        "semantic_edges:refresh_error stage=check_existing_link source_path={source_path} target_path={target_path} err={err}"
+                    ));
+                }
+            }
 
             conn.execute(
                 "INSERT INTO semantic_edges(source_path, target_path, score, model, updated_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![
                     source_path.clone(),
-                    target_path,
+                    target_path.clone(),
                     score,
                     semantic::embedding_model_name(),
                     updated_at_ms
                 ],
-            )?;
+            )
+            .map_err(|err| {
+                log_index(&format!(
+                    "semantic_edges:refresh_error stage=insert source_path={source_path} target_path={target_path} score={score:.4} err={err}"
+                ));
+                AppError::Sqlite(err)
+            })?;
             total_added += 1;
             added_for_source += 1;
             if added_for_source >= SEMANTIC_TOP_K_PER_NOTE {
@@ -1945,8 +1959,17 @@ fn rebuild_workspace_index_sync() -> Result<RebuildIndexResult> {
     }
 
     if !canceled {
+        let semantic_edges_refresh_started_at = Instant::now();
+        log_index("semantic_edges:refresh_start stage=rebuild");
         if let Err(err) = refresh_semantic_edges_cache_now_sync() {
-            log_index(&format!("semantic_edges:refresh_error err={err}"));
+            log_index(&format!(
+                "semantic_edges:refresh_error stage=rebuild err={err}"
+            ));
+        } else {
+            log_index(&format!(
+                "semantic_edges:refresh_done stage=rebuild total_ms={}",
+                semantic_edges_refresh_started_at.elapsed().as_millis()
+            ));
         }
     }
 
