@@ -541,4 +541,71 @@ describe('SecondBrainView', () => {
 
     mounted.app.unmount()
   })
+
+  it('marks a suggestion as already in context and refreshes after removing that chip', async () => {
+    api.loadDeliberationSession.mockResolvedValueOnce({
+      session_id: 's1',
+      title: 'Session One',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      created_at_ms: 1,
+      updated_at_ms: 2,
+      target_note_path: '',
+      context_items: [
+        { path: 'seed.md', token_estimate: 12 },
+        { path: 'notes/b.md', token_estimate: 10 },
+        { path: 'notes/c.md', token_estimate: 10 }
+      ],
+      messages: [],
+      draft_content: ''
+    })
+    apiCore.computeEchoesPack.mockImplementation(async (anchorPath: string) => ({
+      anchorPath,
+      generatedAtMs: 1,
+      items: anchorPath === '/vault/notes/b.md'
+        ? [{
+          path: '/vault/notes/c.md',
+          title: 'Note C',
+          reasonLabel: 'Backlink',
+          reasonLabels: ['Backlink'],
+          score: 0.8,
+          signalSources: ['backlink']
+        }]
+        : [{
+          path: '/vault/notes/a.md',
+          title: 'Echo Note',
+          reasonLabel: 'Semantically related',
+          reasonLabels: ['Semantically related'],
+          score: 0.8,
+          signalSources: ['semantic']
+        }]
+    }))
+
+    const mounted = mountView()
+    for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length < 3; i += 1) {
+      await flushUi()
+    }
+
+    const chipButtons = mounted.root.querySelectorAll<HTMLButtonElement>('.sb-chip-main')
+    expect(chipButtons).toHaveLength(3)
+
+    chipButtons[1]?.click()
+    for (let index = 0; index < 8 && !mounted.root.textContent?.includes('Note C'); index += 1) {
+      await flushUi()
+    }
+
+    expect(mounted.root.textContent).toContain('Note C')
+    expect(mounted.root.textContent).toContain('In context')
+    expect(mounted.root.querySelector('.sb-echoes-action')).toBeNull()
+
+    const removeButtons = mounted.root.querySelectorAll<HTMLButtonElement>('.sb-chip-remove')
+    removeButtons[2]?.click()
+    await flushUi()
+
+    expect(mounted.root.textContent).toContain('Note C')
+    expect(mounted.root.textContent).not.toContain('In context')
+    expect(mounted.root.querySelector('.sb-echoes-action')).toBeTruthy()
+
+    mounted.app.unmount()
+  })
 })

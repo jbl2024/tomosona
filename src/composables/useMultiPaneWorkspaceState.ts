@@ -331,6 +331,61 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     }
   }
 
+  function revealDocumentInPane(path: string, paneId: PaneId = layout.value.activePaneId) {
+    const targetPath = path.trim()
+    if (!targetPath) return
+
+    const targetPane = layout.value.panesById[paneId]
+    if (!targetPane) return
+
+    const existingInTarget = targetPane.openTabs.find((tab) => tab.type === 'document' && tab.path === targetPath)
+    if (existingInTarget) {
+      setActiveTabInPane(paneId, existingInTarget.id)
+      return
+    }
+
+    const existingPaneId = findPaneContainingDocument(targetPath)
+    if (!existingPaneId || existingPaneId === paneId) {
+      openDocumentInPane(targetPath, paneId)
+      return
+    }
+
+    const sourcePane = layout.value.panesById[existingPaneId]
+    if (!sourcePane) return
+
+    const sourceTab = sourcePane.openTabs.find((tab) => tab.type === 'document' && tab.path === targetPath)
+    if (!sourceTab) return
+
+    const nextSourceTabs = sourcePane.openTabs.filter((tab) => tab.id !== sourceTab.id)
+    const nextSourceActive = sourcePane.activeTabId === sourceTab.id
+      ? (nextSourceTabs[0]?.id ?? '')
+      : sourcePane.activeTabId
+    const movedTab: PaneTab = {
+      ...sourceTab,
+      id: documentTabId(targetPath)
+    }
+
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [existingPaneId]: {
+          ...sourcePane,
+          openTabs: nextSourceTabs,
+          activeTabId: nextSourceActive,
+          activePath: documentPathForTabId(nextSourceTabs, nextSourceActive)
+        },
+        [paneId]: {
+          ...targetPane,
+          openTabs: [...targetPane.openTabs, movedTab],
+          activeTabId: movedTab.id,
+          activePath: targetPath
+        }
+      },
+      activePaneId: paneId
+    }
+  }
+
   function openSurfaceInPane(type: Exclude<SurfaceType, 'document'>, paneId: PaneId = layout.value.activePaneId) {
     const existingPaneId = findPaneContainingSurface(type)
     if (existingPaneId) {
@@ -720,6 +775,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     layout,
     paneOrder,
     openDocumentInPane,
+    revealDocumentInPane,
     openSurfaceInPane,
     setActivePane,
     setActiveTabInPane,

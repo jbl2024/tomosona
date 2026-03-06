@@ -62,6 +62,32 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/a.md')
   })
 
+  it('reveals a document in the requested pane by moving it out of the source pane', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openDocumentInPane('/vault/a.md')
+    const pane2 = store.splitPane('pane-1', 'row')
+
+    store.revealDocumentInPane('/vault/a.md', pane2!)
+
+    expect(store.findPaneContainingDocument('/vault/a.md')).toBe('pane-2')
+    expect(store.layout.value.panesById['pane-1'].openTabs).toEqual([])
+    expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/a.md')
+  })
+
+  it('activates an already-open document when it is already in the target pane', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openDocumentInPane('/vault/a.md')
+    const pane2 = store.splitPane('pane-1', 'row')
+    store.openDocumentInPane('/vault/b.md', pane2!)
+    store.openDocumentInPane('/vault/c.md', pane2!)
+
+    store.revealDocumentInPane('/vault/b.md', pane2!)
+
+    expect(store.findPaneContainingDocument('/vault/b.md')).toBe('pane-2')
+    expect(store.getActiveDocumentPath('pane-2')).toBe('/vault/b.md')
+    expect(store.layout.value.panesById['pane-1'].openTabs).toHaveLength(1)
+  })
+
   it('creates a pane when moving active tab to next pane from single-pane layout', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')

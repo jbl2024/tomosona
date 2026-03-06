@@ -102,6 +102,8 @@ type SaveFileOptions = {
 
 type NavigateOptions = {
   recordHistory?: boolean
+  targetPaneId?: string
+  revealInTargetPane?: boolean
 }
 
 type SaveFileResult = {
@@ -2294,12 +2296,30 @@ async function openTabWithAutosave(path: string, options: NavigateOptions = {}):
   if (!target) return false
   const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
   if (!canSwitch) return false
-  multiPane.openPathInPane(target)
+  if (options.revealInTargetPane) {
+    multiPane.revealDocumentInPane(target, options.targetPaneId)
+  } else {
+    multiPane.openPathInPane(target, options.targetPaneId)
+  }
   exitCosmosForNoteNavigation()
   if (options.recordHistory !== false) {
     documentHistory.record(target)
   }
   return true
+}
+
+async function openNoteFromSecondBrain(path: string): Promise<void> {
+  const sourcePaneId = multiPane.findPaneContainingSurface('second-brain-chat')
+  const paneOrder = multiPane.paneOrder.value
+  const targetPaneId = sourcePaneId
+    ? paneOrder.find((paneId) => paneId !== sourcePaneId) ?? sourcePaneId
+    : multiPane.layout.value.activePaneId
+
+  await openTabWithAutosave(path, {
+    targetPaneId,
+    revealInTargetPane: Boolean(targetPaneId),
+    recordHistory: true
+  })
 }
 
 async function setActiveTabWithAutosave(path: string, options: NavigateOptions = {}): Promise<boolean> {
@@ -4734,7 +4754,7 @@ onBeforeUnmount(() => {
               @pane-tab-close-others="onPaneTabCloseOthers($event)"
               @pane-tab-close-all="onPaneTabCloseAll($event)"
               @pane-request-move-tab="multiPane.moveActiveTabToAdjacentPane($event.direction)"
-              @open-note="void openTabWithAutosave($event)"
+              @open-note="void openNoteFromSecondBrain($event)"
               @second-brain-context-changed="onSecondBrainContextChanged"
               @second-brain-session-changed="onSecondBrainSessionChanged"
               @cosmos-query-update="onCosmosQueryUpdate"
