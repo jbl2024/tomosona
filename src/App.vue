@@ -3386,7 +3386,7 @@ onBeforeUnmount(() => {
   flex: 0 0 8px;
   position: relative;
   cursor: col-resize;
-  background: transparent;
+  background: var(--shell-chrome-bg);
 }
 
 .splitter::before {

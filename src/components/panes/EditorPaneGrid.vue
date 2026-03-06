@@ -415,8 +415,8 @@ onBeforeUnmount(() => {
 }
 
 .editor-pane-active {
-  border-color: color-mix(in srgb, var(--accent, #4f7a5d) 70%, var(--ui-border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #4f7a5d) 35%, transparent);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .editor-pane :deep(.editor-shell) {
