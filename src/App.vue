@@ -27,7 +27,7 @@ import WikilinkRewriteModal from './components/app/WikilinkRewriteModal.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import SettingsModal from './components/settings/SettingsModal.vue'
 import UiButton from './components/ui/UiButton.vue'
-import { type DocumentHistoryEntry, useDocumentHistory } from './composables/useDocumentHistory'
+import { useDocumentHistory } from './composables/useDocumentHistory'
 import {
   backlinksForPath,
   clearWorkingFolder,
@@ -89,6 +89,11 @@ import {
 } from './lib/appShellPaths'
 import { formatDurationMs } from './lib/indexActivity'
 import { useAppIndexingController } from './composables/useAppIndexingController'
+import {
+  useAppNavigationController,
+  type CosmosHistorySnapshot,
+  type SecondBrainHistorySnapshot
+} from './composables/useAppNavigationController'
 import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
@@ -119,12 +124,6 @@ type SaveFileOptions = {
   explicit: boolean
 }
 
-type NavigateOptions = {
-  recordHistory?: boolean
-  targetPaneId?: string
-  revealInTargetPane?: boolean
-}
-
 type SaveFileResult = {
   persisted: boolean
 }
@@ -137,16 +136,6 @@ type RenameFromTitleResult = {
 type VirtualDoc = {
   content: string
   titleLine: string
-}
-
-type CosmosHistorySnapshot = {
-  query: string
-  selectedNodeId: string
-  focusMode: boolean
-  focusDepth: number
-}
-type SecondBrainHistorySnapshot = {
-  surface: 'chat'
 }
 
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
@@ -244,8 +233,6 @@ const historyMenuOpen = ref<'back' | 'forward' | null>(null)
 const historyMenuStyle = ref<Record<string, string>>({})
 let historyMenuTimer: ReturnType<typeof setTimeout> | null = null
 let historyLongPressTarget: 'back' | 'forward' | null = null
-let cosmosHistoryDebounceTimer: ReturnType<typeof setTimeout> | null = null
-let isApplyingHistoryNavigation = false
 let unlistenWorkspaceFsChanged: (() => void) | null = null
 let modalFocusReturnTarget: HTMLElement | null = null
 
@@ -405,8 +392,6 @@ const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'semantic', label: 'Semantic' },
   { mode: 'lexical', label: 'Lexical' }
 ]
-
-const SECOND_BRAIN_TAB_PATH = '__tomosona_second_brain_view__'
 
 const paletteActionPriority: Record<string, number> = {
   'open-file': 0,
@@ -843,12 +828,6 @@ function cosmosHistoryLabel(snapshot: CosmosHistorySnapshot): string {
   return 'Cosmos'
 }
 
-function historyTargetLabel(entry: DocumentHistoryEntry): string {
-  if (entry.kind === 'cosmos') return entry.label
-  if (entry.kind === 'second-brain') return entry.label || 'Second Brain'
-  return toRelativePath(entry.path)
-}
-
 function readSecondBrainHistorySnapshot(payload: unknown): SecondBrainHistorySnapshot | null {
   if (!payload || typeof payload !== 'object') return null
   const value = payload as { surface?: string }
@@ -866,44 +845,6 @@ function secondBrainSnapshotStateKey(snapshot: SecondBrainHistorySnapshot): stri
 
 function secondBrainHistoryLabel(_snapshot: SecondBrainHistorySnapshot): string {
   return 'Second Brain'
-}
-
-function recordSecondBrainHistorySnapshot() {
-  if (isApplyingHistoryNavigation) return
-  const active = multiPane.getActiveTab()
-  if (!active || active.type !== 'second-brain-chat') return
-  const snapshot = currentSecondBrainHistorySnapshot()
-  documentHistory.recordEntry({
-    kind: 'second-brain',
-    path: SECOND_BRAIN_TAB_PATH,
-    label: secondBrainHistoryLabel(snapshot),
-    stateKey: secondBrainSnapshotStateKey(snapshot),
-    payload: snapshot
-  })
-}
-
-function recordCosmosHistorySnapshot() {
-  if (isApplyingHistoryNavigation) return
-  const active = multiPane.getActiveTab()
-  if (!active || active.type !== 'cosmos') return
-  const snapshot = currentCosmosHistorySnapshot()
-  documentHistory.recordEntry({
-    kind: 'cosmos',
-    path: 'cosmos',
-    label: cosmosHistoryLabel(snapshot),
-    stateKey: cosmosSnapshotStateKey(snapshot),
-    payload: snapshot
-  })
-}
-
-function scheduleCosmosHistorySnapshot() {
-  if (cosmosHistoryDebounceTimer) {
-    clearTimeout(cosmosHistoryDebounceTimer)
-    cosmosHistoryDebounceTimer = null
-  }
-  cosmosHistoryDebounceTimer = setTimeout(() => {
-    recordCosmosHistorySnapshot()
-  }, 260)
 }
 
 async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Promise<boolean> {
@@ -926,28 +867,64 @@ async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Prom
   return true
 }
 
-async function openHistoryEntry(entry: DocumentHistoryEntry): Promise<boolean> {
-  if (entry.kind === 'cosmos') {
-    const snapshot = readCosmosHistorySnapshot(entry.payload)
-    if (!snapshot) return false
-    return await applyCosmosHistorySnapshot(snapshot)
-  }
-  if (entry.kind === 'second-brain') {
-    const snapshot = readSecondBrainHistorySnapshot(entry.payload)
-    if (!snapshot) return false
-    multiPane.openSurfaceInPane('second-brain-chat')
-    if (!allWorkspaceFiles.value.length) {
-      await loadAllFiles()
-    }
-    return true
-  }
-
-  const opened = await openTabWithAutosave(entry.path, { recordHistory: false })
-  if (!opened) return false
-  await nextTick()
-  editorRef.value?.focusEditor()
+async function openSecondBrainHistorySnapshot(_snapshot: SecondBrainHistorySnapshot): Promise<boolean> {
+  multiPane.openSurfaceInPane('second-brain-chat')
   return true
 }
+
+const navigation = useAppNavigationController({
+  hasWorkspace: filesystem.hasWorkspace,
+  activeFilePath,
+  allWorkspaceFiles,
+  setErrorMessage: (message) => {
+    filesystem.errorMessage.value = message
+  },
+  toRelativePath,
+  ensureAllFilesLoaded: loadAllFiles,
+  saveActiveDocument: async () => {
+    await editorRef.value?.saveNow()
+  },
+  focusEditor: () => {
+    editorRef.value?.focusEditor()
+  },
+  getDocumentStatus: (path) => editorState.getStatus(path),
+  getActiveTab: () => multiPane.getActiveTab(),
+  getActiveDocumentPath: (paneId) => multiPane.getActiveDocumentPath(paneId),
+  getActivePaneId: () => multiPane.layout.value.activePaneId,
+  getPaneOrder: () => multiPane.paneOrder.value,
+  getDocumentPathsForPane: (paneId) => documentPathsForPane(paneId),
+  openPathInPane: (path, paneId) => multiPane.openPathInPane(path, paneId),
+  revealDocumentInPane: (path, paneId) => multiPane.revealDocumentInPane(path, paneId),
+  setActivePathInPane: (paneId, path) => multiPane.setActivePathInPane(paneId, path),
+  openSurfaceInPane: (type, paneId) => multiPane.openSurfaceInPane(type, paneId),
+  findPaneContainingSurface: (type) => multiPane.findPaneContainingSurface(type),
+  documentHistory,
+  readCosmosHistorySnapshot,
+  currentCosmosHistorySnapshot,
+  cosmosSnapshotStateKey,
+  cosmosHistoryLabel,
+  applyCosmosHistorySnapshot,
+  readSecondBrainHistorySnapshot,
+  currentSecondBrainHistorySnapshot,
+  secondBrainSnapshotStateKey,
+  secondBrainHistoryLabel,
+  openSecondBrainHistorySnapshot
+})
+const {
+  isApplyingHistoryNavigation,
+  historyTargetLabel,
+  recordSecondBrainHistorySnapshot,
+  recordCosmosHistorySnapshot,
+  scheduleCosmosHistorySnapshot,
+  openTabWithAutosave,
+  setActiveTabWithAutosave,
+  openNoteFromSecondBrain,
+  openHistoryEntry,
+  goBackInHistory,
+  goForwardInHistory,
+  openNextTabWithAutosave,
+  dispose: disposeNavigationController
+} = navigation
 
 function scheduleCosmosNodeFocus(nodeId: string, remainingAttempts = 12) {
   if (!nodeId || remainingAttempts <= 0) return
@@ -1041,12 +1018,12 @@ function onHistoryTargetClick(targetIndex: number) {
   const targetEntry = documentHistory.jumpToEntry(targetIndex)
   if (!targetEntry) return
   void (async () => {
-    isApplyingHistoryNavigation = true
+    isApplyingHistoryNavigation.value = true
     let opened = false
     try {
       opened = await openHistoryEntry(targetEntry)
     } finally {
-      isApplyingHistoryNavigation = false
+      isApplyingHistoryNavigation.value = false
     }
     if (opened) {
       return
@@ -1355,108 +1332,6 @@ function onExplorerError(message: string) {
 
 function onExplorerSelection(paths: string[]) {
   filesystem.selectedCount.value = paths.length
-}
-
-async function ensureActiveTabSavedBeforeSwitch(targetPath: string): Promise<boolean> {
-  const target = targetPath.trim()
-  const current = activeFilePath.value
-  if (!target || !current || current === target) return true
-
-  const status = editorState.getStatus(current)
-  if (!status.dirty) return true
-
-  await editorRef.value?.saveNow()
-
-  const activeAfterSave = activeFilePath.value || current
-  const statusAfterSave = editorState.getStatus(activeAfterSave)
-  if (statusAfterSave.dirty) {
-    filesystem.errorMessage.value = statusAfterSave.saveError || 'Could not save current note before switching tabs.'
-    return false
-  }
-
-  return true
-}
-
-async function openTabWithAutosave(path: string, options: NavigateOptions = {}): Promise<boolean> {
-  const target = path.trim()
-  if (!target) return false
-  const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
-  if (!canSwitch) return false
-  if (options.revealInTargetPane) {
-    multiPane.revealDocumentInPane(target, options.targetPaneId)
-  } else {
-    multiPane.openPathInPane(target, options.targetPaneId)
-  }
-  exitCosmosForNoteNavigation()
-  if (options.recordHistory !== false) {
-    documentHistory.record(target)
-  }
-  return true
-}
-
-async function openNoteFromSecondBrain(path: string): Promise<void> {
-  const sourcePaneId = multiPane.findPaneContainingSurface('second-brain-chat')
-  const paneOrder = multiPane.paneOrder.value
-  const targetPaneId = sourcePaneId
-    ? paneOrder.find((paneId) => paneId !== sourcePaneId) ?? sourcePaneId
-    : multiPane.layout.value.activePaneId
-
-  await openTabWithAutosave(path, {
-    targetPaneId,
-    revealInTargetPane: Boolean(targetPaneId),
-    recordHistory: true
-  })
-}
-
-async function setActiveTabWithAutosave(path: string, options: NavigateOptions = {}): Promise<boolean> {
-  const target = path.trim()
-  if (!target) return false
-  const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
-  if (!canSwitch) return false
-  multiPane.setActivePathInPane(multiPane.layout.value.activePaneId, target)
-  exitCosmosForNoteNavigation()
-  if (options.recordHistory !== false) {
-    documentHistory.record(target)
-  }
-  return true
-}
-
-function exitCosmosForNoteNavigation() {
-  // Pane-native surfaces do not own global sidebar mode.
-}
-
-async function goBackInHistory() {
-  const target = documentHistory.goBackEntry()
-  if (!target) return false
-  isApplyingHistoryNavigation = true
-  let opened = false
-  try {
-    opened = await openHistoryEntry(target)
-  } finally {
-    isApplyingHistoryNavigation = false
-  }
-  if (opened) {
-    return true
-  }
-  documentHistory.goForwardEntry()
-  return false
-}
-
-async function goForwardInHistory() {
-  const target = documentHistory.goForwardEntry()
-  if (!target) return false
-  isApplyingHistoryNavigation = true
-  let opened = false
-  try {
-    opened = await openHistoryEntry(target)
-  } finally {
-    isApplyingHistoryNavigation = false
-  }
-  if (opened) {
-    return true
-  }
-  documentHistory.goBackEntry()
-  return false
 }
 
 async function onExplorerOpen(path: string) {
@@ -1787,19 +1662,6 @@ async function onSearchResultOpen(hit: SearchHit) {
 
   await nextTick()
   await editorRef.value?.revealSnippet(hit.snippet)
-}
-
-async function openNextTabWithAutosave() {
-  const activePane = multiPane.layout.value.panesById[multiPane.layout.value.activePaneId]
-  const tabs = (activePane?.openTabs ?? []).filter((tab) => tab.type === 'document')
-  if (!tabs.length) return
-  const currentPath = multiPane.getActiveDocumentPath(activePane?.id ?? multiPane.layout.value.activePaneId)
-  const currentIndex = tabs.findIndex((tab) => tab.path === currentPath)
-  const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % tabs.length
-  const nextPath = tabs[nextIndex] && tabs[nextIndex].type === 'document' ? tabs[nextIndex].path : ''
-  if (!nextPath) return
-  const opened = await setActiveTabWithAutosave(nextPath)
-  if (!opened) return
 }
 
 async function onBacklinkOpen(path: string) {
@@ -3220,13 +3082,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearWikilinkRewritePromptQueue()
   disposeIndexingController()
+  disposeNavigationController()
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
     searchDebounceTimer = null
-  }
-  if (cosmosHistoryDebounceTimer) {
-    clearTimeout(cosmosHistoryDebounceTimer)
-    cosmosHistoryDebounceTimer = null
   }
   if (historyMenuTimer) {
     clearTimeout(historyMenuTimer)
