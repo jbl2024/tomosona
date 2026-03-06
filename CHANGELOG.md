@@ -18,6 +18,40 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.12.0] - 2026-03-06
+
+### Added
+- feat(toolbar): regroup topbar navigation and add command trigger (f4eedd1)
+- feat(second-brain): open notes from chat in the other pane when available (49080c2)
+- feat(second-brain): toggle echoes suggestions from context chips (e26efc3)
+
+### Changed
+- refactor(theme): finalize token-based dark mode cleanup (6cf5c15)
+- refactor(theme): use semantic design tokens for light and dark modes (93e1247)
+- refactor(app): move component-owned shell styles out of App.vue (587f53e)
+- refactor(app): extract remaining shell document helpers (e96a688)
+- refactor(app): extract second brain bridge from app shell (3eef76a)
+- refactor(app): extract modal controller from app shell (abe151a)
+- refactor(app): extract workspace entry modals from app shell (85d0e4b)
+- refactor(app): extract sidebar surface from app shell (9f06653)
+- refactor(app): extract topbar and workspace overflow components (e7dcb39)
+- refactor(app): extract navigation controller from app shell (26a1a4f)
+- refactor(app): extract workspace controller from app shell (d7bd7f9)
+- docs(app): add tsdoc to extracted composables and shell helpers (e5f57fc)
+- refactor(app): extract indexing controller from App shell (ccc33e4)
+- refactor(app): extract shell modals panels and shared app helpers (8880065)
+- refactor(second-brain): show only parent path in echoes suggestions (72d3c58)
+- refactor(second-brain): make context chips the only echoes toggle (8b1d005)
+
+### Fixed
+- fix(theme): give shell splitters a solid themed background (130dee8)
+- fix(macos): reposition native traffic lights in overlay titlebar (17f0d10)
+- fix(panes): restore multi-pane dropdown menu styling (047d28d)
+- fix(style): top toolbar position on mac (c266a94)
+- fix(app): restore top toolbar to root shell layout (ec60961)
+- fix(panes): keep second brain mounted across tab switches (b6ad36e)
+- fix(second-brain): canonicalize echoes suggestion identity before deduping (086b488)
+
 ## [0.11.1] - 2026-03-06
 
 ### Changed
