@@ -83,7 +83,7 @@ const targetPath = ref('')
   font-size: 12px;
 }
 .sb-output-editor-wrap {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
   overflow: hidden;
   min-height: 0;
@@ -100,29 +100,24 @@ const targetPath = ref('')
 .sb-input {
   flex: 1;
   height: 30px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sb-input-bg);
+  color: var(--sb-button-text);
   font-size: 12px;
   padding: 0 8px;
 }
 .sb-btn {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   font-size: 12px;
   padding: 0 10px;
 }
 .sb-error {
   margin: 0;
   font-size: 12px;
-  color: #b91c1c;
-}
-:global(.ide-root.dark) .sb-output-editor-wrap,
-:global(.ide-root.dark) .sb-input,
-:global(.ide-root.dark) .sb-btn {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
+  color: var(--sb-danger-text);
 }
 </style>

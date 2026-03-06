@@ -154,10 +154,10 @@ function itemUpdatedAtLabel(item: unknown): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 10px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
 }
 
 .sb-session-option {
@@ -168,7 +168,7 @@ function itemUpdatedAtLabel(item: unknown): string {
 }
 
 .sb-session-option[data-active='true'] strong {
-  color: #1d4ed8;
+  color: var(--sb-active-text);
 }
 
 .sb-session-option .meta {
@@ -186,7 +186,7 @@ function itemUpdatedAtLabel(item: unknown): string {
 
 .sb-session-option .meta span {
   font-size: 11px;
-  color: #64748b;
+  color: var(--sb-text-dim);
 }
 
 .sb-session-option .delete {
@@ -196,28 +196,8 @@ function itemUpdatedAtLabel(item: unknown): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #b91c1c;
-  background: #fff1f2;
-  border: 1px solid #fecaca;
-}
-
-.ide-root.dark .sb-session-gear-btn {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
-}
-
-.ide-root.dark .sb-session-option .meta span {
-  color: #94a3b8;
-}
-
-.ide-root.dark .sb-session-option[data-active='true'] strong {
-  color: #93c5fd;
-}
-
-.ide-root.dark .sb-session-option .delete {
-  color: #fca5a5;
-  background: #3f1d24;
-  border-color: #7f1d1d;
+  color: var(--sb-danger-text);
+  background: var(--sb-danger-bg);
+  border: 1px solid var(--sb-danger-border);
 }
 </style>

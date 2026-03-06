@@ -77,9 +77,10 @@ const emit = defineEmits<{
   height: 100%;
 }
 .sb-thread {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--sb-thread-bg);
+  color: var(--sb-text);
   overflow: auto;
   padding: 8px;
   display: flex;
@@ -87,7 +88,7 @@ const emit = defineEmits<{
   gap: 8px;
 }
 .sb-msg {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sb-border);
   border-radius: 8px;
   padding: 8px;
 }
@@ -101,10 +102,10 @@ const emit = defineEmits<{
   font-size: 12px;
 }
 .sb-msg-user {
-  background: #f8fafc;
+  background: var(--sb-user-bg);
 }
 .sb-msg-assistant {
-  background: #eff6ff;
+  background: var(--sb-assistant-bg);
 }
 .sb-citations {
   display: flex;
@@ -114,9 +115,10 @@ const emit = defineEmits<{
 .sb-citation,
 .sb-mini-btn,
 .sb-btn {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   font-size: 11px;
   padding: 4px 8px;
 }
@@ -128,40 +130,22 @@ const emit = defineEmits<{
 .sb-textarea {
   width: 100%;
   min-height: 88px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--sb-input-bg);
+  color: var(--sb-button-text);
   font-size: 12px;
   padding: 8px;
   resize: vertical;
 }
 .sb-empty {
   margin: 0;
-  color: #64748b;
+  color: var(--sb-text-dim);
   font-size: 12px;
 }
 .sb-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--sb-danger-text);
   font-size: 12px;
-}
-:global(.ide-root.dark) .sb-thread,
-:global(.ide-root.dark) .sb-msg,
-:global(.ide-root.dark) .sb-citation,
-:global(.ide-root.dark) .sb-mini-btn,
-:global(.ide-root.dark) .sb-btn,
-:global(.ide-root.dark) .sb-textarea {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
-}
-:global(.ide-root.dark) .sb-msg-user {
-  background: #111827;
-}
-:global(.ide-root.dark) .sb-msg-assistant {
-  background: #082f49;
-}
-:global(.ide-root.dark) .sb-empty {
-  color: #94a3b8;
 }
 </style>

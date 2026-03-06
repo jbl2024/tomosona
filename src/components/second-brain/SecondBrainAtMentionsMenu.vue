@@ -39,10 +39,10 @@ const emit = defineEmits<{
   bottom: calc(100% + 8px);
   max-height: 220px;
   overflow: auto;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgb(15 23 42 / 22%);
+  background: var(--sb-menu-bg);
+  box-shadow: var(--sb-menu-shadow);
   padding: 6px;
   z-index: 20;
 }
@@ -54,13 +54,13 @@ const emit = defineEmits<{
   background: transparent;
   text-align: left;
   padding: 6px 8px;
-  color: #0f172a;
+  color: var(--sb-button-text);
   font-size: 12px;
 }
 
 .sb-at-item.active,
 .sb-at-item:hover {
-  background: #e2e8f0;
+  background: var(--sb-hover-bg);
 }
 
 .path {
@@ -70,17 +70,4 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-.ide-root.dark .sb-at-menu {
-  border-color: #334155;
-  background: #0f172a;
-}
-
-.ide-root.dark .sb-at-item {
-  color: #e2e8f0;
-}
-
-.ide-root.dark .sb-at-item.active,
-.ide-root.dark .sb-at-item:hover {
-  background: #1e293b;
-}
 </style>

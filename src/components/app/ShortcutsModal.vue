@@ -87,26 +87,18 @@ const emit = defineEmits<{
 }
 
 .shortcuts-section {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--shortcuts-section-border);
   border-radius: 8px;
   padding: 8px;
   min-width: 0;
 }
 
-:global(.ide-root.dark) .shortcuts-section {
-  border-color: #3e4451;
-}
-
 .shortcuts-title {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #475569;
+  color: var(--shortcuts-title);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-:global(.ide-root.dark) .shortcuts-title {
-  color: #5c6370;
 }
 
 .shortcuts-grid {
@@ -119,26 +111,16 @@ const emit = defineEmits<{
 .shortcut-keys {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 11px;
-  color: #0f172a;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
+  color: var(--shortcuts-keys-text);
+  background: var(--shortcuts-keys-bg);
+  border: 1px solid var(--shortcuts-keys-border);
   border-radius: 6px;
   padding: 3px 6px;
   white-space: nowrap;
 }
 
-:global(.ide-root.dark) .shortcut-keys {
-  color: #abb2bf;
-  background: #21252b;
-  border-color: #3e4451;
-}
-
 .shortcut-action {
   font-size: 12px;
-  color: #334155;
-}
-
-:global(.ide-root.dark) .shortcut-action {
-  color: #cbd5e1;
+  color: var(--shortcuts-action);
 }
 </style>

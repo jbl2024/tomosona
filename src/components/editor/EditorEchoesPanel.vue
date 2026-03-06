@@ -96,23 +96,14 @@ function reasonIcon(reason: string) {
 .pane-card {
   position: relative;
   border-radius: 10px;
-  background: #fbfcff;
+  background: var(--echoes-card-bg);
   padding: 10px 8px 8px 10px;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+  box-shadow: inset 0 0 0 1px var(--echoes-card-border);
   transition: box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .pane-card:hover {
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3);
-}
-
-.ide-root.dark .pane-card {
-  background: #232a33;
-  box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.35);
-}
-
-.ide-root.dark .pane-card:hover {
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.45);
+  box-shadow: inset 0 0 0 1px var(--echoes-card-hover-border);
 }
 
 .pane-section {
@@ -125,36 +116,23 @@ function reasonIcon(reason: string) {
   letter-spacing: 0.11em;
   text-transform: uppercase;
   font-weight: 600;
-  color: #5b6472;
-}
-
-.ide-root.dark .section-title {
-  color: #a8b3c4;
+  color: var(--echoes-title);
 }
 
 .empty-state {
-  color: #8b93a3;
+  color: var(--text-dim);
   font-size: 12px;
   line-height: 1.45;
   padding: 8px;
   border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
-}
-
-.ide-root.dark .empty-state {
-  color: #9aa3b2;
-  background: rgba(71, 85, 105, 0.26);
+  background: var(--echoes-empty-bg);
 }
 
 .echoes-helper {
   margin: 0 0 8px;
-  color: #6b7280;
+  color: var(--echoes-copy);
   font-size: 12px;
   line-height: 1.4;
-}
-
-.ide-root.dark .echoes-helper {
-  color: #aab4c5;
 }
 
 .echoes-item {
@@ -175,13 +153,8 @@ function reasonIcon(reason: string) {
 }
 
 .echoes-item:hover {
-  background: #eef2f8;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
-}
-
-.ide-root.dark .echoes-item:hover {
-  background: #2f3845;
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.22);
+  background: var(--echoes-item-hover-bg);
+  box-shadow: inset 0 0 0 1px var(--echoes-item-hover-border);
 }
 
 .echoes-item-main {
@@ -202,20 +175,12 @@ function reasonIcon(reason: string) {
 .echoes-item-title {
   font-size: 13px;
   font-weight: 600;
-  color: #2d313a;
-}
-
-.ide-root.dark .echoes-item-title {
-  color: #dbe3ee;
+  color: var(--echoes-item-title);
 }
 
 .echoes-item-path {
   font-size: 11px;
-  color: #6b7280;
-}
-
-.ide-root.dark .echoes-item-path {
-  color: #9aa7bb;
+  color: var(--echoes-item-path);
 }
 
 .echoes-item-meta {
@@ -240,17 +205,10 @@ function reasonIcon(reason: string) {
 .echoes-reason-icon {
   width: 16px;
   height: 16px;
-  color: #64748b;
+  color: var(--echoes-icon);
 }
 
 .echoes-reason-icon-secondary {
-  color: #8b98aa;
-}
-.ide-root.dark .echoes-reason-icon {
-  color: #aab4c5;
-}
-
-.ide-root.dark .echoes-reason-icon-secondary {
-  color: #7f8da1;
+  color: var(--echoes-icon-secondary);
 }
 </style>

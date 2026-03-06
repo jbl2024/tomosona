@@ -245,15 +245,61 @@
 
   --sb-surface: var(--surface-bg);
   --sb-surface-muted: var(--surface-subtle);
+  --sb-surface-strong: var(--surface-raised);
   --sb-border: var(--border-strong);
   --sb-text: var(--text-main);
   --sb-text-soft: var(--text-soft);
   --sb-text-dim: var(--text-dim);
+  --sb-text-faint: var(--text-faint);
   --sb-active-border: var(--accent);
   --sb-active-bg: var(--accent-soft);
+  --sb-active-text: var(--accent);
+  --sb-layout-bg: linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f1f5f9);
+  --sb-center-bg: #f8fafc;
+  --sb-thread-bg: var(--surface-bg);
+  --sb-user-bg: #f8fafc;
+  --sb-assistant-bg: #eff6ff;
+  --sb-code-bg: #e2e8f0;
+  --sb-blockquote-border: var(--border-strong);
+  --sb-chip-border: #dbeafe;
+  --sb-chip-bg: #f8fbff;
+  --sb-chip-meta: var(--text-dim);
+  --sb-input-bg: var(--surface-bg);
+  --sb-input-border: var(--border-strong);
+  --sb-button-bg: var(--surface-bg);
+  --sb-button-border: var(--border-strong);
+  --sb-button-text: var(--text-main);
+  --sb-hover-bg: var(--surface-muted);
+  --sb-menu-bg: var(--surface-bg);
+  --sb-menu-shadow: var(--menu-shadow);
+  --sb-status-success-border: #86efac;
+  --sb-status-success-bg: #f0fdf4;
+  --sb-status-success-text: #166534;
   --sb-danger-border: color-mix(in srgb, var(--danger) 40%, white 60%);
   --sb-danger-bg: color-mix(in srgb, var(--danger-soft) 76%, white 24%);
   --sb-danger-text: var(--danger-strong);
+  --sb-spinner-track: #93c5fd;
+  --sb-spinner-head: #1d4ed8;
+
+  --echoes-card-bg: var(--surface-raised);
+  --echoes-card-border: rgba(148, 163, 184, 0.15);
+  --echoes-card-hover-border: rgba(59, 130, 246, 0.3);
+  --echoes-title: var(--text-soft);
+  --echoes-copy: var(--text-dim);
+  --echoes-empty-bg: rgba(148, 163, 184, 0.08);
+  --echoes-item-hover-bg: var(--surface-muted);
+  --echoes-item-hover-border: rgba(59, 130, 246, 0.18);
+  --echoes-item-title: var(--text-main);
+  --echoes-item-path: #6b7280;
+  --echoes-icon: #64748b;
+  --echoes-icon-secondary: #8b98aa;
+
+  --shortcuts-section-border: var(--modal-panel-border);
+  --shortcuts-title: var(--text-soft);
+  --shortcuts-keys-bg: var(--modal-group-bg);
+  --shortcuts-keys-border: var(--border-strong);
+  --shortcuts-keys-text: var(--text-main);
+  --shortcuts-action: #334155;
 }
 
 html.dark {
@@ -361,10 +407,52 @@ html.dark {
   --cosmos-preview-bg: rgb(32 37 43 / 92%);
   --cosmos-chip-active-bg: rgba(96, 165, 250, 0.14);
 
+  --sb-layout-bg: linear-gradient(135deg, #0b1220, #0f172a 45%, #111827);
+  --sb-center-bg: #0b1220;
+  --sb-thread-bg: #0f172a;
+  --sb-user-bg: #111827;
+  --sb-assistant-bg: #082f49;
+  --sb-code-bg: #1e293b;
+  --sb-blockquote-border: #475569;
+  --sb-chip-border: #1e3a8a;
+  --sb-chip-bg: #0b1f3a;
+  --sb-chip-meta: #94a3b8;
+  --sb-input-bg: #0f172a;
+  --sb-input-border: #334155;
+  --sb-button-bg: #0f172a;
+  --sb-button-border: #334155;
+  --sb-button-text: #e2e8f0;
+  --sb-hover-bg: #1e293b;
+  --sb-menu-bg: #0f172a;
+  --sb-status-success-border: #166534;
+  --sb-status-success-bg: #052e16;
+  --sb-status-success-text: #86efac;
   --sb-active-border: #61afef;
+  --sb-active-text: #93c5fd;
   --sb-danger-border: #5c2b30;
   --sb-danger-bg: #33252a;
   --sb-danger-text: #e06c75;
+  --sb-spinner-track: #93c5fd;
+  --sb-spinner-head: #1d4ed8;
+
+  --echoes-card-bg: #232a33;
+  --echoes-card-border: rgba(71, 85, 105, 0.35);
+  --echoes-card-hover-border: rgba(96, 165, 250, 0.45);
+  --echoes-title: #a8b3c4;
+  --echoes-copy: #aab4c5;
+  --echoes-empty-bg: rgba(71, 85, 105, 0.26);
+  --echoes-item-hover-bg: #2f3845;
+  --echoes-item-hover-border: rgba(96, 165, 250, 0.22);
+  --echoes-item-title: #dbe3ee;
+  --echoes-item-path: #9aa7bb;
+  --echoes-icon: #aab4c5;
+  --echoes-icon-secondary: #7f8da1;
+
+  --shortcuts-title: #5c6370;
+  --shortcuts-keys-bg: #21252b;
+  --shortcuts-keys-border: #3e4451;
+  --shortcuts-keys-text: #abb2bf;
+  --shortcuts-action: #cbd5e1;
 }
 
 /* EditorJS injects unlayered styles at runtime.

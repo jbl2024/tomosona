@@ -34,23 +34,15 @@ const emit = defineEmits<{
 }
 .sb-label {
   font-size: 12px;
-  color: #475569;
+  color: var(--sb-text-dim);
 }
 .sb-mode-select {
   height: 32px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 8px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--sb-input-bg);
+  color: var(--sb-button-text);
   font-size: 12px;
   padding: 0 8px;
-}
-:global(.ide-root.dark) .sb-label {
-  color: #94a3b8;
-}
-:global(.ide-root.dark) .sb-mode-select {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
 }
 </style>

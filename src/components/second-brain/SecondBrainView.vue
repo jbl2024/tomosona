@@ -1017,14 +1017,14 @@ watch(contextPaths, (paths) => {
   min-height: 0;
   height: 100%;
   padding: 6px;
-  background: linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f1f5f9);
+  background: var(--sb-layout-bg);
 }
 
 .sb-center {
   min-height: 0;
   height: 100%;
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--sb-center-bg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1048,10 +1048,10 @@ watch(contextPaths, (paths) => {
 .sb-session-create-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 10px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1072,7 +1072,7 @@ watch(contextPaths, (paths) => {
 
 .sb-error {
   margin: 4px 0 0;
-  color: #b91c1c;
+  color: var(--sb-danger-text);
   font-size: 12px;
 }
 
@@ -1080,9 +1080,10 @@ watch(contextPaths, (paths) => {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sb-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--sb-thread-bg);
+  color: var(--sb-text);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -1090,17 +1091,17 @@ watch(contextPaths, (paths) => {
 }
 
 .msg {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sb-border);
   border-radius: 8px;
   padding: 6px;
 }
 
 .msg.user {
-  background: #f8fafc;
+  background: var(--sb-user-bg);
 }
 
 .msg.assistant {
-  background: #eff6ff;
+  background: var(--sb-assistant-bg);
 }
 
 .msg header {
@@ -1168,22 +1169,22 @@ watch(contextPaths, (paths) => {
 
 .assistant-markdown blockquote {
   margin: 5px 0 6px;
-  border-left: 3px solid #cbd5e1;
+  border-left: 3px solid var(--sb-blockquote-border);
   padding: 2px 0 2px 10px;
-  color: #475569;
+  color: var(--sb-text-soft);
 }
 
 .assistant-markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  background: #e2e8f0;
+  background: var(--sb-code-bg);
   border-radius: 4px;
   padding: 1px 4px;
 }
 
 .assistant-markdown pre {
   margin: 6px 0;
-  background: #e2e8f0;
-  border: 1px solid #cbd5e1;
+  background: var(--sb-code-bg);
+  border: 1px solid var(--sb-input-border);
   border-radius: 8px;
   padding: 6px;
   overflow: auto;
@@ -1196,16 +1197,17 @@ watch(contextPaths, (paths) => {
 }
 
 .assistant-markdown a {
-  color: #2563eb;
+  color: var(--sb-active-text);
   text-decoration: underline;
 }
 
 .insert {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sb-button-bg);
   font-size: 11px;
   padding: 3px 8px;
+  color: var(--sb-button-text);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-2px);
@@ -1220,9 +1222,9 @@ watch(contextPaths, (paths) => {
 }
 
 .insert.copied {
-  border-color: #16a34a;
-  background: #ecfdf3;
-  color: #166534;
+  border-color: var(--sb-status-success-border);
+  background: var(--sb-status-success-bg);
+  color: var(--sb-status-success-text);
 }
 
 .sb-input-row {
@@ -1235,9 +1237,9 @@ watch(contextPaths, (paths) => {
 .sb-composer {
   position: relative;
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--sb-input-bg);
   padding: 6px;
 }
 
@@ -1258,8 +1260,8 @@ watch(contextPaths, (paths) => {
   flex: 0 0 auto;
   align-items: center;
   gap: 5px;
-  border: 1px solid #dbeafe;
-  background: #f8fbff;
+  border: 1px solid var(--sb-chip-border);
+  background: var(--sb-chip-bg);
   border-radius: 8px;
   padding: 3px 5px;
 }
@@ -1275,11 +1277,11 @@ watch(contextPaths, (paths) => {
 }
 
 .sb-chip-main.active strong {
-  color: #1d4ed8;
+  color: var(--sb-active-text);
 }
 
 .sb-chip-main.active span {
-  color: #1e40af;
+  color: var(--sb-active-text);
 }
 
 .sb-chip-main strong {
@@ -1290,15 +1292,15 @@ watch(contextPaths, (paths) => {
 
 .sb-chip-main span {
   display: block;
-  color: #64748b;
+  color: var(--sb-chip-meta);
   font-size: 10px;
   white-space: nowrap;
 }
 
 .sb-chip-open {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #0f172a;
+  border: 1px solid var(--sb-button-border);
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   border-radius: 999px;
   font-size: 10px;
   line-height: 1;
@@ -1311,7 +1313,7 @@ watch(contextPaths, (paths) => {
   background: transparent;
   font-size: 14px;
   line-height: 1;
-  color: #64748b;
+  color: var(--sb-text-dim);
 }
 
 .sb-textarea {
@@ -1321,10 +1323,10 @@ watch(contextPaths, (paths) => {
   resize: vertical;
   box-sizing: border-box;
   display: block;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-input-border);
   border-radius: 10px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--sb-input-bg);
+  color: var(--sb-button-text);
   font-size: 12px;
 }
 
@@ -1337,10 +1339,10 @@ watch(contextPaths, (paths) => {
 .send-icon-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--sb-button-border);
   border-radius: 999px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1349,8 +1351,8 @@ watch(contextPaths, (paths) => {
 .sb-loader {
   width: 18px;
   height: 18px;
-  border: 2px solid #93c5fd;
-  border-top-color: #1d4ed8;
+  border: 2px solid var(--sb-spinner-track);
+  border-top-color: var(--sb-spinner-head);
   border-radius: 999px;
   animation: sb-spin 0.8s linear infinite;
   display: inline-block;
@@ -1364,7 +1366,7 @@ watch(contextPaths, (paths) => {
 
 .hint {
   font-size: 12px;
-  color: #64748b;
+  color: var(--sb-text-dim);
 }
 
 .sb-toast {
@@ -1372,19 +1374,19 @@ watch(contextPaths, (paths) => {
   right: 14px;
   bottom: 14px;
   z-index: 35;
-  border: 1px solid #86efac;
+  border: 1px solid var(--sb-status-success-border);
   border-radius: 10px;
   padding: 8px 10px;
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--sb-status-success-bg);
+  color: var(--sb-status-success-text);
   font-size: 12px;
   box-shadow: 0 10px 28px rgb(15 23 42 / 22%);
 }
 
 .sb-toast.error {
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-color: var(--sb-danger-border);
+  background: var(--sb-danger-bg);
+  color: var(--sb-danger-text);
 }
 
 .sb-toast-fade-enter-active,
@@ -1427,81 +1429,4 @@ watch(contextPaths, (paths) => {
   }
 }
 
-.ide-root.dark .sb-center,
-.ide-root.dark .sb-thread,
-.ide-root.dark .msg,
-.ide-root.dark .insert,
-.ide-root.dark .sb-session-create-btn,
-.ide-root.dark .sb-composer,
-.ide-root.dark .sb-textarea,
-.ide-root.dark .send-icon-btn {
-  border-color: #334155;
-  background: #0f172a;
-  color: #e2e8f0;
-}
-
-.ide-root.dark .sb-layout {
-  background: linear-gradient(135deg, #0b1220, #0f172a 45%, #111827);
-}
-
-.ide-root.dark .sb-center {
-  background: #0b1220;
-}
-
-.ide-root.dark .title-wrap h2 {
-  color: #e2e8f0;
-}
-
-.ide-root.dark .msg header strong,
-.ide-root.dark .msg pre,
-.ide-root.dark .assistant-markdown {
-  color: #dbe7ff;
-}
-
-.ide-root.dark .msg.user {
-  background: #111827;
-}
-
-.ide-root.dark .msg.assistant {
-  background: #082f49;
-}
-
-.ide-root.dark .sb-chip {
-  border-color: #1e3a8a;
-  background: #0b1f3a;
-}
-
-.ide-root.dark .sb-chip-main span,
-.ide-root.dark .hint {
-  color: #94a3b8;
-}
-
-.ide-root.dark .assistant-markdown code,
-.ide-root.dark .assistant-markdown pre {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-.ide-root.dark .assistant-markdown blockquote {
-  border-left-color: #475569;
-  color: #cbd5e1;
-}
-
-.ide-root.dark .insert.copied {
-  border-color: #166534;
-  background: #052e16;
-  color: #86efac;
-}
-
-.ide-root.dark .sb-toast {
-  border-color: #166534;
-  background: #052e16;
-  color: #86efac;
-}
-
-.ide-root.dark .sb-toast.error {
-  border-color: #7f1d1d;
-  background: #3f1d24;
-  color: #fecaca;
-}
 </style>
