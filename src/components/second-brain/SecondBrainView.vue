@@ -59,7 +59,6 @@ const copyToast = ref<{ visible: boolean; kind: 'success' | 'error'; message: st
   message: ''
 })
 const composerContextPaths = ref<string[]>([])
-const echoesAnchorMode = ref<'ambient' | 'chip' | 'none'>('ambient')
 const selectedEchoesContextPath = ref('')
 const composerRef = ref<HTMLTextAreaElement | null>(null)
 const threadRef = ref<HTMLElement | null>(null)
@@ -100,16 +99,9 @@ const contextCards = computed(() =>
   })
 )
 const contextPathSet = computed(() => new Set(contextPaths.value))
-const ambientEchoesAnchorPath = computed(() => props.activeNotePath?.trim() || '')
 const echoesAnchorPath = computed(() => {
-  if (echoesAnchorMode.value === 'chip') {
-    const selectedPath = selectedEchoesContextPath.value.trim()
-    if (selectedPath && contextPathSet.value.has(selectedPath)) return selectedPath
-    return ''
-  }
-  if (echoesAnchorMode.value === 'ambient') {
-    return ambientEchoesAnchorPath.value
-  }
+  const selectedPath = selectedEchoesContextPath.value.trim()
+  if (selectedPath && contextPathSet.value.has(selectedPath)) return selectedPath
   return ''
 })
 const showEchoesPanel = computed(() => echoesAnchorPath.value.trim().length > 0)
@@ -692,14 +684,12 @@ function openContextNote(path: string) {
 }
 
 function toggleEchoesAnchor(path: string) {
-  if (echoesAnchorMode.value === 'chip' && selectedEchoesContextPath.value === path) {
+  if (selectedEchoesContextPath.value === path) {
     selectedEchoesContextPath.value = ''
-    echoesAnchorMode.value = 'none'
     return
   }
 
   selectedEchoesContextPath.value = path
-  echoesAnchorMode.value = 'chip'
 }
 
 async function addEchoesSuggestion(path: string) {
@@ -824,20 +814,8 @@ watch(contextPaths, (paths) => {
   if (!selectedEchoesContextPath.value) return
   if (!paths.includes(selectedEchoesContextPath.value)) {
     selectedEchoesContextPath.value = ''
-    echoesAnchorMode.value = ambientEchoesAnchorPath.value ? 'ambient' : 'none'
   }
 })
-
-watch(
-  () => props.activeNotePath?.trim() || '',
-  (nextPath) => {
-    if (echoesAnchorMode.value !== 'ambient') return
-    if (nextPath) return
-    if (!selectedEchoesContextPath.value) {
-      echoesAnchorMode.value = 'none'
-    }
-  }
-)
 </script>
 
 <template>

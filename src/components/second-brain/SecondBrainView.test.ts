@@ -34,6 +34,11 @@ async function flushUi() {
   await nextTick()
 }
 
+async function waitForEchoesTransition() {
+  await new Promise((resolve) => setTimeout(resolve, 260))
+  await flushUi()
+}
+
 describe('SecondBrainView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -149,17 +154,19 @@ describe('SecondBrainView', () => {
     expect(chipOpen).toBeTruthy()
     if (!chipBody || !chipOpen) return
 
-    expect(mounted.root.textContent).toContain('Echo Note')
+    expect(mounted.root.textContent).not.toContain('Suggested by Echoes')
+    expect(mounted.root.textContent).not.toContain('Echo Note')
 
     chipBody.click()
     await flushUi()
 
     expect(chipBody.getAttribute('aria-pressed')).toBe('true')
+    expect(mounted.root.textContent).toContain('Suggested by Echoes')
     expect(mounted.root.textContent).toContain('Echo Note')
     expect(mounted.onOpenNote).not.toHaveBeenCalled()
 
     chipBody.click()
-    await flushUi()
+    await waitForEchoesTransition()
 
     expect(chipBody.getAttribute('aria-pressed')).toBe('false')
     expect(mounted.root.textContent).not.toContain('Echo Note')
@@ -441,6 +448,11 @@ describe('SecondBrainView', () => {
 
   it('renders Echoes suggestions and adds them to context', async () => {
     const mounted = mountView()
+    for (let index = 0; index < 8 && mounted.root.querySelectorAll('.sb-chip-main').length === 0; index += 1) {
+      await flushUi()
+    }
+
+    mounted.root.querySelector<HTMLButtonElement>('.sb-chip-main')?.click()
     for (let index = 0; index < 8 && !mounted.root.textContent?.includes('Echo Note'); index += 1) {
       await flushUi()
     }
@@ -463,6 +475,11 @@ describe('SecondBrainView', () => {
 
   it('opens an Echoes suggestion only from the explicit action', async () => {
     const mounted = mountView()
+    for (let index = 0; index < 8 && mounted.root.querySelectorAll('.sb-chip-main').length === 0; index += 1) {
+      await flushUi()
+    }
+
+    mounted.root.querySelector<HTMLButtonElement>('.sb-chip-main')?.click()
     for (let index = 0; index < 8 && !mounted.root.textContent?.includes('Echo Note'); index += 1) {
       await flushUi()
     }
@@ -506,8 +523,7 @@ describe('SecondBrainView', () => {
 
     const chipButtons = mounted.root.querySelectorAll<HTMLButtonElement>('.sb-chip-main')
     expect(chipButtons).toHaveLength(2)
-    expect(mounted.root.textContent).toContain('Echo Note')
-    expect(apiCore.computeEchoesPack).toHaveBeenCalledWith('/vault/seed.md', { limit: 5 })
+    expect(mounted.root.textContent).not.toContain('Suggested by Echoes')
 
     chipButtons[1]?.click()
     await flushUi()
@@ -517,7 +533,7 @@ describe('SecondBrainView', () => {
     expect(chipButtons[1]?.getAttribute('aria-pressed')).toBe('true')
 
     chipButtons[1]?.click()
-    await flushUi()
+    await waitForEchoesTransition()
 
     expect(mounted.root.textContent).not.toContain('Seed Echo')
     expect(chipButtons[1]?.getAttribute('aria-pressed')).toBe('false')

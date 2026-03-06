@@ -1,4 +1,4 @@
-import { createApp, defineComponent, h, nextTick } from 'vue'
+import { createApp, defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
 
@@ -40,7 +40,7 @@ describe('SecondBrainEchoesPanel', () => {
     app.unmount()
   })
 
-  it('can collapse the suggestions list', async () => {
+  it('renders a compact summary for recently active suggestions', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
     const app = createApp(defineComponent({
@@ -63,16 +63,8 @@ describe('SecondBrainEchoesPanel', () => {
     }))
 
     app.mount(root)
-    const toggle = root.querySelector('.sb-echoes-toggle') as HTMLButtonElement
-    expect(toggle).toBeTruthy()
     expect(root.textContent).toContain('Note A')
     expect(root.textContent).toContain('1 suggestions, 1 recently active')
-
-    toggle.click()
-    await nextTick()
-
-    expect(root.querySelector('.sb-echoes-item')).toBeNull()
-    expect(toggle.getAttribute('aria-expanded')).toBe('false')
     app.unmount()
   })
 

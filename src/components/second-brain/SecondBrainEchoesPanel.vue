@@ -2,7 +2,7 @@
 /**
  * Presentational Echoes suggestions for Second Brain.
  */
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { EchoesItem } from '../../lib/echoes'
 
 const props = defineProps<{
@@ -19,7 +19,6 @@ const emit = defineEmits<{
 }>()
 
 const visibleItems = computed(() => props.items.slice(0, 5))
-const collapsed = ref(false)
 const summaryLabel = computed(() => {
   if (!visibleItems.value.length) return 'No suggestions'
   const recentlyActiveCount = visibleItems.value.filter((item) => item.reasonLabel === 'Recently active').length
@@ -28,34 +27,15 @@ const summaryLabel = computed(() => {
   }
   return `${visibleItems.value.length} suggestions`
 })
-
-watch(
-  () => props.items.length,
-  (nextCount, previousCount) => {
-    if (previousCount === 0 && nextCount > 0) {
-      collapsed.value = false
-    }
-  }
-)
 </script>
 
 <template>
   <section class="sb-echoes">
     <header class="sb-echoes-head">
-      <button
-        type="button"
-        class="sb-echoes-toggle"
-        :aria-expanded="!collapsed"
-        @click="collapsed = !collapsed"
-      >
-        <span class="sb-echoes-toggle-copy">
-          <h3>Suggested by Echoes</h3>
-          <span class="sb-echoes-summary">{{ summaryLabel }}</span>
-        </span>
-        <span class="sb-echoes-chevron" :class="{ collapsed }" aria-hidden="true">⌃</span>
-      </button>
+      <h3>Suggested by Echoes</h3>
+      <span class="sb-echoes-summary">{{ summaryLabel }}</span>
     </header>
-    <div v-if="!collapsed" class="sb-echoes-body">
+    <div class="sb-echoes-body">
       <div v-if="loading" class="sb-echoes-state">Loading suggestions...</div>
       <div v-else-if="error" class="sb-echoes-state">{{ error }}</div>
       <div v-else-if="!visibleItems.length" class="sb-echoes-state">
@@ -100,23 +80,10 @@ watch(
   gap: 8px;
 }
 
-.sb-echoes-toggle {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  text-align: left;
-}
-
-.sb-echoes-toggle-copy {
+.sb-echoes-head {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 0;
 }
 
 .sb-echoes-head h3 {
@@ -130,17 +97,6 @@ watch(
 .sb-echoes-summary {
   font-size: 11px;
   color: #64748b;
-}
-
-.sb-echoes-chevron {
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1;
-  transition: transform 140ms ease;
-}
-
-.sb-echoes-chevron.collapsed {
-  transform: rotate(180deg);
 }
 
 .sb-echoes-body {
