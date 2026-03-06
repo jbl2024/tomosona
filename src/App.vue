@@ -78,6 +78,7 @@ import {
   type CosmosHistorySnapshot,
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
+import { useAppModalController } from './composables/useAppModalController'
 import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
@@ -214,7 +215,6 @@ const historyMenuStyle = ref<Record<string, string>>({})
 let historyMenuTimer: ReturnType<typeof setTimeout> | null = null
 let historyLongPressTarget: 'back' | 'forward' | null = null
 let unlistenWorkspaceFsChanged: (() => void) | null = null
-let modalFocusReturnTarget: HTMLElement | null = null
 
 const resizeState = ref<{
   side: 'left' | 'right'
@@ -350,6 +350,26 @@ const {
   rebuildIndex: rebuildIndexInternal,
   dispose: disposeIndexingController
 } = indexing
+const modalController = useAppModalController({
+  quickOpenVisible,
+  cosmosCommandLoadingVisible,
+  indexStatusModalVisible,
+  newFileModalVisible,
+  newFolderModalVisible,
+  openDateModalVisible,
+  settingsModalVisible,
+  shortcutsModalVisible,
+  wikilinkRewriteVisible: computed(() => Boolean(wikilinkRewritePrompt.value)),
+  focusEditor: () => {
+    editorRef.value?.focusEditor()
+  }
+})
+const {
+  rememberFocusBeforeModalOpen,
+  hasBlockingModalOpen,
+  restoreFocusAfterModalClose,
+  trapTabWithinActiveModal
+} = modalController
 
 const groupedSearchResults = computed(() => {
   const groups: Array<{ path: string; items: SearchHit[] }> = []
@@ -655,7 +675,7 @@ function formatSearchScore(value: number): string {
 }
 
 function openIndexStatusModal() {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   openIndexStatusModalInternal()
 }
 
@@ -698,7 +718,7 @@ function closeOverflowMenu() {
 }
 
 function openShortcutsModal() {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   shortcutsFilterQuery.value = ''
   shortcutsModalVisible.value = true
   void nextTick(() => {
@@ -1188,7 +1208,7 @@ function closeSettingsModal() {
 }
 
 async function openSettingsModal() {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   settingsModalVisible.value = true
   await nextTick()
 }
@@ -1390,7 +1410,7 @@ function openNextWikilinkRewritePrompt() {
   if (wikilinkRewritePrompt.value || wikilinkRewriteQueue.length === 0) return
   const next = wikilinkRewriteQueue.shift()
   if (!next) return
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   wikilinkRewritePrompt.value = {
     fromPath: next.fromPath,
     toPath: next.toPath
@@ -1856,7 +1876,7 @@ async function openYesterdayNote() {
 }
 
 async function openSpecificDateNote() {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   openDateInput.value = formatIsoDate(new Date())
   openDateModalError.value = ''
   openDateModalVisible.value = true
@@ -2105,7 +2125,7 @@ async function loadWikilinkHeadings(target: string): Promise<string[]> {
 }
 
 async function openQuickOpen(initialQuery = '') {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   quickOpenVisible.value = true
   resetQuickOpenState(initialQuery)
   if (!allWorkspaceFiles.value.length) {
@@ -2201,7 +2221,7 @@ function closeNewFileModal() {
 }
 
 async function openNewFileModal(prefill = '') {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   newFilePathInput.value = prefill
   newFileModalError.value = ''
   newFileModalVisible.value = true
@@ -2219,7 +2239,7 @@ function closeNewFolderModal() {
 }
 
 async function openNewFolderModal(prefill = '') {
-  modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  rememberFocusBeforeModalOpen()
   newFolderPathInput.value = prefill
   newFolderModalError.value = ''
   newFolderModalVisible.value = true
@@ -2532,84 +2552,6 @@ function onOpenDateInputKeydown(event: KeyboardEvent) {
     event.stopPropagation()
     void submitOpenDateFromModal()
   }
-}
-
-function activeModalSelector(): string | null {
-  if (wikilinkRewritePrompt.value) return '[data-modal="wikilink-rewrite"]'
-  if (cosmosCommandLoadingVisible.value) return '[data-modal="cosmos-command-loading"]'
-  if (indexStatusModalVisible.value) return '[data-modal="index-status"]'
-  if (shortcutsModalVisible.value) return '[data-modal="shortcuts"]'
-  if (settingsModalVisible.value) return '[data-modal="settings"]'
-  if (openDateModalVisible.value) return '[data-modal="open-date"]'
-  if (newFolderModalVisible.value) return '[data-modal="new-folder"]'
-  if (newFileModalVisible.value) return '[data-modal="new-file"]'
-  if (quickOpenVisible.value) return '[data-modal="quick-open"]'
-  return null
-}
-
-function hasBlockingModalOpen(): boolean {
-  return Boolean(
-    quickOpenVisible.value ||
-    cosmosCommandLoadingVisible.value ||
-    indexStatusModalVisible.value ||
-    newFileModalVisible.value ||
-    newFolderModalVisible.value ||
-    openDateModalVisible.value ||
-    settingsModalVisible.value ||
-    shortcutsModalVisible.value ||
-    wikilinkRewritePrompt.value
-  )
-}
-
-function restoreFocusAfterModalClose() {
-  if (activeModalSelector()) return
-  if (modalFocusReturnTarget && document.contains(modalFocusReturnTarget)) {
-    modalFocusReturnTarget.focus()
-  } else {
-    editorRef.value?.focusEditor()
-  }
-  modalFocusReturnTarget = null
-}
-
-function trapTabWithinActiveModal(event: KeyboardEvent): boolean {
-  if (event.key !== 'Tab') return false
-  const selector = activeModalSelector()
-  if (!selector) return false
-  const modal = document.querySelector<HTMLElement>(selector)
-  if (!modal) return false
-
-  const focusable = Array.from(
-    modal.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )
-  ).filter((el) => el.tabIndex >= 0 && !el.hasAttribute('disabled'))
-
-  if (!focusable.length) {
-    event.preventDefault()
-    modal.focus()
-    return true
-  }
-
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  const active = document.activeElement as HTMLElement | null
-  const isInsideModal = Boolean(active && modal.contains(active))
-
-  if (event.shiftKey) {
-    if (!isInsideModal || active === first) {
-      event.preventDefault()
-      last.focus()
-      return true
-    }
-    return false
-  }
-
-  if (!isInsideModal || active === last) {
-    event.preventDefault()
-    first.focus()
-    return true
-  }
-  return false
 }
 
 function onNewFileInputKeydown(event: KeyboardEvent) {
