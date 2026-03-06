@@ -1,28 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ComputerDesktopIcon,
-  CommandLineIcon,
-  Cog8ToothIcon,
-  EllipsisHorizontalIcon,
-  FolderIcon,
-  HomeIcon,
-  MagnifyingGlassIcon,
-  MoonIcon,
-  SparklesIcon,
-  ShareIcon,
-  SunIcon
-} from '@heroicons/vue/24/outline'
+import { FolderIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import EditorPaneGrid, { type EditorPaneGridExposed } from './components/panes/EditorPaneGrid.vue'
-import MultiPaneToolbarMenu from './components/panes/MultiPaneToolbarMenu.vue'
 import EditorRightPane from './components/EditorRightPane.vue'
 import ExplorerTree from './components/explorer/ExplorerTree.vue'
 import IndexStatusModal from './components/app/IndexStatusModal.vue'
 import QuickOpenModal from './components/app/QuickOpenModal.vue'
 import SearchSidebarPanel from './components/app/SearchSidebarPanel.vue'
 import ShortcutsModal from './components/app/ShortcutsModal.vue'
+import TopbarNavigationControls from './components/app/TopbarNavigationControls.vue'
 import WikilinkRewriteModal from './components/app/WikilinkRewriteModal.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import SettingsModal from './components/settings/SettingsModal.vue'
@@ -172,11 +158,7 @@ const leftPaneWidth = ref(290)
 const rightPaneWidth = ref(300)
 const editorRef = ref<EditorViewExposed | null>(null)
 const explorerRef = ref<ExplorerTreeExposed | null>(null)
-const overflowMenuRef = ref<HTMLElement | null>(null)
-const backHistoryMenuRef = ref<HTMLElement | null>(null)
-const forwardHistoryMenuRef = ref<HTMLElement | null>(null)
-const backHistoryButtonRef = ref<HTMLElement | null>(null)
-const forwardHistoryButtonRef = ref<HTMLElement | null>(null)
+const topbarRef = ref<InstanceType<typeof TopbarNavigationControls> | null>(null)
 const backlinks = ref<string[]>([])
 const backlinksLoading = ref(false)
 const semanticLinks = ref<SemanticLinkRow[]>([])
@@ -624,6 +606,20 @@ const forwardShortcutLabel = computed(() => (isMacOs ? 'Cmd+]' : 'Ctrl+]'))
 const homeShortcutLabel = computed(() => (isMacOs ? 'Cmd+Shift+H' : 'Ctrl+Shift+H'))
 const zoomPercentLabel = computed(() => `${Math.round(editorZoom.value * 100)}%`)
 const primaryModLabel = computed(() => (isMacOs ? 'Cmd' : 'Ctrl'))
+const backHistoryItems = computed(() =>
+  documentHistory.backTargets.value.slice(0, 14).map((target) => ({
+    index: target.index,
+    key: `back-${target.index}-${target.entry.stateKey}`,
+    label: historyTargetLabel(target.entry)
+  }))
+)
+const forwardHistoryItems = computed(() =>
+  documentHistory.forwardTargets.value.slice(0, 14).map((target) => ({
+    index: target.index,
+    key: `forward-${target.index}-${target.entry.stateKey}`,
+    label: historyTargetLabel(target.entry)
+  }))
+)
 
 const WINDOWS_RESERVED_NAME_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 const FORBIDDEN_FILE_CHARS_RE = /[<>:"/\\|?*\u0000-\u001f]/g
@@ -938,9 +934,7 @@ function historyMenuItemCount(side: 'back' | 'forward'): number {
 }
 
 function updateHistoryMenuPosition(side: 'back' | 'forward') {
-  const anchor = side === 'back'
-    ? backHistoryButtonRef.value
-    : forwardHistoryButtonRef.value
+  const anchor = topbarRef.value?.getHistoryButtonEl(side) ?? null
   if (!anchor) return
 
   const rect = anchor.getBoundingClientRect()
@@ -1041,15 +1035,15 @@ function onGlobalPointerDown(event: MouseEvent) {
   const target = event.target as Node | null
   if (!target) return
 
-  if (overflowMenuOpen.value && !overflowMenuRef.value?.contains(target)) {
+  if (overflowMenuOpen.value && !topbarRef.value?.containsOverflowTarget(target)) {
     closeOverflowMenu()
   }
 
-  if (historyMenuOpen.value === 'back' && !backHistoryMenuRef.value?.contains(target)) {
+  if (historyMenuOpen.value === 'back' && !topbarRef.value?.containsHistoryMenuTarget('back', target)) {
     closeHistoryMenu()
   }
 
-  if (historyMenuOpen.value === 'forward' && !forwardHistoryMenuRef.value?.contains(target)) {
+  if (historyMenuOpen.value === 'forward' && !topbarRef.value?.containsHistoryMenuTarget('forward', target)) {
     closeHistoryMenu()
   }
 }
@@ -3182,249 +3176,52 @@ onBeforeUnmount(() => {
       </aside>
 
       <section class="workspace-column">
-        <header class="topbar">
-          <div class="global-actions">
-            <div class="nav-actions">
-              <div ref="backHistoryMenuRef" class="history-nav-wrap">
-                <button
-                  ref="backHistoryButtonRef"
-                  type="button"
-                  class="toolbar-icon-btn"
-                  :disabled="!documentHistory.canGoBack.value"
-                  :title="`Back (${backShortcutLabel})`"
-                  :aria-label="`Back (${backShortcutLabel})`"
-                  @click="onHistoryButtonClick('back')"
-                  @contextmenu.prevent="onHistoryButtonContextMenu('back', $event)"
-                  @pointerdown="onHistoryButtonPointerDown('back', $event)"
-                  @pointerup="cancelHistoryLongPress"
-                  @pointerleave="cancelHistoryLongPress"
-                  @pointercancel="cancelHistoryLongPress"
-                >
-                  <ArrowLeftIcon />
-                </button>
-                <div v-if="historyMenuOpen === 'back'" class="history-menu" :style="historyMenuStyle">
-                  <button
-                    v-for="target in documentHistory.backTargets.value.slice(0, 14)"
-                    :key="`back-${target.index}-${target.entry.stateKey}`"
-                    type="button"
-                    class="history-menu-item"
-                    @click="onHistoryTargetClick(target.index)"
-                  >
-                    {{ historyTargetLabel(target.entry) }}
-                  </button>
-                  <div v-if="!documentHistory.backTargets.value.length" class="history-menu-empty">No back history</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="toolbar-icon-btn"
-                :disabled="!filesystem.hasWorkspace.value"
-                :title="`Home: today note (${homeShortcutLabel})`"
-                :aria-label="`Home: today note (${homeShortcutLabel})`"
-                @click="void openTodayNote()"
-              >
-                <HomeIcon />
-              </button>
-              <button
-                type="button"
-                class="toolbar-icon-btn"
-                :disabled="!filesystem.hasWorkspace.value"
-                title="Cosmos view"
-                aria-label="Cosmos view"
-                @click="void openCosmosViewFromPalette()"
-              >
-                <ShareIcon />
-              </button>
-              <button
-                type="button"
-                class="toolbar-icon-btn"
-                :disabled="!filesystem.hasWorkspace.value"
-                title="Second Brain"
-                aria-label="Second Brain"
-                @click="void openSecondBrainViewFromPalette()"
-              >
-                <SparklesIcon />
-              </button>
-              <div ref="forwardHistoryMenuRef" class="history-nav-wrap">
-                <button
-                  ref="forwardHistoryButtonRef"
-                  type="button"
-                  class="toolbar-icon-btn"
-                  :disabled="!documentHistory.canGoForward.value"
-                  :title="`Forward (${forwardShortcutLabel})`"
-                  :aria-label="`Forward (${forwardShortcutLabel})`"
-                  @click="onHistoryButtonClick('forward')"
-                  @contextmenu.prevent="onHistoryButtonContextMenu('forward', $event)"
-                  @pointerdown="onHistoryButtonPointerDown('forward', $event)"
-                  @pointerup="cancelHistoryLongPress"
-                  @pointerleave="cancelHistoryLongPress"
-                  @pointercancel="cancelHistoryLongPress"
-                >
-                  <ArrowRightIcon />
-                </button>
-                <div v-if="historyMenuOpen === 'forward'" class="history-menu history-menu-forward" :style="historyMenuStyle">
-                  <button
-                    v-for="target in documentHistory.forwardTargets.value.slice(0, 14)"
-                    :key="`forward-${target.index}-${target.entry.stateKey}`"
-                    type="button"
-                    class="history-menu-item"
-                    @click="onHistoryTargetClick(target.index)"
-                  >
-                    {{ historyTargetLabel(target.entry) }}
-                  </button>
-                  <div v-if="!documentHistory.forwardTargets.value.length" class="history-menu-empty">No forward history</div>
-                </div>
-              </div>
-              <MultiPaneToolbarMenu
-                :can-split="paneCount < 4"
-                :pane-count="paneCount"
-                @split-right="splitPaneFromPalette('row')"
-                @split-down="splitPaneFromPalette('column')"
-                @focus-pane="focusPaneFromPalette($event.index)"
-                @focus-next="focusNextPaneFromPalette()"
-                @move-tab-next="moveTabToNextPaneFromPalette()"
-                @close-pane="closeActivePaneFromPalette()"
-                @join-panes="joinPanesFromPalette()"
-                @reset-layout="resetPaneLayoutFromPalette()"
-              />
-            </div>
-            <button
-              type="button"
-              class="toolbar-icon-btn"
-              :class="{ active: workspace.rightPaneVisible.value }"
-              :title="workspace.rightPaneVisible.value ? 'Hide right pane' : 'Show right pane'"
-              :aria-label="workspace.rightPaneVisible.value ? 'Hide right pane' : 'Show right pane'"
-              @click="workspace.toggleRightPane()"
-            >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" ry="1.5" />
-                <line x1="10" y1="2.5" x2="10" y2="13.5" />
-              </svg>
-            </button>
-            <div ref="overflowMenuRef" class="overflow-wrap">
-              <button
-                type="button"
-                class="toolbar-icon-btn"
-                title="View options"
-                aria-label="View options"
-                :aria-expanded="overflowMenuOpen"
-                @click="toggleOverflowMenu"
-              >
-                <EllipsisHorizontalIcon />
-              </button>
-              <div v-if="overflowMenuOpen" class="overflow-menu">
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="openCommandPalette"
-                >
-                  <CommandLineIcon class="overflow-item-icon" />
-                  Command palette
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="openShortcutsFromOverflow"
-                >
-                  <svg class="overflow-item-icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <rect x="1.5" y="2.5" width="13" height="10.5" rx="1.6" ry="1.6" />
-                    <line x1="4" y1="6" x2="12" y2="6" />
-                    <line x1="4" y1="9" x2="8.5" y2="9" />
-                  </svg>
-                  Keyboard shortcuts
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="openSettingsFromOverflow"
-                >
-                  <Cog8ToothIcon class="overflow-item-icon" />
-                  Open Settings
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  :disabled="!filesystem.hasWorkspace.value || filesystem.indexingState.value === 'indexing'"
-                  @click="void rebuildIndexFromOverflow()"
-                >
-                  <svg class="overflow-item-icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 2.5a5.5 5.5 0 1 1-4.4 2.2" />
-                    <polyline points="1.8,2.6 4.9,2.6 4.9,5.7" />
-                  </svg>
-                  Reindex workspace
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  :disabled="!filesystem.hasWorkspace.value"
-                  @click="closeWorkspace"
-                >
-                  <svg class="overflow-item-icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <line x1="4" y1="4" x2="12" y2="12" />
-                    <line x1="12" y1="4" x2="4" y2="12" />
-                  </svg>
-                  Close workspace
-                </button>
-                <div class="overflow-divider"></div>
-                <div class="overflow-label">Zoom</div>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="zoomInFromOverflow"
-                >
-                  <span class="overflow-item-icon overflow-glyph">+</span>
-                  Zoom in
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="zoomOutFromOverflow"
-                >
-                  <span class="overflow-item-icon overflow-glyph">-</span>
-                  Zoom out
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  @click="resetZoomFromOverflow"
-                >
-                  <span class="overflow-item-icon overflow-glyph">100</span>
-                  Reset zoom
-                </button>
-                <div class="overflow-zoom-state">Editor zoom: {{ zoomPercentLabel }}</div>
-                <div class="overflow-divider"></div>
-                <div class="overflow-label">Theme</div>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  :class="{ active: themePreference === 'light' }"
-                  @click="setThemeFromOverflow('light')"
-                >
-                  <SunIcon class="overflow-item-icon" />
-                  Light
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  :class="{ active: themePreference === 'dark' }"
-                  @click="setThemeFromOverflow('dark')"
-                >
-                  <MoonIcon class="overflow-item-icon" />
-                  Dark
-                </button>
-                <button
-                  type="button"
-                  class="overflow-item"
-                  :class="{ active: themePreference === 'system' }"
-                  @click="setThemeFromOverflow('system')"
-                >
-                  <ComputerDesktopIcon class="overflow-item-icon" />
-                  System
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <TopbarNavigationControls
+          ref="topbarRef"
+          :can-go-back="documentHistory.canGoBack.value"
+          :can-go-forward="documentHistory.canGoForward.value"
+          :back-shortcut-label="backShortcutLabel"
+          :forward-shortcut-label="forwardShortcutLabel"
+          :home-shortcut-label="homeShortcutLabel"
+          :has-workspace="filesystem.hasWorkspace.value"
+          :right-pane-visible="workspace.rightPaneVisible.value"
+          :history-menu-open="historyMenuOpen"
+          :history-menu-style="historyMenuStyle"
+          :back-items="backHistoryItems"
+          :forward-items="forwardHistoryItems"
+          :pane-count="paneCount"
+          :overflow-menu-open="overflowMenuOpen"
+          :indexing-state="filesystem.indexingState.value"
+          :zoom-percent-label="zoomPercentLabel"
+          :theme-preference="themePreference"
+          @history-button-click="onHistoryButtonClick"
+          @history-button-context-menu="onHistoryButtonContextMenu"
+          @history-button-pointer-down="onHistoryButtonPointerDown"
+          @history-long-press-cancel="cancelHistoryLongPress"
+          @history-target-click="onHistoryTargetClick"
+          @open-today="void openTodayNote()"
+          @open-cosmos="void openCosmosViewFromPalette()"
+          @open-second-brain="void openSecondBrainViewFromPalette()"
+          @split-right="splitPaneFromPalette('row')"
+          @split-down="splitPaneFromPalette('column')"
+          @focus-pane="focusPaneFromPalette($event)"
+          @focus-next="focusNextPaneFromPalette()"
+          @move-tab-next="moveTabToNextPaneFromPalette()"
+          @close-pane="closeActivePaneFromPalette()"
+          @join-panes="joinPanesFromPalette()"
+          @reset-layout="resetPaneLayoutFromPalette()"
+          @toggle-right-pane="workspace.toggleRightPane()"
+          @toggle-overflow="toggleOverflowMenu"
+          @open-command-palette="openCommandPalette"
+          @open-shortcuts="openShortcutsFromOverflow"
+          @open-settings="openSettingsFromOverflow"
+          @rebuild-index="void rebuildIndexFromOverflow()"
+          @close-workspace="closeWorkspace"
+          @zoom-in="zoomInFromOverflow"
+          @zoom-out="zoomOutFromOverflow"
+          @reset-zoom="resetZoomFromOverflow"
+          @set-theme="setThemeFromOverflow"
+        />
 
         <div class="workspace-row">
           <div
