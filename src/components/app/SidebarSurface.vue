@@ -155,10 +155,6 @@ defineExpose({
   gap: 6px;
 }
 
-:global(.ide-root.macos-overlay) .activity-bar {
-  padding-top: 38px;
-}
-
 :global(.ide-root.dark) .activity-bar {
   border-right-color: #3e4451;
   background: #21252b;
@@ -217,11 +213,6 @@ defineExpose({
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-}
-
-:global(.ide-root.macos-overlay) .left-sidebar {
-  box-sizing: border-box;
-  padding-top: 28px;
 }
 
 :global(.ide-root.dark) .left-sidebar {

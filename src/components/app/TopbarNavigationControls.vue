@@ -254,11 +254,18 @@ defineExpose({
   justify-content: center;
   border-bottom: 1px solid #e5e7eb;
   background: #f2f4f8;
+  flex: 0 0 auto;
 }
 
 :global(.ide-root.dark) .topbar {
   border-bottom-color: #3e4451;
   background: #21252b;
+}
+
+:global(.ide-root.macos-overlay) .topbar {
+  box-sizing: border-box;
+  min-height: 52px;
+  padding-left: 84px;
 }
 
 .global-actions {
