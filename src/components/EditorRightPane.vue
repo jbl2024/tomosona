@@ -71,10 +71,8 @@ watch(
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="outlineExpanded = !outlineExpanded">
-        <span class="section-toggle-title">
-          <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: outlineExpanded }" />
-          <h3 class="section-title">Outline</h3>
-        </span>
+        <h3 class="section-title">Outline</h3>
+        <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: outlineExpanded }" />
       </button>
       <template v-if="outlineExpanded">
         <div v-if="!props.outline.length" class="empty-state">No headings</div>
@@ -93,10 +91,8 @@ watch(
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="semanticExpanded = !semanticExpanded">
-        <span class="section-toggle-title">
-          <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: semanticExpanded }" />
-          <h3 class="section-title">Semantic Links</h3>
-        </span>
+        <h3 class="section-title">Semantic Links</h3>
+        <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: semanticExpanded }" />
       </button>
       <template v-if="semanticExpanded">
         <div v-if="props.semanticLinksLoading" class="empty-state">Loading...</div>
@@ -118,10 +114,8 @@ watch(
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="backlinksExpanded = !backlinksExpanded">
-        <span class="section-toggle-title">
-          <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: backlinksExpanded }" />
-          <h3 class="section-title">Backlinks</h3>
-        </span>
+        <h3 class="section-title">Backlinks</h3>
+        <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: backlinksExpanded }" />
       </button>
       <template v-if="backlinksExpanded">
         <div v-if="props.backlinksLoading" class="empty-state">Loading...</div>
@@ -353,18 +347,14 @@ watch(
   background: transparent;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-}
-
-.section-toggle-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .section-toggle-chevron {
   width: 15px;
   height: 15px;
+  flex: 0 0 auto;
   color: #7b8798;
   transition: transform 140ms ease;
 }
