@@ -54,8 +54,6 @@ import {
   setWorkingFolder,
   selectWorkingFolder,
   type FileMetadata,
-  type IndexLogEntry,
-  type IndexRuntimeStatus,
   type WikilinkGraph,
   type WorkspaceFsChange,
   listenWorkspaceFsChanged,
@@ -91,11 +89,8 @@ import {
   parseIsoDateInput,
   sanitizeRelativePath
 } from './lib/appShellPaths'
-import {
-  buildIndexActivityRows,
-  formatDurationMs,
-  type IndexLogFilter
-} from './lib/indexActivity'
+import { formatDurationMs } from './lib/indexActivity'
+import { useAppIndexingController } from './composables/useAppIndexingController'
 import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useEditorState } from './composables/useEditorState'
@@ -154,9 +149,6 @@ type CosmosHistorySnapshot = {
 type SecondBrainHistorySnapshot = {
   surface: 'chat'
 }
-type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'rename'
-type IndexRunPhase = 'idle' | 'indexing_files' | 'refreshing_views' | 'done' | 'error'
-type SemanticIndexState = 'idle' | 'pending' | 'running' | 'error'
 
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
@@ -221,7 +213,6 @@ const openDateInput = ref('')
 const openDateModalError = ref('')
 const settingsModalVisible = ref(false)
 const shortcutsModalVisible = ref(false)
-const indexStatusModalVisible = ref(false)
 const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const secondBrainRequestedSessionId = ref(
@@ -262,29 +253,6 @@ let cosmosHistoryDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let isApplyingHistoryNavigation = false
 let unlistenWorkspaceFsChanged: (() => void) | null = null
 let modalFocusReturnTarget: HTMLElement | null = null
-let reindexWorkerRunning = false
-let reindexGeneration = 0
-const pendingReindexPaths = new Set<string>()
-const pendingReindexCount = ref(0)
-const pendingSemanticReindexAt = new Map<string, number>()
-let semanticReindexTimer: ReturnType<typeof setTimeout> | null = null
-let semanticReindexWorkerRunning = false
-const semanticDebounceMs = 15_000
-const semanticIndexState = ref<SemanticIndexState>('idle')
-const indexRunKind = ref<IndexRunKind>('idle')
-const indexRunPhase = ref<IndexRunPhase>('idle')
-const indexRunCurrentPath = ref('')
-const indexRunCompleted = ref(0)
-const indexRunTotal = ref(0)
-const indexFinalizeCompleted = ref(0)
-const indexFinalizeTotal = ref(0)
-const indexRunMessage = ref('')
-const indexRunLastFinishedAt = ref<number | null>(null)
-const indexStatusBusy = ref(false)
-const indexRuntimeStatus = ref<IndexRuntimeStatus | null>(null)
-const indexLogEntries = ref<IndexLogEntry[]>([])
-const indexLogFilter = ref<IndexLogFilter>('all')
-let indexStatusPollTimer: ReturnType<typeof setInterval> | null = null
 
 const resizeState = ref<{
   side: 'left' | 'right'
@@ -297,160 +265,6 @@ const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
 const activeStatus = computed(() => editorState.getStatus(activeFilePath.value))
 const noteEchoes = useEchoesPack(activeFilePath, { limit: 5 })
 const noteEchoesDiscoverability = useEchoesDiscoverability()
-const indexStateLabel = computed(() => {
-  if (filesystem.indexingState.value === 'indexing') return 'reindexing'
-  if (filesystem.indexingState.value === 'indexed') return 'indexed'
-  return 'out of sync'
-})
-const indexStateClass = computed(() => {
-  if (filesystem.indexingState.value === 'indexing') return 'status-item-indexing'
-  if (filesystem.indexingState.value === 'indexed') return 'status-item-indexed'
-  return 'status-item-out-of-sync'
-})
-const indexRunning = computed(() => filesystem.indexingState.value === 'indexing')
-const indexProgressLabel = computed(() => {
-  if (!indexRunning.value) return indexStateLabel.value
-  if (indexRunKind.value === 'background') {
-    if (indexRunPhase.value === 'refreshing_views') {
-      const total = Math.max(1, indexFinalizeTotal.value)
-      const completed = Math.min(indexFinalizeCompleted.value, total)
-      return `finalizing ${completed}/${total}`
-    }
-    const total = Math.max(indexRunTotal.value, indexRunCompleted.value + pendingReindexCount.value)
-    if (total <= 0) return 'processing queued files'
-    return `${indexRunCompleted.value}/${total} files`
-  }
-  if (indexRunKind.value === 'rebuild') {
-    if (indexRunPhase.value === 'refreshing_views') {
-      const total = Math.max(1, indexFinalizeTotal.value)
-      const completed = Math.min(indexFinalizeCompleted.value, total)
-      return `finalizing ${completed}/${total}`
-    }
-    return 'rebuilding workspace index'
-  }
-  if (indexRunKind.value === 'rename') {
-    if (indexRunPhase.value === 'refreshing_views') {
-      const total = Math.max(1, indexFinalizeTotal.value)
-      const completed = Math.min(indexFinalizeCompleted.value, total)
-      return `finalizing ${completed}/${total}`
-    }
-    return 'rewriting wikilinks'
-  }
-  return 'indexing'
-})
-const indexActionLabel = computed(() => (indexRunning.value ? 'Stop' : 'Rebuild index'))
-const indexModelStatusLabel = computed(() => {
-  const status = indexRuntimeStatus.value
-  if (!status) return 'unknown'
-  if (status.model_state === 'ready') return 'ready'
-  if (status.model_state === 'initializing') return 'initializing'
-  if (status.model_state === 'failed') return 'failed'
-  if (status.model_state === 'not_initialized') return 'not initialized'
-  return status.model_state
-})
-const indexStatusBadgeLabel = computed(() => {
-  if (indexRunPhase.value === 'error' || filesystem.indexingState.value === 'out_of_sync') return 'Needs attention'
-  if (indexRunning.value) return 'Reindexing'
-  if (semanticIndexState.value === 'running') return 'Semantic sync'
-  if (semanticIndexState.value === 'pending') return 'Semantic pending'
-  if (semanticIndexState.value === 'error') return 'Semantic warning'
-  return 'Ready'
-})
-const indexStatusBadgeClass = computed(() => {
-  if (indexRunPhase.value === 'error' || filesystem.indexingState.value === 'out_of_sync') return 'index-badge-error'
-  if (indexRunning.value) return 'index-badge-running'
-  if (semanticIndexState.value === 'error') return 'index-badge-error'
-  if (semanticIndexState.value === 'pending' || semanticIndexState.value === 'running') return 'index-badge-running'
-  return 'index-badge-ready'
-})
-const indexProgressTotal = computed(() => {
-  if (indexRunKind.value === 'background') {
-    return Math.max(indexRunTotal.value, indexRunCompleted.value + pendingReindexCount.value)
-  }
-  return Math.max(indexRunTotal.value, indexRunCompleted.value)
-})
-const indexProgressCurrent = computed(() => {
-  const total = indexProgressTotal.value
-  if (total <= 0) return 0
-  return Math.min(indexRunCompleted.value, total)
-})
-const indexProgressPercent = computed(() => {
-  if (indexRunning.value) {
-    if (indexRunPhase.value === 'refreshing_views') {
-      const finalizeTotal = Math.max(1, indexFinalizeTotal.value)
-      const finalizeCurrent = Math.min(indexFinalizeCompleted.value, finalizeTotal)
-      const finalizePercent = Math.round((finalizeCurrent / finalizeTotal) * 15)
-      return Math.min(99, 85 + Math.max(0, finalizePercent))
-    }
-    const total = indexProgressTotal.value
-    if (total <= 0) return 8
-    return Math.min(85, Math.max(0, Math.round((indexProgressCurrent.value / total) * 85)))
-  }
-  return filesystem.indexingState.value === 'indexed' ? 100 : 0
-})
-const indexProgressSummary = computed(() => {
-  if (!indexRunning.value) {
-    if (filesystem.indexingState.value === 'out_of_sync') return 'Pending reindex'
-    if (semanticIndexState.value === 'pending') return 'Semantic index pending'
-    if (semanticIndexState.value === 'running') return 'Semantic index syncing'
-    if (semanticIndexState.value === 'error') return 'Semantic index warning'
-    return indexRunLastFinishedAt.value ? `Last run ${formatTimestamp(indexRunLastFinishedAt.value)}` : ''
-  }
-  if (indexRunPhase.value === 'refreshing_views') {
-    const total = Math.max(1, indexFinalizeTotal.value)
-    const completed = Math.min(indexFinalizeCompleted.value, total)
-    return `Finalizing ${completed}/${total} tasks`
-  }
-  const total = indexProgressTotal.value
-  if (total <= 0) return indexProgressLabel.value
-  return `${indexProgressCurrent.value}/${total} files`
-})
-const indexShowProgressBar = computed(() => indexRunning.value)
-const indexModelStateClass = computed(() => {
-  if (indexModelStatusLabel.value === 'ready') return 'index-model-ready'
-  if (indexModelStatusLabel.value === 'initializing') return 'index-model-busy'
-  if (indexModelStatusLabel.value === 'failed') return 'index-model-failed'
-  return 'index-model-idle'
-})
-const indexShowWarmupNote = computed(() => {
-  const status = indexRuntimeStatus.value
-  if (!status) return false
-  return status.model_init_attempts <= 1 && status.model_state !== 'ready'
-})
-const indexAlert = computed(() => {
-  if (indexRunPhase.value === 'error') {
-    return {
-      level: 'error',
-      title: 'Index run interrupted',
-      message: indexRunMessage.value || 'An indexing step failed. You can retry a full rebuild.'
-    } as const
-  }
-  if (filesystem.indexingState.value === 'out_of_sync') {
-    return {
-      level: 'warning',
-      title: 'Workspace changed',
-      message: 'Some files are not indexed yet. Run a rebuild to sync search and semantic links.'
-    } as const
-  }
-  if (semanticIndexState.value === 'error') {
-    return {
-      level: 'warning',
-      title: 'Semantic indexing warning',
-      message: 'Lexical index is up to date, but semantic vectors need attention.'
-    } as const
-  }
-  return null
-})
-const indexActivityRows = computed(() => buildIndexActivityRows(indexLogEntries.value, toRelativePath))
-const filteredIndexActivityRows = computed(() => {
-  if (indexLogFilter.value === 'all') return indexActivityRows.value
-  if (indexLogFilter.value === 'errors') {
-    return indexActivityRows.value.filter((row) => row.state === 'error')
-  }
-  return indexActivityRows.value.filter((row) => (row.durationMs ?? 0) > 1000)
-})
-const indexErrorCount = computed(() => indexActivityRows.value.filter((row) => row.state === 'error').length)
-const indexSlowCount = computed(() => indexActivityRows.value.filter((row) => (row.durationMs ?? 0) > 1000).length)
 const cosmos = useCosmosController({
   workingFolderPath: filesystem.workingFolderPath,
   activeTabPath: activeFilePath,
@@ -460,6 +274,71 @@ const cosmos = useCosmosController({
   ftsSearch,
   buildCosmosGraph
 })
+const indexing = useAppIndexingController({
+  workingFolderPath: filesystem.workingFolderPath,
+  hasWorkspace: filesystem.hasWorkspace,
+  indexingState: filesystem.indexingState,
+  readIndexLogs,
+  readIndexRuntimeStatus,
+  requestIndexCancel,
+  rebuildWorkspaceIndex,
+  reindexMarkdownFileLexical,
+  reindexMarkdownFileSemantic,
+  refreshSemanticEdgesCacheNow,
+  removeMarkdownFileFromIndex,
+  isMarkdownPath,
+  toRelativePath,
+  refreshBacklinks,
+  refreshCosmosGraph: () => cosmos.refreshGraph(),
+  hasCosmosSurface: () => multiPane.findPaneContainingSurface('cosmos') !== null,
+  confirmStopCurrentOperation: () => typeof window === 'undefined' || window.confirm('Cancel current indexing run?'),
+  notifyInfo: (message) => filesystem.notifyInfo(message),
+  notifySuccess: (message) => filesystem.notifySuccess(message),
+  notifyError: (message) => filesystem.notifyError(message)
+})
+const {
+  semanticIndexState,
+  indexRunKind,
+  indexRunPhase,
+  indexRunCurrentPath,
+  indexRunCompleted,
+  indexRunTotal,
+  indexFinalizeCompleted,
+  indexFinalizeTotal,
+  indexRunMessage,
+  indexRunLastFinishedAt,
+  indexStatusBusy,
+  indexRuntimeStatus,
+  indexLogFilter,
+  indexStatusModalVisible,
+  indexStateLabel,
+  indexStateClass,
+  indexRunning,
+  indexProgressLabel,
+  indexActionLabel,
+  indexModelStatusLabel,
+  indexStatusBadgeLabel,
+  indexStatusBadgeClass,
+  indexProgressPercent,
+  indexProgressSummary,
+  indexShowProgressBar,
+  indexModelStateClass,
+  indexShowWarmupNote,
+  indexAlert,
+  filteredIndexActivityRows,
+  indexErrorCount,
+  indexSlowCount,
+  markIndexOutOfSync,
+  refreshIndexModalData,
+  openIndexStatusModal: openIndexStatusModalInternal,
+  closeIndexStatusModal: closeIndexStatusModalInternal,
+  onIndexPrimaryAction: onIndexPrimaryActionInternal,
+  enqueueMarkdownReindex,
+  removeMarkdownFromIndexInBackground,
+  rebuildIndex: rebuildIndexInternal,
+  resetIndexingState,
+  dispose: disposeIndexingController
+} = indexing
 
 const groupedSearchResults = computed(() => {
   const groups: Array<{ path: string; items: SearchHit[] }> = []
@@ -796,331 +675,35 @@ function replaceWorkspaceFilePath(oldPath: string, newPath: string) {
   allWorkspaceFiles.value = Array.from(new Set(next)).sort((a, b) => a.localeCompare(b))
 }
 
-function markIndexOutOfSync() {
-  if (filesystem.indexingState.value !== 'indexing') {
-    filesystem.indexingState.value = 'out_of_sync'
-  }
-}
-
-function updatePendingReindexCount() {
-  pendingReindexCount.value = pendingReindexPaths.size
-}
-
 function formatSearchScore(value: number): string {
   if (!Number.isFinite(value)) return '--'
   return value.toFixed(3)
 }
 
-function stopIndexStatusPolling() {
-  if (indexStatusPollTimer) {
-    clearInterval(indexStatusPollTimer)
-    indexStatusPollTimer = null
-  }
-}
-
-function startIndexStatusPolling() {
-  stopIndexStatusPolling()
-  indexStatusPollTimer = setInterval(() => {
-    if (!indexStatusModalVisible.value) return
-    void refreshIndexModalData()
-  }, 900)
-}
-
 function openIndexStatusModal() {
   modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
-  indexStatusModalVisible.value = true
-  void refreshIndexModalData()
-  startIndexStatusPolling()
+  openIndexStatusModalInternal()
 }
 
 function closeIndexStatusModal() {
-  indexStatusModalVisible.value = false
-  stopIndexStatusPolling()
+  closeIndexStatusModalInternal()
   void nextTick(() => {
     restoreFocusAfterModalClose()
   })
 }
 
-async function refreshIndexLogs() {
-  if (!filesystem.hasWorkspace.value) {
-    indexLogEntries.value = []
-    return
-  }
-  try {
-    indexLogEntries.value = await readIndexLogs(160)
-  } catch {
-    indexLogEntries.value = []
-  }
-}
-
-async function refreshIndexRuntimeStatus() {
-  if (!filesystem.hasWorkspace.value) return
-  try {
-    indexRuntimeStatus.value = await readIndexRuntimeStatus()
-  } catch {
-    indexRuntimeStatus.value = null
-  }
-}
-
-async function refreshIndexModalData() {
-  await Promise.all([refreshIndexRuntimeStatus(), refreshIndexLogs()])
-}
-
-async function stopCurrentIndexOperation() {
-  if (!indexRunning.value) return
-  if (indexRunKind.value === 'background') {
-    reindexGeneration += 1
-    pendingReindexPaths.clear()
-    updatePendingReindexCount()
-    pendingSemanticReindexAt.clear()
-    if (semanticReindexTimer) {
-      clearTimeout(semanticReindexTimer)
-      semanticReindexTimer = null
-    }
-    semanticIndexState.value = 'idle'
-    reindexWorkerRunning = false
-    filesystem.indexingState.value = 'out_of_sync'
-    indexRunPhase.value = 'error'
-    indexRunMessage.value = 'Stopped by user.'
-    return
-  }
-  try {
-    await requestIndexCancel()
-    indexRunMessage.value = 'Stop requested. Waiting for backend to stop...'
-  } catch {
-    indexRunMessage.value = 'Could not request stop.'
-  }
-}
-
 async function onIndexPrimaryAction() {
-  if (indexStatusBusy.value) return
-  indexStatusBusy.value = true
-  try {
-    if (indexRunning.value) {
-      if (typeof window !== 'undefined' && !window.confirm('Cancel current indexing run?')) return
-      await stopCurrentIndexOperation()
-    } else {
-      await rebuildIndexFromOverflow()
-    }
-    await refreshIndexModalData()
-  } finally {
-    indexStatusBusy.value = false
+  const shouldReloadFiles = !indexRunning.value
+  await onIndexPrimaryActionInternal()
+  if (shouldReloadFiles) {
+    await loadAllFiles()
   }
 }
 
-function enqueueMarkdownReindex(path: string) {
-  if (!filesystem.workingFolderPath.value || !isMarkdownPath(path)) return
-  pendingReindexPaths.add(path)
-  updatePendingReindexCount()
-  if (filesystem.indexingState.value !== 'indexing') {
-    filesystem.indexingState.value = 'out_of_sync'
-  }
-  if (indexRunKind.value !== 'background' || indexRunPhase.value === 'idle') {
-    indexRunKind.value = 'background'
-    indexRunPhase.value = 'idle'
-    indexRunCompleted.value = 0
-    indexRunTotal.value = Math.max(1, pendingReindexCount.value)
-    indexFinalizeCompleted.value = 0
-    indexFinalizeTotal.value = 0
-    indexRunCurrentPath.value = ''
-    indexRunMessage.value = ''
-  } else {
-    indexRunTotal.value = Math.max(indexRunTotal.value, indexRunCompleted.value + pendingReindexCount.value)
-  }
-  pendingSemanticReindexAt.set(path, Date.now() + semanticDebounceMs)
-  if (semanticIndexState.value !== 'running') {
-    semanticIndexState.value = 'pending'
-  }
-  scheduleSemanticReindexTimer()
-  void runReindexWorker()
-}
-
-function scheduleSemanticReindexTimer() {
-  if (semanticReindexTimer) {
-    clearTimeout(semanticReindexTimer)
-    semanticReindexTimer = null
-  }
-  if (!pendingSemanticReindexAt.size) {
-    if (!semanticReindexWorkerRunning && semanticIndexState.value !== 'error') {
-      semanticIndexState.value = 'idle'
-    }
-    return
-  }
-  const now = Date.now()
-  let nextDue = Number.POSITIVE_INFINITY
-  for (const dueAt of pendingSemanticReindexAt.values()) {
-    nextDue = Math.min(nextDue, dueAt)
-  }
-  const delay = Math.max(20, Math.min(semanticDebounceMs, nextDue - now))
-  semanticReindexTimer = setTimeout(() => {
-    semanticReindexTimer = null
-    void runSemanticReindexWorker()
-  }, delay)
-}
-
-async function runSemanticReindexWorker() {
-  if (semanticReindexWorkerRunning) return
-  if (!filesystem.workingFolderPath.value) return
-  semanticReindexWorkerRunning = true
-  semanticIndexState.value = 'running'
-  try {
-    while (pendingSemanticReindexAt.size > 0) {
-      const now = Date.now()
-      const duePaths = Array.from(pendingSemanticReindexAt.entries())
-        .filter(([, dueAt]) => dueAt <= now)
-        .map(([path]) => path)
-
-      if (!duePaths.length) {
-        semanticIndexState.value = 'pending'
-        scheduleSemanticReindexTimer()
-        return
-      }
-
-      let hadSemanticError = false
-      let updated = 0
-      for (const path of duePaths) {
-        pendingSemanticReindexAt.delete(path)
-        try {
-          await reindexMarkdownFileSemantic(path)
-          updated += 1
-        } catch {
-          hadSemanticError = true
-          console.warn('[index] semantic:file:error', { path })
-        }
-      }
-      if (updated > 0) {
-        try {
-          await refreshSemanticEdgesCacheNow()
-          // Refresh visible consumers once per semantic batch to avoid stale panels.
-          await refreshBacklinks()
-          if (multiPane.findPaneContainingSurface('cosmos') !== null) {
-            await cosmos.refreshGraph()
-          }
-        } catch {
-          hadSemanticError = true
-          console.warn('[index] semantic:refresh:error')
-        }
-      }
-      if (hadSemanticError) {
-        semanticIndexState.value = 'error'
-      } else if (pendingSemanticReindexAt.size > 0) {
-        semanticIndexState.value = 'pending'
-      } else {
-        semanticIndexState.value = 'idle'
-      }
-    }
-  } finally {
-    semanticReindexWorkerRunning = false
-    if (pendingSemanticReindexAt.size > 0) {
-      if (semanticIndexState.value !== 'error') {
-        semanticIndexState.value = 'pending'
-      }
-      scheduleSemanticReindexTimer()
-    } else if (semanticIndexState.value !== 'error') {
-      semanticIndexState.value = 'idle'
-    }
-  }
-}
-
-async function runReindexWorker() {
-  if (reindexWorkerRunning) return
-  if (!filesystem.workingFolderPath.value) return
-  const generationAtStart = reindexGeneration
-  reindexWorkerRunning = true
-  console.info('[index] background:worker:start', { queued: pendingReindexCount.value })
-  indexRunKind.value = 'background'
-  indexRunPhase.value = 'indexing_files'
-  indexRunCompleted.value = 0
-  indexRunTotal.value = Math.max(1, pendingReindexCount.value)
-  indexFinalizeCompleted.value = 0
-  indexFinalizeTotal.value = 0
-  indexRunCurrentPath.value = ''
-  indexRunMessage.value = ''
-  filesystem.indexingState.value = 'indexing'
-  try {
-    while (pendingReindexPaths.size > 0) {
-      if (reindexGeneration !== generationAtStart) {
-        pendingReindexPaths.clear()
-        updatePendingReindexCount()
-        return
-      }
-      const [nextPath] = pendingReindexPaths
-      if (!nextPath) break
-      pendingReindexPaths.delete(nextPath)
-      updatePendingReindexCount()
-      indexRunCurrentPath.value = nextPath
-      indexRunTotal.value = Math.max(indexRunTotal.value, indexRunCompleted.value + pendingReindexCount.value + 1)
-      try {
-        await reindexMarkdownFileLexical(nextPath)
-      } catch {
-        filesystem.indexingState.value = 'out_of_sync'
-        indexRunPhase.value = 'error'
-        indexRunMessage.value = `Failed to reindex ${toRelativePath(nextPath)}.`
-        console.warn('[index] background:file:error', { path: nextPath })
-      }
-      indexRunCompleted.value += 1
-      indexRunCurrentPath.value = ''
-    }
-  } finally {
-    reindexWorkerRunning = false
-    if (reindexGeneration !== generationAtStart) {
-      return
-    }
-    if (pendingReindexPaths.size > 0) {
-      filesystem.indexingState.value = 'out_of_sync'
-      console.info('[index] background:worker:restart', { queued: pendingReindexPaths.size })
-      void runReindexWorker()
-      return
-    }
-    indexRunPhase.value = 'refreshing_views'
-    indexRunCurrentPath.value = ''
-    indexFinalizeCompleted.value = 0
-    const hasCosmosSurface = multiPane.findPaneContainingSurface('cosmos') !== null
-    indexFinalizeTotal.value = hasCosmosSurface ? 2 : 1
-    await refreshBacklinks()
-    indexFinalizeCompleted.value = 1
-    if (hasCosmosSurface) {
-      await cosmos.refreshGraph()
-      indexFinalizeCompleted.value = 2
-    }
-    if (filesystem.indexingState.value !== 'out_of_sync') {
-      filesystem.indexingState.value = 'indexed'
-      indexRunPhase.value = 'done'
-      indexRunMessage.value = ''
-      indexRunLastFinishedAt.value = Date.now()
-      console.info('[index] background:worker:done', {
-        indexed: indexRunCompleted.value,
-        total: indexRunTotal.value
-      })
-      setTimeout(() => {
-        if (indexRunKind.value === 'background' && indexRunPhase.value === 'done' && pendingReindexCount.value === 0) {
-          indexRunKind.value = 'idle'
-          indexRunPhase.value = 'idle'
-        }
-      }, 600)
-    } else {
-      indexRunPhase.value = 'error'
-      console.warn('[index] background:worker:out_of_sync')
-    }
-  }
-}
-
-function removeMarkdownFromIndexInBackground(path: string) {
-  pendingSemanticReindexAt.delete(path)
-  scheduleSemanticReindexTimer()
-  void removeMarkdownFileFromIndex(path).then(() => {
-    console.info('[index] background:remove:done', { path })
-    if (multiPane.findPaneContainingSurface('cosmos') !== null) {
-      void cosmos.refreshGraph()
-    }
-    void refreshBacklinks()
-  }).catch((err) => {
-    console.warn('[index] background:remove:error', {
-      path,
-      reason: err instanceof Error ? err.message : String(err)
-    })
-    markIndexOutOfSync()
-  })
+async function rebuildIndexFromOverflow() {
+  closeOverflowMenu()
+  await rebuildIndexInternal()
+  await loadAllFiles()
 }
 
 function applyWorkspaceFsChanges(changes: WorkspaceFsChange[]) {
@@ -1787,24 +1370,7 @@ async function openNoteInCosmosFromPalette() {
 
 async function closeWorkspace() {
   if (!filesystem.hasWorkspace.value) return
-  reindexGeneration += 1
-  pendingReindexPaths.clear()
-  updatePendingReindexCount()
-  pendingSemanticReindexAt.clear()
-  if (semanticReindexTimer) {
-    clearTimeout(semanticReindexTimer)
-    semanticReindexTimer = null
-  }
-  semanticIndexState.value = 'idle'
-  reindexWorkerRunning = false
-  indexRunKind.value = 'idle'
-  indexRunPhase.value = 'idle'
-  indexRunCurrentPath.value = ''
-  indexRunCompleted.value = 0
-  indexRunTotal.value = 0
-  indexFinalizeCompleted.value = 0
-  indexFinalizeTotal.value = 0
-  indexRunMessage.value = ''
+  resetIndexingState()
   multiPane.resetToSinglePane()
   multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
   documentHistory.reset()
@@ -1869,24 +1435,7 @@ async function onSelectWorkingFolder() {
 
 async function loadWorkingFolder(path: string) {
   try {
-    reindexGeneration += 1
-    pendingReindexPaths.clear()
-    updatePendingReindexCount()
-    pendingSemanticReindexAt.clear()
-    if (semanticReindexTimer) {
-      clearTimeout(semanticReindexTimer)
-      semanticReindexTimer = null
-    }
-    semanticIndexState.value = 'idle'
-    reindexWorkerRunning = false
-    indexRunKind.value = 'idle'
-    indexRunPhase.value = 'idle'
-    indexRunCurrentPath.value = ''
-    indexRunCompleted.value = 0
-    indexRunTotal.value = 0
-    indexFinalizeCompleted.value = 0
-    indexFinalizeTotal.value = 0
-    indexRunMessage.value = ''
+    resetIndexingState()
     const canonical = await setWorkingFolder(path)
     filesystem.setWorkspacePath(canonical)
     filesystem.indexingState.value = 'indexing'
@@ -3250,73 +2799,6 @@ function closeWorkspaceFromPalette() {
   void closeWorkspace()
   return true
 }
-
-async function rebuildIndexFromOverflow() {
-  const root = filesystem.workingFolderPath.value
-  if (!root) return
-  closeOverflowMenu()
-  filesystem.indexingState.value = 'indexing'
-  reindexGeneration += 1
-  pendingReindexPaths.clear()
-  updatePendingReindexCount()
-  pendingSemanticReindexAt.clear()
-  if (semanticReindexTimer) {
-    clearTimeout(semanticReindexTimer)
-    semanticReindexTimer = null
-  }
-  semanticIndexState.value = 'running'
-  reindexWorkerRunning = false
-  indexRunKind.value = 'rebuild'
-  indexRunPhase.value = 'indexing_files'
-  indexRunCurrentPath.value = ''
-  indexRunCompleted.value = 0
-  indexRunTotal.value = 0
-  indexFinalizeCompleted.value = 0
-  indexFinalizeTotal.value = 0
-  indexRunMessage.value = ''
-  console.info('[index] rebuild:start')
-  try {
-    const result = await rebuildWorkspaceIndex()
-    indexRunTotal.value = result.indexed_files
-    indexRunCompleted.value = result.indexed_files
-    if (result.canceled) {
-      filesystem.indexingState.value = 'out_of_sync'
-      semanticIndexState.value = 'error'
-      indexRunPhase.value = 'error'
-      indexRunMessage.value = 'Rebuild canceled by user.'
-      filesystem.notifyInfo('Index rebuild canceled.')
-      return
-    }
-    indexRunPhase.value = 'refreshing_views'
-    indexFinalizeCompleted.value = 0
-    const hasCosmosSurface = multiPane.findPaneContainingSurface('cosmos') !== null
-    indexFinalizeTotal.value = hasCosmosSurface ? 3 : 2
-    await loadAllFiles()
-    indexFinalizeCompleted.value = 1
-    await refreshBacklinks()
-    indexFinalizeCompleted.value = 2
-    if (hasCosmosSurface) {
-      await cosmos.refreshGraph()
-      indexFinalizeCompleted.value = 3
-    }
-    filesystem.indexingState.value = 'indexed'
-    semanticIndexState.value = 'idle'
-    indexRunPhase.value = 'done'
-    indexRunLastFinishedAt.value = Date.now()
-    console.info('[index] rebuild:done', { indexed: result.indexed_files })
-    filesystem.notifySuccess(`Index rebuilt (${result.indexed_files} file${result.indexed_files === 1 ? '' : 's'}).`)
-  } catch (err) {
-    filesystem.indexingState.value = 'out_of_sync'
-    semanticIndexState.value = 'error'
-    indexRunPhase.value = 'error'
-    indexRunMessage.value = err instanceof Error ? err.message : 'Could not rebuild index.'
-    console.warn('[index] rebuild:error', {
-      message: err instanceof Error ? err.message : 'Could not rebuild index.'
-    })
-    filesystem.notifyError(err instanceof Error ? err.message : 'Could not rebuild index.')
-  }
-}
-
 function closeOtherTabsFromPalette() {
   const paneId = multiPane.layout.value.activePaneId
   const active = multiPane.layout.value.panesById[paneId]?.activeTabId ?? ''
@@ -3959,7 +3441,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearWikilinkRewritePromptQueue()
-  stopIndexStatusPolling()
+  disposeIndexingController()
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
     searchDebounceTimer = null
@@ -3972,11 +3454,6 @@ onBeforeUnmount(() => {
     clearTimeout(historyMenuTimer)
     historyMenuTimer = null
   }
-  if (semanticReindexTimer) {
-    clearTimeout(semanticReindexTimer)
-    semanticReindexTimer = null
-  }
-  pendingSemanticReindexAt.clear()
   mediaQuery?.removeEventListener('change', onSystemThemeChanged)
   window.removeEventListener('keydown', onWindowKeydown, true)
   window.removeEventListener('mousedown', onGlobalPointerDown, true)
