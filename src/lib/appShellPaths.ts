@@ -10,6 +10,7 @@
  */
 
 /** Formats a date or time segment as a 2-digit string. */
+/** Pads a calendar segment to two digits for stable ISO-like formatting. */
 export function normalizeDatePart(value: number): string {
   return String(value).padStart(2, '0')
 }
@@ -60,6 +61,7 @@ export function parseIsoDateInput(input: string): string | null {
 }
 
 /** Returns the canonical journal path for a daily note inside the workspace. */
+/** Builds the canonical workspace path for a journal daily note. */
 export function dailyNotePath(root: string, date: string): string {
   return `${root}/journal/${date}.md`
 }
@@ -102,6 +104,7 @@ export function normalizeRelativeNotePath(raw: string): string | null {
 }
 
 /** Normalizes a path to forward-slash separators. */
+/** Normalizes separators for paths received from mixed OS or frontend sources. */
 export function normalizePath(path: string): string {
   return path.replace(/\\/g, '/')
 }

@@ -7,10 +7,12 @@ import { computed, ref, type Ref } from 'vue'
  * - Derive quick-open and command-palette state from workspace files and actions.
  */
 
+/** Represents a row shown in quick-open, either an existing file or a daily-note shortcut. */
 export type QuickOpenResult =
   | { kind: 'file'; path: string; label: string }
   | { kind: 'daily'; date: string; path: string; label: string; exists: boolean }
 
+/** Describes a command-palette action shown in quick-open action mode. */
 export type PaletteAction = {
   id: string
   label: string
@@ -19,6 +21,7 @@ export type PaletteAction = {
   loadingLabel?: string
 }
 
+/** Provides the workspace and palette inputs used to derive quick-open state. */
 export type UseAppQuickOpenOptions = {
   allWorkspaceFiles: Ref<string[]>
   quickOpenQuery?: Ref<string>
@@ -100,16 +103,19 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenIsActionMode.value ? quickOpenActionResults.value.length : quickOpenResults.value.length
   )
 
+  /** Moves selection with wraparound so keyboard navigation never leaves the list. */
   function moveQuickOpenSelection(delta: number) {
     const count = quickOpenItemCount.value
     if (!count) return
     quickOpenActiveIndex.value = (quickOpenActiveIndex.value + delta + count) % count
   }
 
+  /** Sets the active list index directly, typically from pointer hover. */
   function setQuickOpenActiveIndex(index: number) {
     quickOpenActiveIndex.value = index
   }
 
+  /** Resets query and selection together so modal reopen starts from a stable state. */
   function resetQuickOpenState(nextQuery = '') {
     quickOpenQuery.value = nextQuery
     quickOpenActiveIndex.value = 0

@@ -15,10 +15,14 @@ import { formatTimestamp } from '../lib/appShellPaths'
  *   non-indexing side effects around note creation or navigation.
  */
 
+/** Identifies which indexing workflow currently owns the shell progress state. */
 export type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'rename'
+/** Describes the current step within the active indexing workflow. */
 export type IndexRunPhase = 'idle' | 'indexing_files' | 'refreshing_views' | 'done' | 'error'
+/** Tracks the delayed semantic indexing pipeline independently from lexical indexing. */
 export type SemanticIndexState = 'idle' | 'pending' | 'running' | 'error'
 
+/** Declares the services and reactive state the app shell provides to the indexing controller. */
 export type UseAppIndexingControllerOptions = {
   workingFolderPath: Readonly<Ref<string>>
   hasWorkspace: Readonly<Ref<boolean>>
@@ -42,6 +46,10 @@ export type UseAppIndexingControllerOptions = {
   notifyError?: (message: string) => void
 }
 
+/**
+ * Owns app-shell indexing state, modal polling, and background lexical/semantic
+ * reindex scheduling.
+ */
 export function useAppIndexingController(options: UseAppIndexingControllerOptions) {
   const semanticDebounceMs = 15_000
   let reindexWorkerRunning = false
@@ -240,16 +248,19 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   const indexErrorCount = computed(() => indexActivityRows.value.filter((row) => row.state === 'error').length)
   const indexSlowCount = computed(() => indexActivityRows.value.filter((row) => (row.durationMs ?? 0) > 1000).length)
 
+  /** Mirrors the pending lexical queue size into reactive state for progress UI. */
   function updatePendingReindexCount() {
     pendingReindexCount.value = pendingReindexPaths.size
   }
 
+  /** Marks the index dirty without interrupting an already running indexing pass. */
   function markIndexOutOfSync() {
     if (options.indexingState.value !== 'indexing') {
       options.indexingState.value = 'out_of_sync'
     }
   }
 
+  /** Clears the semantic debounce timer before rescheduling or disposal. */
   function clearSemanticTimer() {
     if (semanticReindexTimer) {
       clearTimeout(semanticReindexTimer)
@@ -257,6 +268,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Resets transient indexing state when the workspace closes or gets reloaded. */
   function resetIndexingState() {
     reindexGeneration += 1
     pendingReindexPaths.clear()
@@ -275,6 +287,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexRunMessage.value = ''
   }
 
+  /** Stops modal polling so background timers do not survive hidden UI. */
   function stopIndexStatusPolling() {
     if (indexStatusPollTimer) {
       clearInterval(indexStatusPollTimer)
@@ -282,6 +295,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Starts lightweight polling while the index status modal stays open. */
   function startIndexStatusPolling() {
     stopIndexStatusPolling()
     indexStatusPollTimer = setInterval(() => {
@@ -290,17 +304,20 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }, 900)
   }
 
+  /** Opens the index status modal and immediately hydrates its runtime data. */
   function openIndexStatusModal() {
     indexStatusModalVisible.value = true
     void refreshIndexModalData()
     startIndexStatusPolling()
   }
 
+  /** Closes the index status modal and tears down its polling loop. */
   function closeIndexStatusModal() {
     indexStatusModalVisible.value = false
     stopIndexStatusPolling()
   }
 
+  /** Refreshes recent backend index log entries for modal display. */
   async function refreshIndexLogs() {
     if (!options.hasWorkspace.value) {
       indexLogEntries.value = []
@@ -313,6 +330,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Refreshes backend runtime status for the modal summary cards. */
   async function refreshIndexRuntimeStatus() {
     if (!options.hasWorkspace.value) return
     try {
@@ -322,10 +340,15 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Refreshes both runtime status and activity logs in parallel. */
   async function refreshIndexModalData() {
     await Promise.all([refreshIndexRuntimeStatus(), refreshIndexLogs()])
   }
 
+  /**
+   * Schedules the semantic pass from the earliest pending due time so bursts of
+   * file edits collapse into one delayed semantic refresh.
+   */
   function scheduleSemanticReindexTimer() {
     clearSemanticTimer()
     if (!pendingSemanticReindexAt.size) {
@@ -346,6 +369,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }, delay)
   }
 
+  /** Runs debounced semantic reindex work and refreshes dependent semantic views once per batch. */
   async function runSemanticReindexWorker() {
     if (semanticReindexWorkerRunning) return
     if (!options.workingFolderPath.value) return
@@ -411,6 +435,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Processes the lexical reindex queue and updates shell progress state. */
   async function runReindexWorker() {
     if (reindexWorkerRunning) return
     if (!options.workingFolderPath.value) return
@@ -491,6 +516,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Queues a markdown file for lexical reindex plus delayed semantic refresh. */
   function enqueueMarkdownReindex(path: string) {
     if (!options.workingFolderPath.value || !options.isMarkdownPath(path)) return
     pendingReindexPaths.add(path)
@@ -518,6 +544,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     void runReindexWorker()
   }
 
+  /** Removes a file from the index asynchronously and refreshes dependent views afterward. */
   function removeMarkdownFromIndexInBackground(path: string) {
     pendingSemanticReindexAt.delete(path)
     scheduleSemanticReindexTimer()
@@ -536,6 +563,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     })
   }
 
+  /** Runs a full workspace rebuild and refreshes shell views when it completes. */
   async function rebuildIndex() {
     const root = options.workingFolderPath.value
     if (!root) return
@@ -595,6 +623,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Stops the current run using either local queue cancellation or backend cancellation. */
   async function stopCurrentIndexOperation() {
     if (!indexRunning.value) return
     if (indexRunKind.value === 'background') {
@@ -618,6 +647,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Handles the index modal primary button, toggling between stop and rebuild. */
   async function onIndexPrimaryAction() {
     if (indexStatusBusy.value) return
     indexStatusBusy.value = true
@@ -635,6 +665,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Disposes timers and polling loops owned by the controller. */
   function dispose() {
     stopIndexStatusPolling()
     clearSemanticTimer()

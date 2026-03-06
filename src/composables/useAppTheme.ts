@@ -7,8 +7,10 @@ import { computed, ref } from 'vue'
  * - Own app theme preference persistence and DOM class synchronization.
  */
 
+/** Stores the explicit user choice or the sentinel value that follows the OS. */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
+/** Configures storage and environment hooks for the app theme controller. */
 export type UseAppThemeOptions = {
   storageKey?: string
   root?: HTMLElement
@@ -32,11 +34,13 @@ export function useAppTheme(options: UseAppThemeOptions = {}) {
     return themePreference.value
   })
 
+  /** Applies the resolved theme to the configured root element. */
   function applyTheme() {
     const root = options.root ?? document.documentElement
     root.classList.toggle('dark', resolvedTheme.value === 'dark')
   }
 
+  /** Loads the persisted preference, defaulting back to `system` when absent or invalid. */
   function loadThemePreference() {
     const saved = window.localStorage.getItem(storageKey)
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
@@ -46,16 +50,19 @@ export function useAppTheme(options: UseAppThemeOptions = {}) {
     themePreference.value = 'system'
   }
 
+  /** Persists the current preference without altering the DOM. */
   function persistThemePreference() {
     window.localStorage.setItem(storageKey, themePreference.value)
   }
 
+  /** Updates preference, persists it, and synchronizes the DOM in one step. */
   function setThemePreference(next: ThemePreference) {
     themePreference.value = next
     persistThemePreference()
     applyTheme()
   }
 
+  /** Reapplies the theme only when the user follows the system color scheme. */
   function onSystemThemeChanged() {
     if (themePreference.value === 'system') {
       applyTheme()

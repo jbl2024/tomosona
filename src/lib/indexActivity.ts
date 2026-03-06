@@ -8,9 +8,12 @@ import { normalizeDatePart, splitRelativePath } from './appShellPaths'
  * - Derive UI-friendly indexing activity rows from raw backend log lines.
  */
 
+/** Filters exposed by the index activity modal. */
 export type IndexLogFilter = 'all' | 'errors' | 'slow'
+/** UI-level status assigned to a rendered activity row. */
 export type IndexActivityState = 'running' | 'done' | 'error'
 
+/** Normalized row shape consumed by the index status modal activity list. */
 export type IndexActivityRow = {
   id: string
   ts: number
@@ -32,6 +35,8 @@ export type IndexActivityRow = {
 /** Parses space-delimited `key=value` fields from a backend log line. */
 export function parseIndexLogFields(message: string): Record<string, string> {
   const out: Record<string, string> = {}
+  // Backend index logs currently expose lightweight `key=value` tokens such as
+  // `path=journal/today.md total_ms=245 embedding=ready`.
   for (const token of message.split(/\s+/)) {
     const equals = token.indexOf('=')
     if (equals <= 0 || equals >= token.length - 1) continue
@@ -92,6 +97,8 @@ export function buildIndexActivityRows(
 ): IndexActivityRow[] {
   const sorted = entries.slice().sort((left, right) => left.ts_ms - right.ts_ms)
   const rows: IndexActivityRow[] = []
+  // `reindex:start` and `reindex:done` arrive as separate log lines, so the
+  // row builder keeps a short-lived map to reconstruct "currently running" rows.
   const activeByPath = new Map<string, { startedAt: number; path: string }>()
 
   for (const entry of sorted) {
