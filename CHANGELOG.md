@@ -18,6 +18,18 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.11.0] - 2026-03-06
+
+### Added
+- feat(echoes): add modular contextual note suggestions to editor and second brain (3537676)
+
+### Changed
+- refactor(echoes): polish panel UX and collapse raw link sections (ad760ed)
+- docs(design): add Echoes product specification (dcde3c4)
+
+### Fixed
+- fix(right-pane): align collapsible chevrons on the right (666b171)
+
 ## [0.10.14] - 2026-03-05
 
 ### Fixed
