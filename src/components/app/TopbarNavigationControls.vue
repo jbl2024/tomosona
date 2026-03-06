@@ -265,7 +265,6 @@ defineExpose({
 :global(.ide-root.macos-overlay) .topbar {
   box-sizing: border-box;
   min-height: 52px;
-  padding-left: 84px;
 }
 
 .global-actions {
