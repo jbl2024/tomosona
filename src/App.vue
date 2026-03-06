@@ -19,6 +19,12 @@ import EditorPaneGrid, { type EditorPaneGridExposed } from './components/panes/E
 import MultiPaneToolbarMenu from './components/panes/MultiPaneToolbarMenu.vue'
 import EditorRightPane from './components/EditorRightPane.vue'
 import ExplorerTree from './components/explorer/ExplorerTree.vue'
+import IndexStatusModal from './components/app/IndexStatusModal.vue'
+import QuickOpenModal from './components/app/QuickOpenModal.vue'
+import SearchSidebarPanel from './components/app/SearchSidebarPanel.vue'
+import ShortcutsModal from './components/app/ShortcutsModal.vue'
+import WikilinkRewriteModal from './components/app/WikilinkRewriteModal.vue'
+import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import SettingsModal from './components/settings/SettingsModal.vue'
 import UiButton from './components/ui/UiButton.vue'
 import { type DocumentHistoryEntry, useDocumentHistory } from './composables/useDocumentHistory'
@@ -72,6 +78,26 @@ import {
   toAbsoluteWorkspacePath,
   workspaceScopedSecondBrainSessionKey
 } from './lib/secondBrainContextPaths'
+import {
+  dailyNotePath,
+  fileName,
+  formatIsoDate,
+  formatTimestamp,
+  isIsoDate,
+  isMarkdownPath,
+  normalizePath,
+  normalizePathKey,
+  normalizeRelativeNotePath,
+  parseIsoDateInput,
+  sanitizeRelativePath
+} from './lib/appShellPaths'
+import {
+  buildIndexActivityRows,
+  formatDurationMs,
+  type IndexLogFilter
+} from './lib/indexActivity'
+import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
+import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useEditorState } from './composables/useEditorState'
 import { useEchoesDiscoverability } from './composables/useEchoesDiscoverability'
 import { useEchoesPack } from './composables/useEchoesPack'
@@ -85,7 +111,6 @@ import {
   useMultiPaneWorkspaceState
 } from './composables/useMultiPaneWorkspaceState'
 
-type ThemePreference = 'light' | 'dark' | 'system'
 type SearchHit = { path: string; snippet: string; score: number }
 type PropertyPreviewRow = { key: string; value: string }
 type SemanticLinkRow = { path: string; score: number | null; direction: 'incoming' | 'outgoing' }
@@ -132,25 +157,6 @@ type SecondBrainHistorySnapshot = {
 type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'rename'
 type IndexRunPhase = 'idle' | 'indexing_files' | 'refreshing_views' | 'done' | 'error'
 type SemanticIndexState = 'idle' | 'pending' | 'running' | 'error'
-type IndexLogFilter = 'all' | 'errors' | 'slow'
-type IndexActivityState = 'running' | 'done' | 'error'
-type IndexActivityRow = {
-  id: string
-  ts: number
-  timeLabel: string
-  state: IndexActivityState
-  group: 'file' | 'engine' | 'rebuild' | 'system'
-  path: string
-  directory: string
-  fileName: string
-  title: string
-  detail: string
-  durationMs: number | null
-  chunks: number | null
-  targets: number | null
-  properties: number | null
-  embeddingStatus: string
-}
 
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
@@ -163,9 +169,16 @@ const workspace = useWorkspaceState()
 const editorState = useEditorState()
 const filesystem = useFilesystemState()
 const documentHistory = useDocumentHistory()
+const {
+  themePreference,
+  resolvedTheme,
+  applyTheme,
+  loadThemePreference,
+  persistThemePreference,
+  onSystemThemeChanged
+} = useAppTheme({ storageKey: THEME_STORAGE_KEY })
 const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent)
 
-const themePreference = ref<ThemePreference>('system')
 const searchQuery = ref('')
 const searchHits = ref<SearchHit[]>([])
 const searchLoading = ref(false)
@@ -175,7 +188,6 @@ let searchRequestToken = 0
 const quickOpenVisible = ref(false)
 const quickOpenQuery = ref('')
 const quickOpenActiveIndex = ref(0)
-const searchInputRef = ref<HTMLInputElement | null>(null)
 const leftPaneWidth = ref(290)
 const rightPaneWidth = ref(300)
 const allWorkspaceFiles = ref<string[]>([])
@@ -279,18 +291,6 @@ const resizeState = ref<{
   startX: number
   startWidth: number
 } | null>(null)
-
-const systemPrefersDark = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia &&
-  window.matchMedia('(prefers-color-scheme: dark)').matches
-
-const resolvedTheme = computed<'light' | 'dark'>(() => {
-  if (themePreference.value === 'system') {
-    return systemPrefersDark() ? 'dark' : 'light'
-  }
-  return themePreference.value
-})
 
 const paneCount = computed(() => Object.keys(multiPane.layout.value.panesById).length)
 const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
@@ -441,7 +441,7 @@ const indexAlert = computed(() => {
   }
   return null
 })
-const indexActivityRows = computed(() => buildIndexActivityRows(indexLogEntries.value))
+const indexActivityRows = computed(() => buildIndexActivityRows(indexLogEntries.value, toRelativePath))
 const filteredIndexActivityRows = computed(() => {
   if (indexLogFilter.value === 'all') return indexActivityRows.value
   if (indexLogFilter.value === 'errors') {
@@ -482,18 +482,6 @@ const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'semantic', label: 'Semantic' },
   { mode: 'lexical', label: 'Lexical' }
 ]
-
-type QuickOpenResult =
-  | { kind: 'file'; path: string; label: string }
-  | { kind: 'daily'; date: string; path: string; label: string; exists: boolean }
-
-type PaletteAction = {
-  id: string
-  label: string
-  run: () => boolean | Promise<boolean>
-  closeBeforeRun?: boolean
-  loadingLabel?: string
-}
 
 const SECOND_BRAIN_TAB_PATH = '__tomosona_second_brain_view__'
 
@@ -597,6 +585,26 @@ const paletteActions = computed<PaletteAction[]>(() => [
   { id: 'reveal-in-explorer', label: 'Reveal in Explorer', run: () => revealActiveInExplorer() }
 ])
 
+const {
+  quickOpenIsActionMode,
+  quickOpenActionResults,
+  quickOpenResults,
+  quickOpenItemCount,
+  moveQuickOpenSelection,
+  setQuickOpenActiveIndex,
+  resetQuickOpenState
+} = useAppQuickOpen({
+  allWorkspaceFiles,
+  quickOpenQuery,
+  quickOpenActiveIndex,
+  isIsoDate,
+  toRelativePath,
+  dailyNotePath,
+  workingFolderPath: filesystem.workingFolderPath,
+  paletteActions,
+  paletteActionPriority
+})
+
 const shortcutSections = computed(() => {
   const mod = primaryModLabel.value
   return [
@@ -661,68 +669,6 @@ const filteredShortcutSections = computed(() => {
     .filter((section) => section.items.length > 0)
 })
 
-const quickOpenIsActionMode = computed(() => quickOpenQuery.value.trimStart().startsWith('>'))
-const quickOpenActionQuery = computed(() => quickOpenQuery.value.trimStart().slice(1).trim().toLowerCase())
-
-const quickOpenResults = computed<QuickOpenResult[]>(() => {
-  if (quickOpenIsActionMode.value) return []
-  const q = quickOpenQuery.value.trim().toLowerCase()
-  if (!q) return []
-
-  const fileResults = allWorkspaceFiles.value
-    .filter((path) => path.toLowerCase().includes(q) || toRelativePath(path).toLowerCase().includes(q))
-    .map((path) => ({ kind: 'file' as const, path, label: toRelativePath(path) }))
-    .slice(0, 80)
-
-  if (!isIsoDate(q) || !filesystem.workingFolderPath.value) {
-    return fileResults
-  }
-
-  const path = dailyNotePath(filesystem.workingFolderPath.value, q)
-  const exists = allWorkspaceFiles.value.some((item) => item.toLowerCase() === path.toLowerCase())
-  const dateResult: QuickOpenResult = {
-    kind: 'daily',
-    date: q,
-    path,
-    exists,
-    label: exists ? `Open daily note ${q}` : `Create daily note ${q}`
-  }
-
-  return [dateResult, ...fileResults]
-})
-
-const quickOpenActionResults = computed(() => {
-  if (!quickOpenIsActionMode.value) return []
-  const q = quickOpenActionQuery.value
-  const withRank = paletteActions.value
-    .map((item) => {
-      const label = item.label.toLowerCase()
-      const matchRank = !q
-        ? 0
-        : label === q
-          ? 0
-          : label.startsWith(q)
-            ? 1
-            : label.includes(q)
-              ? 2
-              : 99
-      const priority = paletteActionPriority[item.id] ?? Number.MAX_SAFE_INTEGER
-      return { item, matchRank, priority, label }
-    })
-    .filter((entry) => entry.matchRank < 99)
-    .sort((left, right) =>
-      left.matchRank - right.matchRank ||
-      left.priority - right.priority ||
-      left.label.localeCompare(right.label)
-    )
-
-  return withRank.map((entry) => entry.item)
-})
-
-const quickOpenItemCount = computed(() =>
-  quickOpenIsActionMode.value ? quickOpenActionResults.value.length : quickOpenResults.value.length
-)
-
 const metadataRows = computed(() => {
   if (!activeFilePath.value) {
     const activeTab = multiPane.getActiveTab()
@@ -776,26 +722,6 @@ const FORBIDDEN_FILE_CHARS_RE = /[<>:"/\\|?*\u0000-\u001f]/g
 const FORBIDDEN_FILE_NAME_CHARS_RE = /[<>:"\\|?*\u0000-\u001f]/
 const MAX_FILE_STEM_LENGTH = 120
 
-function fileName(path: string): string {
-  const normalized = path.replace(/\\/g, '/')
-  const parts = normalized.split('/')
-  return parts[parts.length - 1] || path
-}
-
-function applyTheme() {
-  const root = document.documentElement
-  root.classList.toggle('dark', resolvedTheme.value === 'dark')
-}
-
-function loadThemePreference() {
-  const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
-  if (saved === 'light' || saved === 'dark' || saved === 'system') {
-    themePreference.value = saved
-  } else {
-    themePreference.value = 'system'
-  }
-}
-
 function loadSavedSidebarMode() {
   const saved = window.sessionStorage.getItem(VIEW_MODE_STORAGE_KEY)
   if (saved === 'explorer' || saved === 'search') {
@@ -829,18 +755,6 @@ function toRelativePath(path: string): string {
     return path.slice(root.length + 1)
   }
   return path
-}
-
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/')
-}
-
-function normalizePathKey(path: string): string {
-  return normalizePath(path).toLowerCase()
-}
-
-function isMarkdownPath(path: string): boolean {
-  return /\.(md|markdown)$/i.test(path)
 }
 
 function upsertWorkspaceFilePath(path: string) {
@@ -892,185 +806,9 @@ function updatePendingReindexCount() {
   pendingReindexCount.value = pendingReindexPaths.size
 }
 
-function parseIndexLogFields(message: string): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const token of message.split(/\s+/)) {
-    const equals = token.indexOf('=')
-    if (equals <= 0 || equals >= token.length - 1) continue
-    const key = token.slice(0, equals).trim()
-    const value = token.slice(equals + 1).trim()
-    if (!key || !value) continue
-    out[key] = value
-  }
-  return out
-}
-
-function toNumberOrNull(value: string | undefined): number | null {
-  if (!value) return null
-  const parsed = Number.parseInt(value, 10)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function formatTimeOnly(value: number): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '--:--:--'
-  return `${normalizeDatePart(date.getHours())}:${normalizeDatePart(date.getMinutes())}:${normalizeDatePart(date.getSeconds())}`
-}
-
-function formatDurationMs(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return ''
-  const durationMs = Math.max(0, Math.round(value))
-  if (durationMs < 1000) return `${durationMs} ms`
-  const seconds = durationMs / 1000
-  if (seconds < 60) {
-    const precision = seconds < 10 ? 1 : 0
-    return `${seconds.toFixed(precision)} s`
-  }
-  const totalSeconds = Math.floor(seconds)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const remainderSeconds = totalSeconds % 60
-  if (hours > 0) {
-    if (remainderSeconds > 0) return `${hours} h ${minutes} min ${remainderSeconds} s`
-    if (minutes > 0) return `${hours} h ${minutes} min`
-    return `${hours} h`
-  }
-  if (remainderSeconds > 0) return `${minutes} min ${remainderSeconds} s`
-  return `${minutes} min`
-}
-
 function formatSearchScore(value: number): string {
   if (!Number.isFinite(value)) return '--'
   return value.toFixed(3)
-}
-
-function splitRelativePath(path: string): { directory: string; fileName: string } {
-  const normalized = normalizePath(path)
-  const lastSlash = normalized.lastIndexOf('/')
-  if (lastSlash < 0) {
-    return { directory: '', fileName: normalized }
-  }
-  return {
-    directory: normalized.slice(0, lastSlash),
-    fileName: normalized.slice(lastSlash + 1)
-  }
-}
-
-function buildIndexActivityRows(entries: IndexLogEntry[]): IndexActivityRow[] {
-  const sorted = entries.slice().sort((left, right) => left.ts_ms - right.ts_ms)
-  const rows: IndexActivityRow[] = []
-  const activeByPath = new Map<string, { startedAt: number; path: string }>()
-
-  for (const entry of sorted) {
-    const message = entry.message.trim()
-    const fields = parseIndexLogFields(message)
-    const resolvedPath = fields.path ? toRelativePath(fields.path) : ''
-    const split = splitRelativePath(resolvedPath)
-    const base = {
-      ts: entry.ts_ms,
-      timeLabel: formatTimeOnly(entry.ts_ms),
-      path: resolvedPath,
-      directory: split.directory,
-      fileName: split.fileName,
-      chunks: toNumberOrNull(fields.chunks),
-      targets: toNumberOrNull(fields.targets),
-      properties: toNumberOrNull(fields.properties),
-      durationMs: toNumberOrNull(fields.total_ms) ?? toNumberOrNull(fields.embedding_ms),
-      embeddingStatus: fields.embedding ?? ''
-    }
-
-    if (message.startsWith('reindex:start') && resolvedPath) {
-      activeByPath.set(resolvedPath, { startedAt: entry.ts_ms, path: resolvedPath })
-      continue
-    }
-
-    if (message.startsWith('reindex:done') && resolvedPath) {
-      const run = activeByPath.get(resolvedPath)
-      const stats: string[] = []
-      if (base.chunks != null) stats.push(`🧩 ${base.chunks}`)
-      if (base.targets != null) stats.push(`🎯 ${base.targets}`)
-      if (base.properties != null) stats.push(`🏷️ ${base.properties}`)
-      if (base.embeddingStatus) stats.push(`embed ${base.embeddingStatus}`)
-      const durationLabel = formatDurationMs(base.durationMs)
-      if (durationLabel) stats.push(durationLabel)
-      const failedEmbedding = base.embeddingStatus.includes('failed')
-      rows.push({
-        id: `done-${resolvedPath}-${entry.ts_ms}`,
-        state: failedEmbedding ? 'error' : 'done',
-        group: 'file',
-        title: run ? 'Indexed file' : 'File index update',
-        detail: stats.join(' · '),
-        ...base
-      })
-      activeByPath.delete(resolvedPath)
-      continue
-    }
-
-    if (message.startsWith('rebuild:done')) {
-      const indexed = fields.indexed ?? '?'
-      rows.push({
-        id: `rebuild-done-${entry.ts_ms}`,
-        state: 'done',
-        group: 'rebuild',
-        title: `Workspace rebuild done (${indexed} indexed)`,
-        detail: formatDurationMs(base.durationMs),
-        ...base
-      })
-      continue
-    }
-
-    if (message.startsWith('rebuild:start')) {
-      rows.push({
-        id: `rebuild-start-${entry.ts_ms}`,
-        state: 'running',
-        group: 'rebuild',
-        title: 'Workspace rebuild started',
-        detail: '',
-        ...base
-      })
-      continue
-    }
-
-    const isError = message.includes('failed') || message.includes(':error') || message.includes('unavailable')
-    if (isError) {
-      rows.push({
-        id: `err-${entry.ts_ms}`,
-        state: 'error',
-        group: message.includes('reindex:') ? 'engine' : 'system',
-        title: message.startsWith('reindex:')
-          ? 'Indexing warning'
-          : message.startsWith('model:')
-            ? 'Model warning'
-            : 'Indexer error',
-        detail: message,
-        ...base
-      })
-      continue
-    }
-  }
-
-  for (const run of activeByPath.values()) {
-    const split = splitRelativePath(run.path)
-    rows.push({
-      id: `running-${run.path}-${run.startedAt}`,
-      ts: run.startedAt,
-      timeLabel: formatTimeOnly(run.startedAt),
-      state: 'running',
-      group: 'file',
-      path: run.path,
-      directory: split.directory,
-      fileName: split.fileName,
-      title: 'Processing file',
-      detail: '',
-      durationMs: null,
-      chunks: null,
-      targets: null,
-      properties: null,
-      embeddingStatus: ''
-    })
-  }
-
-  return rows.sort((left, right) => right.ts - left.ts).slice(0, 120)
 }
 
 function stopIndexStatusPolling() {
@@ -1456,31 +1194,6 @@ function applyWorkspaceFsChanges(changes: WorkspaceFsChange[]) {
   }
 }
 
-function normalizeDatePart(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function isValidCalendarDate(year: number, month: number, day: number): boolean {
-  if (year <= 0 || month < 1 || month > 12 || day < 1 || day > 31) return false
-  const value = new Date(year, month - 1, day)
-  return value.getFullYear() === year && value.getMonth() + 1 === month && value.getDate() === day
-}
-
-function formatIsoDate(date: Date): string {
-  return `${date.getFullYear()}-${normalizeDatePart(date.getMonth() + 1)}-${normalizeDatePart(date.getDate())}`
-}
-
-function formatTimestamp(value: number | null): string {
-  if (!Number.isFinite(value) || value == null || value < 0) {
-    return '-'
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return '-'
-  }
-  return `${date.getFullYear()}-${normalizeDatePart(date.getMonth() + 1)}-${normalizeDatePart(date.getDate())} ${normalizeDatePart(date.getHours())}:${normalizeDatePart(date.getMinutes())}:${normalizeDatePart(date.getSeconds())}`
-}
-
 async function refreshActiveFileMetadata(path: string | null = activeFilePath.value) {
   const targetPath = path?.trim() || ''
   const requestToken = ++activeFileMetadataRequestToken
@@ -1500,68 +1213,9 @@ async function refreshActiveFileMetadata(path: string | null = activeFilePath.va
   }
 }
 
-function isIsoDate(input: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) return false
-  const [yearRaw, monthRaw, dayRaw] = input.split('-')
-  const year = Number.parseInt(yearRaw, 10)
-  const month = Number.parseInt(monthRaw, 10)
-  const day = Number.parseInt(dayRaw, 10)
-  return isValidCalendarDate(year, month, day)
-}
-
-function parseIsoDateInput(input: string): string | null {
-  const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return null
-  const year = Number.parseInt(match[1], 10)
-  const month = Number.parseInt(match[2], 10)
-  const day = Number.parseInt(match[3], 10)
-  if (!isValidCalendarDate(year, month, day)) return null
-  return `${year}-${normalizeDatePart(month)}-${normalizeDatePart(day)}`
-}
-
-function dailyNotePath(root: string, date: string): string {
-  return `${root}/journal/${date}.md`
-}
-
-function sanitizeRelativePath(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-    .replace(/\/+/g, '/')
-}
-
-function normalizeRelativeNotePath(raw: string): string | null {
-  const cleaned = raw.trim().replace(/\\/g, '/').replace(/\/+/g, '/')
-  if (!cleaned) return null
-
-  const stack: string[] = []
-  const segments = cleaned.split('/')
-  for (const segment of segments) {
-    if (!segment || segment === '.') continue
-    if (segment === '..') {
-      if (stack.length === 0) {
-        return null
-      }
-      stack.pop()
-      continue
-    }
-    stack.push(segment)
-  }
-
-  if (!stack.length) return null
-  return stack.join('/')
-}
-
 function isTitleOnlyContent(content: string, titleLine: string): boolean {
   const normalized = content.replace(/\r\n/g, '\n').trim()
   return normalized === titleLine
-}
-
-function onSystemThemeChanged() {
-  if (themePreference.value === 'system') {
-    applyTheme()
-  }
 }
 
 function toggleOverflowMenu() {
@@ -2706,7 +2360,7 @@ function onGlobalSearchModeSelect(mode: SearchMode) {
   const next = applySearchMode(searchQuery.value, mode)
   searchQuery.value = next.value
   void nextTick(() => {
-    const input = searchInputRef.value
+    const input = document.querySelector<HTMLInputElement>('[data-search-input="true"]')
     if (!input) return
     input.focus()
     input.setSelectionRange(next.caret, next.caret)
@@ -3271,8 +2925,7 @@ async function loadAllFiles() {
 async function openQuickOpen(initialQuery = '') {
   modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
   quickOpenVisible.value = true
-  quickOpenQuery.value = initialQuery
-  quickOpenActiveIndex.value = 0
+  resetQuickOpenState(initialQuery)
   if (!allWorkspaceFiles.value.length) {
     await loadAllFiles()
   }
@@ -3283,8 +2936,7 @@ async function openQuickOpen(initialQuery = '') {
 function closeQuickOpen(restoreFocusOrEvent: boolean | PointerEvent = true) {
   const restoreFocus = typeof restoreFocusOrEvent === 'boolean' ? restoreFocusOrEvent : true
   quickOpenVisible.value = false
-  quickOpenQuery.value = ''
-  quickOpenActiveIndex.value = 0
+  resetQuickOpenState('')
   if (!restoreFocus) return
   void nextTick(() => {
     restoreFocusAfterModalClose()
@@ -3881,16 +3533,6 @@ function onNewFolderInputKeydown(event: KeyboardEvent) {
   }
 }
 
-function moveQuickOpenSelection(delta: number) {
-  const count = quickOpenItemCount.value
-  if (!count) return
-  quickOpenActiveIndex.value = (quickOpenActiveIndex.value + delta + count) % count
-}
-
-function setQuickOpenActiveIndex(index: number) {
-  quickOpenActiveIndex.value = index
-}
-
 function scrollQuickOpenActiveItemIntoView() {
   if (!quickOpenVisible.value) return
   void nextTick(() => {
@@ -4136,8 +3778,8 @@ function onWindowKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(themePreference, (next) => {
-  window.localStorage.setItem(THEME_STORAGE_KEY, next)
+watch(themePreference, () => {
+  persistThemePreference()
   applyTheme()
 })
 
@@ -4402,55 +4044,24 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="workspace.sidebarMode.value === 'search'" class="panel-fill search-panel">
-            <div class="search-controls">
-              <input
-                ref="searchInputRef"
-                v-model="searchQuery"
-                data-search-input="true"
-                :disabled="!filesystem.hasWorkspace.value"
-                class="tool-input"
-                placeholder="Search content (e.g. tags:dev has:deadline deadline>=2026-03-01)"
-                @keydown.enter.prevent="runGlobalSearch"
-              />
-            </div>
-            <div class="search-mode-controls">
-              <button
-                v-for="option in searchModeOptions"
-                :key="option.mode"
-                type="button"
-                class="search-mode-chip"
-                :class="{ active: globalSearchMode === option.mode }"
-                :disabled="!filesystem.hasWorkspace.value"
-                @click="onGlobalSearchModeSelect(option.mode)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
-            <p class="search-mode-hint">Hint: <code>semantic:</code> concept | <code>lexical:</code> exact term</p>
-
-            <div class="results-list">
-              <div v-if="hasSearched && !searchLoading && !searchHits.length" class="placeholder">No results</div>
-              <section v-for="group in groupedSearchResults" :key="group.path" class="result-group">
-                <h3 class="result-file">{{ toRelativePath(group.path) }}</h3>
-                <button
-                  v-for="item in group.items"
-                  :key="`${group.path}-${item.score}-${item.snippet}`"
-                  type="button"
-                  class="result-item"
-                  @click="onSearchResultOpen(item)"
-                >
-                  <p v-if="showSearchScore" class="result-score">score: {{ formatSearchScore(item.score) }}</p>
-                  <div class="result-snippet">
-                    <template v-for="(part, idx) in parseSearchSnippet(item.snippet)" :key="`${idx}-${part.text}`">
-                      <strong v-if="part.highlighted">{{ part.text }}</strong>
-                      <span v-else>{{ part.text }}</span>
-                    </template>
-                  </div>
-                </button>
-              </section>
-            </div>
-          </div>
+          <SearchSidebarPanel
+            v-else-if="workspace.sidebarMode.value === 'search'"
+            :disabled="!filesystem.hasWorkspace.value"
+            :query="searchQuery"
+            :mode="globalSearchMode"
+            :mode-options="searchModeOptions"
+            :show-search-score="showSearchScore"
+            :has-searched="hasSearched"
+            :search-loading="searchLoading"
+            :grouped-results="groupedSearchResults"
+            :to-relative-path="toRelativePath"
+            :format-search-score="formatSearchScore"
+            :snippet-parts="parseSearchSnippet"
+            @update:query="searchQuery = $event"
+            @enter="runGlobalSearch"
+            @select-mode="onGlobalSearchModeSelect"
+            @open-result="onSearchResultOpen"
+          />
 
           <div v-else class="placeholder">No panel selected</div>
         </div>
@@ -4805,15 +4416,14 @@ onBeforeUnmount(() => {
       </section>
     </div>
 
-    <footer class="status-bar">
-      <span class="status-item">{{ activeFilePath ? toRelativePath(activeFilePath) : 'No file' }}</span>
-      <span class="status-item status-item-state">{{ activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved' }}</span>
-      <button type="button" class="status-item status-item-index status-trigger" :class="indexStateClass" @click="openIndexStatusModal">
-        <span class="status-dot" :class="indexStateClass"></span>
-        <span>index: {{ indexStateLabel }}</span>
-      </button>
-      <span class="status-item">workspace: {{ filesystem.workingFolderPath.value || 'none' }}</span>
-    </footer>
+    <WorkspaceStatusBar
+      :active-file-label="activeFilePath ? toRelativePath(activeFilePath) : 'No file'"
+      :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
+      :index-state-label="indexStateLabel"
+      :index-state-class="indexStateClass"
+      :workspace-label="filesystem.workingFolderPath.value || 'none'"
+      @open-index-status="openIndexStatusModal"
+    />
 
     <div
       v-if="filesystem.notificationMessage.value"
@@ -4828,193 +4438,48 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div v-if="indexStatusModalVisible" class="modal-overlay" @click.self="closeIndexStatusModal">
-      <div
-        class="modal confirm-modal index-status-modal"
-        data-modal="index-status"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="index-status-title"
-        tabindex="-1"
-      >
-        <h3 id="index-status-title" class="confirm-title">Index Status</h3>
-        <div class="index-status-body">
-          <section class="index-overview">
-            <div class="index-overview-main">
-              <span class="index-status-badge" :class="indexStatusBadgeClass">
-                <span class="index-status-badge-dot"></span>
-                {{ indexStatusBadgeLabel }}
-              </span>
-              <div
-                v-if="indexShowProgressBar"
-                class="index-overview-progress-inline"
-              >
-                <div class="index-progress-track" role="progressbar" :aria-valuenow="indexProgressPercent" aria-valuemin="0" aria-valuemax="100">
-                  <div class="index-progress-fill" :style="{ width: `${indexProgressPercent}%` }"></div>
-                </div>
-                <div class="index-progress-meta">
-                  <span>{{ indexProgressLabel }}</span>
-                  <span>{{ indexProgressPercent }}%</span>
-                </div>
-              </div>
-              <p v-else-if="indexProgressSummary" class="index-overview-summary">{{ indexProgressSummary }}</p>
-              <p v-if="indexRunCurrentPath" class="index-overview-current">
-                Current: {{ toRelativePath(indexRunCurrentPath) }}
-              </p>
-            </div>
-          </section>
+    <IndexStatusModal
+      :visible="indexStatusModalVisible"
+      :running="indexRunning"
+      :busy="indexStatusBusy"
+      :runtime-status="indexRuntimeStatus"
+      :badge-label="indexStatusBadgeLabel"
+      :badge-class="indexStatusBadgeClass"
+      :show-progress-bar="indexShowProgressBar"
+      :progress-percent="indexProgressPercent"
+      :progress-label="indexProgressLabel"
+      :progress-summary="indexProgressSummary"
+      :current-path-label="indexRunCurrentPath ? toRelativePath(indexRunCurrentPath) : ''"
+      :model-state-class="indexModelStateClass"
+      :model-status-label="indexModelStatusLabel"
+      :show-warmup-note="indexShowWarmupNote"
+      :alert="indexAlert"
+      :log-filter="indexLogFilter"
+      :filtered-rows="filteredIndexActivityRows"
+      :error-count="indexErrorCount"
+      :slow-count="indexSlowCount"
+      :action-label="indexActionLabel"
+      :format-duration-ms="formatDurationMs"
+      :format-timestamp="formatTimestamp"
+      @close="closeIndexStatusModal"
+      @action="onIndexPrimaryAction"
+      @update:log-filter="indexLogFilter = $event"
+    />
 
-          <section class="index-model-card">
-            <div class="index-model-head">
-              <p class="index-model-label">Embedding model</p>
-              <span class="index-model-state" :class="indexModelStateClass">{{ indexModelStatusLabel }}</span>
-            </div>
-            <p class="index-model-name">{{ indexRuntimeStatus?.model_name || 'n/a' }}</p>
-            <p v-if="indexRuntimeStatus?.model_last_duration_ms != null" class="index-model-meta">
-              Last init {{ formatDurationMs(indexRuntimeStatus.model_last_duration_ms) }}
-              <span v-if="indexRuntimeStatus.model_last_finished_at_ms"> at {{ formatTimestamp(indexRuntimeStatus.model_last_finished_at_ms) }}</span>
-            </p>
-            <p v-if="indexShowWarmupNote" class="index-model-hint">
-              First initialization can download model weights and take longer.
-            </p>
-          </section>
-
-          <section v-if="indexAlert" class="index-alert" :class="`index-alert-${indexAlert.level}`">
-            <div>
-              <p class="index-alert-title">{{ indexAlert.title }}</p>
-              <p class="index-alert-message">{{ indexAlert.message }}</p>
-            </div>
-            <UiButton
-              v-if="!indexRunning"
-              size="sm"
-              variant="secondary"
-              class-name="index-alert-action"
-              :disabled="indexStatusBusy"
-              @click="onIndexPrimaryAction"
-            >
-              Retry rebuild
-            </UiButton>
-          </section>
-
-          <div class="index-status-sections">
-            <div class="index-log-panel">
-              <div class="index-log-header">
-                <p class="index-log-title">Recent indexing activity</p>
-                <div class="index-log-filters" role="tablist" aria-label="Index log filters">
-                  <button
-                    type="button"
-                    class="index-log-filter-btn"
-                    :class="{ active: indexLogFilter === 'all' }"
-                    @click="indexLogFilter = 'all'"
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    class="index-log-filter-btn"
-                    :class="{ active: indexLogFilter === 'errors' }"
-                    @click="indexLogFilter = 'errors'"
-                  >
-                    Errors ({{ indexErrorCount }})
-                  </button>
-                  <button
-                    type="button"
-                    class="index-log-filter-btn"
-                    :class="{ active: indexLogFilter === 'slow' }"
-                    @click="indexLogFilter = 'slow'"
-                  >
-                    Slow >1s ({{ indexSlowCount }})
-                  </button>
-                </div>
-              </div>
-              <div v-if="!filteredIndexActivityRows.length" class="index-log-empty">No matching activity.</div>
-              <div v-else class="index-log-list">
-                <div
-                  v-for="row in filteredIndexActivityRows"
-                  :key="row.id"
-                  class="index-log-row"
-                  :class="`index-log-row-${row.state}`"
-                >
-                  <span class="index-log-time">{{ row.timeLabel }}</span>
-                  <div class="index-log-copy">
-                    <p class="index-log-main">
-                      <span class="index-log-state-icon" aria-hidden="true">{{ row.state === 'done' ? '✅' : row.state === 'error' ? '⚠️' : '⏳' }}</span>
-                      <span>{{ row.title }}</span>
-                    </p>
-                    <p v-if="row.path" class="index-log-path">
-                      <span v-if="row.directory" class="index-log-dir">{{ row.directory }}/</span><strong>{{ row.fileName }}</strong>
-                    </p>
-                    <p v-if="row.detail" class="index-log-detail">{{ row.detail }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="confirm-actions">
-          <UiButton
-            size="sm"
-            :variant="indexRunning ? 'secondary' : 'primary'"
-            :class-name="indexRunning ? 'index-stop-btn' : ''"
-            :disabled="indexStatusBusy"
-            @click="onIndexPrimaryAction"
-          >
-            {{ indexActionLabel }}
-          </UiButton>
-          <UiButton size="sm" @click="closeIndexStatusModal">Close</UiButton>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="quickOpenVisible" class="modal-overlay" @click.self="() => closeQuickOpen()">
-      <div
-        class="modal quick-open"
-        data-modal="quick-open"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="quick-open-title"
-        aria-describedby="quick-open-description"
-        tabindex="-1"
-      >
-        <h3 id="quick-open-title" class="sr-only">Quick open</h3>
-        <p id="quick-open-description" class="sr-only">Type a file name, or start with greater-than for actions.</p>
-        <input
-          v-model="quickOpenQuery"
-          data-quick-open-input="true"
-          class="tool-input"
-          placeholder="Type file name, or start with > for actions"
-          @keydown="onQuickOpenInputKeydown"
-        />
-        <div class="modal-list">
-          <button
-            v-for="(item, index) in quickOpenActionResults"
-            :key="item.id"
-            type="button"
-            class="modal-item"
-            :class="{ active: quickOpenActiveIndex === index }"
-            @click="runQuickOpenAction(item.id)"
-            @mousemove="setQuickOpenActiveIndex(index)"
-          >
-            {{ item.label }}
-          </button>
-          <button
-            v-for="(item, index) in quickOpenResults"
-            :key="item.kind === 'file' ? item.path : `daily-${item.date}`"
-            type="button"
-            class="modal-item"
-            :class="{ active: quickOpenActiveIndex === index }"
-            @click="openQuickResult(item)"
-            @mousemove="setQuickOpenActiveIndex(index)"
-          >
-            {{ item.label }}
-          </button>
-          <div v-if="quickOpenIsActionMode && !quickOpenActionResults.length" class="placeholder">No matching actions</div>
-          <div v-else-if="!quickOpenIsActionMode && !quickOpenResults.length" class="placeholder">
-            {{ quickOpenQuery.trim() ? 'No matching files' : 'Type to search files' }}
-          </div>
-        </div>
-      </div>
-    </div>
+    <QuickOpenModal
+      :visible="quickOpenVisible"
+      :query="quickOpenQuery"
+      :is-action-mode="quickOpenIsActionMode"
+      :action-results="quickOpenActionResults"
+      :file-results="quickOpenResults"
+      :active-index="quickOpenActiveIndex"
+      @close="closeQuickOpen()"
+      @update:query="quickOpenQuery = $event"
+      @keydown="onQuickOpenInputKeydown"
+      @select-action="runQuickOpenAction"
+      @select-result="openQuickResult"
+      @set-active-index="setQuickOpenActiveIndex"
+    />
 
     <div v-if="cosmosCommandLoadingVisible" class="modal-overlay">
       <div
@@ -5121,66 +4586,24 @@ onBeforeUnmount(() => {
       @saved="onSettingsSaved"
     />
 
-    <div v-if="shortcutsModalVisible" class="modal-overlay" @click.self="closeShortcutsModal">
-      <div
-        class="modal shortcuts-modal"
-        data-modal="shortcuts"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="shortcuts-title"
-        aria-describedby="shortcuts-description"
-        tabindex="-1"
-      >
-        <h3 id="shortcuts-title" class="confirm-title">Keyboard Shortcuts</h3>
-        <p id="shortcuts-description" class="sr-only">Browse and filter keyboard shortcuts.</p>
-        <input
-          v-model="shortcutsFilterQuery"
-          data-shortcuts-filter="true"
-          class="tool-input shortcuts-filter-input"
-          placeholder="Filter shortcuts (ex: zoom, save, Ctrl+P)"
-        />
-        <div class="shortcuts-sections">
-          <section v-for="section in filteredShortcutSections" :key="section.title" class="shortcuts-section">
-            <h4 class="shortcuts-title">{{ section.title }}</h4>
-            <div class="shortcuts-grid">
-              <template v-for="item in section.items" :key="`${section.title}-${item.keys}-${item.action}`">
-                <span class="shortcut-keys">{{ item.keys }}</span>
-                <span class="shortcut-action">{{ item.action }}</span>
-              </template>
-            </div>
-          </section>
-          <div v-if="!filteredShortcutSections.length" class="placeholder">No matching shortcuts</div>
-        </div>
-        <div class="confirm-actions">
-          <UiButton size="sm" @click="closeShortcutsModal">Close</UiButton>
-        </div>
-      </div>
-    </div>
+    <ShortcutsModal
+      :visible="shortcutsModalVisible"
+      :filter-query="shortcutsFilterQuery"
+      :sections="filteredShortcutSections"
+      @close="closeShortcutsModal"
+      @update:filter-query="shortcutsFilterQuery = $event"
+    />
 
-    <div v-if="wikilinkRewritePrompt" class="modal-overlay" @click.self="resolveWikilinkRewritePrompt(false)">
-      <div
-        class="modal confirm-modal"
-        data-modal="wikilink-rewrite"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="wikilink-rewrite-title"
-        aria-describedby="wikilink-rewrite-description"
-        tabindex="-1"
-      >
-        <h3 id="wikilink-rewrite-title" class="confirm-title">Update wikilinks?</h3>
-        <p id="wikilink-rewrite-description" class="confirm-text">The file was renamed. Do you want to rewrite matching wikilinks across the workspace?</p>
-        <p class="confirm-path"><strong>From:</strong> {{ toRelativePath(wikilinkRewritePrompt.fromPath) }}</p>
-        <p class="confirm-path"><strong>To:</strong> {{ toRelativePath(wikilinkRewritePrompt.toPath) }}</p>
-        <div class="confirm-actions">
-          <UiButton size="sm" variant="ghost" @click="resolveWikilinkRewritePrompt(false)">Keep links</UiButton>
-          <UiButton size="sm" @click="resolveWikilinkRewritePrompt(true)">Update links</UiButton>
-        </div>
-      </div>
-    </div>
+    <WikilinkRewriteModal
+      :prompt="wikilinkRewritePrompt"
+      :from-label="wikilinkRewritePrompt ? toRelativePath(wikilinkRewritePrompt.fromPath) : ''"
+      :to-label="wikilinkRewritePrompt ? toRelativePath(wikilinkRewritePrompt.toPath) : ''"
+      @resolve="resolveWikilinkRewritePrompt"
+    />
   </div>
 </template>
 
-<style scoped>
+<style>
 .ide-root {
   height: 100vh;
   display: flex;
