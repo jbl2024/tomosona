@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.11.1] - 2026-03-06
+
+### Changed
+- chore(ci): add npm retry settings to release workflow (f6f0b7a)
+
 ## [0.11.0] - 2026-03-06
 
 ### Added
