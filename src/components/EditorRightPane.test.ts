@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import EditorRightPane from './EditorRightPane.vue'
 
 describe('EditorRightPane', () => {
-  it('renders rows and forwards outline/backlink intents', () => {
+  it('renders Echoes first and forwards intents', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
     const onOutlineClick = vi.fn()
@@ -13,6 +13,17 @@ describe('EditorRightPane', () => {
       setup() {
         return () => h(EditorRightPane, {
           width: 320,
+          echoesItems: [{
+            path: '/wk/notes/e.md',
+            title: 'Echo',
+            reasonLabel: 'Direct link',
+            reasonLabels: ['Direct link'],
+            score: 1,
+            signalSources: ['direct']
+          }],
+          echoesLoading: false,
+          echoesError: '',
+          echoesHintVisible: true,
           outline: [{ level: 2, text: 'Roadmap' }],
           semanticLinks: [],
           semanticLinksLoading: false,
@@ -29,13 +40,18 @@ describe('EditorRightPane', () => {
     }))
 
     app.mount(root)
+    const sectionTitles = Array.from(root.querySelectorAll('.section-title')).map((el) => el.textContent?.trim())
+    expect(sectionTitles[0]).toBe('Echoes')
     const buttons = Array.from(root.querySelectorAll('.pane-item')) as HTMLButtonElement[]
-    expect(buttons.length).toBe(2)
+    expect(buttons.length).toBe(3)
 
     buttons[0].click()
-    expect(onOutlineClick).toHaveBeenCalledWith({ index: 0, heading: { level: 2, text: 'Roadmap' } })
+    expect(root.textContent).toContain('Relevant notes around what you\'re working on now.')
 
     buttons[1].click()
+    expect(onOutlineClick).toHaveBeenCalledWith({ index: 0, heading: { level: 2, text: 'Roadmap' } })
+
+    buttons[2].click()
     expect(onBacklinkOpen).toHaveBeenCalledWith('/wk/notes/a.md')
 
     expect(root.querySelector('.right-pane')?.getAttribute('style')).toContain('width: 320px;')

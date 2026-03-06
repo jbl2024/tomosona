@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { toEchoesPack, type EchoesPack } from './echoes'
 
 export type TreeNode = {
   name: string
@@ -232,6 +233,12 @@ export type WikilinkGraph = {
   generated_at_ms: number
 }
 
+type ComputeEchoesPackPayload = {
+  anchor_path: string
+  limit?: number
+  include_recent_activity?: boolean
+}
+
 export async function selectWorkingFolder(): Promise<string | null> {
   return await invoke('select_working_folder')
 }
@@ -355,6 +362,29 @@ export async function backlinksForPath(path: string): Promise<Array<{ path: stri
 /** Fetches the indexed wikilink graph payload used by Cosmos view. */
 export async function getWikilinkGraph(): Promise<WikilinkGraph> {
   return await invoke('get_wikilink_graph')
+}
+
+/**
+ * Computes a local Echoes suggestion pack for a note anchor.
+ */
+export async function computeEchoesPack(
+  anchorPath: string,
+  options: {
+    limit?: number
+    includeRecentActivity?: boolean
+  } = {}
+): Promise<EchoesPack> {
+  const payload: ComputeEchoesPackPayload = {
+    anchor_path: anchorPath
+  }
+  if (options.limit != null) {
+    payload.limit = options.limit
+  }
+  if (options.includeRecentActivity != null) {
+    payload.include_recent_activity = options.includeRecentActivity
+  }
+  const result = await invoke('compute_echoes_pack', { payload })
+  return toEchoesPack(result as Parameters<typeof toEchoesPack>[0])
 }
 
 export async function updateWikilinksForRename(

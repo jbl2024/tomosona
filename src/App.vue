@@ -73,6 +73,8 @@ import {
   workspaceScopedSecondBrainSessionKey
 } from './lib/secondBrainContextPaths'
 import { useEditorState } from './composables/useEditorState'
+import { useEchoesDiscoverability } from './composables/useEchoesDiscoverability'
+import { useEchoesPack } from './composables/useEchoesPack'
 import { useCosmosController } from './composables/useCosmosController'
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
@@ -291,6 +293,8 @@ const resolvedTheme = computed<'light' | 'dark'>(() => {
 const paneCount = computed(() => Object.keys(multiPane.layout.value.panesById).length)
 const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
 const activeStatus = computed(() => editorState.getStatus(activeFilePath.value))
+const noteEchoes = useEchoesPack(activeFilePath, { limit: 5 })
+const noteEchoesDiscoverability = useEchoesDiscoverability()
 const indexStateLabel = computed(() => {
   if (filesystem.indexingState.value === 'indexing') return 'reindexing'
   if (filesystem.indexingState.value === 'indexed') return 'indexed'
@@ -4118,6 +4122,15 @@ watch(themePreference, (next) => {
 })
 
 watch(
+  () => noteEchoes.items.value.length,
+  (count, previousCount = 0) => {
+    if (count > 0 && previousCount === 0) {
+      noteEchoesDiscoverability.markPackShown()
+    }
+  }
+)
+
+watch(
   () => workspace.sidebarMode.value,
   (mode) => {
     persistSidebarMode()
@@ -4712,7 +4725,8 @@ onBeforeUnmount(() => {
                 workspacePath: filesystem.workingFolderPath.value,
                 allWorkspaceFiles,
                 requestedSessionId: secondBrainRequestedSessionId,
-                requestedSessionNonce: secondBrainRequestedSessionNonce
+                requestedSessionNonce: secondBrainRequestedSessionNonce,
+                activeNotePath: activeFilePath
               }"
               @pane-focus="multiPane.setActivePane($event.paneId)"
               @pane-tab-click="void onPaneTabClick($event)"
@@ -4750,6 +4764,10 @@ onBeforeUnmount(() => {
           <EditorRightPane
             v-if="workspace.rightPaneVisible.value"
             :width="rightPaneWidth"
+            :echoes-items="noteEchoes.items.value"
+            :echoes-loading="noteEchoes.loading.value"
+            :echoes-error="noteEchoes.error.value"
+            :echoes-hint-visible="noteEchoesDiscoverability.hintVisible.value"
             :outline="editorState.activeOutline.value"
             :semantic-links="semanticLinks"
             :semantic-links-loading="semanticLinksLoading"
@@ -4759,6 +4777,7 @@ onBeforeUnmount(() => {
             :properties-preview="propertiesPreview"
             :property-parse-error-count="propertyParseErrorCount"
             :to-relative-path="toRelativePath"
+            @echoes-open="void onBacklinkOpen($event)"
             @outline-click="void onOutlineHeadingClick($event)"
             @backlink-open="void onBacklinkOpen($event)"
           />

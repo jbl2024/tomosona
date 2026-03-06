@@ -86,7 +86,8 @@ vi.mock('./lib/api', () => ({
       hoisted.workspaceFsChangedHandler = null
     }
   }),
-  getWikilinkGraph: hoisted.getWikilinkGraph
+  getWikilinkGraph: hoisted.getWikilinkGraph,
+  computeEchoesPack: vi.fn(async () => ({ anchorPath: '/vault/a.md', generatedAtMs: 1, items: [] }))
 }))
 
 vi.mock('./components/panes/EditorPaneGrid.vue', () => ({

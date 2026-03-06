@@ -59,6 +59,7 @@ const props = defineProps<{
     allWorkspaceFiles: string[]
     requestedSessionId: string
     requestedSessionNonce: number
+    activeNotePath: string
   }
 }>()
 

@@ -2,6 +2,7 @@
 //! and Cosmos graph payload generation.
 
 mod db;
+mod echoes;
 mod fs_ops;
 mod second_brain;
 mod semantic;
@@ -2880,6 +2881,7 @@ pub fn run() {
             get_wikilink_graph,
             read_property_type_schema,
             write_property_type_schema,
+            echoes::compute_echoes_pack,
             settings::read_app_settings,
             settings::write_app_settings,
             second_brain::read_second_brain_config_status,
@@ -3417,6 +3419,106 @@ mod tests {
             )
             .expect("query note embeddings");
         assert_eq!(note_embedding_n, 0);
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn compute_echoes_pack_rejects_non_markdown_anchor() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-echoes-invalid-anchor");
+        let root = workspace.to_string_lossy().to_string();
+        let note_path = workspace.join("plain.txt");
+        fs::write(&note_path, "text").expect("write non markdown");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let result = echoes::compute_echoes_pack(echoes::ComputeEchoesPackPayload {
+            anchor_path: note_path.to_string_lossy().to_string(),
+            limit: Some(5),
+            include_recent_activity: Some(true),
+        });
+        assert!(result.is_err());
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn compute_echoes_pack_merges_multi_signal_candidates() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-echoes-merge");
+        let root = workspace.to_string_lossy().to_string();
+        fs::write(workspace.join("a.md"), "# Anchor\n[[b]]").expect("write a");
+        fs::write(workspace.join("b.md"), "# Note B").expect("write b");
+        fs::write(workspace.join("c.md"), "# Note C\n[[a]]").expect("write c");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let conn = open_db().expect("open db");
+        conn.execute(
+            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
+            params!["a.md", "b"],
+        )
+        .expect("insert direct link");
+        conn.execute(
+            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
+            params!["c.md", "a"],
+        )
+        .expect("insert backlink");
+        conn.execute(
+            "INSERT INTO semantic_edges(source_path, target_path, score, model, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["a.md", "b.md", 0.91_f32, "test-model", 1_i64],
+        )
+        .expect("insert semantic edge");
+
+        let pack = echoes::compute_echoes_pack(echoes::ComputeEchoesPackPayload {
+            anchor_path: workspace.join("a.md").to_string_lossy().to_string(),
+            limit: Some(5),
+            include_recent_activity: Some(false),
+        })
+        .expect("compute echoes");
+
+        assert!(pack.items.iter().any(|item| {
+            item.path.ends_with("/b.md")
+                && item.reason_label == "Direct link"
+                && item
+                    .reason_labels
+                    .iter()
+                    .any(|label| label == "Semantically related")
+        }));
+        assert!(pack.items.iter().any(|item| item.path.ends_with("/c.md") && item.reason_label == "Backlink"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn compute_echoes_pack_uses_recent_activity_without_semantic_data() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-echoes-recent");
+        let root = workspace.to_string_lossy().to_string();
+        fs::create_dir_all(workspace.join("notes")).expect("create notes dir");
+        fs::write(workspace.join("notes/anchor.md"), "# Anchor").expect("write anchor");
+        fs::write(workspace.join("notes/recent.md"), "# Recent").expect("write recent");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let pack = echoes::compute_echoes_pack(echoes::ComputeEchoesPackPayload {
+            anchor_path: workspace.join("notes/anchor.md").to_string_lossy().to_string(),
+            limit: Some(5),
+            include_recent_activity: Some(true),
+        })
+        .expect("compute echoes");
+
+        assert!(pack
+            .items
+            .iter()
+            .any(|item| item.path.ends_with("/notes/recent.md") && item.reason_label == "Recently active"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

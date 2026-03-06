@@ -16,6 +16,18 @@ const api = vi.hoisted(() => ({
 
 vi.mock('../../lib/secondBrainApi', () => api)
 
+const apiCore = vi.hoisted(() => ({
+  computeEchoesPack: vi.fn()
+}))
+
+vi.mock('../../lib/api', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
+  return {
+    ...actual,
+    computeEchoesPack: apiCore.computeEchoesPack
+  }
+})
+
 async function flushUi() {
   await nextTick()
   await Promise.resolve()
@@ -65,6 +77,18 @@ describe('SecondBrainView', () => {
     api.replaceSessionContext.mockResolvedValue(42)
     api.createDeliberationSession.mockResolvedValue({ sessionId: 's-new', createdAtMs: 10 })
     api.removeDeliberationSession.mockResolvedValue(undefined)
+    apiCore.computeEchoesPack.mockResolvedValue({
+      anchorPath: '/vault/seed.md',
+      generatedAtMs: 1,
+      items: [{
+        path: '/vault/notes/a.md',
+        title: 'Echo Note',
+        reasonLabel: 'Semantically related',
+        reasonLabels: ['Semantically related'],
+        score: 0.8,
+        signalSources: ['semantic']
+      }]
+    })
   })
 
   afterEach(() => {
@@ -80,6 +104,7 @@ describe('SecondBrainView', () => {
       allWorkspaceFiles: ['/vault/seed.md', '/vault/notes/a.md', '/vault/readme.txt'],
       requestedSessionId: '',
       requestedSessionNonce: 0,
+      activeNotePath: '/vault/seed.md',
       onContextChanged: () => {},
       onOpenNote: () => {}
     })
@@ -375,6 +400,28 @@ describe('SecondBrainView', () => {
     expect(mounted.root.querySelectorAll('.sb-chip')).toHaveLength(1)
     expect(mounted.root.textContent).toContain('seed.md')
     expect(mounted.root.textContent).toContain('Could not add notes/a.md to Second Brain context')
+
+    mounted.app.unmount()
+  })
+
+  it('renders Echoes suggestions and adds them to context', async () => {
+    const mounted = mountView()
+    for (let index = 0; index < 8 && !mounted.root.textContent?.includes('Echo Note'); index += 1) {
+      await flushUi()
+    }
+
+    expect(mounted.root.textContent).toContain('Suggested by Echoes')
+    expect(mounted.root.textContent).toContain('Echo Note')
+
+    const addButton = mounted.root.querySelector<HTMLButtonElement>('.sb-echoes-action')
+    expect(addButton).toBeTruthy()
+    if (!addButton) return
+
+    addButton.click()
+    await flushUi()
+
+    expect(api.replaceSessionContext).toHaveBeenCalledWith('s1', ['/vault/seed.md', '/vault/notes/a.md'])
+    expect(mounted.root.textContent).toContain('In context')
 
     mounted.app.unmount()
   })

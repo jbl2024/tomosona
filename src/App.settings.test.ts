@@ -80,7 +80,8 @@ vi.mock('./lib/api', () => ({
   writeAppSettings: hoisted.writeAppSettings,
   discoverCodexModels: hoisted.discoverCodexModels,
   listenWorkspaceFsChanged: vi.fn(async () => () => {}),
-  getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() }))
+  getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() })),
+  computeEchoesPack: vi.fn(async () => ({ anchorPath: '/Users/test/a.md', generatedAtMs: 1, items: [] }))
 }))
 
 vi.mock('./components/panes/EditorPaneGrid.vue', () => ({

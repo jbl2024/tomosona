@@ -16,8 +16,10 @@ import { sanitizeHtmlForPreview } from '../../lib/htmlSanitizer'
 import { inlineTextToHtml } from '../../lib/markdownBlocks'
 import { normalizeContextPathsForUpdate } from '../../lib/secondBrainContextPaths'
 import type { SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/api'
+import { useEchoesPack } from '../../composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../../composables/useSecondBrainAtMentions'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
+import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
 import SecondBrainSessionDropdown from './SecondBrainSessionDropdown.vue'
 
 const props = defineProps<{
@@ -25,6 +27,7 @@ const props = defineProps<{
   allWorkspaceFiles: string[]
   requestedSessionId: string
   requestedSessionNonce: number
+  activeNotePath?: string
 }>()
 
 const emit = defineEmits<{
@@ -94,6 +97,13 @@ const contextCards = computed(() =>
     }
   })
 )
+const contextPathSet = computed(() => new Set(contextPaths.value))
+const echoesAnchorPath = computed(() => {
+  const activeNotePath = props.activeNotePath?.trim() || ''
+  if (activeNotePath) return activeNotePath
+  return contextPaths.value[0]?.trim() || ''
+})
+const echoes = useEchoesPack(echoesAnchorPath, { limit: 5 })
 
 function mergeContextPaths(nextPaths: string[]): string[] {
   const merged = new Set(contextPaths.value)
@@ -127,6 +137,24 @@ async function removeContextPath(path: string) {
   }
 
   mentionInfo.value = ''
+}
+
+async function addPathToContext(path: string): Promise<boolean> {
+  if (!path.trim()) return false
+  const previousContextPaths = [...contextPaths.value]
+  contextPaths.value = mergeContextPaths([path])
+  emit('context-changed', contextPaths.value)
+
+  const sync = await syncContextWithBackend()
+  if (!sync.ok) {
+    contextPaths.value = previousContextPaths
+    emit('context-changed', contextPaths.value)
+    mentionInfo.value = `Could not add ${toRelativePath(path)} to Second Brain context: ${sync.error}`
+    return false
+  }
+
+  mentionInfo.value = ''
+  return true
 }
 
 async function syncContextWithBackend(): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -424,21 +452,14 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
 
 async function applyMentionSuggestion(item: SecondBrainAtMentionItem) {
   const trigger = mentions.trigger.value
-  const previousContextPaths = [...contextPaths.value]
   const previousComposerPaths = [...composerContextPaths.value]
   if (trigger) {
     inputMessage.value = `${inputMessage.value.slice(0, trigger.start)}${inputMessage.value.slice(trigger.end)}`
   }
   addComposerContextPath(item.absolutePath)
-  contextPaths.value = mergeContextPaths([item.absolutePath])
-  emit('context-changed', contextPaths.value)
-
-  const sync = await syncContextWithBackend()
-  if (!sync.ok) {
-    contextPaths.value = previousContextPaths
+  const added = await addPathToContext(item.absolutePath)
+  if (!added) {
     composerContextPaths.value = previousComposerPaths
-    emit('context-changed', contextPaths.value)
-    mentionInfo.value = `Could not add ${toRelativePath(item.absolutePath)} to Second Brain context: ${sync.error}`
     return
   }
 
@@ -660,6 +681,10 @@ function openContextNote(path: string) {
   emit('open-note', path)
 }
 
+async function addEchoesSuggestion(path: string) {
+  await addPathToContext(path)
+}
+
 onMounted(async () => {
   try {
     const status = await fetchSecondBrainConfigStatus()
@@ -831,6 +856,16 @@ watch(
 
       <footer class="sb-input-row">
         <div class="sb-composer">
+          <SecondBrainEchoesPanel
+            :items="echoes.items.value"
+            :loading="echoes.loading.value"
+            :error="echoes.error.value"
+            :context-path-set="contextPathSet"
+            :to-relative-path="toRelativePath"
+            @open="openContextNote"
+            @add="void addEchoesSuggestion($event)"
+          />
+
           <SecondBrainAtMentionsMenu
             :open="mentions.isOpen.value"
             :suggestions="mentions.suggestions.value"

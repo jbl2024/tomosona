@@ -10,6 +10,8 @@
  * - Emits user intents (`outline-click`, `backlink-open`) and relies on parent
  *   for navigation and data loading.
  */
+import type { EchoesItem } from '../lib/echoes'
+import EditorEchoesPanel from './editor/EditorEchoesPanel.vue'
 
 type HeadingNode = { level: 1 | 2 | 3; text: string }
 type PropertyPreviewRow = { key: string; value: string }
@@ -18,6 +20,10 @@ type SemanticLinkRow = { path: string; score: number | null; direction: 'incomin
 
 const props = defineProps<{
   width: number
+  echoesItems: EchoesItem[]
+  echoesLoading: boolean
+  echoesError: string
+  echoesHintVisible: boolean
   outline: HeadingNode[]
   semanticLinks: SemanticLinkRow[]
   semanticLinksLoading: boolean
@@ -30,6 +36,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'echoes-open': [path: string]
   'outline-click': [payload: { index: number; heading: HeadingNode }]
   'backlink-open': [path: string]
 }>()
@@ -37,6 +44,15 @@ const emit = defineEmits<{
 
 <template>
   <aside class="right-pane" :style="{ width: `${props.width}px` }">
+    <EditorEchoesPanel
+      :items="props.echoesItems"
+      :loading="props.echoesLoading"
+      :error="props.echoesError"
+      :hint-visible="props.echoesHintVisible"
+      :to-relative-path="props.toRelativePath"
+      @open="emit('echoes-open', $event)"
+    />
+
     <section class="pane-card pane-section">
       <h3 class="section-title">Outline</h3>
       <div v-if="!props.outline.length" class="empty-state">No headings</div>

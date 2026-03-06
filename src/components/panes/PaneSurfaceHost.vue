@@ -45,6 +45,7 @@ defineProps<{
     allWorkspaceFiles: string[]
     requestedSessionId: string
     requestedSessionNonce: number
+    activeNotePath: string
   }
 }>()
 
@@ -170,6 +171,7 @@ defineExpose<EditorSurfaceExposed>({
     :all-workspace-files="secondBrain.allWorkspaceFiles"
     :requested-session-id="secondBrain.requestedSessionId"
     :requested-session-nonce="secondBrain.requestedSessionNonce"
+    :active-note-path="secondBrain.activeNotePath"
     @open-note="emit('open-note', $event)"
     @context-changed="emit('second-brain-context-changed', $event)"
     @session-changed="emit('second-brain-session-changed', $event)"

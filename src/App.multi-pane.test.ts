@@ -51,6 +51,8 @@ vi.mock('./lib/api', () => ({
   writeAppSettings: vi.fn(async () => ({ path: '/Users/test/.tomosona/conf.json', embeddings_changed: false })),
   listenWorkspaceFsChanged: vi.fn(async () => () => {}),
   getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() }))
+  ,
+  computeEchoesPack: vi.fn(async () => ({ anchorPath: '/vault/a.md', generatedAtMs: 1, items: [] }))
 }))
 
 vi.mock('./components/panes/EditorPaneGrid.vue', () => ({

@@ -6,6 +6,7 @@ defineProps<{
   allWorkspaceFiles: string[]
   requestedSessionId: string
   requestedSessionNonce: number
+  activeNotePath: string
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +23,7 @@ const emit = defineEmits<{
       :all-workspace-files="allWorkspaceFiles"
       :requested-session-id="requestedSessionId"
       :requested-session-nonce="requestedSessionNonce"
+      :active-note-path="activeNotePath"
       @open-note="emit('open-note', $event)"
       @context-changed="emit('context-changed', $event)"
       @session-changed="emit('session-changed', $event)"
