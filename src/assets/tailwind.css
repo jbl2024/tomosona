@@ -784,7 +784,7 @@ html.dark {
 
   .editor-holder .ce-paragraph {
     font-size: 1rem;
-    color: #1a1a1a;
+    color: #000000;
     line-height: 1.72;
     padding: 0;
   }
@@ -792,7 +792,7 @@ html.dark {
   .editor-holder .cdx-list,
   .editor-holder .cdx-list__item,
   .editor-holder .cdx-list__item-content {
-    color: #1a1a1a;
+    color: #000000;
   }
 
   .editor-holder .cdx-list {
@@ -861,7 +861,7 @@ html.dark {
 
   .editor-holder .ce-header {
     line-height: 1.35;
-    color: #1a1a1a;
+    color: #000000;
     margin: 0.15rem 0;
     font-weight: 650;
   }
