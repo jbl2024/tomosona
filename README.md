@@ -1,227 +1,259 @@
 # Tomosona
 
-**Your local-first second brain — where your notes connect.**
+<p align="center">
+  <img src="./public/meditor.svg" alt="Logo Tomosona" width="140" />
+</p>
 
-Tomosona is a powerful Markdown workspace built for personal knowledge management. Whether you're building a second brain, keeping a daily journal, or organizing project notes, Tomosona helps your ideas flow and connect.
+<p align="center">
+  A local-first second brain for writing, linking, exploring, and transforming your Markdown notes.
+</p>
 
----
+## Overview
 
-## What can you do with Tomosona?
+Tomosona is a desktop application built with `Tauri 2`, `Rust`, and `Vue 3`.
+It works directly on a workspace of Markdown files stored on your machine.
 
-### Build a connected knowledge network
-Link your notes together with `[[wikilinks]]` — just type `[[` to autocomplete. See every connection in the **Cosmos graph view**, an interactive visualization of your notes and how they relate. Hover, click, and zoom to explore your knowledge from new angles.
+The idea is straightforward:
 
-### Open today's note instantly
-Press `Cmd/Ctrl + D` and you're there. Daily notes are created only when you write — no empty files cluttering your folder. Navigate between dates effortlessly, building a chronological journal that grows with you.
+- your notes stay as plain `.md` files that remain readable outside the app;
+- the app adds a local index under `.tomosona/` to power search, backlinks, and graph features;
+- AI features are optional and plug into your local configuration;
+- no cloud layer is required to organize, retrieve, and connect your notes.
 
-### Write without friction
-A powerful block-based editor with slash commands (`/`), drag handles, and rich formatting. Code blocks, tables, checklists, Mermaid diagrams, callouts — it's all there. Optimized for large documents too, handling 40K+ characters smoothly.
+## Product Principles
 
-### Search everywhere, find anything
-Full-text search across your entire workspace. Or switch to **semantic search** and let AI find notes that are conceptually related, even if they don't share the same words. Combine both with hybrid search for the best results.
+### 1. Local-first
 
-### Let AI help you think
-Chat with AI about your notes in the **Second Brain** panel. Select relevant notes and ask questions — Tomosona feeds them to your LLM as context. Supports OpenAI, OpenAI Codex, Anthropic Claude, Groq, or local models via Ollama. Streamed responses appear in real-time, and you can save conversations or insert AI output as new notes.
+Tomosona does not replace your files with a proprietary format. A workspace remains a normal folder you can use with other tools.
 
-### Your data stays yours
-Plain `.md` files on your disk. No cloud, no account required. SQLite indexes your notes for fast search and graph building, but everything lives locally. Your second brain, your machine, your rules.
+### 2. Markdown as the source of truth
 
----
+Notes are stored as `.md` files, with frontmatter support for properties. UI metadata stays separate from note content wherever possible.
+
+### 3. Navigation through links and context
+
+The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, the Cosmos graph, hybrid search, and contextual suggestions.
+
+### 4. AI in service of the workspace
+
+`Second Brain` and `Pulse` use your notes as explicit context. They are meant to support writing and analysis, not replace your knowledge base.
+
+## Core Features
+
+### Workspace and app shell
+
+- open a local workspace folder and keep a list of recent workspaces;
+- a home launchpad to resume a workspace, open recent notes, and trigger common actions;
+- a workspace setup wizard with starter structures for knowledge bases, journals, and project-oriented workspaces;
+- navigation history, command palette, quick open, and built-in keyboard shortcuts;
+- a multi-pane layout for opening multiple notes, Cosmos, and Second Brain side by side.
+
+### Markdown editor
+
+- a rich editor built on Tiptap while preserving a Markdown-first workflow;
+- `[[...]]` wikilinks with autocomplete;
+- slash commands `/`;
+- drag handles and block menus;
+- tables with width and alignment support;
+- checklists, quotes, callouts, HTML blocks, and Mermaid;
+- inline find inside the document;
+- support for large documents and persistent per-note editing sessions.
+
+### Note organization
+
+- a Markdown file explorer;
+- create, rename, duplicate, move, delete, and reveal entries in the system file manager;
+- daily notes with fast access;
+- guided wikilink rewrite flows on rename;
+- heading overview and document navigation;
+- a right panel for backlinks, semantic links, properties, and Echoes.
+
+### Properties and structure
+
+- frontmatter property editing;
+- a per-workspace property type schema stored in `.tomosona/property-types.json`;
+- a metadata experience designed to stay portable and Markdown/Obsidian-friendly;
+- structured property editing without locking content into a custom file format.
+
+### Search and indexing
+
+- a local SQLite index in `.tomosona/tomosona.sqlite`;
+- lexical full-text search;
+- local semantic search with hybrid lexical + semantic reranking;
+- index rebuild flows and indexing status in the UI;
+- reindexing on save and graph refresh integration.
+
+### Cosmos
+
+- an interactive graph view of notes and their relationships;
+- explicit links from wikilinks;
+- inferred semantic links when embeddings are available;
+- search, focus, recentering, and neighborhood exploration;
+- open a note from the graph or send graph context into Pulse / Second Brain.
+
+### Echoes
+
+- contextual note suggestions to surface relevant related material;
+- built from backlinks, semantic neighbors, recency, and structural signals;
+- available in the editor and in Second Brain to enrich context without manual searching.
+
+### Second Brain
+
+- a dedicated chat surface for the workspace;
+- persistent sessions;
+- explicit context injection via `@relative/path.md`;
+- streamed responses;
+- open referenced notes in another pane when appropriate;
+- local LLM provider configuration in `~/.tomosona/conf.json`.
+
+Currently supported providers:
+
+- OpenAI
+- OpenAI Codex
+- OpenAI-compatible
+- Groq
+- Anthropic
+
+### Pulse
+
+- an AI transformation layer for reworking text or explicit note context;
+- available from the editor, Second Brain, and Cosmos;
+- actions such as `rewrite`, `condense`, `expand`, `outline`, `brief`, `extract_themes`, and `identify_tensions`;
+- preview-first output before applying changes;
+- flows to replace a selection, insert output, or hand off to Second Brain.
+
+### Theming and ergonomics
+
+- light, dark, and system themes;
+- a top bar and dedicated shortcuts modal;
+- native-feeling desktop shell behavior through Tauri;
+- macOS-aware titlebar and shortcut handling.
+
+## Architecture
+
+```text
+src/         Vue 3 frontend
+src-tauri/   Tauri + Rust backend
+public/      public assets
+docs/        product and design documentation
+```
+
+Main technologies:
+
+- `Vue 3`
+- `Vite`
+- `Tauri 2`
+- `Rust`
+- `SQLite`
+- `Tiptap`
+- `Mermaid`
 
 ## Requirements
 
-- Node.js 20+ (22+ recommended)
-- npm
-- Rust stable toolchain
+- `Node.js` 20+ (`22+` recommended)
+- `npm`
+- stable `Rust` toolchain
 - Tauri system prerequisites for your OS
-  - macOS: Xcode Command Line Tools
-  - Linux: WebKitGTK and related Tauri dependencies
 
-## Install
+Examples:
+
+- macOS : Xcode Command Line Tools
+- Linux : WebKitGTK and related Tauri dependencies
+
+## Running in Development
+
+### Install
 
 ```bash
 npm install
 ```
 
-## Run
+### Frontend only
 
-Frontend only (web dev server):
+Useful when you only want to work on the Vue UI:
+
 ```bash
 npm run dev
 ```
 
-Desktop app (Tauri dev):
+### Full desktop app with Tauri
+
+This is the recommended command for developing the complete application:
+
 ```bash
 npm run tauri:dev
 ```
 
-## Build
+This starts:
 
-Frontend production bundle:
+- the Vite dev server;
+- the Tauri desktop window;
+- the Rust backend;
+- the Tauri IPC layer used by the shell, indexing, search, and AI features.
+
+## Build and Verification
+
+Frontend build:
+
 ```bash
 npm run build
 ```
 
-Desktop app bundle/installers:
+Frontend tests:
+
+```bash
+npm run test
+```
+
+Desktop build:
+
 ```bash
 npm run tauri:build
 ```
 
-## Second Brain config (`.tomosona/conf.json`)
+Recommended backend verification:
 
-Second Brain reads its LLM settings from a global user file:
-
-- `~/.tomosona/conf.json` (macOS/Linux)
-- `%USERPROFILE%\.tomosona\conf.json` (Windows)
-
-Schema:
-
-- `active_profile`: id of the profile to use.
-- `profiles[]`: one or more provider profiles.
-
-Each profile supports:
-
-- `id`, `label`
-- `provider` (for example: `openai`, `openai-codex`, `openai_compatible`, `groq`, `anthropic`)
-- `model`
-- `api_key`
-- optional `base_url` (for local/OpenAI-compatible endpoints)
-- `capabilities` (`text`, `image_input`, `audio_input`, `tool_calling`, `streaming`)
-- optional `default_mode` (for example: `freestyle`)
-
-### Example: OpenAI (remote)
-
-```json
-{
-  "active_profile": "openai-remote",
-  "profiles": [
-    {
-      "id": "openai-remote",
-      "label": "OpenAI Remote",
-      "provider": "openai",
-      "api_key": "replace-me",
-      "model": "gpt-4.1",
-      "capabilities": {
-        "text": true,
-        "image_input": true,
-        "audio_input": false,
-        "tool_calling": true,
-        "streaming": true
-      },
-      "default_mode": "freestyle"
-    }
-  ]
-}
+```bash
+cd src-tauri
+cargo check
 ```
 
-### Example: OpenAI-compatible local server
+## AI Configuration
 
-```json
-{
-  "active_profile": "openai-local",
-  "profiles": [
-    {
-      "id": "openai-local",
-      "label": "OpenAI Local",
-      "provider": "openai_compatible",
-      "base_url": "http://localhost:11434/v1",
-      "api_key": "replace-me",
-      "model": "gpt-oss-20b",
-      "capabilities": {
-        "text": true,
-        "image_input": false,
-        "audio_input": false,
-        "tool_calling": true,
-        "streaming": true
-      },
-      "default_mode": "freestyle"
-    }
-  ]
-}
-```
+Application settings are stored in:
 
-### Example: OpenAI Codex (OAuth via Codex CLI)
+- macOS / Linux : `~/.tomosona/conf.json`
+- Windows : `%USERPROFILE%\\.tomosona\\conf.json`
 
-```json
-{
-  "active_profile": "openai-codex-profile",
-  "profiles": [
-    {
-      "id": "openai-codex-profile",
-      "label": "OpenAI Codex",
-      "provider": "openai-codex",
-      "model": "gpt-5.2-codex",
-      "api_key": "",
-      "capabilities": {
-        "text": true,
-        "image_input": false,
-        "audio_input": false,
-        "tool_calling": true,
-        "streaming": true
-      },
-      "default_mode": "freestyle"
-    }
-  ]
-}
-```
+The file contains two main sections:
 
-Codex prerequisites:
-- Authenticate Codex CLI first: `codex auth login`
-- Ensure `~/.codex/auth.json` exists and has valid tokens
-- `api_key` is not used by `openai-codex` in V1
-- In Settings > LLM > OpenAI Codex, use **Discover models** to fetch available model IDs
+- `llm` for `Second Brain` and `Pulse`
+- `embeddings` for semantic search
 
-### Example: Groq
+Useful notes:
 
-```json
-{
-  "active_profile": "groq-prod",
-  "profiles": [
-    {
-      "id": "groq-prod",
-      "label": "Groq",
-      "provider": "groq",
-      "api_key": "replace-me",
-      "model": "llama-3.3-70b-versatile",
-      "capabilities": {
-        "text": true,
-        "image_input": false,
-        "audio_input": false,
-        "tool_calling": true,
-        "streaming": true
-      },
-      "default_mode": "freestyle"
-    }
-  ]
-}
-```
+- API keys should never be committed;
+- the `openai-codex` provider relies on local Codex CLI authentication;
+- embeddings can stay in internal mode or use an external OpenAI-compatible provider depending on the settings configuration.
 
-### Example: Anthropic Claude
+## Local Data
 
-```json
-{
-  "active_profile": "claude-prod",
-  "profiles": [
-    {
-      "id": "claude-prod",
-      "label": "Claude",
-      "provider": "anthropic",
-      "api_key": "replace-me",
-      "model": "claude-3-7-sonnet-latest",
-      "capabilities": {
-        "text": true,
-        "image_input": true,
-        "audio_input": false,
-        "tool_calling": true,
-        "streaming": true
-      },
-      "default_mode": "freestyle"
-    }
-  ]
-}
-```
+Within each workspace, Tomosona may create or maintain:
 
-Note:
+- `.tomosona/tomosona.sqlite` for the local index;
+- `.tomosona/property-types.json` for the property schema;
+- `.tomosona/second-brain/` for certain session artifacts and drafts;
+- `.tomosona-trash/` for some delete/move workflows.
 
-- Keep your real API keys out of version control.
-- JSON does not allow comments; use this README for field documentation.
+Your notes themselves remain standard `.md` files in your normal workspace tree.
+
+## Project Status
+
+The project is evolving quickly. Recent notable additions include:
+
+- the launchpad and workspace setup wizard;
+- Echoes contextual suggestions;
+- Pulse and its transformation workflows;
+- Codex model discovery in settings;
+- inline find in the editor;
+- the multi-pane shell and tighter Cosmos / Second Brain integration.
