@@ -59,7 +59,12 @@ function createController() {
     currentSecondBrainHistorySnapshot: () => ({ surface: 'chat' }),
     secondBrainSnapshotStateKey: (snapshot) => snapshot.surface,
     secondBrainHistoryLabel: () => 'Second Brain',
-    openSecondBrainHistorySnapshot: vi.fn(async () => true)
+    openSecondBrainHistorySnapshot: vi.fn(async () => true),
+    readHomeHistorySnapshot: (payload) => payload as never,
+    currentHomeHistorySnapshot: () => ({ surface: 'hub' }),
+    homeSnapshotStateKey: (snapshot) => snapshot.surface,
+    homeHistoryLabel: () => 'Home',
+    openHomeHistorySnapshot: vi.fn(async () => true)
   })
 
   return {
@@ -101,6 +106,16 @@ describe('useAppNavigationController', () => {
 
     expect(documentHistory.currentEntry.value?.kind).toBe('cosmos')
     expect(documentHistory.currentEntry.value?.label).toBe('Cosmos: graph')
+  })
+
+  it('records a home history snapshot', () => {
+    const { controller, documentHistory, setActiveTabType } = createController()
+
+    setActiveTabType('home')
+    controller.recordHomeHistorySnapshot()
+
+    expect(documentHistory.currentEntry.value?.kind).toBe('home')
+    expect(documentHistory.currentEntry.value?.label).toBe('Home')
   })
 
   it('opens second brain notes in another pane using reveal mode', async () => {

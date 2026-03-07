@@ -203,8 +203,8 @@ defineExpose({
             type="button"
             class="toolbar-icon-btn"
             :disabled="!hasWorkspace"
-            :title="`Home: today note (${homeShortcutLabel})`"
-            :aria-label="`Home: today note (${homeShortcutLabel})`"
+            :title="`Home (${homeShortcutLabel})`"
+            :aria-label="`Home (${homeShortcutLabel})`"
             @click="emit('openToday')"
           >
             <HomeIcon />

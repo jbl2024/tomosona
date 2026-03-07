@@ -23,6 +23,11 @@ export type SecondBrainHistorySnapshot = {
   surface: 'chat'
 }
 
+/** Snapshot stored in history for the pane-native Home surface. */
+export type HomeHistorySnapshot = {
+  surface: 'hub'
+}
+
 /** Navigation options for opening an existing document path. */
 export type NavigationOpenOptions = {
   recordHistory?: boolean
@@ -55,8 +60,8 @@ export type UseAppNavigationControllerOptions = {
   openPathInPane: (path: string, paneId?: string) => void
   revealDocumentInPane: (path: string, paneId?: string) => void
   setActivePathInPane: (paneId: string, path: string) => void
-  openSurfaceInPane: (type: 'cosmos' | 'second-brain-chat', paneId?: string) => void
-  findPaneContainingSurface: (type: 'cosmos' | 'second-brain-chat') => string | null
+  openSurfaceInPane: (type: 'home' | 'cosmos' | 'second-brain-chat', paneId?: string) => void
+  findPaneContainingSurface: (type: 'home' | 'cosmos' | 'second-brain-chat') => string | null
   documentHistory: {
     record: (path: string) => void
     recordEntry: (entry: DocumentHistoryEntry) => void
@@ -75,6 +80,11 @@ export type UseAppNavigationControllerOptions = {
   secondBrainSnapshotStateKey: (snapshot: SecondBrainHistorySnapshot) => string
   secondBrainHistoryLabel: (snapshot: SecondBrainHistorySnapshot) => string
   openSecondBrainHistorySnapshot: (snapshot: SecondBrainHistorySnapshot) => Promise<boolean>
+  readHomeHistorySnapshot: (payload: unknown) => HomeHistorySnapshot | null
+  currentHomeHistorySnapshot: () => HomeHistorySnapshot
+  homeSnapshotStateKey: (snapshot: HomeHistorySnapshot) => string
+  homeHistoryLabel: (snapshot: HomeHistorySnapshot) => string
+  openHomeHistorySnapshot: (snapshot: HomeHistorySnapshot) => Promise<boolean>
 }
 
 /**
@@ -89,7 +99,23 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
   function historyTargetLabel(entry: DocumentHistoryEntry): string {
     if (entry.kind === 'cosmos') return entry.label
     if (entry.kind === 'second-brain') return entry.label || 'Second Brain'
+    if (entry.kind === 'home') return entry.label || 'Home'
     return options.toRelativePath(entry.path)
+  }
+
+  /** Records the current Home surface into linear document history. */
+  function recordHomeHistorySnapshot() {
+    if (isApplyingHistoryNavigation.value) return
+    const active = options.getActiveTab()
+    if (!active || active.type !== 'home') return
+    const snapshot = options.currentHomeHistorySnapshot()
+    options.documentHistory.recordEntry({
+      kind: 'home',
+      path: '__tomosona_home_view__',
+      label: options.homeHistoryLabel(snapshot),
+      stateKey: options.homeSnapshotStateKey(snapshot),
+      payload: snapshot
+    })
   }
 
   /** Records the current Second Brain surface into linear document history. */
@@ -217,6 +243,11 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
       }
       return await options.openSecondBrainHistorySnapshot(snapshot)
     }
+    if (entry.kind === 'home') {
+      const snapshot = options.readHomeHistorySnapshot(entry.payload)
+      if (!snapshot) return false
+      return await options.openHomeHistorySnapshot(snapshot)
+    }
 
     const opened = await openTabWithAutosave(entry.path, { recordHistory: false })
     if (!opened) return false
@@ -281,6 +312,7 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
   return {
     isApplyingHistoryNavigation,
     historyTargetLabel,
+    recordHomeHistorySnapshot,
     recordSecondBrainHistorySnapshot,
     recordCosmosHistorySnapshot,
     scheduleCosmosHistorySnapshot,

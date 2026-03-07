@@ -108,6 +108,13 @@ describe('PaneSurfaceHost', () => {
             requestedSessionId: '',
             requestedSessionNonce: 0,
             activeNotePath: '/vault/a.md'
+          },
+          launchpad: {
+            showExperience: true,
+            mode: 'workspace-launchpad',
+            recentWorkspaces: [],
+            recentNotes: [],
+            showWizardAction: false
           }
         })
       }
@@ -135,6 +142,79 @@ describe('PaneSurfaceHost', () => {
     expect(lifecycle.secondBrainMounted).toBe(1)
     expect(lifecycle.secondBrainUnmounted).toBe(0)
     expect(root.querySelector<HTMLElement>('.second-brain-pane-stub')?.getAttribute('style') ?? '').not.toContain('display: none')
+
+    app.unmount()
+  })
+
+  it('renders the no-workspace launchpad when the active pane is empty', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () => h(PaneSurfaceHost, {
+          paneId: 'pane-1',
+          activeTab: null,
+          openTabs: [],
+          openDocumentPaths: [],
+          activeDocumentPath: '',
+          getStatus: () => ({ dirty: false, saving: false, saveError: '' }),
+          openFile: async () => '',
+          saveFile: async () => ({ persisted: true }),
+          renameFileFromTitle: async (path: string) => ({ path, title: 'a' }),
+          loadLinkTargets: async () => [],
+          loadLinkHeadings: async () => [],
+          loadPropertyTypeSchema: async () => ({}),
+          savePropertyTypeSchema: async () => {},
+          openLinkTarget: async () => true,
+          cosmos: {
+            graph: { nodes: [], links: [] },
+            loading: false,
+            error: '',
+            selectedNodeId: '',
+            focusMode: false,
+            focusDepth: 1,
+            summary: { nodes: 0, edges: 0 },
+            query: '',
+            matches: [],
+            showSemanticEdges: false,
+            selectedNode: null,
+            selectedLinkCount: 0,
+            preview: '',
+            previewLoading: false,
+            previewError: '',
+            outgoingNodes: [],
+            incomingNodes: []
+          },
+          secondBrain: {
+            workspacePath: '',
+            allWorkspaceFiles: [],
+            requestedSessionId: '',
+            requestedSessionNonce: 0,
+            activeNotePath: ''
+          },
+          launchpad: {
+            showExperience: true,
+            mode: 'no-workspace',
+            recentWorkspaces: [{
+              path: '/vault',
+              label: 'vault',
+              subtitle: '/vault',
+              recencyLabel: 'opened yesterday'
+            }],
+            recentNotes: [],
+            showWizardAction: true
+          }
+        })
+      }
+    }))
+
+    app.mount(root)
+    await nextTick()
+
+    expect(root.textContent).toContain('Open your Markdown workspace')
+    expect(root.textContent).toContain('Recent workspaces')
+    expect(root.textContent).toContain('vault')
 
     app.unmount()
   })

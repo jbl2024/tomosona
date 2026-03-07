@@ -7,6 +7,7 @@ import IndexStatusModal from './components/app/IndexStatusModal.vue'
 import QuickOpenModal from './components/app/QuickOpenModal.vue'
 import ShortcutsModal from './components/app/ShortcutsModal.vue'
 import TopbarNavigationControls from './components/app/TopbarNavigationControls.vue'
+import WorkspaceSetupWizardModal from './components/app/WorkspaceSetupWizardModal.vue'
 import WikilinkRewriteModal from './components/app/WikilinkRewriteModal.vue'
 import WorkspaceEntryModals from './components/app/WorkspaceEntryModals.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
@@ -82,10 +83,22 @@ import {
   sanitizeTitleForFileName
 } from './lib/appShellDocuments'
 import { formatDurationMs } from './lib/indexActivity'
+import {
+  readRecentWorkspaces,
+  removeRecentWorkspace,
+  upsertRecentWorkspace,
+  type RecentWorkspaceItem
+} from './lib/recentWorkspaces'
+import {
+  buildWorkspaceSetupPlan,
+  type WorkspaceSetupOption,
+  type WorkspaceSetupUseCase
+} from './lib/workspaceSetupWizard'
 import { useAppIndexingController } from './composables/useAppIndexingController'
 import {
   useAppNavigationController,
   type CosmosHistorySnapshot,
+  type HomeHistorySnapshot,
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
 import { useAppModalController } from './composables/useAppModalController'
@@ -134,9 +147,24 @@ type VirtualDoc = {
   titleLine: string
 }
 
+type LaunchpadRecentWorkspace = {
+  path: string
+  label: string
+  subtitle: string
+  recencyLabel: string
+}
+
+type LaunchpadRecentNote = {
+  path: string
+  title: string
+  relativePath: string
+  updatedLabel: string
+}
+
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
 const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
+const RECENT_WORKSPACES_STORAGE_KEY = 'tomosona:recent-workspaces'
 const MULTI_PANE_STORAGE_KEY = 'tomosona:editor:multi-pane'
 const VIEW_MODE_STORAGE_KEY = 'tomosona:view:active'
 const PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY = 'tomosona:view:last-non-cosmos'
@@ -189,9 +217,15 @@ const openDateInput = ref('')
 const openDateModalError = ref('')
 const settingsModalVisible = ref(false)
 const shortcutsModalVisible = ref(false)
+const workspaceSetupWizardVisible = ref(false)
+const workspaceSetupWizardBusy = ref(false)
 const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const shortcutsFilterQuery = ref('')
+const recentWorkspaces = ref<RecentWorkspaceItem[]>(typeof window === 'undefined'
+  ? []
+  : readRecentWorkspaces(RECENT_WORKSPACES_STORAGE_KEY))
+const recentNotes = ref<LaunchpadRecentNote[]>([])
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
 const hydratedMultiPane = hydrateLayout(
   (() => {
@@ -216,6 +250,9 @@ const historyMenuStyle = ref<Record<string, string>>({})
 let historyMenuTimer: ReturnType<typeof setTimeout> | null = null
 let historyLongPressTarget: 'back' | 'forward' | null = null
 let unlistenWorkspaceFsChanged: (() => void) | null = null
+let recentNotesRequestToken = 0
+let recentNotesCacheKey = ''
+const recentNotesRefreshNonce = ref(0)
 
 const resizeState = ref<{
   side: 'left' | 'right'
@@ -360,6 +397,7 @@ const modalController = useAppModalController({
   openDateModalVisible,
   settingsModalVisible,
   shortcutsModalVisible,
+  workspaceSetupWizardVisible,
   wikilinkRewriteVisible: computed(() => Boolean(wikilinkRewritePrompt.value)),
   focusEditor: () => {
     editorRef.value?.focusEditor()
@@ -416,41 +454,48 @@ const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
 const paletteActionPriority: Record<string, number> = {
   'open-file': 0,
   'open-workspace': 1,
-  'open-today': 2,
-  'open-yesterday': 3,
-  'open-specific-date': 4,
-  'open-cosmos-view': 5,
-  'open-second-brain-view': 6,
-  'add-active-note-to-second-brain': 7,
-  'open-settings': 8,
-  'open-note-in-cosmos': 9,
-  'reveal-in-explorer': 10,
-  'show-shortcuts': 11,
-  'create-new-file': 12,
-  'close-other-tabs': 13,
-  'close-all-tabs': 14,
-  'close-all-tabs-current-pane': 15,
-  'split-pane-right': 16,
-  'split-pane-down': 17,
-  'focus-pane-1': 18,
-  'focus-pane-2': 19,
-  'focus-pane-3': 20,
-  'focus-pane-4': 21,
-  'focus-next-pane': 22,
-  'move-tab-next-pane': 23,
-  'close-active-pane': 24,
-  'join-panes': 25,
-  'reset-pane-layout': 26,
-  'zoom-in': 27,
-  'zoom-out': 28,
-  'zoom-reset': 29,
-  'theme-light': 30,
-  'theme-dark': 31,
-  'theme-system': 32,
-  'close-workspace': 33
+  'open-home-view': 2,
+  'open-today': 3,
+  'open-yesterday': 4,
+  'open-specific-date': 5,
+  'open-cosmos-view': 6,
+  'open-second-brain-view': 7,
+  'add-active-note-to-second-brain': 8,
+  'open-settings': 9,
+  'open-note-in-cosmos': 10,
+  'reveal-in-explorer': 11,
+  'show-shortcuts': 12,
+  'create-new-file': 13,
+  'close-other-tabs': 14,
+  'close-all-tabs': 15,
+  'close-all-tabs-current-pane': 16,
+  'split-pane-right': 17,
+  'split-pane-down': 18,
+  'focus-pane-1': 19,
+  'focus-pane-2': 20,
+  'focus-pane-3': 21,
+  'focus-pane-4': 22,
+  'focus-next-pane': 23,
+  'move-tab-next-pane': 24,
+  'close-active-pane': 25,
+  'join-panes': 26,
+  'reset-pane-layout': 27,
+  'zoom-in': 28,
+  'zoom-out': 29,
+  'zoom-reset': 30,
+  'theme-light': 31,
+  'theme-dark': 32,
+  'theme-system': 33,
+  'close-workspace': 34
 }
 
 const paletteActions = computed<PaletteAction[]>(() => [
+  {
+    id: 'open-home-view',
+    label: 'Open Home',
+    run: () => openHomeViewFromPalette(),
+    closeBeforeRun: true
+  },
   {
     id: 'open-cosmos-view',
     label: 'Open Cosmos View',
@@ -553,7 +598,7 @@ const shortcutSections = computed(() => {
         { keys: `${mod}+[`, action: 'Back in history' },
         { keys: `${mod}+]`, action: 'Forward in history' },
         { keys: `${mod}+D`, action: 'Open today note' },
-        { keys: `${mod}+Shift+H`, action: 'Open today note (home)' },
+        { keys: `${mod}+Shift+H`, action: 'Open Home' },
         { keys: `${mod}+Click`, action: 'Open date token (YYYY-MM-DD) in editor' },
         { keys: `${mod}+E`, action: 'Show explorer' },
         { keys: `${mod}+B`, action: 'Toggle sidebar' },
@@ -601,11 +646,13 @@ const metadataRows = computed(() => {
   if (!activeFilePath.value) {
     const activeTab = multiPane.getActiveTab()
     if (!activeTab || activeTab.type === 'document') return []
-    const label = activeTab.type === 'cosmos'
-      ? 'Cosmos'
-      : activeTab.type === 'second-brain-chat'
-        ? 'Second Brain'
-        : 'Surface'
+    const label = activeTab.type === 'home'
+      ? 'Home'
+      : activeTab.type === 'cosmos'
+        ? 'Cosmos'
+        : activeTab.type === 'second-brain-chat'
+          ? 'Second Brain'
+          : 'Surface'
     return [
       { label: 'Surface', value: label },
       { label: 'Metadata', value: 'No document metadata for this surface' }
@@ -689,6 +736,50 @@ function formatSearchScore(value: number): string {
   if (!Number.isFinite(value)) return '--'
   return value.toFixed(3)
 }
+
+function basenameLabel(path: string): string {
+  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+  const last = normalized.split('/').filter(Boolean).pop()
+  return last || path
+}
+
+function formatRelativeTime(tsMs: number | null, prefix = ''): string {
+  if (typeof tsMs !== 'number' || !Number.isFinite(tsMs) || tsMs <= 0) {
+    return prefix ? `${prefix} recently` : 'recently'
+  }
+  const deltaMs = tsMs - Date.now()
+  const absMs = Math.abs(deltaMs)
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ['year', 365 * 24 * 60 * 60 * 1000],
+    ['month', 30 * 24 * 60 * 60 * 1000],
+    ['week', 7 * 24 * 60 * 60 * 1000],
+    ['day', 24 * 60 * 60 * 1000],
+    ['hour', 60 * 60 * 1000],
+    ['minute', 60 * 1000]
+  ]
+  for (const [unit, size] of units) {
+    if (absMs >= size || unit === 'minute') {
+      const value = Math.round(deltaMs / size)
+      const label = rtf.format(value, unit)
+      return prefix ? `${prefix} ${label}` : label
+    }
+  }
+  return prefix ? `${prefix} just now` : 'just now'
+}
+
+const launchpadRecentWorkspaces = computed<LaunchpadRecentWorkspace[]>(() =>
+  recentWorkspaces.value.map((workspace) => ({
+    path: workspace.path,
+    label: workspace.label,
+    subtitle: workspace.path,
+    recencyLabel: formatRelativeTime(workspace.lastOpenedAtMs, 'opened')
+  }))
+)
+
+const launchpadShowWizardAction = computed(() =>
+  !filesystem.hasWorkspace.value || allWorkspaceFiles.value.length === 0
+)
 
 function openIndexStatusModal() {
   rememberFocusBeforeModalOpen()
@@ -877,6 +968,25 @@ function secondBrainHistoryLabel(_snapshot: SecondBrainHistorySnapshot): string 
   return 'Second Brain'
 }
 
+function readHomeHistorySnapshot(payload: unknown): HomeHistorySnapshot | null {
+  if (!payload || typeof payload !== 'object') return null
+  const value = payload as { surface?: string }
+  if (value.surface !== 'hub') return null
+  return { surface: 'hub' }
+}
+
+function currentHomeHistorySnapshot(): HomeHistorySnapshot {
+  return { surface: 'hub' }
+}
+
+function homeSnapshotStateKey(snapshot: HomeHistorySnapshot): string {
+  return snapshot.surface
+}
+
+function homeHistoryLabel(_snapshot: HomeHistorySnapshot): string {
+  return 'Home'
+}
+
 async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Promise<boolean> {
   if (!filesystem.hasWorkspace.value) return false
 
@@ -899,6 +1009,11 @@ async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Prom
 
 async function openSecondBrainHistorySnapshot(_snapshot: SecondBrainHistorySnapshot): Promise<boolean> {
   multiPane.openSurfaceInPane('second-brain-chat')
+  return true
+}
+
+async function openHomeHistorySnapshot(_snapshot: HomeHistorySnapshot): Promise<boolean> {
+  multiPane.openSurfaceInPane('home')
   return true
 }
 
@@ -934,6 +1049,11 @@ const navigation = useAppNavigationController({
   cosmosSnapshotStateKey,
   cosmosHistoryLabel,
   applyCosmosHistorySnapshot,
+  readHomeHistorySnapshot,
+  currentHomeHistorySnapshot,
+  homeSnapshotStateKey,
+  homeHistoryLabel,
+  openHomeHistorySnapshot,
   readSecondBrainHistorySnapshot,
   currentSecondBrainHistorySnapshot,
   secondBrainSnapshotStateKey,
@@ -943,6 +1063,7 @@ const navigation = useAppNavigationController({
 const {
   isApplyingHistoryNavigation,
   historyTargetLabel,
+  recordHomeHistorySnapshot,
   recordSecondBrainHistorySnapshot,
   recordCosmosHistorySnapshot,
   scheduleCosmosHistorySnapshot,
@@ -1126,6 +1247,15 @@ async function openSecondBrainViewFromPalette() {
   return true
 }
 
+async function openHomeViewFromPalette() {
+  multiPane.openSurfaceInPane('home')
+  recordHomeHistorySnapshot()
+  if (filesystem.hasWorkspace.value && !allWorkspaceFiles.value.length) {
+    await loadAllFiles()
+  }
+  return true
+}
+
 async function addActiveNoteToSecondBrainFromPalette() {
   return await addActiveNoteToSecondBrain()
 }
@@ -1204,8 +1334,150 @@ async function closeWorkspace() {
   semanticLinks.value = []
   semanticLinksLoading.value = false
   cosmos.clearState()
+  recentNotes.value = []
+  recentNotesCacheKey = ''
   await closeWorkspaceInternal()
   closeOverflowMenu()
+}
+
+function syncRecentWorkspaceEntry(path: string) {
+  recentWorkspaces.value = upsertRecentWorkspace(RECENT_WORKSPACES_STORAGE_KEY, {
+    path,
+    label: basenameLabel(path),
+    lastOpenedAtMs: Date.now()
+  })
+}
+
+function removeRecentWorkspaceEntry(path: string) {
+  recentWorkspaces.value = removeRecentWorkspace(RECENT_WORKSPACES_STORAGE_KEY, path)
+}
+
+function invalidateRecentNotes() {
+  recentNotesCacheKey = ''
+  recentNotesRefreshNonce.value += 1
+}
+
+async function refreshLaunchpadRecentNotes() {
+  const root = filesystem.workingFolderPath.value
+  if (!root) {
+    recentNotes.value = []
+    recentNotesCacheKey = ''
+    return
+  }
+
+  const fileSignature = allWorkspaceFiles.value.join('\n')
+  const cacheKey = `${normalizePathKey(root)}::${recentNotesRefreshNonce.value}::${fileSignature}`
+  if (cacheKey === recentNotesCacheKey) return
+
+  const requestToken = ++recentNotesRequestToken
+  const rows = await Promise.all(
+    allWorkspaceFiles.value.map(async (path) => {
+      try {
+        const metadata = await readFileMetadata(path)
+        return {
+          path,
+          title: noteTitleFromPath(path),
+          relativePath: toRelativePath(path),
+          updatedAtMs: metadata.updated_at_ms ?? 0
+        }
+      } catch {
+        return null
+      }
+    })
+  )
+  if (requestToken !== recentNotesRequestToken) return
+
+  recentNotes.value = rows
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .sort((left, right) => right.updatedAtMs - left.updatedAtMs || left.relativePath.localeCompare(right.relativePath))
+    .slice(0, 7)
+    .map((item) => ({
+      path: item.path,
+      title: item.title,
+      relativePath: item.relativePath,
+      updatedLabel: formatRelativeTime(item.updatedAtMs, 'updated')
+    }))
+  recentNotesCacheKey = cacheKey
+}
+
+function closeWorkspaceSetupWizard() {
+  workspaceSetupWizardVisible.value = false
+  workspaceSetupWizardBusy.value = false
+  void nextTick(() => {
+    restoreFocusAfterModalClose()
+  })
+}
+
+async function openWorkspaceSetupWizard() {
+  rememberFocusBeforeModalOpen()
+  workspaceSetupWizardVisible.value = true
+  workspaceSetupWizardBusy.value = false
+  await nextTick()
+}
+
+async function ensureRelativeFolder(relativePath: string) {
+  const root = filesystem.workingFolderPath.value
+  if (!root) throw new Error('Working folder is not set.')
+  const normalized = sanitizeRelativePath(relativePath)
+  if (!normalized) return
+  const parentPath = await ensureParentDirectoriesForRelativePath(normalized)
+  const targetPath = `${parentPath}/${normalized.split('/').filter(Boolean).pop() ?? ''}`
+  if (await pathExists(targetPath)) return
+  await createEntry(parentPath, normalized.split('/').filter(Boolean).pop() ?? normalized, 'folder', 'fail')
+}
+
+async function applyWorkspaceSetupWizard(payload: {
+  useCase: WorkspaceSetupUseCase
+  options: WorkspaceSetupOption[]
+}) {
+  workspaceSetupWizardBusy.value = true
+  try {
+    if (!filesystem.hasWorkspace.value) {
+      const selectedPath = await selectWorkingFolder()
+      if (!selectedPath) {
+        workspaceSetupWizardBusy.value = false
+        return
+      }
+      await loadWorkingFolder(selectedPath)
+      if (!filesystem.hasWorkspace.value) {
+        workspaceSetupWizardBusy.value = false
+        return
+      }
+    }
+
+    const plan = buildWorkspaceSetupPlan(payload.useCase, payload.options)
+    for (const entry of plan) {
+      if (entry.kind === 'folder') {
+        await ensureRelativeFolder(entry.path)
+        continue
+      }
+      const root = filesystem.workingFolderPath.value
+      if (!root) throw new Error('Working folder is not set.')
+      const fullPath = `${root}/${entry.path}`
+      if (await pathExists(fullPath)) continue
+      await ensureParentFolders(fullPath)
+      await writeTextFile(fullPath, '')
+      upsertWorkspaceFilePath(fullPath)
+      enqueueMarkdownReindex(fullPath)
+    }
+
+    await loadAllFiles()
+    invalidateRecentNotes()
+    filesystem.notifySuccess('Workspace starter structure created.')
+    closeWorkspaceSetupWizard()
+  } catch (err) {
+    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not create starter structure.'
+    workspaceSetupWizardBusy.value = false
+  }
+}
+
+async function openRecentWorkspace(path: string) {
+  filesystem.errorMessage.value = ''
+  await loadWorkingFolder(path)
+  if (!filesystem.hasWorkspace.value) {
+    removeRecentWorkspaceEntry(path)
+    filesystem.errorMessage.value = filesystem.errorMessage.value || 'Could not reopen that workspace.'
+  }
 }
 
 function beginResize(side: 'left' | 'right', event: MouseEvent) {
@@ -1256,7 +1528,10 @@ async function loadWorkingFolder(path: string) {
     return
   }
 
+  syncRecentWorkspaceEntry(canonical)
   searchHits.value = []
+  invalidateRecentNotes()
+  await loadAllFiles()
   if (multiPane.findPaneContainingSurface('cosmos') !== null) {
     await cosmos.refreshGraph()
   }
@@ -2044,6 +2319,7 @@ async function runQuickOpenAction(id: string) {
         !openDateModalVisible.value &&
         !settingsModalVisible.value &&
         !shortcutsModalVisible.value &&
+        !workspaceSetupWizardVisible.value &&
         !cosmosCommandLoadingVisible.value
       ) {
         editorRef.value?.focusEditor()
@@ -2065,6 +2341,22 @@ async function createNewFileFromPalette() {
   const prefill = await suggestedNotePathPrefix()
   await openNewFileModal(prefill)
   return true
+}
+
+async function createSuggestedNote(kind: 'daily' | 'inbox' | 'project') {
+  if (kind === 'daily') {
+    await openTodayNote()
+    return
+  }
+  if (kind === 'project') {
+    await openNewFileModal('Projects/')
+    return
+  }
+
+  const root = filesystem.workingFolderPath.value
+  if (!root) return
+  const path = `${root}/Inbox.md`
+  await openOrPrepareMarkdown(path, '# Inbox')
 }
 
 function closeNewFileModal() {
@@ -2487,6 +2779,12 @@ function onWindowKeydown(event: KeyboardEvent) {
     closeShortcutsModal()
     return
   }
+  if (isEscape && workspaceSetupWizardVisible.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    closeWorkspaceSetupWizard()
+    return
+  }
   if (isEscape && indexStatusModalVisible.value) {
     event.preventDefault()
     event.stopPropagation()
@@ -2600,7 +2898,7 @@ function onWindowKeydown(event: KeyboardEvent) {
 
   if (key === 'h' && event.shiftKey) {
     event.preventDefault()
-    void openTodayNote()
+    void openHomeViewFromPalette()
     return
   }
 
@@ -2776,7 +3074,21 @@ watch(
     backlinks.value = []
     semanticLinks.value = []
     virtualDocs.value = {}
+    recentNotes.value = []
+    recentNotesCacheKey = ''
   }
+)
+
+watch(
+  [
+    () => filesystem.workingFolderPath.value,
+    () => allWorkspaceFiles.value,
+    () => recentNotesRefreshNonce.value
+  ],
+  () => {
+    void refreshLaunchpadRecentNotes()
+  },
+  { deep: true, immediate: true }
 )
 
 watch(
@@ -2844,6 +3156,9 @@ onMounted(() => {
     if (!root) return
     if (normalizePath(payload.root).toLowerCase() !== normalizePath(root).toLowerCase()) return
     applyWorkspaceFsChanges(payload.changes)
+    if (payload.changes.some((change) => change.kind === 'modified' || change.kind === 'created' || change.kind === 'removed' || change.kind === 'renamed')) {
+      invalidateRecentNotes()
+    }
   }).then((unlisten) => {
     unlistenWorkspaceFsChanged = unlisten
   }).catch(() => {
@@ -2909,7 +3224,7 @@ onBeforeUnmount(() => {
       @history-button-pointer-down="onHistoryButtonPointerDown"
       @history-long-press-cancel="cancelHistoryLongPress"
       @history-target-click="onHistoryTargetClick"
-      @open-today="void openTodayNote()"
+      @open-today="void openHomeViewFromPalette()"
       @open-cosmos="void openCosmosViewFromPalette()"
       @open-second-brain="void openSecondBrainViewFromPalette()"
       @split-right="splitPaneFromPalette('row')"
@@ -3014,6 +3329,11 @@ onBeforeUnmount(() => {
                 requestedSessionNonce: secondBrainRequestedSessionNonce,
                 activeNotePath: activeFilePath
               }"
+              :launchpad="{
+                recentWorkspaces: launchpadRecentWorkspaces,
+                recentNotes,
+                showWizardAction: launchpadShowWizardAction
+              }"
               @pane-focus="multiPane.setActivePane($event.paneId)"
               @pane-tab-click="void onPaneTabClick($event)"
               @pane-tab-close="onPaneTabClose($event)"
@@ -3038,6 +3358,16 @@ onBeforeUnmount(() => {
               @path-renamed="onEditorPathRenamed"
               @outline="onEditorOutline"
               @properties="onEditorProperties"
+              @launchpad-open-workspace="void onSelectWorkingFolder()"
+              @launchpad-open-wizard="void openWorkspaceSetupWizard()"
+              @launchpad-open-command-palette="openCommandPalette"
+              @launchpad-open-shortcuts="openShortcutsModal"
+              @launchpad-open-recent-workspace="void openRecentWorkspace($event)"
+              @launchpad-open-today="void openTodayNote()"
+              @launchpad-open-quick-open="void openQuickOpen()"
+              @launchpad-create-note="void createNewFileFromPalette()"
+              @launchpad-open-recent-note="void onExplorerOpen($event)"
+              @launchpad-create-suggested-note="void createSuggestedNote($event)"
             />
           </main>
 
@@ -3176,6 +3506,13 @@ onBeforeUnmount(() => {
       @update-open-date="openDateInput = $event"
       @keydown-open-date="onOpenDateInputKeydown"
       @submit-open-date="submitOpenDateFromModal"
+    />
+
+    <WorkspaceSetupWizardModal
+      :visible="workspaceSetupWizardVisible"
+      :busy="workspaceSetupWizardBusy"
+      @cancel="closeWorkspaceSetupWizard"
+      @submit="void applyWorkspaceSetupWizard($event)"
     />
 
     <SettingsModal

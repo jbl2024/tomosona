@@ -16,6 +16,7 @@ function createController() {
     openDateModalVisible: ref(false),
     settingsModalVisible: ref(false),
     shortcutsModalVisible: ref(false),
+    workspaceSetupWizardVisible: ref(false),
     wikilinkRewriteVisible: ref(false),
     focusEditor
   })

@@ -61,6 +61,11 @@ const props = defineProps<{
     requestedSessionNonce: number
     activeNotePath: string
   }
+  launchpad: {
+    recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
+    recentNotes: Array<{ path: string; title: string; relativePath: string; updatedLabel: string }>
+    showWizardAction: boolean
+  }
 }>()
 
 const emit = defineEmits<{
@@ -86,6 +91,16 @@ const emit = defineEmits<{
   'cosmos-reset-view': []
   'cosmos-select-node': [nodeId: string]
   'open-note': [path: string]
+  'launchpad-open-workspace': []
+  'launchpad-open-wizard': []
+  'launchpad-open-command-palette': []
+  'launchpad-open-shortcuts': []
+  'launchpad-open-recent-workspace': [path: string]
+  'launchpad-open-today': []
+  'launchpad-open-quick-open': []
+  'launchpad-create-note': []
+  'launchpad-open-recent-note': [path: string]
+  'launchpad-create-suggested-note': [kind: 'daily' | 'inbox' | 'project']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
 }>()
@@ -324,6 +339,13 @@ onBeforeUnmount(() => {
         :open-tabs="pane.openTabs"
         :open-document-paths="paneDocumentPaths(pane)"
         :active-document-path="activeDocumentPath"
+        :launchpad="{
+          showExperience: pane.id === layout.activePaneId,
+          mode: secondBrain.workspacePath ? 'workspace-launchpad' : 'no-workspace',
+          recentWorkspaces: launchpad.recentWorkspaces,
+          recentNotes: launchpad.recentNotes,
+          showWizardAction: launchpad.showWizardAction
+        }"
         :cosmos="cosmos"
         :second-brain="secondBrain"
         :get-status="getStatus"
@@ -351,6 +373,16 @@ onBeforeUnmount(() => {
         @cosmos-reset-view="emit('cosmos-reset-view')"
         @cosmos-select-node="emit('cosmos-select-node', $event)"
         @open-note="emit('open-note', $event)"
+        @launchpad-open-workspace="emit('launchpad-open-workspace')"
+        @launchpad-open-wizard="emit('launchpad-open-wizard')"
+        @launchpad-open-command-palette="emit('launchpad-open-command-palette')"
+        @launchpad-open-shortcuts="emit('launchpad-open-shortcuts')"
+        @launchpad-open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
+        @launchpad-open-today="emit('launchpad-open-today')"
+        @launchpad-open-quick-open="emit('launchpad-open-quick-open')"
+        @launchpad-create-note="emit('launchpad-create-note')"
+        @launchpad-open-recent-note="emit('launchpad-open-recent-note', $event)"
+        @launchpad-create-suggested-note="emit('launchpad-create-suggested-note', $event)"
         @second-brain-context-changed="emit('second-brain-context-changed', $event)"
         @second-brain-session-changed="emit('second-brain-session-changed', $event)"
       />

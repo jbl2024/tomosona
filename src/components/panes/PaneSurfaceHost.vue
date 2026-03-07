@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import EditorView from '../EditorView.vue'
 import CosmosPaneSurface from '../cosmos/CosmosPaneSurface.vue'
 import SecondBrainPaneSurface from '../second-brain/SecondBrainPaneSurface.vue'
+import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { FileEditorStatus } from './EditorPaneTabs.vue'
 import type { WikilinkAnchor } from '../../lib/wikilinks'
@@ -48,6 +49,13 @@ const props = defineProps<{
     requestedSessionNonce: number
     activeNotePath: string
   }
+  launchpad: {
+    showExperience: boolean
+    mode: 'no-workspace' | 'workspace-launchpad'
+    recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
+    recentNotes: Array<{ path: string; title: string; relativePath: string; updatedLabel: string }>
+    showWizardAction: boolean
+  }
 }>()
 
 const emit = defineEmits<{
@@ -67,6 +75,16 @@ const emit = defineEmits<{
   'cosmos-reset-view': []
   'cosmos-select-node': [nodeId: string]
   'open-note': [path: string]
+  'launchpad-open-workspace': []
+  'launchpad-open-wizard': []
+  'launchpad-open-command-palette': []
+  'launchpad-open-shortcuts': []
+  'launchpad-open-recent-workspace': [path: string]
+  'launchpad-open-today': []
+  'launchpad-open-quick-open': []
+  'launchpad-create-note': []
+  'launchpad-open-recent-note': [path: string]
+  'launchpad-create-suggested-note': [kind: 'daily' | 'inbox' | 'project']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
 }>()
@@ -137,6 +155,24 @@ defineExpose<EditorSurfaceExposed>({
     @properties="emit('properties', $event)"
   />
 
+  <WorkspaceLaunchpad
+    v-if="activeTab?.type === 'home'"
+    :mode="launchpad.mode"
+    :recent-workspaces="launchpad.recentWorkspaces"
+    :recent-notes="launchpad.recentNotes"
+    :show-wizard-action="launchpad.showWizardAction"
+    @open-workspace="emit('launchpad-open-workspace')"
+    @open-wizard="emit('launchpad-open-wizard')"
+    @open-command-palette="emit('launchpad-open-command-palette')"
+    @open-shortcuts="emit('launchpad-open-shortcuts')"
+    @open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
+    @open-today="emit('launchpad-open-today')"
+    @open-quick-open="emit('launchpad-open-quick-open')"
+    @create-note="emit('launchpad-create-note')"
+    @open-recent-note="emit('launchpad-open-recent-note', $event)"
+    @create-suggested-note="emit('launchpad-create-suggested-note', $event)"
+  />
+
   <CosmosPaneSurface
     v-if="hasCosmosTab"
     v-show="showCosmosSurface"
@@ -184,7 +220,25 @@ defineExpose<EditorSurfaceExposed>({
     @session-changed="emit('second-brain-session-changed', $event)"
   />
 
-  <div v-if="!activeTab" class="surface-placeholder">Open a tab to start.</div>
+  <WorkspaceLaunchpad
+    v-else-if="!activeTab && launchpad.showExperience"
+    :mode="launchpad.mode"
+    :recent-workspaces="launchpad.recentWorkspaces"
+    :recent-notes="launchpad.recentNotes"
+    :show-wizard-action="launchpad.showWizardAction"
+    @open-workspace="emit('launchpad-open-workspace')"
+    @open-wizard="emit('launchpad-open-wizard')"
+    @open-command-palette="emit('launchpad-open-command-palette')"
+    @open-shortcuts="emit('launchpad-open-shortcuts')"
+    @open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
+    @open-today="emit('launchpad-open-today')"
+    @open-quick-open="emit('launchpad-open-quick-open')"
+    @create-note="emit('launchpad-create-note')"
+    @open-recent-note="emit('launchpad-open-recent-note', $event)"
+    @create-suggested-note="emit('launchpad-create-suggested-note', $event)"
+  />
+
+  <div v-else-if="!activeTab" class="surface-placeholder">Open a tab to start.</div>
 </template>
 
 <style scoped>

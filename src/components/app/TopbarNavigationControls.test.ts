@@ -31,7 +31,7 @@ function mountHarness() {
           themePreference: 'system',
           onHistoryButtonClick: (side: 'back' | 'forward') => events.push(`history:${side}`),
           onHistoryTargetClick: (index: number) => events.push(`target:${index}`),
-          onOpenToday: () => events.push('today'),
+          onOpenToday: () => events.push('home'),
           onOpenCosmos: () => events.push('cosmos'),
           onOpenSecondBrain: () => events.push('second-brain'),
           onToggleSidebar: () => events.push('toggle-sidebar'),
@@ -76,7 +76,7 @@ describe('TopbarNavigationControls', () => {
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Hide sidebar"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Back (Cmd+[)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('.history-menu-item')?.click()
-    mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home: today note (Cmd+Shift+H)"]')?.click()
+    mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home (Cmd+Shift+H)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Search or type a command (Cmd+Shift+P)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Cosmos view"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Second Brain"]')?.click()
@@ -86,7 +86,7 @@ describe('TopbarNavigationControls', () => {
       'toggle-sidebar',
       'history:back',
       'target:1',
-      'today',
+      'home',
       'command-palette',
       'cosmos',
       'second-brain',

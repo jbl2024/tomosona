@@ -18,6 +18,7 @@ export type UseAppModalControllerOptions = {
   openDateModalVisible: Readonly<Ref<boolean>>
   settingsModalVisible: Readonly<Ref<boolean>>
   shortcutsModalVisible: Readonly<Ref<boolean>>
+  workspaceSetupWizardVisible: Readonly<Ref<boolean>>
   wikilinkRewriteVisible: Readonly<Ref<boolean>>
   focusEditor: () => void
 }
@@ -37,6 +38,7 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
     if (options.cosmosCommandLoadingVisible.value) return '[data-modal="cosmos-command-loading"]'
     if (options.indexStatusModalVisible.value) return '[data-modal="index-status"]'
     if (options.shortcutsModalVisible.value) return '[data-modal="shortcuts"]'
+    if (options.workspaceSetupWizardVisible.value) return '[data-modal="workspace-setup-wizard"]'
     if (options.settingsModalVisible.value) return '[data-modal="settings"]'
     if (options.openDateModalVisible.value) return '[data-modal="open-date"]'
     if (options.newFolderModalVisible.value) return '[data-modal="new-folder"]'
