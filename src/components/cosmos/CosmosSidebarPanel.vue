@@ -359,7 +359,7 @@ function onSearchModeSelect(mode: SearchMode) {
 }
 
 .cosmos-search-hint code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-family: var(--font-code);
   font-size: inherit;
 }
 

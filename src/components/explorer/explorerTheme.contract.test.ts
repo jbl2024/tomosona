@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import treeSource from './ExplorerTree.vue?raw'
 import itemSource from './ExplorerItem.vue?raw'
 import propertiesSource from '../editor/EditorPropertiesPanel.vue?raw'
+import propertyTokenSource from '../properties/PropertyTokenInput.vue?raw'
+import propertyAddSource from '../properties/PropertyAddDropdown.vue?raw'
 
 describe('Explorer and properties theme contracts', () => {
   it('routes explorer surfaces and states through semantic tokens', () => {
@@ -24,5 +26,13 @@ describe('Explorer and properties theme contracts', () => {
     expect(propertiesSource).toContain('var(--focus-ring)')
     expect(propertiesSource).toContain('var(--danger)')
     expect(propertiesSource).not.toContain('dark:')
+
+    expect(propertyTokenSource).toContain('var(--input-border)')
+    expect(propertyTokenSource).toContain('var(--font-size-sm)')
+    expect(propertyTokenSource).not.toContain('.dark .property-token-input')
+
+    expect(propertyAddSource).toContain('var(--menu-bg)')
+    expect(propertyAddSource).toContain('var(--button-secondary-bg)')
+    expect(propertyAddSource).not.toContain('dark:')
   })
 })

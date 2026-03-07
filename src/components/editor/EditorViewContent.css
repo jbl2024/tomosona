@@ -53,36 +53,41 @@
 .editor-holder .ProseMirror {
   min-height: 100%;
   outline: none;
-  line-height: 1.6;
+  font-family: var(--font-editor);
+  color: var(--text-soft);
+  line-height: var(--line-height-relaxed);
 }
 
 .editor-holder .ProseMirror p {
-  font-size: calc(1rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-font-size-base) * var(--editor-zoom, 1));
   margin: 0.42rem 0;
 }
 
 .editor-holder .ProseMirror h1 {
-  font-size: calc(1.9rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-1-size) * var(--editor-zoom, 1));
   font-weight: 580;
   line-height: 1.35;
   margin: 0.68rem 0 1.12rem;
+  color: var(--text-main);
 }
 
 .editor-holder .ProseMirror h2 {
-  font-size: calc(1.6rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-2-size) * var(--editor-zoom, 1));
   line-height: 1.35;
   margin: 0.95rem 0 0.8rem;
   text-decoration: none;
+  color: var(--text-main);
 }
 
 .editor-holder .ProseMirror h3 {
-  font-size: calc(1.35rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-3-size) * var(--editor-zoom, 1));
   line-height: 1.35;
   margin: 0.75rem 0 0.45rem;
+  color: var(--text-main);
 }
 
 .editor-holder .ProseMirror h4 {
-  font-size: calc(1.18rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-4-size) * var(--editor-zoom, 1));
   font-weight: 560;
   line-height: 1.35;
   margin: 0.62rem 0 0.35rem;
@@ -90,7 +95,7 @@
 }
 
 .editor-holder .ProseMirror h5 {
-  font-size: calc(1.04rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-5-size) * var(--editor-zoom, 1));
   font-weight: 540;
   line-height: 1.35;
   margin: 0.5rem 0 0.28rem;
@@ -98,7 +103,7 @@
 }
 
 .editor-holder .ProseMirror h6 {
-  font-size: calc(0.94rem * var(--editor-zoom, 1));
+  font-size: calc(var(--editor-heading-6-size) * var(--editor-zoom, 1));
   font-weight: 520;
   line-height: 1.35;
   margin: 0.45rem 0 0.22rem;
@@ -110,7 +115,7 @@
   border-radius: 0.34rem;
   padding: 0.06rem 0.38rem;
   font-size: 0.92em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-code);
   background: var(--editor-code-bg);
 }
 
@@ -249,13 +254,13 @@
 
 .editor-holder .ProseMirror th {
   font-weight: 640;
-  background: rgb(248 250 252);
-  color: rgb(30 41 59);
+  background: var(--editor-table-header-bg);
+  color: var(--editor-table-header-text);
 }
 
 .editor-holder .ProseMirror td.selectedCell,
 .editor-holder .ProseMirror th.selectedCell {
-  background: rgb(219 234 254);
+  background: var(--editor-table-selection);
 }
 
 .editor-holder .ProseMirror .column-resize-handle {
@@ -264,7 +269,7 @@
   top: 0;
   width: 4px;
   height: 100%;
-  background: rgb(59 130 246 / 0.55);
+  background: var(--editor-column-resize);
   pointer-events: none;
 }
 
@@ -273,7 +278,7 @@
 }
 
 .editor-holder .ProseMirror pre {
-  border: 1px solid rgb(226 232 240);
+  border: 1px solid var(--editor-table-cell-border);
   border-radius: 0.6rem;
   padding: 0.8rem;
   overflow: auto;
@@ -282,7 +287,7 @@
 .editor-holder .tomosona-quote {
   margin: 0.24rem 0;
   padding-left: 0.7rem;
-  border-left: 3px solid #7ba9d6;
+  border-left: 3px solid var(--editor-quote-border);
 }
 
 .editor-holder .tomosona-quote-preview {
@@ -332,10 +337,10 @@
 
 .editor-holder .tomosona-code-copy-btn,
 .editor-holder .tomosona-code-wrap-btn {
-  border: 1px solid rgb(203 213 225);
+  border: 1px solid var(--editor-block-control-border);
   border-radius: 0.4rem;
-  background: white;
-  color: rgb(51 65 85);
+  background: var(--editor-block-control-bg);
+  color: var(--editor-block-control-text);
   font-size: 0.7rem;
   line-height: 1;
   padding: 0.28rem 0.45rem;
@@ -358,10 +363,10 @@
 .editor-holder .tomosona-block-control-btn {
   width: 1.7rem;
   height: 1.7rem;
-  border: 1px solid rgb(203 213 225);
+  border: 1px solid var(--editor-block-control-border);
   border-radius: 0.4rem;
-  background: white;
-  color: rgb(71 85 105);
+  background: var(--editor-block-control-bg);
+  color: var(--editor-block-control-text);
   font-size: 0.95rem;
   line-height: 1;
   display: inline-flex;
@@ -370,7 +375,7 @@
 }
 
 .editor-holder .tomosona-block-control-btn:hover {
-  background: rgb(241 245 249);
+  background: var(--editor-block-control-hover);
 }
 
 .editor-holder .tomosona-block-grip-btn {
@@ -423,7 +428,7 @@
   border: none;
   border-radius: 0.34rem;
   background: transparent;
-  color: rgb(71 85 105);
+  color: var(--editor-table-trigger-text);
   font-size: 0.95rem;
   line-height: 1;
   display: inline-flex;
@@ -440,16 +445,16 @@
 }
 
 .tomosona-table-edge.is-visible .tomosona-table-plus-btn:hover {
-  background: rgb(248 250 252 / 0.7);
+  background: var(--editor-table-plus-hover);
 }
 
 .tomosona-table-trigger-btn {
   width: 1.38rem;
   height: 1.38rem;
-  border: 1px solid rgb(203 213 225);
+  border: 1px solid var(--editor-table-trigger-border);
   border-radius: 0.38rem;
-  background: rgb(255 255 255 / 0.92);
-  color: rgb(71 85 105);
+  background: var(--editor-table-trigger-bg);
+  color: var(--editor-table-trigger-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -459,101 +464,10 @@
 }
 
 .tomosona-table-trigger-btn:focus-visible {
-  outline: 2px solid rgb(96 165 250 / 0.55);
+  outline: 2px solid var(--editor-table-trigger-focus);
   outline-offset: 1px;
 }
 
 .tomosona-table-trigger-btn:hover {
-  background: rgb(248 250 252);
-}
-
-.dark .editor-holder .tomosona-block-control-btn {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(203 213 225);
-}
-
-.dark .editor-holder .tomosona-block-control-btn:hover {
-  background: rgb(30 41 59);
-}
-
-.dark .tomosona-table-trigger-btn {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59 / 0.96);
-  color: rgb(226 232 240);
-  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.35);
-}
-
-.dark .tomosona-table-trigger-btn:hover {
-  background: rgb(30 41 59 / 0.92);
-}
-
-.dark .tomosona-table-edge.is-visible .tomosona-table-plus-btn {
-  color: rgb(226 232 240);
-}
-
-.dark .tomosona-table-edge.is-visible .tomosona-table-plus-btn:hover {
-  background: rgb(30 41 59 / 0.55);
-}
-
-.dark .tomosona-table-trigger-btn:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 0.65);
-}
-
-.dark .editor-holder .ProseMirror th,
-.dark .editor-holder .ProseMirror td {
-  border-color: rgb(51 65 85);
-}
-
-.dark .editor-holder .ProseMirror {
-  color: #abb2bf;
-}
-
-.dark .editor-holder .ProseMirror h1,
-.dark .editor-holder .ProseMirror h2,
-.dark .editor-holder .ProseMirror h3 {
-  color: #d7dce5;
-}
-
-.dark .editor-holder .ProseMirror h4 {
-  color: #c3cad6;
-}
-
-.dark .editor-holder .ProseMirror h5 {
-  color: #b6becc;
-}
-
-.dark .editor-holder .ProseMirror h6 {
-  color: #a7b0bf;
-}
-
-.dark .editor-holder .ProseMirror table {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-}
-
-.dark .editor-holder .ProseMirror th {
-  background: rgb(30 41 59 / 0.85);
-  color: rgb(226 232 240);
-}
-
-.dark .editor-holder .ProseMirror tbody tr:hover td {
-  background: rgb(30 41 59 / 0.45);
-}
-
-.dark .editor-holder .ProseMirror td.selectedCell,
-.dark .editor-holder .ProseMirror th.selectedCell {
-  background: rgb(30 64 175 / 0.45);
-}
-
-.dark .editor-holder .ProseMirror .column-resize-handle {
-  background: rgb(96 165 250 / 0.65);
-}
-
-.dark .editor-holder .ProseMirror :not(pre) > code {
-  background: rgb(30 41 59 / 0.7);
-}
-
-.dark .editor-holder .tomosona-html-preview {
-  background: rgb(15 23 42 / 0.35);
+  background: var(--editor-table-trigger-hover);
 }

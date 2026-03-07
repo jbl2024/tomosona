@@ -75,7 +75,7 @@ function submitCustomKey() {
       <template #trigger="{ toggleMenu }">
         <button
           type="button"
-          class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-200"
+          class="property-add-trigger"
           @click="toggleMenu"
         >
           Add property
@@ -128,16 +128,20 @@ function submitCustomKey() {
   left: 0;
   z-index: 30;
   width: 16rem;
-  border: 1px solid rgb(203 213 225 / 1);
-  border-radius: 0.5rem;
-  background: white;
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-md);
+  background: var(--menu-bg);
   padding: 0.375rem;
-  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+  box-shadow: var(--menu-shadow);
 }
 
-.dark .property-add-dropdown :deep(.ui-filterable-dropdown-menu) {
-  border-color: #3e4451;
-  background: #21252b;
+.property-add-dropdown .property-add-trigger {
+  border: 1px solid var(--button-secondary-border);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--font-size-sm);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
 }
 
 .property-add-dropdown .dropdown-item {
@@ -147,25 +151,17 @@ function submitCustomKey() {
   align-items: flex-start;
   gap: 0.125rem;
   border: 0;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-sm);
   padding: 0.375rem 0.5rem;
   background: transparent;
   text-align: left;
   cursor: pointer;
-  color: rgb(30 41 59 / 1);
+  color: var(--menu-text-strong);
 }
 
 .property-add-dropdown .dropdown-item small {
-  font-size: 0.6875rem;
-  color: rgb(100 116 139 / 1);
-}
-
-.dark .property-add-dropdown .dropdown-item {
-  color: #abb2bf;
-}
-
-.dark .property-add-dropdown .dropdown-item small {
-  color: #8b93a3;
+  font-size: var(--font-size-xs);
+  color: var(--text-dim);
 }
 
 .property-add-dropdown .dropdown-custom-row {
@@ -176,33 +172,23 @@ function submitCustomKey() {
 .property-add-dropdown .dropdown-custom-input {
   min-width: 0;
   flex: 1;
-  border: 1px solid rgb(203 213 225 / 1);
-  border-radius: 0.375rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
   padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   line-height: 1rem;
-}
-
-.dark .property-add-dropdown .dropdown-custom-input {
-  border-color: #3e4451;
-  background: #2c313a;
-  color: #abb2bf;
+  background: var(--input-bg);
+  color: var(--input-text);
 }
 
 .property-add-dropdown .dropdown-custom-btn {
-  border: 1px solid rgb(203 213 225 / 1);
-  border-radius: 0.375rem;
+  border: 1px solid var(--button-secondary-border);
+  border-radius: var(--radius-sm);
   padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   line-height: 1rem;
-  background: white;
-  color: rgb(51 65 85 / 1);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
   cursor: pointer;
-}
-
-.dark .property-add-dropdown .dropdown-custom-btn {
-  border-color: #3e4451;
-  background: #2c313a;
-  color: #abb2bf;
 }
 </style>

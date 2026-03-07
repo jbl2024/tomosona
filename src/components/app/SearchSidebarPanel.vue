@@ -110,7 +110,7 @@ const emit = defineEmits<{
   background: var(--search-chip-bg);
   color: var(--search-chip-text);
   padding: 2px 9px;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   line-height: 1.4;
 }
 
@@ -126,12 +126,12 @@ const emit = defineEmits<{
 
 .search-mode-hint {
   margin: -2px 0 0;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--text-dim);
 }
 
 .search-mode-hint code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-family: var(--font-code);
   font-size: inherit;
 }
 
@@ -147,7 +147,7 @@ const emit = defineEmits<{
 
 .result-file {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--search-result-title);
 }
 
@@ -159,15 +159,15 @@ const emit = defineEmits<{
   border-radius: 4px;
   padding: 6px;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-md);
   color: var(--text-main);
 }
 
 .result-score {
   margin: 0 0 4px;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--search-result-score);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-family: var(--font-code);
 }
 
 .result-snippet :deep(strong) {

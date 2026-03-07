@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, [data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
   --font-sans: "Geist", "Noto Sans", "DejaVu Sans", sans-serif;
@@ -10,6 +10,7 @@
 :root {
   color-scheme: light;
 
+  /* Foundation tokens */
   --color-surface-0: #f9f9fb;
   --color-surface-1: #ffffff;
   --color-surface-2: #f2f4f8;
@@ -37,7 +38,12 @@
   --shadow-panel: 0 18px 50px rgba(148, 163, 184, 0.22);
   --shadow-overlay: 0 8px 24px rgba(15, 23, 42, 0.12);
   --shadow-dropdown: 0 14px 32px rgba(15, 23, 42, 0.2);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 9999px;
 
+  /* Semantic app tokens */
   --app-bg: var(--color-surface-0);
   --surface-bg: var(--color-surface-1);
   --surface-muted: var(--color-surface-2);
@@ -63,6 +69,28 @@
   --success: var(--color-success-1);
   --warning: var(--color-warning-1);
 
+  /* Typography tokens */
+  --font-ui: var(--font-sans);
+  --font-editor: var(--font-sans);
+  --font-code: var(--font-mono);
+  --font-display: var(--font-sans);
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.875rem;
+  --font-size-lg: 1rem;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.45;
+  --line-height-relaxed: 1.6;
+  --font-size-code: 0.82rem;
+  --editor-font-size-base: 1rem;
+  --editor-heading-1-size: 1.9rem;
+  --editor-heading-2-size: 1.6rem;
+  --editor-heading-3-size: 1.35rem;
+  --editor-heading-4-size: 1.18rem;
+  --editor-heading-5-size: 1.04rem;
+  --editor-heading-6-size: 0.94rem;
+
+  /* Component tokens */
   --button-primary-border: color-mix(in srgb, var(--accent) 75%, transparent);
   --button-primary-bg: var(--accent);
   --button-primary-text: var(--accent-contrast);
@@ -147,6 +175,7 @@
   --tab-active-text: var(--text-main);
   --tab-active-bottom: var(--surface-bg);
 
+  /* Domain tokens */
   --editor-link: #2563eb;
   --editor-code-bg: rgb(241 245 249);
   --editor-heading-4: #3f4754;
@@ -201,6 +230,35 @@
   --editor-progress-track: #e2e8f0;
   --editor-progress-fill: #2563eb;
   --editor-progress-fill-2: #3b82f6;
+  --editor-block-control-border: rgb(203 213 225);
+  --editor-block-control-bg: #ffffff;
+  --editor-block-control-hover: #f1f5f9;
+  --editor-block-control-text: #475569;
+  --editor-table-header-bg: rgb(248 250 252);
+  --editor-table-header-text: rgb(30 41 59);
+  --editor-table-selection: rgb(219 234 254);
+  --editor-table-trigger-bg: rgb(255 255 255 / 0.92);
+  --editor-table-trigger-hover: rgb(248 250 252);
+  --editor-table-trigger-border: rgb(203 213 225);
+  --editor-table-trigger-text: rgb(71 85 105);
+  --editor-table-trigger-focus: rgb(96 165 250 / 0.55);
+  --editor-table-plus-hover: rgb(248 250 252 / 0.7);
+  --editor-column-resize: rgb(59 130 246 / 0.55);
+  --editor-quote-border: #7ba9d6;
+  --editor-preview-bg: rgb(15 23 42 / 0.35);
+  --editor-source-border: rgb(203 213 225);
+  --editor-source-text: #0f172a;
+  --editor-textarea-caret: rgb(37 99 235);
+  --editor-textarea-selection: rgb(59 130 246 / 0.24);
+  --editor-code-text: #0f172a;
+  --editor-code-comment: #64748b;
+  --editor-code-keyword: #7c3aed;
+  --editor-code-string: #0f766e;
+  --editor-code-number: #b45309;
+  --editor-code-function: #1d4ed8;
+  --editor-html-tag: #dc2626;
+  --editor-html-attr: #b45309;
+  --editor-html-string: #0f766e;
 
   --modal-backdrop: rgba(2, 6, 23, 0.45);
   --modal-bg: var(--surface-bg);
@@ -242,6 +300,22 @@
   --cosmos-preview-bg: color-mix(in srgb, var(--surface-bg) 48%, transparent);
   --cosmos-error: var(--danger-strong);
   --cosmos-chip-active-bg: var(--accent-soft);
+  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  --cosmos-view-state-bg: rgb(255 255 255 / 86%);
+  --cosmos-view-state-border: rgb(203 213 225 / 85%);
+  --cosmos-view-state-text: #334155;
+  --cosmos-view-state-error-bg: rgb(254 242 242 / 92%);
+  --cosmos-view-state-error-border: rgb(254 202 202 / 90%);
+  --cosmos-view-state-error-text: #b91c1c;
+  --cosmos-canvas-bg: #ffffff;
+  --cosmos-node-selected: #b58900;
+  --cosmos-node-hover: #334155;
+  --cosmos-node-focus: #7a8ea3;
+  --cosmos-node-default-stroke: rgba(255, 255, 255, 0.7);
+  --cosmos-label-selected: #7a5700;
+  --cosmos-label-hover: #1f2937;
+  --cosmos-label-text: #4b5563;
+  --cosmos-label-outline: rgba(255, 255, 255, 0.92);
 
   --sb-surface: var(--surface-bg);
   --sb-surface-muted: var(--surface-subtle);
@@ -300,8 +374,56 @@
   --shortcuts-keys-border: var(--border-strong);
   --shortcuts-keys-text: var(--text-main);
   --shortcuts-action: #334155;
+
+  --index-modal-bg:
+    radial-gradient(circle at 0% 0%, rgba(191, 219, 254, 0.22), transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(254, 215, 170, 0.18), transparent 36%),
+    color-mix(in srgb, var(--surface-bg) 92%, #f9fbff);
+  --index-card-border: var(--modal-panel-border);
+  --index-card-bg: color-mix(in srgb, var(--surface-bg) 86%, transparent);
+  --index-progress-track: var(--editor-progress-track);
+  --index-progress-fill: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
+  --index-badge-ready-bg: #dcfce7;
+  --index-badge-ready-text: #166534;
+  --index-badge-ready-dot: #22c55e;
+  --index-badge-running-bg: #dbeafe;
+  --index-badge-running-text: #1d4ed8;
+  --index-badge-running-dot: #2563eb;
+  --index-badge-error-bg: #ffedd5;
+  --index-badge-error-text: #9a3412;
+  --index-badge-error-dot: #f97316;
+  --index-model-ready-bg: #dcfce7;
+  --index-model-ready-text: #166534;
+  --index-model-busy-bg: #dbeafe;
+  --index-model-busy-text: #1d4ed8;
+  --index-model-failed-bg: #ffedd5;
+  --index-model-failed-text: #9a3412;
+  --index-model-idle-bg: #e2e8f0;
+  --index-model-idle-text: #334155;
+  --index-alert-error-border: #fdba74;
+  --index-alert-error-bg: #fff7ed;
+  --index-alert-warning-border: #fcd34d;
+  --index-alert-warning-bg: #fffbeb;
+  --index-alert-title: #9a3412;
+  --index-alert-copy: #7c2d12;
+  --index-filter-bg: var(--modal-chip-bg);
+  --index-filter-border: var(--modal-chip-border);
+  --index-filter-text: var(--text-soft);
+  --index-filter-active-bg: var(--modal-chip-active-bg);
+  --index-filter-active-border: #2563eb;
+  --index-filter-active-text: #1d4ed8;
+  --index-row-running-border: #bfdbfe;
+  --index-row-error-border: #fdba74;
+  --index-stop-border: #dc2626;
+  --index-stop-bg: #fef2f2;
+  --index-stop-text: #b91c1c;
 }
 
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'],
 html.dark {
   color-scheme: dark;
 
@@ -385,6 +507,33 @@ html.dark {
   --editor-progress-track: #334155;
   --editor-progress-fill: #3b82f6;
   --editor-progress-fill-2: #60a5fa;
+  --editor-block-control-border: rgb(71 85 105);
+  --editor-block-control-bg: rgb(15 23 42);
+  --editor-block-control-hover: rgb(30 41 59);
+  --editor-block-control-text: rgb(203 213 225);
+  --editor-table-header-bg: rgb(30 41 59 / 0.85);
+  --editor-table-header-text: rgb(226 232 240);
+  --editor-table-selection: rgb(30 64 175 / 0.45);
+  --editor-table-trigger-bg: rgb(30 41 59 / 0.96);
+  --editor-table-trigger-hover: rgb(30 41 59 / 0.92);
+  --editor-table-trigger-border: rgb(71 85 105);
+  --editor-table-trigger-text: rgb(226 232 240);
+  --editor-table-trigger-focus: rgb(147 197 253 / 0.65);
+  --editor-table-plus-hover: rgb(30 41 59 / 0.55);
+  --editor-column-resize: rgb(96 165 250 / 0.65);
+  --editor-quote-border: #5c6370;
+  --editor-preview-bg: rgb(15 23 42 / 0.35);
+  --editor-source-border: rgb(71 85 105);
+  --editor-source-text: #e2e8f0;
+  --editor-code-text: #e2e8f0;
+  --editor-code-comment: #94a3b8;
+  --editor-code-keyword: #c084fc;
+  --editor-code-string: #34d399;
+  --editor-code-number: #f59e0b;
+  --editor-code-function: #60a5fa;
+  --editor-html-tag: #fda4af;
+  --editor-html-attr: #fbbf24;
+  --editor-html-string: #34d399;
 
   --modal-tab-bg: #21252b;
   --modal-tab-border: #3e4451;
@@ -406,6 +555,22 @@ html.dark {
 
   --cosmos-preview-bg: rgb(32 37 43 / 92%);
   --cosmos-chip-active-bg: rgba(96, 165, 250, 0.14);
+  --cosmos-view-bg: linear-gradient(165deg, #282c34 0%, #21252b 100%);
+  --cosmos-view-state-bg: rgb(40 44 52 / 88%);
+  --cosmos-view-state-border: rgb(62 68 81 / 94%);
+  --cosmos-view-state-text: #abb2bf;
+  --cosmos-view-state-error-bg: rgb(69 45 52 / 92%);
+  --cosmos-view-state-error-border: rgb(122 76 88 / 95%);
+  --cosmos-view-state-error-text: #fecaca;
+  --cosmos-canvas-bg: #282c34;
+  --cosmos-node-selected: #f2cc60;
+  --cosmos-node-hover: #d7dce5;
+  --cosmos-node-focus: #9fb3c8;
+  --cosmos-node-default-stroke: rgba(0, 0, 0, 0.35);
+  --cosmos-label-selected: #f2cc60;
+  --cosmos-label-hover: #d7dce5;
+  --cosmos-label-text: #abb2bf;
+  --cosmos-label-outline: rgba(33, 37, 43, 0.9);
 
   --sb-layout-bg: linear-gradient(135deg, #0b1220, #0f172a 45%, #111827);
   --sb-center-bg: #0b1220;
@@ -453,91 +618,36 @@ html.dark {
   --shortcuts-keys-border: #3e4451;
   --shortcuts-keys-text: #abb2bf;
   --shortcuts-action: #cbd5e1;
-}
 
-/* EditorJS injects unlayered styles at runtime.
-   Keep dark popover overrides unlayered so they win in the cascade. */
-html.dark .ce-popover,
-.dark .ce-popover {
-  --color-border: #3e4451;
-  --color-shadow: rgba(0, 0, 0, 0.3);
-  --color-background: #21252b;
-  --color-text-primary: #abb2bf;
-  --color-text-secondary: #5c6370;
-  --color-border-icon: #4b5263;
-  --color-border-icon-disabled: #3e4451;
-  --color-background-icon-active: rgba(86, 182, 194, 0.22);
-  --color-text-icon-active: #56b6c2;
-  --color-background-item-focus: #2c313a;
-  --color-shadow-item-focus: rgba(171, 178, 191, 0.2);
-  --color-background-item-hover: #2c313a;
-}
-
-html.dark .ce-popover__container,
-.dark .ce-popover__container {
-  background: #21252b;
-  border-color: #3e4451;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
-}
-
-html.dark .cdx-search-field,
-.dark .cdx-search-field {
-  background: #2c313a;
-  border-color: #3e4451;
-}
-
-html.dark .cdx-search-field__icon svg,
-.dark .cdx-search-field__icon svg,
-html.dark .cdx-search-field__input,
-.dark .cdx-search-field__input,
-html.dark .cdx-search-field__input::placeholder,
-.dark .cdx-search-field__input::placeholder {
-  color: #5c6370;
-}
-
-html.dark .ce-popover-item,
-.dark .ce-popover-item,
-html.dark .ce-popover-item__title,
-.dark .ce-popover-item__title,
-html.dark .ce-popover-item__icon,
-.dark .ce-popover-item__icon {
-  color: #e2e8f0;
-}
-
-html.dark .ce-popover-item:hover,
-.dark .ce-popover-item:hover,
-html.dark .ce-popover-item--active,
-.dark .ce-popover-item--active,
-html.dark .ce-popover-item--focused,
-.dark .ce-popover-item--focused {
-  background: #1e293b;
-}
-
-html.dark .editor-wikilink-dropdown,
-.dark .editor-wikilink-dropdown {
-  --ui-dropdown-bg: rgb(15 23 42);
-  --ui-dropdown-border: rgb(51 65 85);
-  --ui-dropdown-text: rgb(226 232 240);
-  --ui-dropdown-muted: rgb(148 163 184);
-  --ui-dropdown-hover: rgb(30 41 59);
-}
-
-html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option,
-.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option {
-  color: rgb(226 232 240);
-}
-
-html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option:hover,
-html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option[data-active='true'],
-.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option:hover,
-.dark .editor-wikilink-dropdown .ui-filterable-dropdown-option[data-active='true'] {
-  background: rgb(30 41 59);
-  box-shadow: none;
-}
-
-html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-empty,
-.dark .editor-wikilink-dropdown .ui-filterable-dropdown-empty {
-  color: rgb(148 163 184);
+  --index-modal-bg:
+    radial-gradient(circle at 0% 0%, rgba(30, 64, 175, 0.2), transparent 38%),
+    radial-gradient(circle at 100% 100%, rgba(120, 53, 15, 0.16), transparent 42%),
+    #1f2430;
+  --index-card-bg: rgba(30, 41, 59, 0.72);
+  --index-progress-fill: linear-gradient(90deg, #3b82f6 0%, #38bdf8 100%);
+  --index-badge-error-bg: rgba(124, 45, 18, 0.28);
+  --index-badge-error-text: #fdba74;
+  --index-model-failed-bg: rgba(124, 45, 18, 0.28);
+  --index-model-failed-text: #fdba74;
+  --index-model-idle-bg: #334155;
+  --index-model-idle-text: #cbd5e1;
+  --index-alert-error-border: #ea580c;
+  --index-alert-error-bg: rgba(124, 45, 18, 0.28);
+  --index-alert-warning-border: #ca8a04;
+  --index-alert-warning-bg: rgba(113, 63, 18, 0.28);
+  --index-alert-title: #fed7aa;
+  --index-alert-copy: #fdba74;
+  --index-filter-bg: #1e293b;
+  --index-filter-border: #475569;
+  --index-filter-text: #cbd5e1;
+  --index-filter-active-bg: #1e3a8a;
+  --index-filter-active-border: #60a5fa;
+  --index-filter-active-text: #bfdbfe;
+  --index-row-running-border: #2563eb;
+  --index-row-error-border: #ea580c;
+  --index-stop-border: #ef4444;
+  --index-stop-bg: rgba(127, 29, 29, 0.36);
+  --index-stop-text: #fecaca;
 }
 
 @layer base {
@@ -549,7 +659,9 @@ html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-empty,
 
   body {
     margin: 0;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-normal);
     background: var(--app-bg);
     color: var(--text-main);
   }
@@ -904,7 +1016,7 @@ html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-empty,
     border-radius: 0 !important;
     background: transparent !important;
     color: #1e293b !important;
-    font-family: var(--font-mono) !important;
+    font-family: var(--font-code) !important;
     font-size: calc(0.8rem * var(--editor-zoom)) !important;
     line-height: 1.5 !important;
     padding: 1.2rem 1rem 0.6rem !important;
@@ -1514,7 +1626,7 @@ html.dark .editor-wikilink-dropdown .ui-filterable-dropdown-empty,
     border-radius: 0.65rem;
     background: #ffffff;
     color: #0f172a;
-    font-family: var(--font-mono);
+    font-family: var(--font-code);
     font-size: calc(0.8rem * var(--editor-zoom));
     line-height: 1.55;
     padding: 0.7rem;

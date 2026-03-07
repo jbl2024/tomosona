@@ -36,8 +36,8 @@ const emit = defineEmits<{
   height: 22px;
   border-top: 1px solid var(--shell-chrome-border);
   background: var(--shell-status-bg);
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-code);
   color: var(--shell-status-text);
   display: flex;
   align-items: center;
@@ -79,7 +79,7 @@ const emit = defineEmits<{
   height: 8px;
   border-radius: 999px;
   display: inline-block;
-  background: #94a3b8;
+  background: var(--text-faint);
 }
 
 .status-dot.status-item-indexing {

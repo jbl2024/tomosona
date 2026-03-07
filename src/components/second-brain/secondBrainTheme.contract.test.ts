@@ -6,6 +6,7 @@ import outputsSource from './SecondBrainOutputsPanel.vue?raw'
 import sessionDropdownSource from './SecondBrainSessionDropdown.vue?raw'
 import modeSelectorSource from './SecondBrainModeSelector.vue?raw'
 import mentionsSource from './SecondBrainAtMentionsMenu.vue?raw'
+import secondBrainEchoesSource from './SecondBrainEchoesPanel.vue?raw'
 import shortcutsSource from '../app/ShortcutsModal.vue?raw'
 import echoesSource from '../editor/EditorEchoesPanel.vue?raw'
 
@@ -37,6 +38,10 @@ describe('Second-brain and support theme contracts', () => {
     expect(mentionsSource).toContain('var(--sb-menu-bg)')
     expect(mentionsSource).toContain('var(--sb-hover-bg)')
     expect(mentionsSource).not.toContain('.ide-root.dark')
+
+    expect(secondBrainEchoesSource).toContain('var(--sb-active-bg)')
+    expect(secondBrainEchoesSource).toContain('var(--sb-button-bg)')
+    expect(secondBrainEchoesSource).not.toContain('#dbeafe')
   })
 
   it('routes remaining support panels through token-based styling', () => {

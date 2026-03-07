@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { APP_THEMES, getAppThemeById, type ThemeId } from '../lib/themeRegistry'
 
 /**
  * Module: useAppTheme
@@ -27,17 +28,21 @@ export function useAppTheme(options: UseAppThemeOptions = {}) {
     window.matchMedia('(prefers-color-scheme: dark)').matches
   )
 
-  const resolvedTheme = computed<'light' | 'dark'>(() => {
+  const resolvedTheme = computed<ThemeId>(() => {
     if (themePreference.value === 'system') {
       return isSystemDark() ? 'dark' : 'light'
     }
     return themePreference.value
   })
 
+  const activeThemeId = computed<ThemeId>(() => resolvedTheme.value)
+  const activeTheme = computed(() => getAppThemeById(activeThemeId.value))
+
   /** Applies the resolved theme to the configured root element. */
   function applyTheme() {
     const root = options.root ?? document.documentElement
-    root.classList.toggle('dark', resolvedTheme.value === 'dark')
+    root.classList.toggle('dark', activeTheme.value.colorScheme === 'dark')
+    root.dataset.theme = activeThemeId.value
   }
 
   /** Loads the persisted preference, defaulting back to `system` when absent or invalid. */
@@ -70,8 +75,11 @@ export function useAppTheme(options: UseAppThemeOptions = {}) {
   }
 
   return {
+    availableThemes: APP_THEMES,
     themePreference,
     resolvedTheme,
+    activeTheme,
+    activeThemeId,
     applyTheme,
     loadThemePreference,
     persistThemePreference,

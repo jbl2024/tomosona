@@ -298,12 +298,12 @@ function onEditorKeydown(event: KeyboardEvent) {
 }
 
 .tomosona-html-toggle-btn {
-  border: 1px solid rgb(203 213 225);
+  border: 1px solid var(--editor-block-control-border);
   border-radius: 0.4rem;
-  background: white;
-  color: rgb(51 65 85);
+  background: var(--editor-block-control-bg);
+  color: var(--editor-block-control-text);
   cursor: pointer;
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
   font-size: 0.72rem;
   line-height: 1;
   padding: 0.2rem 0.36rem;
@@ -318,7 +318,7 @@ function onEditorKeydown(event: KeyboardEvent) {
 }
 
 .tomosona-html-toggle-btn:hover {
-  background: rgb(248 250 252);
+  background: var(--editor-block-control-hover);
 }
 
 .tomosona-html-preview {
@@ -333,10 +333,10 @@ function onEditorKeydown(event: KeyboardEvent) {
 
 .tomosona-html-source,
 .tomosona-html-textarea {
-  border: 1px solid rgb(203 213 225);
+  border: 1px solid var(--editor-source-border);
   border-radius: 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-family: var(--font-code);
+  font-size: var(--font-size-code);
   line-height: 1.45;
   margin: 0;
   min-height: 120px;
@@ -347,13 +347,13 @@ function onEditorKeydown(event: KeyboardEvent) {
 }
 
 .tomosona-html-source {
-  color: rgb(15 23 42);
+  color: var(--editor-source-text);
   pointer-events: none;
 }
 
 .tomosona-html-textarea {
   background: transparent;
-  caret-color: rgb(37 99 235);
+  caret-color: var(--editor-textarea-caret);
   color: transparent;
   bottom: 0;
   left: 0;
@@ -366,41 +366,25 @@ function onEditorKeydown(event: KeyboardEvent) {
 }
 
 .tomosona-html-textarea::selection {
-  background: rgb(59 130 246 / 0.24);
+  background: var(--editor-textarea-selection);
 }
 
 .tomosona-html-source code.hljs {
-  color: #0f172a;
+  color: var(--editor-code-text);
 }
 
 .tomosona-html-source code :deep(.hljs-tag),
 .tomosona-html-source code :deep(.hljs-name),
 .tomosona-html-source code :deep(.hljs-selector-tag) {
-  color: #dc2626;
+  color: var(--editor-html-tag);
 }
 
 .tomosona-html-source code :deep(.hljs-attr) {
-  color: #b45309;
+  color: var(--editor-html-attr);
 }
 
 .tomosona-html-source code :deep(.hljs-string) {
-  color: #0f766e;
-}
-
-.dark .tomosona-html-toggle-btn {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-}
-
-.dark .tomosona-html-toggle-btn:hover {
-  background: rgb(30 41 59);
-}
-
-.dark .tomosona-html-preview,
-.dark .tomosona-html-source,
-.dark .tomosona-html-textarea {
-  border-color: rgb(71 85 105);
+  color: var(--editor-html-string);
 }
 
 .tomosona-html-node:hover .tomosona-html-toggle-btn,
@@ -412,34 +396,6 @@ function onEditorKeydown(event: KeyboardEvent) {
 
 .tomosona-html-node:hover .tomosona-html-preview,
 .tomosona-html-node.is-editing .tomosona-html-preview {
-  border-color: rgb(203 213 225);
-}
-
-.dark .tomosona-html-node:hover .tomosona-html-preview,
-.dark .tomosona-html-node.is-editing .tomosona-html-preview {
-  border-color: rgb(71 85 105);
-}
-
-.dark .tomosona-html-source {
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-}
-
-.dark .tomosona-html-source code.hljs {
-  color: #e2e8f0;
-}
-
-.dark .tomosona-html-source code :deep(.hljs-tag),
-.dark .tomosona-html-source code :deep(.hljs-name),
-.dark .tomosona-html-source code :deep(.hljs-selector-tag) {
-  color: #fda4af;
-}
-
-.dark .tomosona-html-source code :deep(.hljs-attr) {
-  color: #fbbf24;
-}
-
-.dark .tomosona-html-source code :deep(.hljs-string) {
-  color: #34d399;
+  border-color: var(--editor-source-border);
 }
 </style>

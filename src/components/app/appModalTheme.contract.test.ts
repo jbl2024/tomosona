@@ -25,5 +25,6 @@ describe('App modal theme contracts', () => {
     expect(indexStatusSource).toContain('var(--index-card-bg)')
     expect(indexStatusSource).toContain('var(--index-filter-active-bg)')
     expect(indexStatusSource).toContain('var(--index-stop-bg)')
+    expect(indexStatusSource).not.toContain(':global(.ide-root.dark)')
   })
 })

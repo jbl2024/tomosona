@@ -95,7 +95,7 @@ const emit = defineEmits<{
 
 .shortcuts-title {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--font-size-md);
   color: var(--shortcuts-title);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -109,8 +109,8 @@ const emit = defineEmits<{
 }
 
 .shortcut-keys {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 11px;
+  font-family: var(--font-code);
+  font-size: var(--font-size-sm);
   color: var(--shortcuts-keys-text);
   background: var(--shortcuts-keys-bg);
   border: 1px solid var(--shortcuts-keys-border);
@@ -120,7 +120,7 @@ const emit = defineEmits<{
 }
 
 .shortcut-action {
-  font-size: 12px;
+  font-size: var(--font-size-md);
   color: var(--shortcuts-action);
 }
 </style>

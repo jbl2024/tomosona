@@ -154,32 +154,22 @@ watch(
   flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
-  border: 1px solid rgb(203 213 225 / 1);
-  border-radius: 0.375rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
   padding: 0.25rem 0.5rem;
-  background: white;
-}
-
-.dark .property-token-input {
-  border-color: #3e4451;
-  background: #2c313a;
+  background: var(--input-bg);
 }
 
 .property-token-input .token-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   line-height: 1rem;
-  background: rgb(226 232 240 / 1);
-  color: rgb(30 41 59 / 1);
-}
-
-.dark .property-token-input .token-pill {
-  background: #3a404c;
-  color: #d7dce5;
+  background: var(--surface-muted);
+  color: var(--text-main);
 }
 
 .property-token-input .token-remove {
@@ -197,13 +187,9 @@ watch(
   flex: 1;
   border: 0;
   outline: none;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   line-height: 1rem;
   background: transparent;
-  color: rgb(15 23 42 / 1);
-}
-
-.dark .property-token-input .token-editor {
-  color: #abb2bf;
+  color: var(--input-text);
 }
 </style>

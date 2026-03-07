@@ -142,9 +142,18 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function isDarkTheme(): boolean {
-  const host = rootEl.value
-  if (!host) return false
-  return Boolean(host.closest('.ide-root.dark'))
+  return themeName() === 'dark'
+}
+
+function themeName(): 'light' | 'dark' {
+  const root = document.documentElement
+  return root.dataset.theme === 'dark' || root.classList.contains('dark') ? 'dark' : 'light'
+}
+
+function readThemeVar(name: string, fallback: string): string {
+  const host = rootEl.value ?? document.documentElement
+  const value = getComputedStyle(host).getPropertyValue(name).trim()
+  return value || fallback
 }
 
 function clusterFallbackColor(cluster: number): string {
@@ -223,10 +232,10 @@ function nodeOpacity(node: RenderNode): number {
 }
 
 function nodeStrokeColor(node: RenderNode): string {
-  if (node.id === selectedNodeId) return isDarkTheme() ? '#f2cc60' : '#b58900'
-  if (isNodeHovered(node.id)) return isDarkTheme() ? '#d7dce5' : '#334155'
-  if (isNodeInFocusNeighborhood(node.id)) return isDarkTheme() ? '#9fb3c8' : '#7a8ea3'
-  return isDarkTheme() ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.7)'
+  if (node.id === selectedNodeId) return readThemeVar('--cosmos-node-selected', '#b58900')
+  if (isNodeHovered(node.id)) return readThemeVar('--cosmos-node-hover', '#334155')
+  if (isNodeInFocusNeighborhood(node.id)) return readThemeVar('--cosmos-node-focus', '#7a8ea3')
+  return readThemeVar('--cosmos-node-default-stroke', 'rgba(255, 255, 255, 0.7)')
 }
 
 function linkOpacity(edge: RenderEdge): number {
@@ -287,12 +296,12 @@ function linkDash(edge: RenderEdge): number[] | null {
 
 function labelColor(node: RenderNode): string {
   if (node.id === selectedNodeId) {
-    return isDarkTheme() ? '#f2cc60' : '#7a5700'
+    return readThemeVar('--cosmos-label-selected', '#7a5700')
   }
   if (isNodeHovered(node.id) || isNodeHoverNeighbor(node.id) || isNodeInFocusNeighborhood(node.id)) {
-    return isDarkTheme() ? '#d7dce5' : '#1f2937'
+    return readThemeVar('--cosmos-label-hover', '#1f2937')
   }
-  return isDarkTheme() ? '#abb2bf' : '#4b5563'
+  return readThemeVar('--cosmos-label-text', '#4b5563')
 }
 
 function drawNode(node: RenderNode, ctx: CanvasRenderingContext2D, globalScale: number) {
@@ -320,11 +329,11 @@ function drawNode(node: RenderNode, ctx: CanvasRenderingContext2D, globalScale: 
   const textX = (node.x ?? 0) + offset
   const textY = (node.y ?? 0) + fontSize * 0.34
 
-  ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+  ctx.font = `${fontSize}px ${readThemeVar('--font-ui', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif")}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   ctx.lineWidth = Math.max(2.5, 3.3 / globalScale)
-  ctx.strokeStyle = isDarkTheme() ? 'rgba(33, 37, 43, 0.9)' : 'rgba(255, 255, 255, 0.92)'
+  ctx.strokeStyle = readThemeVar('--cosmos-label-outline', 'rgba(255, 255, 255, 0.92)')
   ctx.strokeText(node.displayLabel, textX, textY)
   ctx.fillStyle = labelColor(node)
   ctx.fillText(node.displayLabel, textX, textY)
@@ -505,7 +514,7 @@ function lockNodePositions() {
 function applyThemeBackground() {
   const graph = graphInstance.value
   if (!graph) return
-  const nextBackground = isDarkTheme() ? '#282c34' : '#ffffff'
+  const nextBackground = readThemeVar('--cosmos-canvas-bg', '#ffffff')
   graph.backgroundColor(nextBackground)
   refreshGraphStyles()
 }
@@ -641,23 +650,18 @@ function setupResizeObserver() {
 }
 
 function setupThemeObserver() {
-  const host = rootEl.value
-  if (!host) return
-  const ideRoot = host.closest('.ide-root')
-  if (!ideRoot) return
-
   themeObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+      if (mutation.type === 'attributes' && (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
         applyThemeBackground()
         return
       }
     }
   })
 
-  themeObserver.observe(ideRoot, {
+  themeObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['class', 'data-theme']
   })
 }
 
@@ -809,7 +813,7 @@ defineExpose({
   min-height: 320px;
   overflow: hidden;
   border-radius: 10px;
-  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  background: var(--cosmos-view-bg);
 }
 
 .cosmos-canvas {
@@ -823,32 +827,16 @@ defineExpose({
   top: 14px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 86%);
-  color: #334155;
-  border: 1px solid rgb(203 213 225 / 85%);
-  font-size: 12px;
+  background: var(--cosmos-view-state-bg);
+  color: var(--cosmos-view-state-text);
+  border: 1px solid var(--cosmos-view-state-border);
+  font-size: var(--font-size-md);
   letter-spacing: 0.02em;
 }
 
 .cosmos-state-error {
-  background: rgb(254 242 242 / 92%);
-  color: #b91c1c;
-  border-color: rgb(254 202 202 / 90%);
-}
-
-:global(.ide-root.dark) .cosmos-root {
-  background: linear-gradient(165deg, #282c34 0%, #21252b 100%);
-}
-
-:global(.ide-root.dark) .cosmos-state {
-  background: rgb(40 44 52 / 88%);
-  border-color: rgb(62 68 81 / 94%);
-  color: #abb2bf;
-}
-
-:global(.ide-root.dark) .cosmos-state-error {
-  background: rgb(69 45 52 / 92%);
-  border-color: rgb(122 76 88 / 95%);
-  color: #fecaca;
+  background: var(--cosmos-view-state-error-bg);
+  color: var(--cosmos-view-state-error-text);
+  border-color: var(--cosmos-view-state-error-border);
 }
 </style>

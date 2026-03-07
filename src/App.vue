@@ -147,7 +147,6 @@ const filesystem = useFilesystemState()
 const documentHistory = useDocumentHistory()
 const {
   themePreference,
-  resolvedTheme,
   applyTheme,
   loadThemePreference,
   persistThemePreference,
@@ -2884,7 +2883,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="ide-root" :class="{ dark: resolvedTheme === 'dark', 'macos-overlay': isMacOs }">
+  <div class="ide-root" :class="{ 'macos-overlay': isMacOs }">
     <TopbarNavigationControls
       ref="topbarRef"
       :can-go-back="documentHistory.canGoBack.value"

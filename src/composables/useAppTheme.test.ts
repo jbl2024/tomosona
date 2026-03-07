@@ -4,6 +4,7 @@ import { useAppTheme } from './useAppTheme'
 describe('useAppTheme', () => {
   beforeEach(() => {
     document.documentElement.classList.remove('dark')
+    delete document.documentElement.dataset.theme
     window.localStorage.clear()
   })
 
@@ -17,6 +18,7 @@ describe('useAppTheme', () => {
     expect(theme.themePreference.value).toBe('dark')
     expect(theme.resolvedTheme.value).toBe('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
   it('respects system mode via injected matcher', () => {
@@ -26,6 +28,8 @@ describe('useAppTheme', () => {
 
     expect(theme.resolvedTheme.value).toBe('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(theme.activeThemeId.value).toBe('dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
   it('persists explicit theme changes', () => {
@@ -34,5 +38,13 @@ describe('useAppTheme', () => {
 
     expect(window.localStorage.getItem('tomosona.theme.preference')).toBe('light')
     expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+
+  it('exposes named theme definitions for future custom themes', () => {
+    const theme = useAppTheme()
+
+    expect(theme.availableThemes.map((item) => item.id)).toEqual(['light', 'dark'])
+    expect(theme.activeTheme.value.colorScheme).toBe('light')
   })
 })

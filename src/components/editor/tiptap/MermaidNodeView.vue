@@ -399,7 +399,7 @@ function applyTabIndentation(textarea: HTMLTextAreaElement, unindent: boolean) {
 }
 
 .tomosona-mermaid-code {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
   font-size: 12px;
   line-height: 1.45;
   margin-bottom: 10px;

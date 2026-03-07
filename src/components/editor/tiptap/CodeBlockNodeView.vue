@@ -165,73 +165,40 @@ onBeforeUnmount(() => {
 <style scoped>
 .tomosona-code-node pre,
 .tomosona-code-node code {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
 }
 
 .tomosona-code-node code.hljs {
-  color: #0f172a;
+  color: var(--editor-code-text);
 }
 
 .tomosona-code-node code :deep(.hljs-comment),
 .tomosona-code-node code :deep(.hljs-quote) {
-  color: #64748b;
+  color: var(--editor-code-comment);
 }
 
 .tomosona-code-node code :deep(.hljs-keyword),
 .tomosona-code-node code :deep(.hljs-selector-tag),
 .tomosona-code-node code :deep(.hljs-literal),
 .tomosona-code-node code :deep(.hljs-title) {
-  color: #7c3aed;
+  color: var(--editor-code-keyword);
 }
 
 .tomosona-code-node code :deep(.hljs-string),
 .tomosona-code-node code :deep(.hljs-attr) {
-  color: #0f766e;
+  color: var(--editor-code-string);
 }
 
 .tomosona-code-node code :deep(.hljs-number),
 .tomosona-code-node code :deep(.hljs-built_in),
 .tomosona-code-node code :deep(.hljs-variable) {
-  color: #b45309;
+  color: var(--editor-code-number);
 }
 
 .tomosona-code-node code :deep(.hljs-function),
 .tomosona-code-node code :deep(.hljs-class),
 .tomosona-code-node code :deep(.hljs-type) {
-  color: #1d4ed8;
-}
-
-.dark .tomosona-code-node code.hljs {
-  color: #e2e8f0;
-}
-
-.dark .tomosona-code-node code :deep(.hljs-comment),
-.dark .tomosona-code-node code :deep(.hljs-quote) {
-  color: #94a3b8;
-}
-
-.dark .tomosona-code-node code :deep(.hljs-keyword),
-.dark .tomosona-code-node code :deep(.hljs-selector-tag),
-.dark .tomosona-code-node code :deep(.hljs-literal),
-.dark .tomosona-code-node code :deep(.hljs-title) {
-  color: #c084fc;
-}
-
-.dark .tomosona-code-node code :deep(.hljs-string),
-.dark .tomosona-code-node code :deep(.hljs-attr) {
-  color: #34d399;
-}
-
-.dark .tomosona-code-node code :deep(.hljs-number),
-.dark .tomosona-code-node code :deep(.hljs-built_in),
-.dark .tomosona-code-node code :deep(.hljs-variable) {
-  color: #f59e0b;
-}
-
-.dark .tomosona-code-node code :deep(.hljs-function),
-.dark .tomosona-code-node code :deep(.hljs-class),
-.dark .tomosona-code-node code :deep(.hljs-type) {
-  color: #60a5fa;
+  color: var(--editor-code-function);
 }
 
 .tomosona-code-lang-select {

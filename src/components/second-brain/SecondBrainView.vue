@@ -1175,7 +1175,7 @@ watch(contextPaths, (paths) => {
 }
 
 .assistant-markdown code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family: var(--font-code);
   background: var(--sb-code-bg);
   border-radius: 4px;
   padding: 1px 4px;
