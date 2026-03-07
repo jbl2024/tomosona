@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.14.3] - 2026-03-07
+
+### Changed
+- refactor(second-brain): remove implicit session resume on pane open (79d715d)
+
 ## [0.14.2] - 2026-03-07
 
 ### Fixed
