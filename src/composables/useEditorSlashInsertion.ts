@@ -36,6 +36,24 @@ export type UseEditorSlashInsertionOptions = {
  * - Returns only insertion behavior; keyboard routing stays in input handlers.
  */
 export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions) {
+  function focusInsertedQuote(editor: Editor) {
+    if (typeof window === 'undefined') return
+
+    const tryFocus = () => {
+      const selected = editor.view.dom.querySelector('.ProseMirror-selectednode .tomosona-quote-source') as HTMLTextAreaElement | null
+      const fallbacks = Array.from(editor.view.dom.querySelectorAll('.tomosona-quote-source')) as HTMLTextAreaElement[]
+      const target = selected ?? fallbacks[fallbacks.length - 1] ?? null
+      if (!target) return
+      target.focus()
+      const size = target.value.length
+      target.setSelectionRange(size, size)
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(tryFocus)
+    })
+  }
+
   /**
    * Inserts/toggles content based on command descriptor.
    *
@@ -112,6 +130,9 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
       editor.chain().focus().deleteRange(replaceRange).insertContent(content).run()
     } else {
       editor.chain().focus().insertContent(content).run()
+    }
+    if (type === 'quote') {
+      focusInsertedQuote(editor)
     }
     return true
   }
