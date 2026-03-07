@@ -66,11 +66,11 @@ const emit = defineEmits<{
 
 <style scoped>
 .shortcuts-modal {
-  width: min(900px, calc(100vw - 32px));
+  width: min(1120px, calc(100vw - 32px));
   max-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .shortcuts-filter-input {
@@ -79,7 +79,7 @@ const emit = defineEmits<{
 
 .shortcuts-sections {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 12px;
   margin-top: 2px;
   overflow: auto;
@@ -89,38 +89,45 @@ const emit = defineEmits<{
 .shortcuts-section {
   border: 1px solid var(--shortcuts-section-border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 10px;
   min-width: 0;
 }
 
 .shortcuts-title {
   margin: 0 0 8px;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   color: var(--shortcuts-title);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .shortcuts-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 12px;
-  align-items: start;
+  gap: 8px 12px;
+  align-items: center;
 }
 
 .shortcut-keys {
   font-family: var(--font-code);
-  font-size: var(--font-size-sm);
+  font-size: 0.8rem;
   color: var(--shortcuts-keys-text);
   background: var(--shortcuts-keys-bg);
   border: 1px solid var(--shortcuts-keys-border);
   border-radius: 6px;
-  padding: 3px 6px;
+  padding: 4px 8px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
 }
 
 .shortcut-action {
-  font-size: var(--font-size-md);
+  font-size: 0.87rem;
+  line-height: 1.3;
+  font-weight: 500;
   color: var(--shortcuts-action);
+  align-self: center;
 }
 </style>
