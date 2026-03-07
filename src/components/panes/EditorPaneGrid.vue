@@ -80,6 +80,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
   'cosmos-query-update': [value: string]
   'cosmos-search-enter': []
   'cosmos-select-match': [nodeId: string]
@@ -363,6 +364,7 @@ onBeforeUnmount(() => {
         @path-renamed="emit('path-renamed', $event)"
         @outline="emit('outline', $event)"
         @properties="emit('properties', $event)"
+        @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
         @cosmos-query-update="emit('cosmos-query-update', $event)"
         @cosmos-search-enter="emit('cosmos-search-enter')"
         @cosmos-select-match="emit('cosmos-select-match', $event)"

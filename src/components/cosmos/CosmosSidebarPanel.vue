@@ -9,6 +9,10 @@ import { computed, nextTick, ref } from 'vue'
 import type { CosmosGraphNode } from '../../lib/graphIndex'
 import { XMarkIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import { applySearchMode, detectSearchMode, type SearchMode } from '../../lib/searchMode'
+import PulsePanel from '../PulsePanel.vue'
+import { usePulseTransformation } from '../../composables/usePulseTransformation'
+import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../../lib/pulse'
+import type { PulseActionId } from '../../lib/api'
 
 type GraphSummary = {
   nodes: number
@@ -43,9 +47,13 @@ const emit = defineEmits<{
   'open-selected': []
   'locate-selected': []
   'reset-view': []
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
 }>()
 
 const searchInputEl = ref<HTMLInputElement | null>(null)
+const pulse = usePulseTransformation()
+const pulseActionId = ref<PulseActionId>('synthesize')
+const pulseInstruction = ref('')
 const activeSearchMode = computed<SearchMode>(() => detectSearchMode(props.query))
 const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'hybrid', label: 'Hybrid' },
@@ -85,6 +93,48 @@ function onSearchModeSelect(mode: SearchMode) {
     input.focus()
     input.setSelectionRange(next.caret, next.caret)
   })
+}
+
+const pulseContextPaths = computed(() => {
+  const paths = new Set<string>()
+  if (props.selectedNode?.path) paths.add(props.selectedNode.path)
+  for (const node of props.outgoingNodes) {
+    if (node.path) paths.add(node.path)
+  }
+  for (const node of props.incomingNodes) {
+    if (node.path) paths.add(node.path)
+  }
+  return Array.from(paths)
+})
+
+async function runPulseFromCosmos() {
+  if (!props.selectedNode) return
+  await pulse.run({
+    source_kind: 'cosmos_focus',
+    action_id: pulseActionId.value,
+    instructions: pulseInstruction.value.trim() || undefined,
+    context_paths: pulseContextPaths.value,
+    source_text: props.preview.trim() || undefined,
+    selection_label: props.selectedNode.displayLabel || props.selectedNode.label,
+    cosmos_selected_node_id: props.selectedNode.id,
+    cosmos_neighbor_paths: pulseContextPaths.value.filter((path) => path !== props.selectedNode?.path)
+  })
+}
+
+function onPulseApply(mode: PulseApplyMode) {
+  if (!pulse.previewMarkdown.value.trim()) return
+  if (mode === 'send_to_second_brain') {
+    emit('pulse-open-second-brain', {
+      contextPaths: pulseContextPaths.value
+    })
+    return
+  }
+  if (mode === 'append_to_draft') {
+    emit('pulse-open-second-brain', {
+      contextPaths: pulseContextPaths.value,
+      draftContent: pulse.previewMarkdown.value
+    })
+  }
 }
 </script>
 
@@ -219,6 +269,26 @@ function onSearchModeSelect(mode: SearchMode) {
           </button>
         </div>
       </div>
+
+      <PulsePanel
+        v-if="selectedNode"
+        title="Pulse"
+        source-label="Transform the selected node and visible neighborhood into a usable output."
+        :action-id="pulseActionId"
+        :actions="PULSE_ACTIONS_BY_SOURCE.cosmos_focus"
+        :instruction="pulseInstruction"
+        :preview-markdown="pulse.previewMarkdown.value"
+        :provenance-paths="pulse.provenancePaths.value"
+        :running="pulse.running.value"
+        :error="pulse.error.value"
+        :apply-modes="['send_to_second_brain', 'append_to_draft']"
+        @update:action-id="(value) => { pulseActionId = value as PulseActionId }"
+        @update:instruction="(value) => { pulseInstruction = value }"
+        @run="void runPulseFromCosmos()"
+        @cancel="void pulse.cancel()"
+        @close="pulse.reset()"
+        @apply="onPulseApply"
+      />
     </div>
   </section>
 </template>

@@ -103,6 +103,48 @@ pub struct StreamEvent {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PulseSourceKind {
+    EditorSelection,
+    EditorNote,
+    SecondBrainContext,
+    CosmosFocus,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RunPulseTransformationPayload {
+    pub request_id: Option<String>,
+    pub source_kind: PulseSourceKind,
+    pub action_id: String,
+    pub instructions: Option<String>,
+    #[serde(default)]
+    pub context_paths: Vec<String>,
+    pub source_text: Option<String>,
+    pub selection_label: Option<String>,
+    pub session_id: Option<String>,
+    pub cosmos_selected_node_id: Option<String>,
+    #[serde(default)]
+    pub cosmos_neighbor_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RunPulseTransformationResult {
+    pub request_id: String,
+    pub output_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PulseStreamEvent {
+    pub request_id: String,
+    pub output_id: String,
+    pub chunk: String,
+    pub done: bool,
+    pub error: Option<String>,
+    pub title: Option<String>,
+    pub provenance_paths: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CancelStreamPayload {
     pub session_id: String,
@@ -165,6 +207,12 @@ pub struct InsertAssistantIntoTargetResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct ExportSessionMarkdownResult {
     pub path: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CancelPulseStreamPayload {
+    pub request_id: String,
+    pub output_id: Option<String>,
 }
 
 fn load_config() -> Result<SecondBrainConfig> {
@@ -570,6 +618,139 @@ fn normalize_title_from_first_message(raw: &str) -> String {
     compact
 }
 
+fn normalize_pulse_action_id(raw: &str) -> Result<String> {
+    let normalized = raw.trim().to_lowercase().replace('-', "_");
+    let allowed = [
+        "rewrite",
+        "condense",
+        "expand",
+        "change_tone",
+        "synthesize",
+        "outline",
+        "brief",
+        "extract_themes",
+        "identify_tensions",
+    ];
+    if allowed.contains(&normalized.as_str()) {
+        Ok(normalized)
+    } else {
+        Err(AppError::InvalidOperation(
+            "Pulse action is not supported.".to_string(),
+        ))
+    }
+}
+
+fn pulse_action_prompt(action_id: &str) -> &'static str {
+    match action_id {
+        "rewrite" => {
+            "Reecris la matiere fournie pour la rendre plus claire et plus fluide sans changer le fond. Reponds en markdown."
+        }
+        "condense" => {
+            "Condense la matiere fournie en conservant les informations essentielles. Reponds en markdown."
+        }
+        "expand" => {
+            "Developpe la matiere fournie avec plus de structure et de details utiles, sans inventer de faits. Reponds en markdown."
+        }
+        "change_tone" => {
+            "Reformule la matiere fournie en adaptant le ton selon l'instruction utilisateur. Si aucun ton n'est precise, choisis un ton sobre et professionnel. Reponds en markdown."
+        }
+        "synthesize" => {
+            "Produis une synthese structuree de la matiere fournie. Fais ressortir les idees principales, les limites et les incertitudes. Reponds en markdown."
+        }
+        "outline" => {
+            "Transforme la matiere fournie en plan structure et exploitable. Reponds en markdown."
+        }
+        "brief" => {
+            "Transforme la matiere fournie en brief de travail clair: objectif, points saillants, tensions, prochaines questions si necessaire. Reponds en markdown."
+        }
+        "extract_themes" => {
+            "Fais emerger les themes dominants de la matiere fournie, avec une formulation concise et exploitable. Reponds en markdown."
+        }
+        "identify_tensions" => {
+            "Identifie les tensions, contradictions, angles morts ou arbitrages visibles dans la matiere fournie. Reponds en markdown."
+        }
+        _ => "Transforme la matiere fournie en sortie utile et structuree. Reponds en markdown.",
+    }
+}
+
+fn pulse_source_label(kind: &PulseSourceKind) -> &'static str {
+    match kind {
+        PulseSourceKind::EditorSelection => "Selection editeur",
+        PulseSourceKind::EditorNote => "Note editeur",
+        PulseSourceKind::SecondBrainContext => "Contexte Second Brain",
+        PulseSourceKind::CosmosFocus => "Focus Cosmos",
+    }
+}
+
+fn build_pulse_user_prompt(
+    payload: &RunPulseTransformationPayload,
+    action_id: &str,
+    context_entries: &[ContextPromptEntry],
+) -> BuiltPrompt {
+    let mut prompt = String::new();
+    prompt.push_str("Pulse est un moteur de transformation redactionnelle.\n");
+    prompt.push_str("Travaille uniquement a partir de la matiere fournie. ");
+    prompt.push_str("Ne fais pas de retrieval implicite et ne presente pas le resultat comme une validation de verite.\n\n");
+    prompt.push_str(&format!(
+        "Source: {}\nAction: {}\n",
+        pulse_source_label(&payload.source_kind),
+        action_id
+    ));
+    if let Some(label) = payload.selection_label.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        prompt.push_str(&format!("Libelle: {label}\n"));
+    }
+    if let Some(session_id) = payload.session_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        prompt.push_str(&format!("Session: {session_id}\n"));
+    }
+    if let Some(node_id) = payload
+        .cosmos_selected_node_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        prompt.push_str(&format!("Cosmos node: {node_id}\n"));
+    }
+    if !payload.cosmos_neighbor_paths.is_empty() {
+        prompt.push_str("Cosmos neighbors:\n");
+        for path in &payload.cosmos_neighbor_paths {
+            prompt.push_str(&format!("- {path}\n"));
+        }
+    }
+    if let Some(instructions) = payload.instructions.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        prompt.push_str("\nInstruction supplementaire:\n");
+        prompt.push_str(instructions);
+        prompt.push('\n');
+    }
+    if let Some(source_text) = payload.source_text.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        prompt.push_str("\nMatiere source explicite:\n");
+        prompt.push_str(source_text);
+        prompt.push('\n');
+    }
+
+    let mut included_context_paths = Vec::new();
+    if !context_entries.is_empty() {
+        let (context_section, paths) = build_context_section("pulse", context_entries, SB_CONTEXT_BUDGET_TOKENS);
+        if !context_section.is_empty() {
+            prompt.push('\n');
+            prompt.push_str(&context_section);
+            prompt.push('\n');
+            included_context_paths = paths;
+        }
+    }
+
+    prompt.push_str("\nTache:\n");
+    prompt.push_str(pulse_action_prompt(action_id));
+    prompt.push_str("\n\nExigences:\n");
+    prompt.push_str("- Reponds en markdown.\n");
+    prompt.push_str("- Signale les incertitudes lorsque la matiere est incomplete.\n");
+    prompt.push_str("- Reste fidele a la matiere fournie.\n");
+
+    BuiltPrompt {
+        user_prompt: prompt,
+        included_context_paths,
+    }
+}
+
 #[tauri::command]
 pub fn read_second_brain_config_status() -> Result<ConfigStatus> {
     match load_config() {
@@ -719,6 +900,193 @@ pub fn cancel_second_brain_stream(payload: CancelStreamPayload) -> Result<()> {
     }
     request_stream_cancel(&payload.session_id, payload.message_id.as_deref());
     Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_pulse_stream(payload: CancelPulseStreamPayload) -> Result<()> {
+    if payload.request_id.trim().is_empty() {
+        return Err(AppError::InvalidOperation(
+            "Pulse request not found.".to_string(),
+        ));
+    }
+    request_stream_cancel(&payload.request_id, payload.output_id.as_deref());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn run_pulse_transformation(
+    app: AppHandle,
+    payload: RunPulseTransformationPayload,
+) -> Result<RunPulseTransformationResult> {
+    let config = load_config()?;
+    let active = active_profile(&config)
+        .ok_or_else(|| {
+            AppError::InvalidOperation("active profile is missing from config.".to_string())
+        })?
+        .clone();
+
+    if !active.capabilities.text {
+        return Err(AppError::InvalidOperation(
+            "The active profile does not support text generation.".to_string(),
+        ));
+    }
+
+    let action_id = normalize_pulse_action_id(&payload.action_id)?;
+    let request_id = payload
+        .request_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| next_id("pulse"));
+    let output_id = next_id("pulse-output");
+    if consume_stream_cancel(&request_id, &output_id) {
+        return Err(AppError::InvalidOperation("Generation canceled.".to_string()));
+    }
+
+    let has_source_text = payload
+        .source_text
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some();
+    if !has_source_text && payload.context_paths.is_empty() {
+        return Err(AppError::InvalidOperation(
+            "Pulse needs source text or note context.".to_string(),
+        ));
+    }
+
+    let context_items = load_context_items(&payload.context_paths)?;
+    let root = active_workspace_root()?;
+    let mut context_entries = Vec::new();
+    for item in &context_items {
+        let content = fs::read_to_string(root.join(&item.path))?;
+        context_entries.push(ContextPromptEntry {
+            path: item.path.clone(),
+            content,
+        });
+    }
+
+    let built_prompt = build_pulse_user_prompt(&payload, &action_id, &context_entries);
+    let provenance_paths = built_prompt.included_context_paths.clone();
+
+    let _ = app.emit(
+        "pulse://start",
+        PulseStreamEvent {
+            request_id: request_id.clone(),
+            output_id: output_id.clone(),
+            chunk: String::new(),
+            done: false,
+            error: None,
+            title: None,
+            provenance_paths: provenance_paths.clone(),
+        },
+    );
+
+    let request_id_for_stream = request_id.clone();
+    let output_id_for_stream = output_id.clone();
+    let app_for_stream = app.clone();
+    let llm_result = if active.capabilities.streaming {
+        run_llm_stream(
+            &active,
+            pulse_action_prompt(&action_id),
+            &built_prompt.user_prompt,
+            move |chunk| {
+                if consume_stream_cancel(&request_id_for_stream, &output_id_for_stream) {
+                    return Err("Generation canceled.".to_string());
+                }
+                let _ = app_for_stream.emit(
+                    "pulse://delta",
+                    PulseStreamEvent {
+                        request_id: request_id_for_stream.clone(),
+                        output_id: output_id_for_stream.clone(),
+                        chunk: chunk.to_string(),
+                        done: false,
+                        error: None,
+                        title: None,
+                        provenance_paths: Vec::new(),
+                    },
+                );
+                Ok(())
+            },
+        )
+        .await
+    } else {
+        run_llm(
+            &active,
+            pulse_action_prompt(&action_id),
+            &built_prompt.user_prompt,
+        )
+        .await
+    };
+
+    let answer = match llm_result {
+        Ok(value) => value,
+        Err(err) => {
+            let _ = app.emit(
+                "pulse://error",
+                PulseStreamEvent {
+                    request_id: request_id.clone(),
+                    output_id: output_id.clone(),
+                    chunk: String::new(),
+                    done: true,
+                    error: Some(err.clone()),
+                    title: None,
+                    provenance_paths,
+                },
+            );
+            return Err(AppError::InvalidOperation(err));
+        }
+    };
+
+    if consume_stream_cancel(&request_id, &output_id) {
+        let _ = app.emit(
+            "pulse://error",
+            PulseStreamEvent {
+                request_id: request_id.clone(),
+                output_id: output_id.clone(),
+                chunk: String::new(),
+                done: true,
+                error: Some("Generation canceled.".to_string()),
+                title: None,
+                provenance_paths: Vec::new(),
+            },
+        );
+        return Err(AppError::InvalidOperation("Generation canceled.".to_string()));
+    }
+
+    if !active.capabilities.streaming {
+        let _ = app.emit(
+            "pulse://delta",
+            PulseStreamEvent {
+                request_id: request_id.clone(),
+                output_id: output_id.clone(),
+                chunk: answer.clone(),
+                done: false,
+                error: None,
+                title: None,
+                provenance_paths: Vec::new(),
+            },
+        );
+    }
+
+    let _ = app.emit(
+        "pulse://complete",
+        PulseStreamEvent {
+            request_id: request_id.clone(),
+            output_id: output_id.clone(),
+            chunk: answer,
+            done: true,
+            error: None,
+            title: Some(format!("Pulse {}", action_id.replace('_', " "))),
+            provenance_paths: built_prompt.included_context_paths,
+        },
+    );
+
+    Ok(RunPulseTransformationResult {
+        request_id,
+        output_id,
+    })
 }
 
 #[tauri::command]
@@ -1350,5 +1718,38 @@ mod tests {
         assert!(built.user_prompt.contains("--- SOURCE: a.md ---"));
         assert!(built.user_prompt.contains("[CONTENU TRONQUE]"));
         assert!(!built.included_context_paths.is_empty());
+    }
+
+    #[test]
+    fn normalizes_supported_pulse_actions() {
+        assert_eq!(normalize_pulse_action_id("rewrite").unwrap(), "rewrite");
+        assert_eq!(
+            normalize_pulse_action_id("identify-tensions").unwrap(),
+            "identify_tensions"
+        );
+        assert!(normalize_pulse_action_id("freestyle").is_err());
+    }
+
+    #[test]
+    fn pulse_prompt_includes_explicit_source_text() {
+        let payload = RunPulseTransformationPayload {
+            request_id: Some("pulse-test".to_string()),
+            source_kind: PulseSourceKind::EditorSelection,
+            action_id: "rewrite".to_string(),
+            instructions: Some("Use a diplomatic tone.".to_string()),
+            context_paths: Vec::new(),
+            source_text: Some("Original paragraph".to_string()),
+            selection_label: Some("Selected paragraph".to_string()),
+            session_id: None,
+            cosmos_selected_node_id: None,
+            cosmos_neighbor_paths: Vec::new(),
+        };
+
+        let built = build_pulse_user_prompt(&payload, "rewrite", &[]);
+        assert!(built.user_prompt.contains("Pulse est un moteur"));
+        assert!(built.user_prompt.contains("Original paragraph"));
+        assert!(built.user_prompt.contains("Use a diplomatic tone."));
+        assert!(built.user_prompt.contains("Selection editeur"));
+        assert!(built.included_context_paths.is_empty());
     }
 }

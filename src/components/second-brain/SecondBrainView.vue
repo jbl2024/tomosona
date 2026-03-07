@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ClipboardDocumentIcon, PaperAirplaneIcon, PlusIcon } from '@heroicons/vue/24/outline'
+import { ClipboardDocumentIcon, PaperAirplaneIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import {
   cancelDeliberationStream,
   createDeliberationSession,
@@ -10,14 +10,17 @@ import {
   removeDeliberationSession,
   replaceSessionContext,
   runDeliberation,
+  saveSessionDraft,
   subscribeSecondBrainStream
 } from '../../lib/secondBrainApi'
 import { sanitizeHtmlForPreview } from '../../lib/htmlSanitizer'
 import { inlineTextToHtml } from '../../lib/markdownBlocks'
 import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../../lib/secondBrainContextPaths'
-import type { SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/api'
+import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/api'
 import { useEchoesPack } from '../../composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../../composables/useSecondBrainAtMentions'
+import { usePulseTransformation } from '../../composables/usePulseTransformation'
+import { PULSE_ACTIONS_BY_SOURCE } from '../../lib/pulse'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
 import SecondBrainSessionDropdown from './SecondBrainSessionDropdown.vue'
@@ -64,6 +67,8 @@ const selectedEchoesContextPath = ref('')
 const composerRef = ref<HTMLTextAreaElement | null>(null)
 const threadRef = ref<HTMLElement | null>(null)
 const activeAssistantStreamMessageId = ref<string | null>(null)
+const pulse = usePulseTransformation()
+const pulseActionId = ref<PulseActionId>('synthesize')
 const streamUnsubscribers: Array<() => void> = []
 const ignoredAssistantMessageIds = new Set<string>()
 let copyToastTimer: ReturnType<typeof setTimeout> | null = null
@@ -127,6 +132,11 @@ const echoesAnchorPath = computed(() => {
 })
 const showEchoesPanel = computed(() => echoesAnchorPath.value.trim().length > 0)
 const echoes = useEchoesPack(echoesAnchorPath, { limit: 5 })
+const pulseActions = computed(() => PULSE_ACTIONS_BY_SOURCE.second_brain_context)
+const activePulseAction = computed(
+  () => pulseActions.value.find((item) => item.id === pulseActionId.value) ?? pulseActions.value[0]
+)
+const hasPulseCard = computed(() => pulse.running.value || Boolean(pulse.previewMarkdown.value.trim()) || Boolean(pulse.error.value))
 const echoesItems = computed<EchoesItem[]>(() => {
   const deduped: EchoesItem[] = []
   const seen = new Set<string>()
@@ -369,8 +379,8 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function renderAssistantMarkdown(message: SecondBrainMessage): string {
-  const source = displayMessage(message).replace(/\r\n?/g, '\n')
+function renderMarkdownCard(sourceMarkdown: string): string {
+  const source = sourceMarkdown.replace(/\r\n?/g, '\n')
   const lines = source.split('\n')
   const htmlParts: string[] = []
   let paragraph: string[] = []
@@ -490,6 +500,10 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
 
   const html = htmlParts.join('')
   return sanitizeHtmlForPreview(html || `<p>${inlineTextToHtml(source)}</p>`)
+}
+
+function renderAssistantMarkdown(message: SecondBrainMessage): string {
+  return renderMarkdownCard(displayMessage(message))
 }
 
 async function applyMentionSuggestion(item: SecondBrainAtMentionItem) {
@@ -672,6 +686,51 @@ async function onStopStreaming() {
     suppressCancellationError.value = false
     sendError.value = err instanceof Error ? err.message : 'Could not stop generation.'
   }
+}
+
+async function runPulseFromSecondBrain() {
+  if (!contextPaths.value.length) {
+    mentionInfo.value = 'Add note context before using Pulse.'
+    return
+  }
+  mentionInfo.value = ''
+  await pulse.run({
+    source_kind: 'second_brain_context',
+    action_id: pulseActionId.value,
+    instructions: inputMessage.value.trim() || undefined,
+    context_paths: contextPaths.value,
+    selection_label: sessionTitle.value || 'Second Brain context',
+    session_id: sessionId.value || undefined
+  })
+  void scrollThreadToBottom()
+}
+
+async function applyPulseToSecondBrainDraft(mode: 'replace_draft' | 'append_to_draft') {
+  if (!sessionId.value || !pulse.previewMarkdown.value.trim()) return
+  try {
+    const payload = await loadDeliberationSession(sessionId.value)
+    const next = mode === 'replace_draft'
+      ? pulse.previewMarkdown.value.trim()
+      : payload.draft_content.trim()
+        ? `${payload.draft_content}\n\n---\n\n${pulse.previewMarkdown.value.trim()}`
+        : pulse.previewMarkdown.value.trim()
+    await saveSessionDraft(sessionId.value, next)
+    mentionInfo.value = mode === 'replace_draft'
+      ? 'Pulse preview replaced the Second Brain draft.'
+      : 'Pulse preview appended to the Second Brain draft.'
+    pulse.reset()
+  } catch (err) {
+    mentionInfo.value = err instanceof Error ? err.message : 'Could not update the Second Brain draft.'
+  }
+}
+
+async function onPulseAction(actionId: PulseActionId) {
+  pulseActionId.value = actionId
+  await runPulseFromSecondBrain()
+}
+
+function discardPulseCard() {
+  pulse.reset()
 }
 
 async function onCopyAssistantMessage(message: SecondBrainMessage) {
@@ -910,6 +969,41 @@ watch(contextPaths, (paths) => {
           <div v-if="message.role === 'assistant'" class="assistant-markdown" v-html="renderAssistantMarkdown(message)"></div>
           <pre v-else>{{ displayMessage(message) }}</pre>
         </article>
+
+        <article v-if="hasPulseCard" class="msg pulse-card">
+          <header class="pulse-card-head">
+            <div>
+              <strong>Pulse</strong>
+              <p>{{ activePulseAction?.label || 'Pulse' }}</p>
+            </div>
+            <span v-if="pulse.running.value" class="pulse-status">Generating...</span>
+          </header>
+          <div v-if="pulse.error.value" class="pulse-card-error">{{ pulse.error.value }}</div>
+          <div
+            v-else-if="pulse.previewMarkdown.value.trim()"
+            class="assistant-markdown pulse-card-body"
+            v-html="renderMarkdownCard(pulse.previewMarkdown.value)"
+          ></div>
+          <div v-else class="pulse-card-placeholder">
+            Pulse is working from the current context.
+          </div>
+          <div v-if="pulse.provenancePaths.value.length" class="pulse-card-sources">
+            <span v-for="path in pulse.provenancePaths.value" :key="path" class="pulse-source-chip">
+              {{ toRelativePath(path) }}
+            </span>
+          </div>
+          <div class="pulse-card-actions">
+            <button type="button" class="pulse-card-btn pulse-card-btn-strong" :disabled="!pulse.previewMarkdown.value.trim()" @click="void applyPulseToSecondBrainDraft('replace_draft')">
+              Replace draft
+            </button>
+            <button type="button" class="pulse-card-btn" :disabled="!pulse.previewMarkdown.value.trim()" @click="void applyPulseToSecondBrainDraft('append_to_draft')">
+              Append to draft
+            </button>
+            <button type="button" class="pulse-card-btn pulse-card-btn-ghost" @click="discardPulseCard">
+              Discard
+            </button>
+          </div>
+        </article>
       </section>
 
       <footer class="sb-input-row">
@@ -926,6 +1020,26 @@ watch(contextPaths, (paths) => {
               @add="void addEchoesSuggestion($event)"
             />
           </transition>
+
+          <div class="sb-pulse-bar">
+            <div class="sb-pulse-bar-head">
+              <SparklesIcon class="h-4 w-4" />
+              <span>Pulse</span>
+            </div>
+            <div class="sb-pulse-actions">
+              <button
+                v-for="action in pulseActions"
+                :key="action.id"
+                type="button"
+                class="sb-pulse-chip"
+                :class="{ active: pulseActionId === action.id }"
+                :disabled="!contextPaths.length || requestInFlight || pulse.running.value"
+                @click="void onPulseAction(action.id)"
+              >
+                {{ action.label }}
+              </button>
+            </div>
+          </div>
 
           <SecondBrainAtMentionsMenu
             :open="mentions.isOpen.value"
@@ -965,7 +1079,7 @@ watch(contextPaths, (paths) => {
             ref="composerRef"
             :value="inputMessage"
             class="sb-textarea"
-            placeholder="Posez une question. Tapez @ pour ajouter des notes au contexte..."
+            :placeholder="`Ask a question, or guide Pulse before clicking ${activePulseAction?.label || 'an action'}...`"
             @input="onComposerInput"
             @keydown="onComposerKeydown"
             @click="updateMentionTriggerFromComposer"
@@ -1084,16 +1198,16 @@ watch(contextPaths, (paths) => {
   border-radius: 10px;
   background: var(--sb-thread-bg);
   color: var(--sb-text);
-  padding: 6px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
 .msg {
   border: 1px solid var(--sb-border);
-  border-radius: 8px;
-  padding: 6px;
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
 .msg.user {
@@ -1230,17 +1344,61 @@ watch(contextPaths, (paths) => {
 .sb-input-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(to top, var(--sb-center-bg) 75%, transparent);
+  padding-top: 10px;
 }
 
 .sb-composer {
   position: relative;
   width: 100%;
   border: 1px solid var(--sb-input-border);
-  border-radius: 10px;
+  border-radius: 16px;
   background: var(--sb-input-bg);
-  padding: 6px;
+  padding: 10px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+}
+
+.sb-pulse-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sb-pulse-bar-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sb-text);
+}
+
+.sb-pulse-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sb-pulse-chip {
+  border: 1px solid var(--sb-button-border);
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+.sb-pulse-chip.active {
+  border-color: color-mix(in srgb, var(--accent, #4f7a5d) 55%, var(--sb-button-border));
+  background: color-mix(in srgb, var(--accent, #4f7a5d) 18%, var(--sb-button-bg));
+  color: var(--sb-active-text);
 }
 
 .sb-chip-row {
@@ -1318,7 +1476,7 @@ watch(contextPaths, (paths) => {
 
 .sb-textarea {
   width: 100%;
-  min-height: 84px;
+  min-height: 120px;
   padding: 8px 42px 8px 8px;
   resize: vertical;
   box-sizing: border-box;
@@ -1328,6 +1486,84 @@ watch(contextPaths, (paths) => {
   background: var(--sb-input-bg);
   color: var(--sb-button-text);
   font-size: 12px;
+}
+
+.pulse-card {
+  background: color-mix(in srgb, var(--sb-assistant-bg) 82%, white 18%);
+}
+
+.pulse-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pulse-card-head p {
+  margin: 4px 0 0;
+  color: var(--sb-text-dim);
+  font-size: 12px;
+}
+
+.pulse-status,
+.pulse-card-placeholder,
+.pulse-card-error {
+  font-size: 12px;
+}
+
+.pulse-card-placeholder {
+  color: var(--sb-text-dim);
+  padding-top: 8px;
+}
+
+.pulse-card-error {
+  color: var(--sb-danger-text);
+  padding-top: 8px;
+}
+
+.pulse-card-body {
+  margin-top: 10px;
+}
+
+.pulse-card-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pulse-source-chip {
+  border: 1px solid var(--sb-chip-border);
+  border-radius: 999px;
+  background: var(--sb-chip-bg);
+  color: var(--sb-chip-meta);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.pulse-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pulse-card-btn {
+  border: 1px solid var(--sb-button-border);
+  border-radius: 10px;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.pulse-card-btn-strong {
+  background: color-mix(in srgb, var(--accent, #4f7a5d) 18%, var(--sb-button-bg));
+  color: var(--sb-active-text);
+}
+
+.pulse-card-btn-ghost {
+  background: transparent;
 }
 
 .composer-action {

@@ -36,6 +36,7 @@ const emit = defineEmits<{
   'locate-selected': []
   'reset-view': []
   'select-node': [nodeId: string]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
 }>()
 
 const panelWidth = ref(320)
@@ -117,6 +118,7 @@ defineExpose({
         @open-selected="emit('open-selected')"
         @locate-selected="emit('locate-selected')"
         @reset-view="emit('reset-view')"
+        @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
       />
     </div>
 

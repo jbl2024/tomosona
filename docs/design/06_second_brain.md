@@ -3,6 +3,11 @@
 ## Goal
 Second Brain provides a dedicated chat view where AI answers can use explicit note context when present, while still supporting normal assistant behavior without mandatory sources.
 
+Pulse note:
+- Second Brain remains the context-composition and deliberation surface.
+- Pulse reuses the same backend LLM runtime, but serves one-shot transformation requests over explicit context.
+- In Second Brain, Pulse acts as a structured output layer that can replace or append to the session draft.
+
 ## Frontend architecture
 - Entry point in `App.vue` as a dedicated special tab (`second-brain-chat`).
 - View implementation in `src/components/second-brain`.

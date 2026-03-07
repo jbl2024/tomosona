@@ -52,7 +52,8 @@ import { buildCosmosGraph } from './lib/graphIndex'
 import {
   createDeliberationSession,
   loadDeliberationSession,
-  replaceSessionContext
+  replaceSessionContext,
+  saveSessionDraft
 } from './lib/secondBrainApi'
 import {
   normalizeContextPathsForUpdate,
@@ -424,6 +425,7 @@ const secondBrainBridge = useAppSecondBrainBridge({
 const {
   secondBrainRequestedSessionId,
   secondBrainRequestedSessionNonce,
+  setSecondBrainSessionId,
   addActiveNoteToSecondBrain,
   onSecondBrainContextChanged,
   onSecondBrainSessionChanged
@@ -1245,6 +1247,43 @@ async function openSecondBrainViewFromPalette() {
     await loadAllFiles()
   }
   return true
+}
+
+async function openPulseContextInSecondBrain(payload: {
+  contextPaths: string[]
+  draftContent?: string
+}) {
+  if (!filesystem.hasWorkspace.value) {
+    filesystem.errorMessage.value = 'Open a workspace first.'
+    return false
+  }
+
+  const normalized = normalizeContextPathsForUpdate(filesystem.workingFolderPath.value, payload.contextPaths)
+  const seedPath = normalized[0] || activeFilePath.value
+  if (!seedPath) {
+    filesystem.errorMessage.value = 'No note context available for Second Brain.'
+    return false
+  }
+
+  try {
+    const sessionId = await secondBrainBridge.resolveSecondBrainSessionForPath(seedPath)
+    await replaceSessionContext(sessionId, normalized)
+
+    if (payload.draftContent?.trim()) {
+      const session = await loadDeliberationSession(sessionId)
+      const merged = session.draft_content.trim()
+        ? `${session.draft_content}\n\n---\n\n${payload.draftContent.trim()}`
+        : payload.draftContent.trim()
+      await saveSessionDraft(sessionId, merged)
+    }
+
+    setSecondBrainSessionId(sessionId, { bumpNonce: true })
+    await openSecondBrainViewFromPalette()
+    return true
+  } catch (err) {
+    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not open Second Brain with Pulse context.'
+    return false
+  }
 }
 
 async function openHomeViewFromPalette() {
@@ -3342,6 +3381,7 @@ onBeforeUnmount(() => {
               @pane-tab-close-all="onPaneTabCloseAll($event)"
               @pane-request-move-tab="multiPane.moveActiveTabToAdjacentPane($event.direction)"
               @open-note="void openNoteFromSecondBrain($event)"
+              @pulse-open-second-brain="void openPulseContextInSecondBrain($event)"
               @second-brain-context-changed="onSecondBrainContextChanged"
               @second-brain-session-changed="onSecondBrainSessionChanged"
               @cosmos-query-update="onCosmosQueryUpdate"

@@ -33,6 +33,7 @@ const emit = defineEmits<{
   'open-link': []
   'wrap-wikilink': []
   'copy-as': [format: 'markdown' | 'html' | 'plain']
+  'open-pulse': []
   'apply-link': []
   unlink: []
   'cancel-link': []
@@ -91,7 +92,7 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
       type="button"
       class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs transition-all duration-150 active:translate-y-px active:scale-[0.98]"
       data-action="bold"
-      :class="activeMarks.bold ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.bold ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('toggle-mark', 'bold')"
     >
@@ -101,7 +102,7 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
       type="button"
       class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs italic transition-all duration-150 active:translate-y-px active:scale-[0.98]"
       data-action="italic"
-      :class="activeMarks.italic ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.italic ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('toggle-mark', 'italic')"
     >
@@ -111,7 +112,7 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
       type="button"
       class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs line-through transition-all duration-150 active:translate-y-px active:scale-[0.98]"
       data-action="strike"
-      :class="activeMarks.strike ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.strike ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('toggle-mark', 'strike')"
     >
@@ -121,7 +122,7 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
       type="button"
       class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs underline transition-all duration-150 active:translate-y-px active:scale-[0.98]"
       data-action="underline"
-      :class="activeMarks.underline ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.underline ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('toggle-mark', 'underline')"
     >
@@ -133,7 +134,7 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
       data-action="code"
       aria-label="Code"
       title="Code"
-      :class="activeMarks.code ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.code ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('toggle-mark', 'code')"
     >
@@ -152,11 +153,21 @@ function onCopyAs(format: 'markdown' | 'html' | 'plain') {
     </button>
     <button
       type="button"
+      class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold transition-all duration-150 active:translate-y-px active:scale-[0.98]"
+      data-action="pulse"
+      title="Pulse selection"
+      @mousedown.prevent
+      @click="emit('open-pulse')"
+    >
+      Pulse
+    </button>
+    <button
+      type="button"
       class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs transition-all duration-150 active:translate-y-px active:scale-[0.98]"
       data-action="link"
       aria-label="Link"
       title="Link"
-      :class="activeMarks.link ? 'inline-format-toolbar-btn--active' : ''"
+      :class="activeMarks.link ? 'inline-format-toolbar-btn--active bg-slate-200' : ''"
       @mousedown.prevent
       @click="emit('open-link')"
     >

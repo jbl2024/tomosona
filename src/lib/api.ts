@@ -205,6 +205,47 @@ export type SecondBrainStreamEvent = {
   error: string | null
 }
 
+export type PulseSourceKind = 'editor_selection' | 'editor_note' | 'second_brain_context' | 'cosmos_focus'
+
+export type PulseActionId =
+  | 'rewrite'
+  | 'condense'
+  | 'expand'
+  | 'change_tone'
+  | 'synthesize'
+  | 'outline'
+  | 'brief'
+  | 'extract_themes'
+  | 'identify_tensions'
+
+export type PulseTransformationRequest = {
+  request_id?: string
+  source_kind: PulseSourceKind
+  action_id: PulseActionId
+  instructions?: string
+  context_paths: string[]
+  source_text?: string
+  selection_label?: string
+  session_id?: string
+  cosmos_selected_node_id?: string
+  cosmos_neighbor_paths?: string[]
+}
+
+export type PulseTransformationResponse = {
+  request_id: string
+  output_id: string
+}
+
+export type PulseStreamEvent = {
+  request_id: string
+  output_id: string
+  chunk: string
+  done: boolean
+  error: string | null
+  title: string | null
+  provenance_paths: string[]
+}
+
 export type WikilinkGraphNode = {
   id: string
   path: string
@@ -490,6 +531,19 @@ export async function sendSecondBrainMessage(payload: {
   return await invoke('send_second_brain_message', { payload })
 }
 
+export async function runPulseTransformation(
+  payload: PulseTransformationRequest
+): Promise<PulseTransformationResponse> {
+  return await invoke('run_pulse_transformation', { payload })
+}
+
+export async function cancelPulseStream(payload: {
+  request_id: string
+  output_id?: string
+}): Promise<void> {
+  await invoke('cancel_pulse_stream', { payload })
+}
+
 export async function saveSecondBrainDraft(payload: {
   session_id: string
   content_md: string
@@ -529,6 +583,15 @@ export async function listenSecondBrainStream(
   handler: (payload: SecondBrainStreamEvent) => void
 ): Promise<UnlistenFn> {
   return await listen<SecondBrainStreamEvent>(eventName, (event) => {
+    handler(event.payload)
+  })
+}
+
+export async function listenPulseStream(
+  eventName: 'pulse://start' | 'pulse://delta' | 'pulse://complete' | 'pulse://error',
+  handler: (payload: PulseStreamEvent) => void
+): Promise<UnlistenFn> {
+  return await listen<PulseStreamEvent>(eventName, (event) => {
     handler(event.payload)
   })
 }

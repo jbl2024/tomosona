@@ -17,6 +17,7 @@ import EditorTableEdgeControls from './editor/EditorTableEdgeControls.vue'
 import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorLargeDocOverlay from './editor/EditorLargeDocOverlay.vue'
 import EditorMermaidReplaceDialog from './editor/EditorMermaidReplaceDialog.vue'
+import PulsePanel from './PulsePanel.vue'
 import './editor/EditorViewContent.css'
 import { useFrontmatterProperties } from '../composables/useFrontmatterProperties'
 import { useEditorZoom } from '../composables/useEditorZoom'
@@ -56,6 +57,9 @@ import {
 } from '../lib/editorClipboard'
 import type { BlockMenuTarget, TurnIntoType } from '../lib/tiptap/blockMenu/types'
 import { computeHandleLock, type DragHandleUiState } from '../lib/tiptap/blockMenu/dragHandleState'
+import { usePulseTransformation } from '../composables/usePulseTransformation'
+import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../lib/pulse'
+import type { PulseActionId } from '../lib/api'
 
 type HeadingNode = EditorHeadingNode
 type CorePropertyOption = { key: string; label?: string; description?: string }
@@ -73,6 +77,7 @@ const SLASH_COMMANDS = EDITOR_SLASH_COMMANDS
 
 const props = defineProps<{
   path: string
+  workspacePath?: string
   openPaths?: string[]
   openFile: (path: string) => Promise<string>
   saveFile: (path: string, text: string, options: { explicit: boolean }) => Promise<{ persisted: boolean }>
@@ -89,6 +94,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: HeadingNode[]]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
 }>()
 
 const holder = ref<HTMLDivElement | null>(null)
@@ -102,6 +108,13 @@ const loadProgressPercent = ref(0)
 const loadProgressIndeterminate = ref(false)
 const loadDocumentStats = ref<{ chars: number; lines: number } | null>(null)
 const LARGE_DOC_THRESHOLD = 40_000
+const pulse = usePulseTransformation()
+const pulseOpen = ref(false)
+const pulseSourceKind = ref<'editor_selection' | 'editor_note'>('editor_selection')
+const pulseActionId = ref<PulseActionId>('rewrite')
+const pulseInstruction = ref('')
+const pulseSelectionRange = ref<{ from: number; to: number } | null>(null)
+const pulseSourceText = ref('')
 
 
 const lastStableBlockMenuTarget = ref<BlockMenuTarget | null>(null)
@@ -837,6 +850,75 @@ function focusEditor() {
   editor?.commands.focus()
 }
 
+function openPulseForSelection() {
+  if (!editor) return
+  const { from, to, empty } = editor.state.selection
+  if (empty || from === to) return
+  const text = editor.state.doc.textBetween(from, to, '\n', '\n').trim()
+  if (!text) return
+  pulseSourceKind.value = 'editor_selection'
+  pulseActionId.value = 'rewrite'
+  pulseSelectionRange.value = { from, to }
+  pulseSourceText.value = text
+  pulseOpen.value = true
+}
+
+function openPulseForNote() {
+  if (!currentPath.value) return
+  pulseSourceKind.value = 'editor_note'
+  pulseActionId.value = 'synthesize'
+  pulseSelectionRange.value = null
+  pulseSourceText.value = editor?.getText().trim() ?? ''
+  pulseOpen.value = true
+}
+
+async function runPulseFromEditor() {
+  if (!currentPath.value) return
+  const sourceText = pulseSourceKind.value === 'editor_selection'
+    ? pulseSourceText.value
+    : (pulseSourceText.value || (editor?.getText().trim() ?? ''))
+  await pulse.run({
+    source_kind: pulseSourceKind.value,
+    action_id: pulseActionId.value,
+    instructions: pulseInstruction.value.trim() || undefined,
+    context_paths: [currentPath.value],
+    source_text: sourceText || undefined,
+    selection_label: pulseSourceKind.value === 'editor_selection' ? 'Editor selection' : 'Current note'
+  })
+}
+
+function replaceSelectionWithPulseOutput() {
+  if (!editor || !pulse.previewMarkdown.value.trim() || !pulseSelectionRange.value) return
+  editor
+    .chain()
+    .focus()
+    .setTextSelection(pulseSelectionRange.value)
+    .insertContent(pulse.previewMarkdown.value)
+    .run()
+  pulseOpen.value = false
+}
+
+function insertPulseBelow() {
+  if (!editor || !pulse.previewMarkdown.value.trim()) return
+  if (pulseSelectionRange.value) {
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: pulseSelectionRange.value.to, to: pulseSelectionRange.value.to })
+      .insertContent(`\n\n${pulse.previewMarkdown.value}`)
+      .run()
+  } else {
+    editor.chain().focus('end').insertContent(`\n\n${pulse.previewMarkdown.value}`).run()
+  }
+  pulseOpen.value = false
+}
+
+function sendPulseContextToSecondBrain() {
+  if (!currentPath.value) return
+  emit('pulse-open-second-brain', { contextPaths: [currentPath.value] })
+  pulseOpen.value = false
+}
+
 async function focusFirstContentBlock() {
   if (!editor) return
   let targetPos = 1
@@ -894,6 +976,9 @@ defineExpose({
     </div>
 
     <div v-else class="editor-shell flex min-h-0 flex-1 flex-col overflow-hidden border-x">
+      <div class="editor-pulse-bar">
+        <button type="button" class="editor-pulse-note-btn" @click="openPulseForNote">Pulse note</button>
+      </div>
       <EditorPropertiesPanel
         :expanded="propertiesExpanded(path)"
         :has-properties="structuredPropertyKeys.length > 0 || activeParseErrors.length > 0"
@@ -1016,6 +1101,7 @@ defineExpose({
             @toggle-mark="inlineFormatToolbar.toggleMark"
             @open-link="inlineFormatToolbar.openLinkPopover"
             @wrap-wikilink="inlineFormatToolbar.wrapSelectionWithWikilink"
+            @open-pulse="openPulseForSelection"
             @copy-as="void onInlineToolbarCopyAs($event)"
             @apply-link="inlineFormatToolbar.applyLink"
             @unlink="inlineFormatToolbar.unlinkLink"
@@ -1086,6 +1172,31 @@ defineExpose({
             @table:select="onTableToolbarSelect($event)"
             @table:close="hideTableToolbar()"
           />
+
+          <div v-if="pulseOpen" class="editor-pulse-panel-wrap">
+            <PulsePanel
+              title="Pulse"
+              :source-label="pulseSourceKind === 'editor_selection' ? 'Transform the current editor selection.' : 'Transform the current note.'"
+              :action-id="pulseActionId"
+              :actions="PULSE_ACTIONS_BY_SOURCE[pulseSourceKind]"
+              :instruction="pulseInstruction"
+              :preview-markdown="pulse.previewMarkdown.value"
+              :provenance-paths="pulse.provenancePaths.value"
+              :running="pulse.running.value"
+              :error="pulse.error.value"
+              :apply-modes="pulseSourceKind === 'editor_selection' ? ['replace_selection', 'insert_below', 'send_to_second_brain'] : ['insert_below', 'send_to_second_brain']"
+              @update:action-id="(value) => { pulseActionId = value as PulseActionId }"
+              @update:instruction="(value) => { pulseInstruction = value }"
+              @run="void runPulseFromEditor()"
+              @cancel="void pulse.cancel()"
+              @close="pulseOpen = false"
+              @apply="(mode: PulseApplyMode) => {
+                if (mode === 'replace_selection') replaceSelectionWithPulseOutput()
+                if (mode === 'insert_below') insertPulseBelow()
+                if (mode === 'send_to_second_brain') sendPulseContextToSecondBrain()
+              }"
+            />
+          </div>
         </div>
 
         <EditorLargeDocOverlay
@@ -1118,7 +1229,30 @@ defineExpose({
   background: var(--surface-bg);
 }
 
+.editor-pulse-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 8px 0;
+}
+
+.editor-pulse-note-btn {
+  border: 1px solid var(--editor-menu-border);
+  border-radius: 10px;
+  background: var(--editor-menu-bg);
+  color: var(--editor-menu-text);
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
 .editor-holder {
   background: var(--surface-bg);
+}
+
+.editor-pulse-panel-wrap {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 35;
+  width: min(420px, calc(100vw - 48px));
 }
 </style>

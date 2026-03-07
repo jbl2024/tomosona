@@ -64,6 +64,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
   'cosmos-query-update': [value: string]
   'cosmos-search-enter': []
   'cosmos-select-match': [nodeId: string]
@@ -141,6 +142,7 @@ defineExpose<EditorSurfaceExposed>({
     v-if="activeTab?.type === 'document'"
     ref="editorSurfaceRef"
     :path="activeTab.path"
+    :workspace-path="secondBrain.workspacePath"
     :openPaths="openDocumentPaths"
     :openFile="openFile"
     :saveFile="saveFile"
@@ -154,6 +156,7 @@ defineExpose<EditorSurfaceExposed>({
     @path-renamed="emit('path-renamed', $event)"
     @outline="emit('outline', $event)"
     @properties="emit('properties', $event)"
+    @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
   />
 
   <WorkspaceLaunchpad
@@ -207,6 +210,7 @@ defineExpose<EditorSurfaceExposed>({
     @locate-selected="emit('cosmos-locate-selected')"
     @reset-view="emit('cosmos-reset-view')"
     @select-node="emit('cosmos-select-node', $event)"
+    @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
   />
 
   <SecondBrainPaneSurface

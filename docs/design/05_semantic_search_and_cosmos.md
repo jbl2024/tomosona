@@ -10,6 +10,11 @@ Goals:
 - Add semantic links in Cosmos when vectors are available.
 - Preserve graceful fallback to lexical-only behavior.
 
+Pulse handoff:
+- Cosmos can hand a selected node plus visible neighborhood to Pulse.
+- Pulse in Cosmos is limited to meso-level transformation of that graph context.
+- Cosmos remains an exploration surface, not a long-form authoring surface.
+
 ## Runtime Components
 
 Backend runtime (`src-tauri`):
