@@ -2,7 +2,7 @@
 import { FolderIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
 import SearchSidebarPanel from './SearchSidebarPanel.vue'
-import ExplorerTree from '../explorer/ExplorerTree.vue'
+import ExplorerTree from '../../domains/explorer/components/ExplorerTree.vue'
 import type { SearchMode } from '../../lib/searchMode'
 
 /**

@@ -10,13 +10,13 @@ Pulse note:
 
 ## Frontend architecture
 - Entry point in `App.vue` as a dedicated special tab (`second-brain-chat`).
-- View implementation in `src/components/second-brain`.
+- View implementation in `src/domains/second-brain/components`.
 - Stateful orchestration in composables:
   - `useSecondBrainAtMentions` for inline `@` note mentions,
   - `useSecondBrainSessions`,
   - `useSecondBrainDeliberation`,
   - `useSecondBrainDraft`.
-- API layer in `src/lib/secondBrainApi.ts`, with transport-only IPC wrappers in `src/lib/secondBrainIpcApi.ts` and shared types in `src/lib/apiTypes.ts`.
+- API layer in `src/domains/second-brain/lib/secondBrainApi.ts`, with transport-only IPC wrappers in `src/shared/api/secondBrainIpcApi.ts` and shared types in `src/shared/api/apiTypes.ts`.
 
 ## UX model
 - Sessions are switched from a header dropdown inside the chat view.

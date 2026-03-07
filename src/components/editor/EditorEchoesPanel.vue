@@ -8,7 +8,7 @@ import {
   LinkIcon,
   SparklesIcon
 } from '@heroicons/vue/24/outline'
-import type { EchoesItem } from '../../lib/echoes'
+import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 
 const props = defineProps<{
   items: EchoesItem[]

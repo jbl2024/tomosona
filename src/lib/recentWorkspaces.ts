@@ -1,4 +1,4 @@
-import { toWorkspacePathKey } from './workspacePaths'
+import { toWorkspacePathKey } from '../domains/explorer/lib/workspacePaths'
 
 export type RecentWorkspaceItem = {
   path: string

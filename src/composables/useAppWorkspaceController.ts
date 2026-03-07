@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
-import type { FileMetadata, WorkspaceFsChange } from '../lib/apiTypes'
-import { toWorkspaceRelativePath } from '../lib/workspacePaths'
+import type { FileMetadata, WorkspaceFsChange } from '../shared/api/apiTypes'
+import { toWorkspaceRelativePath } from '../domains/explorer/lib/workspacePaths'
 
 /**
  * Module: useAppWorkspaceController

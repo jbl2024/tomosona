@@ -7,7 +7,7 @@ const secondBrainApi = vi.hoisted(() => ({
   replaceSessionContext: vi.fn()
 }))
 
-vi.mock('./lib/secondBrainApi', () => ({
+vi.mock('./domains/second-brain/lib/secondBrainApi', () => ({
   createDeliberationSession: secondBrainApi.createDeliberationSession,
   fetchSecondBrainConfigStatus: vi.fn(async () => ({ configured: true, error: null })),
   fetchSecondBrainSessions: vi.fn(async () => []),
@@ -18,7 +18,7 @@ vi.mock('./lib/secondBrainApi', () => ({
   subscribeSecondBrainStream: vi.fn(async () => () => {})
 }))
 
-vi.mock('./lib/workspaceApi', () => ({
+vi.mock('./shared/api/workspaceApi', () => ({
   selectWorkingFolder: vi.fn(async () => null),
   clearWorkingFolder: vi.fn(async () => {}),
   setWorkingFolder: vi.fn(async (path: string) => path),
@@ -42,7 +42,7 @@ vi.mock('./lib/workspaceApi', () => ({
   listenWorkspaceFsChanged: vi.fn(async () => () => {})
 }))
 
-vi.mock('./lib/indexApi', () => ({
+vi.mock('./shared/api/indexApi', () => ({
   initDb: vi.fn(async () => {}),
   reindexMarkdownFileLexical: vi.fn(async () => {}),
   reindexMarkdownFileSemantic: vi.fn(async () => {}),
@@ -69,7 +69,7 @@ vi.mock('./lib/indexApi', () => ({
   computeEchoesPack: vi.fn(async () => ({ anchorPath: '/vault/a.md', generatedAtMs: 1, items: [] }))
 }))
 
-vi.mock('./lib/settingsApi', () => ({
+vi.mock('./shared/api/settingsApi', () => ({
   readAppSettings: vi.fn(async () => ({
     exists: false,
     path: '/Users/test/.tomosona/conf.json',
@@ -113,10 +113,10 @@ vi.mock('./components/panes/MultiPaneToolbarMenu.vue', () => ({
   })
 }))
 vi.mock('./components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./components/explorer/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./components/cosmos/CosmosView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./components/cosmos/CosmosSidebarPanel.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./components/second-brain/SecondBrainView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/explorer/components/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/cosmos/components/CosmosView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/cosmos/components/CosmosSidebarPanel.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/second-brain/components/SecondBrainView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 
 import App from './App.vue'
 

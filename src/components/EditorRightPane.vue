@@ -12,7 +12,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { ChevronRightIcon } from '@heroicons/vue/24/outline'
-import type { EchoesItem } from '../lib/echoes'
+import type { EchoesItem } from '../domains/echoes/lib/echoes'
 import EditorEchoesPanel from './editor/EditorEchoesPanel.vue'
 
 type HeadingNode = { level: 1 | 2 | 3; text: string }

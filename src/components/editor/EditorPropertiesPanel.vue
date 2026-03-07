@@ -3,8 +3,8 @@ import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { CircleStackIcon } from '@heroicons/vue/24/solid'
 import type { FrontmatterField } from '../../lib/frontmatter'
 import type { PropertyType } from '../../lib/propertyTypes'
-import PropertyAddDropdown from '../properties/PropertyAddDropdown.vue'
-import PropertyTokenInput from '../properties/PropertyTokenInput.vue'
+import PropertyAddDropdown from '../../domains/explorer/components/PropertyAddDropdown.vue'
+import PropertyTokenInput from '../../domains/explorer/components/PropertyTokenInput.vue'
 
 type CorePropertyOption = {
   key: string

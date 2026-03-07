@@ -8,7 +8,7 @@ import {
   type EditorBlock
 } from '../lib/markdownBlocks'
 import { EDITOR_SLASH_COMMANDS } from '../lib/editorSlashCommands'
-import { openExternalUrl } from '../lib/workspaceApi'
+import { openExternalUrl } from '../shared/api/workspaceApi'
 import EditorPropertiesPanel from './editor/EditorPropertiesPanel.vue'
 import EditorSlashOverlay from './editor/EditorSlashOverlay.vue'
 import EditorWikilinkOverlay from './editor/EditorWikilinkOverlay.vue'
@@ -59,7 +59,7 @@ import type { BlockMenuTarget, TurnIntoType } from '../lib/tiptap/blockMenu/type
 import { computeHandleLock, type DragHandleUiState } from '../lib/tiptap/blockMenu/dragHandleState'
 import { usePulseTransformation } from '../composables/usePulseTransformation'
 import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../lib/pulse'
-import type { PulseActionId } from '../lib/apiTypes'
+import type { PulseActionId } from '../shared/api/apiTypes'
 
 type HeadingNode = EditorHeadingNode
 type CorePropertyOption = { key: string; label?: string; description?: string }

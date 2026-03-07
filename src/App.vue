@@ -27,7 +27,7 @@ import {
   selectWorkingFolder,
   writeTextFile,
   listenWorkspaceFsChanged
-} from './lib/workspaceApi'
+} from './shared/api/workspaceApi'
 import {
   backlinksForPath,
   ftsSearch,
@@ -44,23 +44,23 @@ import {
   reindexMarkdownFileSemantic,
   updateWikilinksForRename,
   writePropertyTypeSchema
-} from './lib/indexApi'
-import type { WikilinkGraph } from './lib/apiTypes'
+} from './shared/api/indexApi'
+import type { WikilinkGraph } from './shared/api/apiTypes'
 import { parseSearchSnippet } from './lib/searchSnippets'
 import { applySearchMode, detectSearchMode, type SearchMode } from './lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from './lib/shortcutTargets'
 import { parseWikilinkTarget } from './lib/wikilinks'
-import { buildCosmosGraph } from './lib/graphIndex'
+import { buildCosmosGraph } from './domains/cosmos/lib/graphIndex'
 import {
   createDeliberationSession,
   loadDeliberationSession,
   replaceSessionContext
-} from './lib/secondBrainApi'
+} from './domains/second-brain/lib/secondBrainApi'
 import {
   normalizeContextPathsForUpdate,
   toAbsoluteWorkspacePath,
   workspaceScopedSecondBrainSessionKey
-} from './lib/secondBrainContextPaths'
+} from './domains/second-brain/lib/secondBrainContextPaths'
 import {
   dailyNotePath,
   fileName,
@@ -109,9 +109,9 @@ import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './com
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from './composables/useEditorState'
-import { useEchoesDiscoverability } from './composables/useEchoesDiscoverability'
-import { useEchoesPack } from './composables/useEchoesPack'
-import { useCosmosController } from './composables/useCosmosController'
+import { useEchoesDiscoverability } from './domains/echoes/composables/useEchoesDiscoverability'
+import { useEchoesPack } from './domains/echoes/composables/useEchoesPack'
+import { useCosmosController } from './domains/cosmos/composables/useCosmosController'
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
 import {

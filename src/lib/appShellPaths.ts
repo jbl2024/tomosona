@@ -1,7 +1,7 @@
 import {
   normalizeWorkspacePath,
   toWorkspacePathKey
-} from './workspacePaths'
+} from '../domains/explorer/lib/workspacePaths'
 
 /**
  * Module: appShellPaths

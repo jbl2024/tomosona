@@ -5,13 +5,13 @@ import {
   readAppSettings,
   writeAppSettings,
   discoverCodexModels as discoverCodexModelsApi
-} from '../../lib/settingsApi'
+} from '../../shared/api/settingsApi'
 import type {
   AppSettingsView,
   CodexDiscoveredModel,
   SaveAppSettingsPayload,
   WriteAppSettingsResult
-} from '../../lib/apiTypes'
+} from '../../shared/api/apiTypes'
 
 const props = defineProps<{
   visible: boolean

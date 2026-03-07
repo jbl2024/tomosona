@@ -18,7 +18,7 @@ vi.mock('../EditorView.vue', () => ({
   })
 }))
 
-vi.mock('../cosmos/CosmosPaneSurface.vue', () => ({
+vi.mock('../../domains/cosmos/components/CosmosPaneSurface.vue', () => ({
   default: defineComponent({
     name: 'CosmosPaneSurfaceStub',
     setup() {
@@ -27,7 +27,7 @@ vi.mock('../cosmos/CosmosPaneSurface.vue', () => ({
   })
 }))
 
-vi.mock('../second-brain/SecondBrainPaneSurface.vue', () => ({
+vi.mock('../../domains/second-brain/components/SecondBrainPaneSurface.vue', () => ({
   default: defineComponent({
     name: 'SecondBrainPaneSurfaceStub',
     setup() {

@@ -1,5 +1,5 @@
 import { computed, getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue'
-import type { IndexLogEntry, IndexRuntimeStatus } from '../lib/apiTypes'
+import type { IndexLogEntry, IndexRuntimeStatus } from '../shared/api/apiTypes'
 import { buildIndexActivityRows, type IndexLogFilter } from '../lib/indexActivity'
 import { formatTimestamp } from '../lib/appShellPaths'
 

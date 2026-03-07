@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import EditorView from '../EditorView.vue'
-import CosmosPaneSurface from '../cosmos/CosmosPaneSurface.vue'
-import SecondBrainPaneSurface from '../second-brain/SecondBrainPaneSurface.vue'
+import CosmosPaneSurface from '../../domains/cosmos/components/CosmosPaneSurface.vue'
+import SecondBrainPaneSurface from '../../domains/second-brain/components/SecondBrainPaneSurface.vue'
 import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { FileEditorStatus } from './EditorPaneTabs.vue'
