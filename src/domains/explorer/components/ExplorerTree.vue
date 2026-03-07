@@ -28,6 +28,7 @@ import {
   normalizeWorkspacePath,
   toWorkspaceRelativePath
 } from '../lib/workspacePaths'
+import { computeRevealScrollTop } from '../lib/revealScroll'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 
 const props = defineProps<{
@@ -952,16 +953,20 @@ async function revealPathInView(path: string, options: RevealPathOptions = {}) {
   const selector = `[data-explorer-path="${escapeSelectorValue(path)}"]`
   const row = container.querySelector<HTMLElement>(selector)
   if (row) {
-    const containerRect = container.getBoundingClientRect()
-    const rowRect = row.getBoundingClientRect()
-    const nextTop =
-      container.scrollTop +
-      (rowRect.top - containerRect.top) -
-      (container.clientHeight - rowRect.height) / 2
-    container.scrollTo({
-      top: Math.max(0, nextTop),
-      behavior: options.behavior ?? 'auto'
-    })
+    const nextTop = computeRevealScrollTop(
+      {
+        top: container.getBoundingClientRect().top,
+        bottom: container.getBoundingClientRect().bottom,
+        scrollTop: container.scrollTop
+      },
+      row.getBoundingClientRect()
+    )
+    if (nextTop !== null) {
+      container.scrollTo({
+        top: nextTop,
+        behavior: options.behavior ?? 'auto'
+      })
+    }
   }
   if (options.focusTree) {
     focusTree()
