@@ -2,14 +2,16 @@
 import { nextTick, ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import {
-  discoverCodexModels as discoverCodexModelsApi,
   readAppSettings,
   writeAppSettings,
-  type AppSettingsView,
-  type CodexDiscoveredModel,
-  type SaveAppSettingsPayload,
-  type WriteAppSettingsResult
-} from '../../lib/api'
+  discoverCodexModels as discoverCodexModelsApi
+} from '../../lib/settingsApi'
+import type {
+  AppSettingsView,
+  CodexDiscoveredModel,
+  SaveAppSettingsPayload,
+  WriteAppSettingsResult
+} from '../../lib/apiTypes'
 
 const props = defineProps<{
   visible: boolean

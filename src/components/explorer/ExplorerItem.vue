@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
-import type { TreeNode } from '../../lib/api'
+import type { TreeNode } from '../../lib/apiTypes'
 import { DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps<{

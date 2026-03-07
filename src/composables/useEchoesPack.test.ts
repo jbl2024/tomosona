@@ -6,7 +6,7 @@ const api = vi.hoisted(() => ({
   computeEchoesPack: vi.fn()
 }))
 
-vi.mock('../lib/api', () => api)
+vi.mock('../lib/indexApi', () => api)
 
 function deferredPromise<T>() {
   let resolve!: (value: T) => void

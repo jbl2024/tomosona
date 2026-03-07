@@ -1,5 +1,5 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { PulseStreamEvent, PulseTransformationRequest } from '../lib/api'
+import type { PulseStreamEvent, PulseTransformationRequest } from '../lib/apiTypes'
 import { requestPulseTransformation, stopPulseStream, subscribePulseStream } from '../lib/pulseApi'
 
 /**

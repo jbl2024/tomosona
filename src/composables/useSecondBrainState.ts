@@ -1,5 +1,10 @@
 import { computed, ref } from 'vue'
-import type { SecondBrainConfigStatus, SecondBrainContextItem, SecondBrainMessage, SecondBrainSessionSummary } from '../lib/api'
+import type {
+  SecondBrainConfigStatus,
+  SecondBrainContextItem,
+  SecondBrainMessage,
+  SecondBrainSessionSummary
+} from '../lib/apiTypes'
 import { fetchSecondBrainConfigStatus, parseMessageCitations } from '../lib/secondBrainApi'
 import { SECOND_BRAIN_MODES } from '../lib/secondBrainModes'
 import { useSecondBrainDeliberation } from './useSecondBrainDeliberation'

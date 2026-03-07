@@ -1,3 +1,5 @@
+import { toWorkspacePathKey } from './workspacePaths'
+
 export type RecentWorkspaceItem = {
   path: string
   label: string
@@ -13,10 +15,6 @@ function safeJsonParse(raw: string | null): unknown {
   } catch {
     return []
   }
-}
-
-function normalizeWorkspacePath(path: string): string {
-  return path.replace(/\\/g, '/').trim().toLowerCase()
 }
 
 function sanitizeEntry(value: unknown): RecentWorkspaceItem | null {
@@ -70,7 +68,7 @@ export function upsertRecentWorkspace(
   const candidate = sanitizeEntry(item)
   if (!candidate) return readRecentWorkspaces(storageKey)
   const next = readRecentWorkspaces(storageKey).filter(
-    (entry) => normalizeWorkspacePath(entry.path) !== normalizeWorkspacePath(candidate.path)
+    (entry) => toWorkspacePathKey(entry.path) !== toWorkspacePathKey(candidate.path)
   )
   next.unshift(candidate)
   writeRecentWorkspaces(storageKey, next)
@@ -81,9 +79,9 @@ export function upsertRecentWorkspace(
  * Removes one workspace entry by path and returns the persisted list.
  */
 export function removeRecentWorkspace(storageKey: string, path: string): RecentWorkspaceItem[] {
-  const target = normalizeWorkspacePath(path)
+  const target = toWorkspacePathKey(path)
   const next = readRecentWorkspaces(storageKey).filter(
-    (entry) => normalizeWorkspacePath(entry.path) !== target
+    (entry) => toWorkspacePathKey(entry.path) !== target
   )
   writeRecentWorkspaces(storageKey, next)
   return next

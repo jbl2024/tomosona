@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../ui/UiFilterableDropdown.vue'
-import type { SecondBrainSessionSummary } from '../../lib/api'
+import type { SecondBrainSessionSummary } from '../../lib/apiTypes'
 
 type SessionDropdownItem = FilterableDropdownItem & {
   sessionId: string

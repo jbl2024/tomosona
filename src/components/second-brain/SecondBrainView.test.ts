@@ -20,8 +20,8 @@ const apiCore = vi.hoisted(() => ({
   computeEchoesPack: vi.fn()
 }))
 
-vi.mock('../../lib/api', async () => {
-  const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
+vi.mock('../../lib/indexApi', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/indexApi')>('../../lib/indexApi')
   return {
     ...actual,
     computeEchoesPack: apiCore.computeEchoesPack

@@ -6,7 +6,7 @@
  * dedicated components.
  */
 import { computed, ref, watch, type MaybeRefOrGetter, toValue } from 'vue'
-import { computeEchoesPack } from '../lib/api'
+import { computeEchoesPack } from '../lib/indexApi'
 import type { EchoesItem } from '../lib/echoes'
 
 type UseEchoesPackOptions = {

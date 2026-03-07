@@ -1,4 +1,9 @@
 import { computed, ref, type Ref } from 'vue'
+import {
+  normalizeWorkspacePath,
+  toWorkspacePathKey,
+  toWorkspaceRelativePath
+} from '../lib/workspacePaths'
 
 export type SecondBrainAtMentionItem = {
   id: string
@@ -10,21 +15,6 @@ type MentionTrigger = {
   start: number
   end: number
   query: string
-}
-
-function normalizePath(value: string): string {
-  return value.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '')
-}
-
-function toRelativePath(workspacePath: string, path: string): string {
-  const normalizedPath = normalizePath(path)
-  const normalizedRoot = normalizePath(workspacePath).replace(/\/+$/, '')
-  if (!normalizedRoot) return normalizedPath
-  if (normalizedPath === normalizedRoot) return '.'
-  if (normalizedPath.startsWith(`${normalizedRoot}/`)) {
-    return normalizedPath.slice(normalizedRoot.length + 1)
-  }
-  return normalizedPath
 }
 
 function isMarkdownPath(path: string): boolean {
@@ -57,11 +47,11 @@ export function useSecondBrainAtMentions(params: {
     const entries = params.allWorkspaceFiles.value
       .filter((path) => isMarkdownPath(path))
       .map((absolutePath) => {
-        const relativePath = toRelativePath(params.workspacePath.value, absolutePath)
+        const relativePath = toWorkspaceRelativePath(params.workspacePath.value, absolutePath)
         return {
-          id: relativePath.toLowerCase(),
+          id: toWorkspacePathKey(relativePath),
           relativePath,
-          absolutePath
+          absolutePath: normalizeWorkspacePath(absolutePath)
         }
       })
 
@@ -135,14 +125,14 @@ export function useSecondBrainAtMentions(params: {
   function resolveMentionedPaths(text: string): { resolvedPaths: string[]; unresolved: string[] } {
     const resolved: string[] = []
     const unresolved: string[] = []
-    const byRelative = new Map(mentionItems.value.map((item) => [item.relativePath.toLowerCase(), item.absolutePath]))
+    const byRelative = new Map(mentionItems.value.map((item) => [toWorkspacePathKey(item.relativePath), item.absolutePath]))
 
     const regex = /(^|\s)@([^\s@]+)/g
     let match: RegExpExecArray | null
     while ((match = regex.exec(text))) {
       const token = (match[2] ?? '').trim()
       if (!token) continue
-      const absolute = byRelative.get(token.toLowerCase())
+      const absolute = byRelative.get(toWorkspacePathKey(token))
       if (absolute) {
         resolved.push(absolute)
       } else {

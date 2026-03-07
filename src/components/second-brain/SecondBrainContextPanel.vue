@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { SecondBrainContextItem } from '../../lib/api'
+import type { SecondBrainContextItem } from '../../lib/apiTypes'
 
 const props = defineProps<{
   contextItems: SecondBrainContextItem[]

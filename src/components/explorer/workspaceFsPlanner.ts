@@ -1,4 +1,5 @@
-import type { WorkspaceFsChange } from '../../lib/api'
+import type { WorkspaceFsChange } from '../../lib/apiTypes'
+import { normalizeWorkspacePath } from '../../lib/workspacePaths'
 
 export type WorkspaceFsActionPlan = {
   dirsToRefresh: Set<string>
@@ -6,7 +7,7 @@ export type WorkspaceFsActionPlan = {
 }
 
 export function normalizeFsPath(path: string): string {
-  return path.replace(/\\/g, '/')
+  return normalizeWorkspacePath(path)
 }
 
 export function parentPath(path: string): string {

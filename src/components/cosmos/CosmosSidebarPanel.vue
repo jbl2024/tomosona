@@ -10,7 +10,7 @@ import type { CosmosGraphNode } from '../../lib/graphIndex'
 import { XMarkIcon, MapPinIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { applySearchMode, detectSearchMode, type SearchMode } from '../../lib/searchMode'
 import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../lib/pulse'
-import type { PulseActionId } from '../../lib/api'
+import type { PulseActionId } from '../../lib/apiTypes'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../ui/UiFilterableDropdown.vue'
 
 type GraphSummary = {

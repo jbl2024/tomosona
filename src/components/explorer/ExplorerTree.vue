@@ -21,12 +21,13 @@ import {
   pathExists,
   renameEntry,
   revealInFileManager,
-  trashEntry,
-  type ConflictStrategy,
-  type EntryKind,
-  type TreeNode,
-  type WorkspaceFsChange
-} from '../../lib/api'
+  trashEntry
+} from '../../lib/workspaceApi'
+import type { ConflictStrategy, EntryKind, TreeNode, WorkspaceFsChange } from '../../lib/apiTypes'
+import {
+  normalizeWorkspacePath,
+  toWorkspaceRelativePath
+} from '../../lib/workspacePaths'
 import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{
@@ -117,10 +118,6 @@ function emitError(message: string) {
   emit('error', message)
 }
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/')
-}
-
 function escapeSelectorValue(value: string): string {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(value)
@@ -129,18 +126,17 @@ function escapeSelectorValue(value: string): string {
 }
 
 function getParentPath(path: string): string {
-  const normalized = normalizePath(path)
+  const normalized = normalizeWorkspacePath(path)
   const idx = normalized.lastIndexOf('/')
   if (idx <= 0) return path
   return normalized.slice(0, idx)
 }
 
 function getAncestorDirs(path: string): string[] {
-  const root = normalizePath(props.folderPath)
-  const target = normalizePath(path)
-  if (!root || !target || target === root || !target.startsWith(`${root}/`)) return []
-
-  const relative = target.slice(root.length + 1)
+  const root = normalizeWorkspacePath(props.folderPath)
+  const target = normalizeWorkspacePath(path)
+  const relative = toWorkspaceRelativePath(root, target)
+  if (!root || !target || relative === '.' || relative === target) return []
   const segments = relative.split('/').slice(0, -1)
   const dirs: string[] = []
 
@@ -265,7 +261,7 @@ async function refreshSpecificDirs(dirs: Iterable<string>) {
 }
 
 function removePathFromCaches(path: string) {
-  const normalizedPath = normalizePath(path)
+  const normalizedPath = normalizeWorkspacePath(path)
   const descendants = Object.keys(nodeByPath.value).filter(
     (candidate) => candidate === normalizedPath || candidate.startsWith(`${normalizedPath}/`)
   )
@@ -306,9 +302,9 @@ function removePathFromCaches(path: string) {
 }
 
 function workspaceRootMatches(rootPath: string): boolean {
-  const folder = normalizePath(props.folderPath)
+  const folder = normalizeWorkspacePath(props.folderPath)
   if (!folder) return false
-  return normalizePath(rootPath) === folder
+  return normalizeWorkspacePath(rootPath) === folder
 }
 
 let pendingWorkspaceChanges: WorkspaceFsChange[] = []

@@ -28,6 +28,8 @@ describe('appShellPaths', () => {
   it('formats workspace daily note paths and relative path helpers', () => {
     expect(dailyNotePath('/vault', '2026-03-06')).toBe('/vault/journal/2026-03-06.md')
     expect(sanitizeRelativePath('\\notes\\\\today.md')).toBe('notes/today.md')
+    expect(sanitizeRelativePath('  /notes//today.md  ')).toBe('notes/today.md')
+    expect(normalizeRelativeNotePath('notes/../journal/./today.md')).toBe('journal/today.md')
     expect(normalizePath('notes\\today.md')).toBe('notes/today.md')
     expect(normalizePathKey('Notes/TODAY.md')).toBe('notes/today.md')
     expect(splitRelativePath('notes/today.md')).toEqual({ directory: 'notes', fileName: 'today.md' })

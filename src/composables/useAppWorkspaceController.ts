@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue'
-import type { FileMetadata, WorkspaceFsChange } from '../lib/api'
+import type { FileMetadata, WorkspaceFsChange } from '../lib/apiTypes'
+import { toWorkspaceRelativePath } from '../lib/workspacePaths'
 
 /**
  * Module: useAppWorkspaceController
@@ -58,13 +59,7 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
 
   /** Converts an absolute workspace path into a path relative to the current workspace root. */
   function toRelativePath(path: string): string {
-    const root = options.workingFolderPath.value
-    if (!root) return path
-    if (path === root) return '.'
-    if (path.startsWith(`${root}/`)) {
-      return path.slice(root.length + 1)
-    }
-    return path
+    return toWorkspaceRelativePath(options.workingFolderPath.value, path)
   }
 
   /** Clears workspace-scoped derived state when the active workspace changes or closes. */

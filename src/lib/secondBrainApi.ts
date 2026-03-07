@@ -1,27 +1,29 @@
 import {
   appendMessageToDraft,
-  createSecondBrainSession,
   cancelSecondBrainStream,
+  createSecondBrainSession,
   deleteSecondBrainSession,
-  publishDraftToExistingNote,
-  publishDraftToNewNote,
   listSecondBrainSessions,
   loadSecondBrainSession,
   listenSecondBrainStream,
+  publishDraftToExistingNote,
+  publishDraftToNewNote,
   readSecondBrainConfigStatus,
   saveSecondBrainDraft,
+  exportSecondBrainSessionMarkdown,
+  insertSecondBrainAssistantIntoTargetNote,
   sendSecondBrainMessage,
   setSecondBrainSessionTargetNote,
-  insertSecondBrainAssistantIntoTargetNote,
-  exportSecondBrainSessionMarkdown,
-  updateSecondBrainContext,
-  type SecondBrainAttachmentMeta,
-  type SecondBrainConfigStatus,
-  type SecondBrainMessage,
-  type SecondBrainSessionPayload,
-  type SecondBrainSessionSummary,
-  type SecondBrainStreamEvent
-} from './api'
+  updateSecondBrainContext
+} from './secondBrainIpcApi'
+import type {
+  SecondBrainAttachmentMeta,
+  SecondBrainConfigStatus,
+  SecondBrainMessage,
+  SecondBrainSessionPayload,
+  SecondBrainSessionSummary,
+  SecondBrainStreamEvent
+} from './apiTypes'
 
 /**
  * Reads active configuration status without exposing secrets.

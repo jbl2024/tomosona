@@ -5,7 +5,12 @@ import {
   loadDeliberationSession,
   replaceSessionContext
 } from '../lib/secondBrainApi'
-import type { SecondBrainContextItem, SecondBrainMessage, SecondBrainSessionPayload, SecondBrainSessionSummary } from '../lib/api'
+import type {
+  SecondBrainContextItem,
+  SecondBrainMessage,
+  SecondBrainSessionPayload,
+  SecondBrainSessionSummary
+} from '../lib/apiTypes'
 
 export type LoadedSession = {
   payload: SecondBrainSessionPayload

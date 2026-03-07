@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { planWorkspaceFsActions, normalizeFsPath, parentPath } from './workspaceFsPlanner'
-import type { WorkspaceFsChange } from '../../lib/api'
+import type { WorkspaceFsChange } from '../../lib/apiTypes'
 
 function setOf(values: string[]): Set<string> {
   return new Set(values)

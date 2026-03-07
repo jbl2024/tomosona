@@ -1,12 +1,18 @@
+import {
+  normalizeWorkspacePath,
+  toWorkspacePathKey
+} from './workspacePaths'
+
 /**
  * Module: appShellPaths
  *
  * Purpose:
- * - Centralize pure path/date helpers used by the app shell.
+ * - Centralize pure app-shell helpers for path fragments and date formatting.
  *
  * Notes:
  * - Helpers in this module must stay side-effect free.
- * - Workspace-aware helpers operate on normalized forward-slash paths.
+ * - Workspace path normalization delegates to `workspacePaths`, which is the
+ *   single source of truth for frontend path behavior.
  */
 
 /** Formats a date or time segment as a 2-digit string. */
@@ -68,11 +74,7 @@ export function dailyNotePath(root: string, date: string): string {
 
 /** Normalizes a user-provided relative path while preserving nested segments. */
 export function sanitizeRelativePath(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-    .replace(/\/+/g, '/')
+  return normalizeWorkspacePath(raw).replace(/^\/+/, '')
 }
 
 /**
@@ -82,7 +84,7 @@ export function sanitizeRelativePath(raw: string): string {
  * returns `null`.
  */
 export function normalizeRelativeNotePath(raw: string): string | null {
-  const cleaned = raw.trim().replace(/\\/g, '/').replace(/\/+/g, '/')
+  const cleaned = normalizeWorkspacePath(raw)
   if (!cleaned) return null
 
   const stack: string[] = []
@@ -106,12 +108,12 @@ export function normalizeRelativeNotePath(raw: string): string | null {
 /** Normalizes a path to forward-slash separators. */
 /** Normalizes separators for paths received from mixed OS or frontend sources. */
 export function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/')
+  return normalizeWorkspacePath(path)
 }
 
 /** Returns a case-insensitive key for path lookups. */
 export function normalizePathKey(path: string): string {
-  return normalizePath(path).toLowerCase()
+  return toWorkspacePathKey(path)
 }
 
 /** Returns true when the path looks like a markdown document. */
@@ -121,7 +123,7 @@ export function isMarkdownPath(path: string): boolean {
 
 /** Returns the final filename segment for the provided path. */
 export function fileName(path: string): string {
-  const normalized = path.replace(/\\/g, '/')
+  const normalized = normalizeWorkspacePath(path)
   const parts = normalized.split('/')
   return parts[parts.length - 1] || path
 }

@@ -1,14 +1,9 @@
+import {
+  dedupeWorkspacePaths,
+  toWorkspaceAbsolutePath
+} from './workspacePaths'
+
 const SECOND_BRAIN_LAST_SESSION_ID_STORAGE_PREFIX = 'tomosona:second-brain:last-session-id:'
-
-function normalizeSlashes(value: string): string {
-  return value.replace(/\\/g, '/')
-}
-
-function isAbsolutePath(value: string): boolean {
-  if (!value) return false
-  if (value.startsWith('/')) return true
-  return /^[A-Za-z]:\//.test(value)
-}
 
 /**
  * Returns an absolute workspace path for Second Brain context updates.
@@ -17,14 +12,7 @@ function isAbsolutePath(value: string): boolean {
  * - Relative input paths are resolved under the provided workspace path.
  */
 export function toAbsoluteWorkspacePath(workspacePath: string, path: string): string {
-  const normalizedPath = normalizeSlashes(String(path ?? '').trim())
-  if (!normalizedPath) return ''
-  if (isAbsolutePath(normalizedPath)) return normalizedPath
-
-  const normalizedWorkspace = normalizeSlashes(String(workspacePath ?? '').trim()).replace(/\/+$/, '')
-  if (!normalizedWorkspace) return normalizedPath.replace(/^\.?\//, '')
-
-  return `${normalizedWorkspace}/${normalizedPath.replace(/^\.?\//, '')}`
+  return toWorkspaceAbsolutePath(workspacePath, path)
 }
 
 /**
@@ -35,18 +23,7 @@ export function toAbsoluteWorkspacePath(workspacePath: string, path: string): st
  * - Deduplicates while preserving first-seen order.
  */
 export function normalizeContextPathsForUpdate(workspacePath: string, paths: string[]): string[] {
-  const out: string[] = []
-  const seen = new Set<string>()
-
-  for (const path of paths) {
-    const absolute = toAbsoluteWorkspacePath(workspacePath, path)
-    if (!absolute) continue
-    if (seen.has(absolute)) continue
-    seen.add(absolute)
-    out.push(absolute)
-  }
-
-  return out
+  return dedupeWorkspacePaths(paths.map((path) => toAbsoluteWorkspacePath(workspacePath, path)))
 }
 
 /**

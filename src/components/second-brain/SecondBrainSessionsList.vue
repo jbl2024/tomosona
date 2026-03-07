@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
-import type { SecondBrainSessionSummary } from '../../lib/api'
+import type { SecondBrainSessionSummary } from '../../lib/apiTypes'
 
 const props = defineProps<{
   sessions: SecondBrainSessionSummary[]

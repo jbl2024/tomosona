@@ -14,36 +14,38 @@ import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import SettingsModal from './components/settings/SettingsModal.vue'
 import { useDocumentHistory } from './composables/useDocumentHistory'
 import {
-  backlinksForPath,
   clearWorkingFolder,
   createEntry,
+  listChildren,
+  listMarkdownFiles,
+  pathExists,
+  readFileMetadata,
+  readTextFile,
+  renameEntry,
+  revealInFileManager,
+  setWorkingFolder,
+  selectWorkingFolder,
+  writeTextFile,
+  listenWorkspaceFsChanged
+} from './lib/workspaceApi'
+import {
+  backlinksForPath,
   ftsSearch,
   getWikilinkGraph,
   initDb,
-  listMarkdownFiles,
-  listChildren,
-  pathExists,
-  readFileMetadata,
   readIndexLogs,
   readIndexRuntimeStatus,
-  readTextFile,
+  readPropertyTypeSchema,
   rebuildWorkspaceIndex,
   removeMarkdownFileFromIndex,
-  renameEntry,
   refreshSemanticEdgesCacheNow,
   requestIndexCancel,
   reindexMarkdownFileLexical,
   reindexMarkdownFileSemantic,
-  readPropertyTypeSchema,
-  revealInFileManager,
-  setWorkingFolder,
-  selectWorkingFolder,
-  type WikilinkGraph,
-  listenWorkspaceFsChanged,
   updateWikilinksForRename,
-  writePropertyTypeSchema,
-  writeTextFile
-} from './lib/api'
+  writePropertyTypeSchema
+} from './lib/indexApi'
+import type { WikilinkGraph } from './lib/apiTypes'
 import { parseSearchSnippet } from './lib/searchSnippets'
 import { applySearchMode, detectSearchMode, type SearchMode } from './lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from './lib/shortcutTargets'

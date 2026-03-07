@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SecondBrainMessage } from '../../lib/api'
+import type { SecondBrainMessage } from '../../lib/apiTypes'
 import type { SecondBrainModeSpec } from '../../lib/secondBrainModes'
 import SecondBrainModeSelector from './SecondBrainModeSelector.vue'
 

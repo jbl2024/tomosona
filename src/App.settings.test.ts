@@ -35,7 +35,7 @@ const hoisted = vi.hoisted(() => ({
   ])
 }))
 
-vi.mock('./lib/api', () => ({
+vi.mock('./lib/workspaceApi', () => ({
   selectWorkingFolder: vi.fn(async () => null),
   clearWorkingFolder: vi.fn(async () => {}),
   setWorkingFolder: vi.fn(async (path: string) => path),
@@ -55,10 +55,16 @@ vi.mock('./lib/api', () => ({
   copyEntry: vi.fn(async (source: string) => source),
   moveEntry: vi.fn(async (source: string) => source),
   trashEntry: vi.fn(async (path: string) => path),
-  openPathExternal: vi.fn(async () => {}),
-  openExternalUrl: vi.fn(async () => {}),
   revealInFileManager: vi.fn(async () => {}),
+  listenWorkspaceFsChanged: vi.fn(async () => () => {})
+}))
+
+vi.mock('./lib/indexApi', () => ({
   initDb: vi.fn(async () => {}),
+  reindexMarkdownFileLexical: vi.fn(async () => {}),
+  reindexMarkdownFileSemantic: vi.fn(async () => {}),
+  refreshSemanticEdgesCacheNow: vi.fn(async () => {}),
+  removeMarkdownFileFromIndex: vi.fn(async () => {}),
   ftsSearch: vi.fn(async () => []),
   backlinksForPath: vi.fn(async () => []),
   updateWikilinksForRename: vi.fn(async () => ({ updated_files: 0 })),
@@ -76,12 +82,14 @@ vi.mock('./lib/api', () => ({
   readIndexLogs: vi.fn(async () => []),
   readPropertyTypeSchema: vi.fn(async () => ({})),
   writePropertyTypeSchema: vi.fn(async () => {}),
-  readAppSettings: hoisted.readAppSettings,
-  writeAppSettings: hoisted.writeAppSettings,
-  discoverCodexModels: hoisted.discoverCodexModels,
-  listenWorkspaceFsChanged: vi.fn(async () => () => {}),
   getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() })),
   computeEchoesPack: vi.fn(async () => ({ anchorPath: '/Users/test/a.md', generatedAtMs: 1, items: [] }))
+}))
+
+vi.mock('./lib/settingsApi', () => ({
+  readAppSettings: hoisted.readAppSettings,
+  writeAppSettings: hoisted.writeAppSettings,
+  discoverCodexModels: hoisted.discoverCodexModels
 }))
 
 vi.mock('./components/panes/EditorPaneGrid.vue', () => ({

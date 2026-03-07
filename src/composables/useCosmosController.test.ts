@@ -1,7 +1,7 @@
 import { effectScope, nextTick, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { useCosmosController } from './useCosmosController'
-import type { WikilinkGraph } from '../lib/api'
+import type { WikilinkGraph } from '../lib/apiTypes'
 
 const rawGraph: WikilinkGraph = {
   nodes: [

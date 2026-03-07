@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UiButton from '../ui/UiButton.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
-import type { IndexRuntimeStatus } from '../../lib/api'
+import type { IndexRuntimeStatus } from '../../lib/apiTypes'
 
 /**
  * IndexStatusModal

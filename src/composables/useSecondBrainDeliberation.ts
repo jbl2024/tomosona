@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { runDeliberation, subscribeSecondBrainStream } from '../lib/secondBrainApi'
-import type { SecondBrainAttachmentMeta, SecondBrainMessage } from '../lib/api'
+import type { SecondBrainAttachmentMeta, SecondBrainMessage } from '../lib/apiTypes'
 
 export function useSecondBrainDeliberation() {
   const sending = ref(false)

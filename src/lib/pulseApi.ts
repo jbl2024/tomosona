@@ -1,11 +1,13 @@
 import {
   cancelPulseStream,
   listenPulseStream,
-  runPulseTransformation,
-  type PulseStreamEvent,
-  type PulseTransformationRequest,
-  type PulseTransformationResponse
-} from './api'
+  runPulseTransformation
+} from './pulseIpcApi'
+import type {
+  PulseStreamEvent,
+  PulseTransformationRequest,
+  PulseTransformationResponse
+} from './apiTypes'
 
 /** Runs a one-shot Pulse transformation over explicit source material. */
 export async function requestPulseTransformation(

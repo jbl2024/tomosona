@@ -15,7 +15,7 @@ import {
 import { sanitizeHtmlForPreview } from '../../lib/htmlSanitizer'
 import { inlineTextToHtml } from '../../lib/markdownBlocks'
 import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../../lib/secondBrainContextPaths'
-import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/api'
+import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/apiTypes'
 import { useEchoesPack } from '../../composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../../composables/useSecondBrainAtMentions'
 import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../lib/pulse'

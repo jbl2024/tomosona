@@ -27,6 +27,10 @@ describe('secondBrainContextPaths', () => {
     expect(normalized).toEqual(['/vault/notes/a.md', '/vault/notes/b.md'])
   })
 
+  it('deduplicates update payload paths case-insensitively after normalization', () => {
+    expect(normalizeContextPathsForUpdate('/vault', ['Notes/A.md', 'notes/a.md'])).toEqual(['/vault/Notes/A.md'])
+  })
+
   it('builds a workspace-scoped session key', () => {
     expect(workspaceScopedSecondBrainSessionKey('/vault/my ws')).toBe(
       'tomosona:second-brain:last-session-id:%2Fvault%2Fmy%20ws'

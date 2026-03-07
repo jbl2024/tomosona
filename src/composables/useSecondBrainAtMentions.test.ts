@@ -63,4 +63,12 @@ describe('useSecondBrainAtMentions', () => {
     expect(result.resolvedPaths).toEqual(['/vault/alpha.md', '/vault/docs/nested.md'])
     expect(result.unresolved).toEqual(['missing.md'])
   })
+
+  it('deduplicates resolved mentions with mixed case and slash styles', () => {
+    const api = build()
+    const result = api.resolveMentionedPaths('Use @ALPHA.MD and @docs\\nested.md and @alpha.md')
+
+    expect(result.resolvedPaths).toEqual(['/vault/alpha.md', '/vault/docs/nested.md'])
+    expect(result.unresolved).toEqual([])
+  })
 })

@@ -5,7 +5,7 @@
  * filtering, and preview loading from `App.vue`.
  */
 import { computed, ref, watch, type Ref } from 'vue'
-import type { WikilinkGraph } from '../lib/api'
+import type { WikilinkGraph } from '../lib/apiTypes'
 import { type CosmosGraph, type CosmosGraphNode, buildCosmosGraph as defaultBuildCosmosGraph } from '../lib/graphIndex'
 
 type GraphSummary = {
