@@ -61,6 +61,11 @@ export function useSlashMenu(options: UseSlashMenuOptions) {
     slashQuery.value = ''
   }
 
+  function dismissSlashMenu() {
+    closeSlashMenu()
+    slashActivatedByUser.value = false
+  }
+
   function markSlashActivatedByUser() {
     slashActivatedByUser.value = true
   }
@@ -91,11 +96,18 @@ export function useSlashMenu(options: UseSlashMenuOptions) {
     const before = context.text.slice(0, context.offset)
     const match = before.match(/^\/([a-zA-Z0-9_-]*)$/)
     if (!match) return null
+    const token = match[0] ?? '/'
     return {
       query: match[1] ?? '',
       from: context.from,
-      to: context.to
+      to: context.from + token.length
     }
+  }
+
+  function setSlashQuery(query: string) {
+    slashQuery.value = query
+    slashIndex.value = 0
+    slashOpen.value = visibleSlashCommands.value.length > 0
   }
 
   function openSlashAtSelection(query = '', opts?: { preserveIndex?: boolean }) {
@@ -129,10 +141,11 @@ export function useSlashMenu(options: UseSlashMenuOptions) {
   function syncSlashMenuFromSelection(opts?: { preserveIndex?: boolean }) {
     const slash = readSlashContext()
     if (slash && slashActivatedByUser.value) {
-      openSlashAtSelection(slash.query, { preserveIndex: opts?.preserveIndex ?? true })
+      openSlashAtSelection(slashQuery.value || slash.query, { preserveIndex: opts?.preserveIndex ?? true })
       return
     }
     closeSlashMenu()
+    if (!slash) slashActivatedByUser.value = false
   }
 
   return {
@@ -144,7 +157,9 @@ export function useSlashMenu(options: UseSlashMenuOptions) {
     slashActivatedByUser,
     visibleSlashCommands,
     closeSlashMenu,
+    dismissSlashMenu,
     markSlashActivatedByUser,
+    setSlashQuery,
     currentTextSelectionContext,
     readSlashContext,
     openSlashAtSelection,

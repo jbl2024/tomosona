@@ -99,6 +99,28 @@ describe('useEditorInputHandlers', () => {
     expect(options.uiPort.updateTableToolbar).toHaveBeenCalledTimes(1)
   })
 
+  it('does not resync slash menu on Escape when it is closed', () => {
+    const { handlers, options } = createHandlers({
+      menusPort: {
+        visibleSlashCommands: ref([{ id: 'quote', label: 'Quote', type: 'quote', data: {} }]),
+        slashOpen: ref(false),
+        slashIndex: ref(0),
+        closeSlashMenu: vi.fn(),
+        blockMenuOpen: ref(false),
+        closeBlockMenu: vi.fn(),
+        tableToolbarOpen: ref(false),
+        hideTableToolbar: vi.fn(),
+        inlineFormatToolbar: {
+          linkPopoverOpen: ref(false),
+          cancelLink: vi.fn()
+        }
+      }
+    })
+
+    handlers.onEditorKeydown(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(options.uiPort.syncSlashMenuFromSelection).not.toHaveBeenCalled()
+  })
+
   it('converts markdown paste to editor json content', () => {
     const { handlers, insertContent } = createHandlers({
       menusPort: {

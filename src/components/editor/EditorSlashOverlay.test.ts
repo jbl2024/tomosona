@@ -27,6 +27,7 @@ describe('EditorSlashOverlay', () => {
           index: 0,
           left: 10,
           top: 12,
+          query: '',
           commands: [],
           'onUpdate:index': onIndex,
           onSelect,

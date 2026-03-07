@@ -72,4 +72,39 @@ describe('useSlashMenu', () => {
     expect(menu.slashOpen.value).toBe(true)
     expect(menu.slashIndex.value).toBe(0)
   })
+
+  it('dismisses slash activation after escape-style close', () => {
+    const menu = useSlashMenu({
+      getEditor: () => createEditor('/q'),
+      commands: computed(() => [
+        { id: 'quote', label: 'Quote', type: 'quote', data: {} }
+      ]),
+      closeCompetingMenus: () => {}
+    })
+
+    menu.markSlashActivatedByUser()
+    menu.syncSlashMenuFromSelection()
+    expect(menu.slashOpen.value).toBe(true)
+
+    menu.dismissSlashMenu()
+    expect(menu.slashOpen.value).toBe(false)
+    expect(menu.slashActivatedByUser.value).toBe(false)
+
+    menu.syncSlashMenuFromSelection()
+    expect(menu.slashOpen.value).toBe(false)
+  })
+
+  it('returns the exact slash token range instead of the full paragraph', () => {
+    const menu = useSlashMenu({
+      getEditor: () => createEditor('/html'),
+      commands: computed(() => []),
+      closeCompetingMenus: () => {}
+    })
+
+    expect(menu.readSlashContext()).toEqual({
+      query: 'html',
+      from: 1,
+      to: 6
+    })
+  })
 })

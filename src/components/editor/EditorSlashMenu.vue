@@ -25,11 +25,13 @@ const props = defineProps<{
   index: number
   left: number
   top: number
+  query: string
   commands: SlashCommand[]
 }>()
 
 const emit = defineEmits<{
   'update:index': [value: number]
+  'update:query': [value: string]
   select: [command: SlashCommand]
   close: []
 }>()
@@ -63,13 +65,19 @@ function iconFor(command: SlashCommand) {
   return ICON_BY_ID[command.id] ?? ICON_BY_TYPE[command.type] ?? DocumentTextIcon
 }
 
-const items = computed<Array<FilterableDropdownItem & { command: SlashCommand }>>(() =>
+const items = computed<Array<FilterableDropdownItem & { command: SlashCommand; aliases: string[] }>>(() =>
   props.commands.map((command) => ({
     id: `slash:${command.id}:${command.type}`,
     label: command.label,
-    command
+    command,
+    aliases: [command.id, command.type, command.label]
   }))
 )
+
+function slashMatcher(item: FilterableDropdownItem, query: string): boolean {
+  const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry).toLowerCase()) : []
+  return aliases.some((token) => token.includes(query))
+}
 
 function onSelect(item: FilterableDropdownItem) {
   const command = (item as FilterableDropdownItem & { command?: SlashCommand }).command
@@ -103,20 +111,22 @@ function iconForItem(item: unknown) {
       class="editor-slash-dropdown"
       :items="items"
       :model-value="props.open"
-      query=""
+      :query="props.query"
       :active-index="props.index"
-      :show-filter="false"
+      :matcher="slashMatcher"
+      filter-placeholder="Search blocks..."
+      :show-filter="true"
       :auto-focus-on-open="true"
       :close-on-outside="false"
       :close-on-select="false"
       :max-height="320"
       @open-change="onOpenChange($event)"
-      @query-change="() => {}"
+      @query-change="emit('update:query', $event)"
       @active-index-change="emit('update:index', $event)"
       @select="onSelect($event)"
     >
-      <template #item="{ item }">
-        <span class="editor-slash-item">
+      <template #item="{ item, active }">
+        <span class="editor-slash-item" :class="{ 'editor-slash-item--active': active }">
           <component :is="iconForItem(item)" class="h-4 w-4 shrink-0" />
           <span class="truncate">{{ labelForItem(item) }}</span>
         </span>
@@ -138,9 +148,23 @@ function iconForItem(item: unknown) {
   z-index: 20;
 }
 
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-filter) {
+  border-bottom-color: var(--editor-menu-border);
+}
+
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-filter-input) {
+  background: var(--editor-menu-bg);
+  border-color: var(--editor-menu-border);
+  color: var(--editor-menu-text);
+}
+
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-filter-input::placeholder) {
+  color: var(--editor-menu-muted);
+}
+
 .editor-slash-dropdown :deep(.ui-filterable-dropdown-option) {
   border-radius: 0.375rem;
-  color: rgb(51 65 85);
+  color: var(--editor-menu-text);
   font-size: 0.875rem;
   padding: 0.5rem 0.625rem;
 }
@@ -151,21 +175,16 @@ function iconForItem(item: unknown) {
   gap: 0.5rem;
 }
 
-.dark .editor-slash-dropdown :deep(.ui-filterable-dropdown-option) {
-  color: rgb(226 232 240);
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-option:hover),
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-option[data-active='true']) {
+  background: var(--editor-menu-hover-bg);
 }
 
-.dark .editor-slash-dropdown :deep(.ui-filterable-dropdown-menu) {
-  background: rgb(15 23 42);
-  border-color: rgb(71 85 105);
+.editor-slash-item--active {
+  font-weight: 600;
 }
 
-.dark .editor-slash-dropdown :deep(.ui-filterable-dropdown-option:hover),
-.dark .editor-slash-dropdown :deep(.ui-filterable-dropdown-option[data-active='true']) {
-  background: rgb(30 41 59);
-}
-
-.dark .editor-slash-dropdown :deep(.ui-filterable-dropdown-empty) {
-  color: rgb(148 163 184);
+.editor-slash-dropdown :deep(.ui-filterable-dropdown-empty) {
+  color: var(--editor-menu-muted);
 }
 </style>

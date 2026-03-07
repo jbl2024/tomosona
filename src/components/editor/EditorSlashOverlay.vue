@@ -7,11 +7,13 @@ defineProps<{
   index: number
   left: number
   top: number
+  query: string
   commands: SlashCommand[]
 }>()
 
 const emit = defineEmits<{
   'update:index': [value: number]
+  'update:query': [value: string]
   select: [command: SlashCommand]
   close: []
 }>()
@@ -25,8 +27,10 @@ const emit = defineEmits<{
         :index="index"
         :left="0"
         :top="0"
+        :query="query"
         :commands="commands"
         @update:index="emit('update:index', $event)"
+        @update:query="emit('update:query', $event)"
         @select="emit('select', $event)"
         @close="emit('close')"
       />

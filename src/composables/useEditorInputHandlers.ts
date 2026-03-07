@@ -76,8 +76,7 @@ export function useEditorInputHandlers(options: UseEditorInputHandlersOptions) {
     const slashInteractionKey =
       event.key === 'ArrowDown' ||
       event.key === 'ArrowUp' ||
-      event.key === 'Enter' ||
-      event.key === 'Escape'
+      event.key === 'Enter'
 
     // Keep slash interactions responsive even when reactive open-state lags one tick
     // behind the current cursor token (e.g. fast "/"+ArrowDown key sequences).

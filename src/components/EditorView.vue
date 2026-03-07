@@ -172,9 +172,12 @@ const slashOpen = slashMenu.slashOpen
 const slashIndex = slashMenu.slashIndex
 const slashLeft = slashMenu.slashLeft
 const slashTop = slashMenu.slashTop
+const slashQuery = slashMenu.slashQuery
 const visibleSlashCommands = slashMenu.visibleSlashCommands
 const closeSlashMenu = slashMenu.closeSlashMenu
+const dismissSlashMenu = slashMenu.dismissSlashMenu
 const markSlashActivatedByUser = slashMenu.markSlashActivatedByUser
+const setSlashQuery = slashMenu.setSlashQuery
 const currentTextSelectionContext = slashMenu.currentTextSelectionContext
 const readSlashContext = slashMenu.readSlashContext
 const openSlashAtSelection = slashMenu.openSlashAtSelection
@@ -685,7 +688,7 @@ const inputHandlers = useEditorInputHandlers({
     visibleSlashCommands,
     slashOpen,
     slashIndex,
-    closeSlashMenu,
+    closeSlashMenu: dismissSlashMenu,
     blockMenuOpen,
     closeBlockMenu: () => closeBlockMenu(),
     tableToolbarOpen,
@@ -939,7 +942,7 @@ defineExpose({
           :style="editorZoomStyle"
           @mousemove="onEditorMouseMove"
           @mouseleave="onEditorMouseLeave"
-          @click="closeSlashMenu(); closeWikilinkMenu(); closeBlockMenu()"
+          @click="dismissSlashMenu(); closeWikilinkMenu(); closeBlockMenu()"
         >
           <div ref="contentShell" class="editor-content-shell">
             <div
@@ -1044,10 +1047,12 @@ defineExpose({
             :index="slashIndex"
             :left="slashLeft"
             :top="slashTop"
+            :query="slashQuery"
             :commands="visibleSlashCommands"
             @update:index="slashIndex = $event"
-            @select="closeSlashMenu(); insertBlockFromDescriptor($event.type, $event.data)"
-            @close="closeSlashMenu(); focusEditor()"
+            @update:query="setSlashQuery($event)"
+            @select="dismissSlashMenu(); insertBlockFromDescriptor($event.type, $event.data)"
+            @close="dismissSlashMenu(); focusEditor()"
           />
 
           <EditorWikilinkOverlay

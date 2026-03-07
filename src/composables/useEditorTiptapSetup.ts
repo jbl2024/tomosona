@@ -158,8 +158,15 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
         attributes: {
           class: 'ProseMirror tomosona-prosemirror'
         },
-        handleKeyDown: () => {
-          options.markSlashActivatedByUser()
+        handleKeyDown: (_view: ProseMirrorEditorView, event: KeyboardEvent) => {
+          if (
+            event.key === '/' &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.altKey
+          ) {
+            options.markSlashActivatedByUser()
+          }
           return false
         },
         handleClick: (view: ProseMirrorEditorView, pos: number, event: MouseEvent) => {
