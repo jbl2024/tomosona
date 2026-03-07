@@ -52,6 +52,7 @@ const props = defineProps<{
   launchpad: {
     showExperience: boolean
     mode: 'no-workspace' | 'workspace-launchpad'
+    workspaceLabel: string
     recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
     recentNotes: Array<{ path: string; title: string; relativePath: string; updatedLabel: string }>
     showWizardAction: boolean
@@ -84,7 +85,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-create-suggested-note': [kind: 'daily' | 'inbox' | 'project']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
 }>()
@@ -158,6 +159,7 @@ defineExpose<EditorSurfaceExposed>({
   <WorkspaceLaunchpad
     v-if="activeTab?.type === 'home'"
     :mode="launchpad.mode"
+    :workspace-label="launchpad.workspaceLabel"
     :recent-workspaces="launchpad.recentWorkspaces"
     :recent-notes="launchpad.recentNotes"
     :show-wizard-action="launchpad.showWizardAction"
@@ -170,7 +172,7 @@ defineExpose<EditorSurfaceExposed>({
     @open-quick-open="emit('launchpad-open-quick-open')"
     @create-note="emit('launchpad-create-note')"
     @open-recent-note="emit('launchpad-open-recent-note', $event)"
-    @create-suggested-note="emit('launchpad-create-suggested-note', $event)"
+    @quick-start="emit('launchpad-quick-start', $event)"
   />
 
   <CosmosPaneSurface
@@ -223,6 +225,7 @@ defineExpose<EditorSurfaceExposed>({
   <WorkspaceLaunchpad
     v-else-if="!activeTab && launchpad.showExperience"
     :mode="launchpad.mode"
+    :workspace-label="launchpad.workspaceLabel"
     :recent-workspaces="launchpad.recentWorkspaces"
     :recent-notes="launchpad.recentNotes"
     :show-wizard-action="launchpad.showWizardAction"
@@ -235,7 +238,7 @@ defineExpose<EditorSurfaceExposed>({
     @open-quick-open="emit('launchpad-open-quick-open')"
     @create-note="emit('launchpad-create-note')"
     @open-recent-note="emit('launchpad-open-recent-note', $event)"
-    @create-suggested-note="emit('launchpad-create-suggested-note', $event)"
+    @quick-start="emit('launchpad-quick-start', $event)"
   />
 
   <div v-else-if="!activeTab" class="surface-placeholder">Open a tab to start.</div>

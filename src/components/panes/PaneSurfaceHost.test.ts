@@ -112,6 +112,7 @@ describe('PaneSurfaceHost', () => {
           launchpad: {
             showExperience: true,
             mode: 'workspace-launchpad',
+            workspaceLabel: 'vault',
             recentWorkspaces: [],
             recentNotes: [],
             showWizardAction: false
@@ -196,6 +197,7 @@ describe('PaneSurfaceHost', () => {
           launchpad: {
             showExperience: true,
             mode: 'no-workspace',
+            workspaceLabel: '',
             recentWorkspaces: [{
               path: '/vault',
               label: 'vault',

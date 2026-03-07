@@ -62,6 +62,7 @@ const props = defineProps<{
     activeNotePath: string
   }
   launchpad: {
+    workspaceLabel: string
     recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
     recentNotes: Array<{ path: string; title: string; relativePath: string; updatedLabel: string }>
     showWizardAction: boolean
@@ -100,7 +101,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-create-suggested-note': [kind: 'daily' | 'inbox' | 'project']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
 }>()
@@ -342,6 +343,7 @@ onBeforeUnmount(() => {
         :launchpad="{
           showExperience: pane.id === layout.activePaneId,
           mode: secondBrain.workspacePath ? 'workspace-launchpad' : 'no-workspace',
+          workspaceLabel: launchpad.workspaceLabel,
           recentWorkspaces: launchpad.recentWorkspaces,
           recentNotes: launchpad.recentNotes,
           showWizardAction: launchpad.showWizardAction
@@ -382,7 +384,7 @@ onBeforeUnmount(() => {
         @launchpad-open-quick-open="emit('launchpad-open-quick-open')"
         @launchpad-create-note="emit('launchpad-create-note')"
         @launchpad-open-recent-note="emit('launchpad-open-recent-note', $event)"
-        @launchpad-create-suggested-note="emit('launchpad-create-suggested-note', $event)"
+        @launchpad-quick-start="emit('launchpad-quick-start', $event)"
         @second-brain-context-changed="emit('second-brain-context-changed', $event)"
         @second-brain-session-changed="emit('second-brain-session-changed', $event)"
       />

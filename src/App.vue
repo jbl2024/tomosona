@@ -2343,20 +2343,20 @@ async function createNewFileFromPalette() {
   return true
 }
 
-async function createSuggestedNote(kind: 'daily' | 'inbox' | 'project') {
-  if (kind === 'daily') {
+async function runLaunchpadQuickStart(kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette') {
+  if (kind === 'today') {
     await openTodayNote()
     return
   }
-  if (kind === 'project') {
-    await openNewFileModal('Projects/')
+  if (kind === 'second-brain') {
+    await openSecondBrainViewFromPalette()
     return
   }
-
-  const root = filesystem.workingFolderPath.value
-  if (!root) return
-  const path = `${root}/Inbox.md`
-  await openOrPrepareMarkdown(path, '# Inbox')
+  if (kind === 'cosmos') {
+    await openCosmosViewFromPalette()
+    return
+  }
+  openCommandPalette()
 }
 
 function closeNewFileModal() {
@@ -3330,6 +3330,7 @@ onBeforeUnmount(() => {
                 activeNotePath: activeFilePath
               }"
               :launchpad="{
+                workspaceLabel: filesystem.workingFolderPath.value ? basenameLabel(filesystem.workingFolderPath.value) : '',
                 recentWorkspaces: launchpadRecentWorkspaces,
                 recentNotes,
                 showWizardAction: launchpadShowWizardAction
@@ -3367,7 +3368,7 @@ onBeforeUnmount(() => {
               @launchpad-open-quick-open="void openQuickOpen()"
               @launchpad-create-note="void createNewFileFromPalette()"
               @launchpad-open-recent-note="void onExplorerOpen($event)"
-              @launchpad-create-suggested-note="void createSuggestedNote($event)"
+              @launchpad-quick-start="void runLaunchpadQuickStart($event)"
             />
           </main>
 
