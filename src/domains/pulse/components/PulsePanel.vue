@@ -224,18 +224,50 @@ function onCompactSelect(item: FilterableDropdownItem) {
 .pulse-select,
 .pulse-textarea {
   border: 1px solid var(--ui-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-bg);
   color: var(--text-primary);
 }
 
 .pulse-close-btn,
 .pulse-btn {
-  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 }
 
 .pulse-btn-strong {
-  background: color-mix(in srgb, var(--accent, #4f7a5d) 20%, var(--surface-bg));
+  background: var(--surface-bg);
+}
+
+.pulse-close-btn:hover,
+.pulse-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-bg) 86%, var(--text-primary) 14%);
+}
+
+.pulse-close-btn:focus-visible,
+.pulse-btn:focus-visible,
+.pulse-compact-trigger:focus-visible,
+.pulse-input:focus-visible,
+.pulse-select:focus-visible,
+.pulse-textarea:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--ui-border) 55%, var(--text-primary) 45%);
+}
+
+.pulse-close-btn:disabled,
+.pulse-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .pulse-compact-bar {
@@ -251,19 +283,30 @@ function onCompactSelect(item: FilterableDropdownItem) {
   justify-content: space-between;
   gap: 6px;
   min-width: 148px;
-  padding: 7px 10px;
-  font-size: 12px;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
   border: 1px solid var(--ui-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-bg);
   color: var(--text-primary);
   text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.pulse-compact-trigger:hover {
+  background: color-mix(in srgb, var(--surface-bg) 86%, var(--text-primary) 14%);
 }
 
 .pulse-input {
   flex: 1 1 160px;
   min-width: 0;
   padding: 8px 10px;
+  font-size: 11px;
 }
 
 .pulse-compact-dropdown :deep(.ui-filterable-dropdown-menu) {
@@ -282,6 +325,7 @@ function onCompactSelect(item: FilterableDropdownItem) {
 .pulse-textarea {
   width: 100%;
   padding: 8px 10px;
+  font-size: 12px;
 }
 
 .pulse-textarea {
@@ -294,6 +338,16 @@ function onCompactSelect(item: FilterableDropdownItem) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.pulse-panel.compact .pulse-apply {
+  gap: 6px;
+}
+
+.pulse-panel.compact .pulse-btn {
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
 }
 
 .pulse-preview {
