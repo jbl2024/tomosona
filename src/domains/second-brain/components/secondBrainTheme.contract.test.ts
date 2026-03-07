@@ -7,8 +7,8 @@ import sessionDropdownSource from './SecondBrainSessionDropdown.vue?raw'
 import modeSelectorSource from './SecondBrainModeSelector.vue?raw'
 import mentionsSource from './SecondBrainAtMentionsMenu.vue?raw'
 import secondBrainEchoesSource from './SecondBrainEchoesPanel.vue?raw'
-import shortcutsSource from '../../../components/app/ShortcutsModal.vue?raw'
-import echoesSource from '../../../components/editor/EditorEchoesPanel.vue?raw'
+import shortcutsSource from '../../../app/components/app/ShortcutsModal.vue?raw'
+import echoesSource from '../../editor/components/editor/EditorEchoesPanel.vue?raw'
 
 describe('Second-brain and support theme contracts', () => {
   it('routes second-brain surfaces through shared sb tokens', () => {

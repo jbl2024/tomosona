@@ -28,7 +28,7 @@ import {
   normalizeWorkspacePath,
   toWorkspaceRelativePath
 } from '../lib/workspacePaths'
-import UiButton from '../../../components/ui/UiButton.vue'
+import UiButton from '../../../shared/components/ui/UiButton.vue'
 
 const props = defineProps<{
   folderPath: string

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import appSource from './App.vue?raw'
-import editorViewSource from './components/EditorView.vue?raw'
-import rightPaneSource from './components/EditorRightPane.vue?raw'
-import overflowMenuSource from './components/app/WorkspaceOverflowMenu.vue?raw'
-import multiPaneMenuSource from './components/panes/MultiPaneToolbarMenu.vue?raw'
+import appSource from './app/App.vue?raw'
+import editorViewSource from './domains/editor/components/EditorView.vue?raw'
+import rightPaneSource from './domains/editor/components/EditorRightPane.vue?raw'
+import overflowMenuSource from './app/components/app/WorkspaceOverflowMenu.vue?raw'
+import multiPaneMenuSource from './app/components/panes/MultiPaneToolbarMenu.vue?raw'
 
 describe('App theme contracts', () => {
   it('routes core shell surfaces through semantic tokens', () => {

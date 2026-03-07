@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import treeSource from './ExplorerTree.vue?raw'
 import itemSource from './ExplorerItem.vue?raw'
-import propertiesSource from '../../../components/editor/EditorPropertiesPanel.vue?raw'
+import propertiesSource from '../../editor/components/editor/EditorPropertiesPanel.vue?raw'
 import propertyTokenSource from './PropertyTokenInput.vue?raw'
 import propertyAddSource from './PropertyAddDropdown.vue?raw'
 

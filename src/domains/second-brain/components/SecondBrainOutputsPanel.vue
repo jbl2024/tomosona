@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import EditorView from '../EditorView.vue'
+import EditorView from '../../editor/components/EditorView.vue'
 
 const props = defineProps<{
   draftPath: string

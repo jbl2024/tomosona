@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline'
-import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../components/ui/UiFilterableDropdown.vue'
+import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import type { SecondBrainSessionSummary } from '../../../shared/api/apiTypes'
 
 type SessionDropdownItem = FilterableDropdownItem & {

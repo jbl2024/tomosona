@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { PulseActionSpec, PulseApplyMode } from '../lib/pulse'
 import { PULSE_APPLY_LABELS } from '../lib/pulse'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
-import UiFilterableDropdown, { type FilterableDropdownItem } from './ui/UiFilterableDropdown.vue'
+import UiFilterableDropdown, { type FilterableDropdownItem } from '../shared/components/ui/UiFilterableDropdown.vue'
 
 const props = defineProps<{
   title?: string

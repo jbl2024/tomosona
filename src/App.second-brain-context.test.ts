@@ -80,7 +80,7 @@ vi.mock('./shared/api/settingsApi', () => ({
   discoverCodexModels: vi.fn(async () => [])
 }))
 
-vi.mock('./components/panes/EditorPaneGrid.vue', () => ({
+vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
   default: defineComponent({
     name: 'EditorPaneGridStub',
     setup(_, { expose, emit }) {
@@ -104,7 +104,7 @@ vi.mock('./components/panes/EditorPaneGrid.vue', () => ({
     }
   })
 }))
-vi.mock('./components/panes/MultiPaneToolbarMenu.vue', () => ({
+vi.mock('./app/components/panes/MultiPaneToolbarMenu.vue', () => ({
   default: defineComponent({
     name: 'MultiPaneToolbarMenuStub',
     setup() {
@@ -112,13 +112,13 @@ vi.mock('./components/panes/MultiPaneToolbarMenu.vue', () => ({
     }
   })
 }))
-vi.mock('./components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/explorer/components/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/cosmos/components/CosmosView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/cosmos/components/CosmosSidebarPanel.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/second-brain/components/SecondBrainView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 
-import App from './App.vue'
+import App from './app/App.vue'
 
 async function flushUi() {
   await nextTick()

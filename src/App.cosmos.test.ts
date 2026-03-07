@@ -99,7 +99,7 @@ vi.mock('./shared/api/settingsApi', () => ({
   discoverCodexModels: vi.fn(async () => [])
 }))
 
-vi.mock('./components/panes/EditorPaneGrid.vue', () => ({
+vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
   default: defineComponent({
     name: 'EditorPaneGridStub',
     props: {
@@ -132,11 +132,11 @@ vi.mock('./components/panes/EditorPaneGrid.vue', () => ({
   })
 }))
 
-vi.mock('./components/panes/MultiPaneToolbarMenu.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./app/components/panes/MultiPaneToolbarMenu.vue', () => ({ default: defineComponent(() => () => h('div')) }))
+vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/explorer/components/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 
-import App from './App.vue'
+import App from './app/App.vue'
 
 async function flushUi() {
   await nextTick()
