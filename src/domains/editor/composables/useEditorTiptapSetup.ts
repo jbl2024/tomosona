@@ -113,6 +113,36 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
     return ISO_DATE_TOKEN_REGEX.test(token) ? token : null
   }
 
+  function adjustHeadingLevelFromTab(view: ProseMirrorEditorView, event: KeyboardEvent): boolean {
+    if (event.key !== 'Tab') return false
+
+    const { selection } = view.state
+    if (!selection.empty) return false
+
+    const { $from } = selection
+    const parent = $from.parent
+    if (parent.type.name !== 'heading') return false
+    if (Boolean(parent.attrs?.isVirtualTitle)) return false
+    if ($from.parentOffset !== 0) return false
+
+    const currentLevel = Number(parent.attrs?.level ?? 1)
+    const nextLevel = Math.max(1, Math.min(6, currentLevel + (event.shiftKey ? -1 : 1)))
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (nextLevel === currentLevel) return true
+
+    const headingPos = $from.before($from.depth)
+    view.dispatch(
+      view.state.tr.setNodeMarkup(headingPos, undefined, {
+        ...parent.attrs,
+        level: nextLevel
+      })
+    )
+    return true
+  }
+
   function createEditorOptions(path: string) {
     return {
       autofocus: false,
@@ -158,7 +188,8 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
         attributes: {
           class: 'ProseMirror tomosona-prosemirror'
         },
-        handleKeyDown: (_view: ProseMirrorEditorView, event: KeyboardEvent) => {
+        handleKeyDown: (view: ProseMirrorEditorView, event: KeyboardEvent) => {
+          if (adjustHeadingLevelFromTab(view, event)) return true
           if (
             event.key === '/' &&
             !event.metaKey &&

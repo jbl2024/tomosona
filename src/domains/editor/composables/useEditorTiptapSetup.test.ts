@@ -127,4 +127,124 @@ describe('useEditorTiptapSetup', () => {
     expect(click).toBe(true)
     expect(openLinkTargetWithAutosave).toHaveBeenCalledWith('2026-02-23')
   })
+
+  it('demotes a heading when Tab is pressed at the start of the block', () => {
+    const { setup } = createSetup()
+    const editorOptions = setup.createEditorOptions('a.md') as any
+
+    const setNodeMarkup = vi.fn(() => ({ step: 'setNodeMarkup' }))
+    const dispatch = vi.fn()
+    const event = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    } as unknown as KeyboardEvent
+
+    const handled = editorOptions.editorProps.handleKeyDown({
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            parent: {
+              type: { name: 'heading' },
+              attrs: { level: 2 }
+            },
+            parentOffset: 0,
+            depth: 1,
+            before: vi.fn(() => 12)
+          }
+        },
+        tr: {
+          setNodeMarkup
+        }
+      },
+      dispatch
+    }, event)
+
+    expect(handled).toBe(true)
+    expect(setNodeMarkup).toHaveBeenCalledWith(12, undefined, { level: 3 })
+    expect(dispatch).toHaveBeenCalledWith({ step: 'setNodeMarkup' })
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('promotes a heading when Shift+Tab is pressed at the start of the block', () => {
+    const { setup } = createSetup()
+    const editorOptions = setup.createEditorOptions('a.md') as any
+
+    const setNodeMarkup = vi.fn(() => ({ step: 'setNodeMarkup' }))
+    const dispatch = vi.fn()
+    const event = {
+      key: 'Tab',
+      shiftKey: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    } as unknown as KeyboardEvent
+
+    const handled = editorOptions.editorProps.handleKeyDown({
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            parent: {
+              type: { name: 'heading' },
+              attrs: { level: 3 }
+            },
+            parentOffset: 0,
+            depth: 1,
+            before: vi.fn(() => 20)
+          }
+        },
+        tr: {
+          setNodeMarkup
+        }
+      },
+      dispatch
+    }, event)
+
+    expect(handled).toBe(true)
+    expect(setNodeMarkup).toHaveBeenCalledWith(20, undefined, { level: 2 })
+    expect(dispatch).toHaveBeenCalledWith({ step: 'setNodeMarkup' })
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves Tab alone when the caret is not at the start of a heading', () => {
+    const { setup } = createSetup()
+    const editorOptions = setup.createEditorOptions('a.md') as any
+
+    const setNodeMarkup = vi.fn(() => ({ step: 'setNodeMarkup' }))
+    const dispatch = vi.fn()
+    const event = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    } as unknown as KeyboardEvent
+
+    const handled = editorOptions.editorProps.handleKeyDown({
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            parent: {
+              type: { name: 'heading' },
+              attrs: { level: 2 }
+            },
+            parentOffset: 1,
+            depth: 1,
+            before: vi.fn(() => 8)
+          }
+        },
+        tr: {
+          setNodeMarkup
+        }
+      },
+      dispatch
+    }, event)
+
+    expect(handled).toBe(false)
+    expect(setNodeMarkup).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
 })
