@@ -18,6 +18,12 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.14.1] - 2026-03-07
+
+### Added
+- feat(editor): add inline markdown find toolbar (1bf7ece)
+- feat(editor): add tab shortcuts to adjust heading levels (fdb55f5)
+
 ## [0.14.0] - 2026-03-07
 
 ### Changed
