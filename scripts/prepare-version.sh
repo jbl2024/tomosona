@@ -31,6 +31,8 @@ fi
 
 node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
 
+node -e 'const fs=require("fs");const p="index.html";const source=fs.readFileSync(p,"utf8");const next=source.replace(/<div class="startup-brand-meta">v[^<]+<\/div>/, `<div class="startup-brand-meta">v${process.argv[1]}</div>`);if(next===source){throw new Error("Could not update startup splash version in index.html");}fs.writeFileSync(p,next);' "$VERSION"
+
 tmp_file="$(mktemp)"
 awk -v v="$VERSION" '
   BEGIN { in_pkg=0 }
@@ -56,7 +58,7 @@ awk -v v="$VERSION" '
 mv "$tmp_file" src-tauri/Cargo.lock
 
 if [ -f package-lock.json ]; then
-  echo "Updated versions to $VERSION in package.json, package-lock.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+  echo "Updated versions to $VERSION in package.json, package-lock.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
 else
-  echo "Updated versions to $VERSION in package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+  echo "Updated versions to $VERSION in package.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
 fi
