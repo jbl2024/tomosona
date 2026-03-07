@@ -128,7 +128,7 @@ describe('ExplorerTree', () => {
 
     expect(scrollToSpy).toHaveBeenCalledWith({
       top: 80,
-      behavior: 'auto'
+      behavior: 'smooth'
     })
     rectSpy.mockRestore()
 

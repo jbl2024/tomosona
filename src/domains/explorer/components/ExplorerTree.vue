@@ -964,7 +964,7 @@ async function revealPathInView(path: string, options: RevealPathOptions = {}) {
     if (nextTop !== null) {
       container.scrollTo({
         top: nextTop,
-        behavior: options.behavior ?? 'auto'
+        behavior: options.behavior ?? 'smooth'
       })
     }
   }
