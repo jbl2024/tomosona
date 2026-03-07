@@ -18,6 +18,23 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.12.1] - 2026-03-07
+
+### Added
+- feat(ux): add launchpad empty states and workspace setup wizard (2b42419)
+
+### Changed
+- refactor(shortcuts): widen modal and tighten shortcut section layout (0c9851f)
+- test(home): update no-workspace launchpad assertion after redesign (4133cb6)
+- refactor(home): redesign launchpad as a compact tabular workspace view (35c6042)
+- refactor(editor): reuse filterable dropdown for slash menu UX (824db55)
+- refactor(theme): prepare token-based theme system for custom themes (72b0a8e)
+
+### Fixed
+- fix(editor): autofocus new quote blocks after insertion (93f79e4)
+- fix(editor): focus quote textarea and restore visible caret on insert (1ea612f)
+- fix(properties): support inline filterable dropdown menus (a28f4fa)
+
 ## [0.12.0] - 2026-03-06
 
 ### Added
