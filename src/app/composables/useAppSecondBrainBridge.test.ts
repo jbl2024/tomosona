@@ -42,13 +42,13 @@ describe('useAppSecondBrainBridge', () => {
     window.localStorage.clear()
   })
 
-  it('loads the persisted session when the workspace changes', () => {
+  it('does not auto-request the persisted session when the workspace changes', () => {
     window.localStorage.setItem('sb:/vault-2', 'session-2')
     const { workingFolderPath, bridge } = createBridge()
 
     workingFolderPath.value = '/vault-2'
     return nextTick().then(() => {
-      expect(bridge.secondBrainRequestedSessionId.value).toBe('session-2')
+      expect(bridge.secondBrainRequestedSessionId.value).toBe('')
       expect(bridge.secondBrainRequestedSessionNonce.value).toBe(2)
     })
   })
@@ -62,6 +62,17 @@ describe('useAppSecondBrainBridge', () => {
     expect(ok).toBe(true)
     expect(replaceSessionContext).toHaveBeenCalledWith('session-1', ['/vault/notes/a.md'])
     expect(notifySuccess).toHaveBeenCalledWith('Active note added to Second Brain context.')
+  })
+
+  it('reuses the persisted session for targeted add-to-second-brain actions', async () => {
+    window.localStorage.setItem('sb:/vault', 'session-persisted')
+    const { bridge, replaceSessionContext, loadDeliberationSession } = createBridge()
+
+    const ok = await bridge.addActiveNoteToSecondBrain()
+
+    expect(ok).toBe(true)
+    expect(loadDeliberationSession).toHaveBeenCalledWith('session-persisted')
+    expect(replaceSessionContext).toHaveBeenCalledWith('session-persisted', ['/vault/notes/a.md'])
   })
 
   it('persists a session id received from the surface', () => {

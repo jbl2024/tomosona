@@ -137,7 +137,7 @@ describe('SecondBrainView', () => {
   }
 
   it('renders persisted context chips from loaded session', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length === 0; i += 1) {
       await flushUi()
     }
@@ -164,7 +164,7 @@ describe('SecondBrainView', () => {
   })
 
   it('loads a grouped Pulse preset into the composer from the dropdown', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     let trigger: HTMLButtonElement | null = null
     for (let i = 0; i < 8; i += 1) {
       await flushUi()
@@ -188,7 +188,7 @@ describe('SecondBrainView', () => {
   })
 
   it('toggles the Echoes anchor from a context chip and keeps open explicit', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length === 0; i += 1) {
       await flushUi()
     }
@@ -224,7 +224,7 @@ describe('SecondBrainView', () => {
   })
 
   it('turns selected @ mention into a persisted context chip', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
@@ -253,7 +253,7 @@ describe('SecondBrainView', () => {
   })
 
   it('adds resolved @ mentions to context before send', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
@@ -282,7 +282,7 @@ describe('SecondBrainView', () => {
   })
 
   it('sends message with Ctrl+Enter from composer', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
@@ -308,7 +308,7 @@ describe('SecondBrainView', () => {
   })
 
   it('auto-scrolls discussion to bottom after send', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const thread = mounted.root.querySelector<HTMLElement>('.sb-thread')
@@ -409,7 +409,7 @@ describe('SecondBrainView', () => {
     const pendingRun = deferredPromise<{ userMessageId: string; assistantMessageId: string }>()
     api.runDeliberation.mockReturnValueOnce(pendingRun.promise)
 
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
@@ -490,7 +490,18 @@ describe('SecondBrainView', () => {
     mounted.app.unmount()
   })
 
-  it('does not create a new session while current session is empty', async () => {
+  it('starts with an empty state instead of auto-loading the latest session', async () => {
+    const mounted = mountView()
+    await flushUi()
+
+    expect(api.loadDeliberationSession).not.toHaveBeenCalled()
+    expect(api.createDeliberationSession).not.toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('No session selected')
+
+    mounted.app.unmount()
+  })
+
+  it('creates a new empty session without seeding the first markdown file', async () => {
     const mounted = mountView()
     await flushUi()
 
@@ -498,24 +509,19 @@ describe('SecondBrainView', () => {
     expect(createBtn).toBeTruthy()
     if (!createBtn) return
 
-    for (let i = 0; i < 4 && createBtn.disabled; i += 1) {
-      await flushUi()
-    }
-    expect(createBtn.disabled).toBe(false)
-
-    createBtn.click()
     createBtn.click()
     await flushUi()
 
-    expect(api.createDeliberationSession).not.toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('Current session is empty')
+    expect(api.createDeliberationSession).toHaveBeenCalledWith({ contextPaths: [], title: '' })
+    expect(api.loadDeliberationSession).not.toHaveBeenCalled()
+    expect(mounted.root.textContent).not.toContain('No session selected')
 
     mounted.app.unmount()
   })
 
   it('rolls back mention context chip on immediate sync failure', async () => {
     api.replaceSessionContext.mockRejectedValueOnce(new Error('context update failed'))
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
 
     const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
@@ -543,7 +549,7 @@ describe('SecondBrainView', () => {
   })
 
   it('renders Echoes suggestions and adds them to context', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let index = 0; index < 8 && mounted.root.querySelectorAll('.sb-chip-main').length === 0; index += 1) {
       await flushUi()
     }
@@ -570,7 +576,7 @@ describe('SecondBrainView', () => {
   })
 
   it('opens an Echoes suggestion only from the explicit action', async () => {
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let index = 0; index < 8 && mounted.root.querySelectorAll('.sb-chip-main').length === 0; index += 1) {
       await flushUi()
     }
@@ -612,7 +618,7 @@ describe('SecondBrainView', () => {
       draft_content: ''
     })
 
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length < 2; i += 1) {
       await flushUi()
     }
@@ -677,7 +683,7 @@ describe('SecondBrainView', () => {
         }]
     }))
 
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length < 3; i += 1) {
       await flushUi()
     }
@@ -746,7 +752,7 @@ describe('SecondBrainView', () => {
         : []
     }))
 
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length < 2; i += 1) {
       await flushUi()
     }
@@ -794,7 +800,7 @@ describe('SecondBrainView', () => {
         : []
     }))
 
-    const mounted = mountView()
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length < 2; i += 1) {
       await flushUi()
     }

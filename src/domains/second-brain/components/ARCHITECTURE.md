@@ -18,3 +18,4 @@ This folder contains the modular frontend surface for the Second Brain view.
 - Keep `App.vue` as integration shell only.
 - Keep all LLM/network logic in Tauri backend.
 - Use explicit context and no implicit cross-session memory.
+- Do not auto-resume the latest session on pane open; session restore must be explicit.

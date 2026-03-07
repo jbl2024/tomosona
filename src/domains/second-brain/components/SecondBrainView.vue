@@ -236,22 +236,19 @@ function asAbsolute(pathRelativeOrAbs: string): string {
   return `${props.workspacePath}/${pathRelativeOrAbs}`
 }
 
-async function ensureSession(seedPath?: string) {
-  if (sessionId.value) return
-  const seed = seedPath || props.allWorkspaceFiles.find((path) => /\.(md|markdown)$/i.test(path))
-  if (!seed) return
-  loading.value = true
-  try {
-    const created = await createDeliberationSession({ contextPaths: [seed], title: '' })
-    sessionId.value = created.sessionId
-    emit('session-changed', sessionId.value)
-    contextPaths.value = [seed]
-    contextTokenEstimate.value = { [seed]: Math.max(1, Math.round((seed.length + 400) / 4)) }
-    emit('context-changed', contextPaths.value)
-    await refreshSessionsIndex()
-  } finally {
-    loading.value = false
+function resetActiveSession(options: { emitSessionChange?: boolean } = {}) {
+  sessionId.value = ''
+  if (options.emitSessionChange ?? true) {
+    emit('session-changed', '')
   }
+  sessionTitle.value = 'Second Brain Session'
+  contextPaths.value = []
+  contextTokenEstimate.value = {}
+  messages.value = []
+  streamByMessage.value = {}
+  composerContextPaths.value = []
+  mentionInfo.value = ''
+  emit('context-changed', [])
 }
 
 async function loadSession(nextSessionId: string) {
@@ -292,25 +289,15 @@ async function refreshSessionsIndex() {
 }
 
 async function onCreateSession() {
-  if (sessionId.value && messages.value.length === 0) {
-    mentionInfo.value = 'Current session is empty. Reuse it instead of creating another one.'
-    return
-  }
-
   if (creatingSession.value) return
-  const seed = contextPaths.value[0] || props.allWorkspaceFiles.find((path) => /\.(md|markdown)$/i.test(path))
-  if (!seed) {
-    sendError.value = 'No markdown note found to seed a new session.'
-    return
-  }
   creatingSession.value = true
   try {
-    const created = await createDeliberationSession({ contextPaths: [seed], title: '' })
+    const created = await createDeliberationSession({ contextPaths: [], title: '' })
     sessionId.value = created.sessionId
     emit('session-changed', sessionId.value)
     sessionTitle.value = 'Second Brain Session'
-    contextPaths.value = [seed]
-    contextTokenEstimate.value = { [seed]: Math.max(1, Math.round((seed.length + 400) / 4)) }
+    contextPaths.value = []
+    contextTokenEstimate.value = {}
     messages.value = []
     streamByMessage.value = {}
     composerContextPaths.value = []
@@ -330,21 +317,7 @@ async function onDeleteSession(sessionToDelete: string) {
 
   if (sessionId.value !== sessionToDelete) return
 
-  const next = sessionsIndex.value[0]
-  if (next?.session_id) {
-    await loadSession(next.session_id)
-    return
-  }
-
-  sessionId.value = ''
-  emit('session-changed', '')
-  sessionTitle.value = 'Second Brain Session'
-  contextPaths.value = []
-  contextTokenEstimate.value = {}
-  messages.value = []
-  streamByMessage.value = {}
-  composerContextPaths.value = []
-  emit('context-changed', [])
+  resetActiveSession()
 }
 
 async function initializeSessionOnFirstOpen() {
@@ -354,16 +327,9 @@ async function initializeSessionOnFirstOpen() {
 
   if (props.requestedSessionId.trim()) {
     await loadSession(props.requestedSessionId.trim())
-    return
+  } else {
+    resetActiveSession({ emitSessionChange: false })
   }
-
-  const latest = sessionsIndex.value[0]
-  if (latest?.session_id) {
-    await loadSession(latest.session_id)
-    return
-  }
-
-  await ensureSession()
 }
 
 function displayMessage(message: SecondBrainMessage): string {
@@ -949,6 +915,13 @@ watch(contextPaths, (paths) => {
       </header>
 
       <section ref="threadRef" class="sb-thread">
+        <div v-if="!sessionId && !loading" class="sb-empty-state">
+          <strong>No session selected</strong>
+          <p>Start a new session or reopen one from the session menu. No previous session is resumed automatically.</p>
+          <button type="button" class="sb-empty-create-btn" :disabled="creatingSession" @click="onCreateSession">
+            New session
+          </button>
+        </div>
         <article
           v-for="message in messages"
           :key="message.id"
@@ -1185,6 +1158,37 @@ watch(contextPaths, (paths) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.sb-empty-state {
+  margin: auto;
+  max-width: 360px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  color: var(--sb-text-muted);
+}
+
+.sb-empty-state strong {
+  color: var(--sb-text);
+  font-size: 0.98rem;
+}
+
+.sb-empty-state p {
+  margin: 0;
+  line-height: 1.45;
+  font-size: 0.86rem;
+}
+
+.sb-empty-create-btn {
+  min-width: 132px;
+  padding: 9px 14px;
+  border: 1px solid var(--sb-button-border);
+  border-radius: 10px;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
 }
 
 .msg {

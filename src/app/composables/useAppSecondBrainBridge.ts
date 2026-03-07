@@ -27,14 +27,7 @@ export type UseAppSecondBrainBridgeOptions = {
 
 /** Owns requested session persistence and context updates for the shell Second Brain surface. */
 export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions) {
-  const secondBrainRequestedSessionId = ref(
-    (() => {
-      const workspacePath = options.workingFolderPath.value.trim()
-      if (!workspacePath) return ''
-      const storageKey = options.storageKeyForWorkspace(workspacePath)
-      return window.localStorage.getItem(storageKey)?.trim() ?? ''
-    })()
-  )
+  const secondBrainRequestedSessionId = ref('')
   const secondBrainRequestedSessionNonce = ref(0)
   const secondBrainRequestedPrompt = ref('')
   const secondBrainRequestedPromptNonce = ref(0)
@@ -85,7 +78,7 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
       throw new Error('Could not resolve active note path for Second Brain.')
     }
 
-    const requestedId = secondBrainRequestedSessionId.value.trim()
+    const requestedId = secondBrainRequestedSessionId.value.trim() || readPersistedSecondBrainSessionId(workspacePath)
     if (requestedId) {
       try {
         const existing = await options.loadDeliberationSession(requestedId)
@@ -150,8 +143,9 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
 
   watch(
     () => options.workingFolderPath.value,
-    (workspacePath) => {
-      setSecondBrainSessionId(readPersistedSecondBrainSessionId(workspacePath), { bumpNonce: true })
+    () => {
+      secondBrainRequestedSessionId.value = ''
+      secondBrainRequestedSessionNonce.value += 1
     },
     { immediate: true }
   )
