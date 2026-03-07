@@ -177,6 +177,7 @@
 
   /* Domain tokens */
   --editor-link: #2563eb;
+  --editor-body-text: #000000;
   --editor-code-bg: rgb(241 245 249);
   --editor-heading-4: #3f4754;
   --editor-heading-5: #4b5563;
@@ -474,6 +475,7 @@ html.dark {
   --tab-hover-text: var(--text-main);
 
   --editor-link: #60a5fa;
+  --editor-body-text: #abb2bf;
   --editor-code-bg: #2c313a;
   --editor-heading-4: #c8d0dc;
   --editor-heading-5: #abb2bf;
@@ -784,7 +786,7 @@ html.dark {
 
   .editor-holder .ce-paragraph {
     font-size: 1rem;
-    color: #000000;
+    color: var(--editor-body-text);
     line-height: 1.72;
     padding: 0;
   }
@@ -792,7 +794,7 @@ html.dark {
   .editor-holder .cdx-list,
   .editor-holder .cdx-list__item,
   .editor-holder .cdx-list__item-content {
-    color: #000000;
+    color: var(--editor-body-text);
   }
 
   .editor-holder .cdx-list {
@@ -861,7 +863,7 @@ html.dark {
 
   .editor-holder .ce-header {
     line-height: 1.35;
-    color: #000000;
+    color: var(--editor-body-text);
     margin: 0.15rem 0;
     font-weight: 650;
   }

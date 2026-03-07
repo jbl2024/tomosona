@@ -54,7 +54,7 @@
   min-height: 100%;
   outline: none;
   font-family: var(--font-editor);
-  color: var(--text-soft);
+  color: var(--editor-body-text);
   line-height: var(--line-height-relaxed);
 }
 
