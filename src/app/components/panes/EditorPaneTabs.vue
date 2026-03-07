@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { HomeIcon, ShareIcon, SparklesIcon } from '@heroicons/vue/24/outline'
-import type { PaneState, PaneTab } from '../../../composables/useMultiPaneWorkspaceState'
+import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 
 export type FileEditorStatus = {
   dirty: boolean

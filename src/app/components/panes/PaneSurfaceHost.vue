@@ -4,7 +4,7 @@ import EditorView from '../../../domains/editor/components/EditorView.vue'
 import CosmosPaneSurface from '../../../domains/cosmos/components/CosmosPaneSurface.vue'
 import SecondBrainPaneSurface from '../../../domains/second-brain/components/SecondBrainPaneSurface.vue'
 import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
-import type { PaneTab } from '../../../composables/useMultiPaneWorkspaceState'
+import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { FileEditorStatus } from './EditorPaneTabs.vue'
 import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
 

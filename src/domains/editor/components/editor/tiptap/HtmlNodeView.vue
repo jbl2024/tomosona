@@ -2,7 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import { common, createLowlight } from 'lowlight'
-import { sanitizeHtmlForPreview } from '../../../../../lib/htmlSanitizer'
+import { sanitizeHtmlForPreview } from '../../../../../shared/lib/htmlSanitizer'
 import { parseWikilinkTarget } from '../../../lib/wikilinks'
 
 const INDENT = '  '

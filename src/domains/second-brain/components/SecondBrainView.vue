@@ -12,7 +12,7 @@ import {
   runDeliberation,
   subscribeSecondBrainStream
 } from '../lib/secondBrainApi'
-import { sanitizeHtmlForPreview } from '../../../lib/htmlSanitizer'
+import { sanitizeHtmlForPreview } from '../../../shared/lib/htmlSanitizer'
 import { inlineTextToHtml } from '../../editor/lib/markdownBlocks'
 import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../lib/secondBrainContextPaths'
 import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../../shared/api/apiTypes'

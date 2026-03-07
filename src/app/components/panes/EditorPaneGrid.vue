@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import EditorPaneTabs, { type FileEditorStatus } from './EditorPaneTabs.vue'
 import PaneSurfaceHost from './PaneSurfaceHost.vue'
-import type { MultiPaneLayout, PaneState, PaneTab } from '../../../composables/useMultiPaneWorkspaceState'
+import type { MultiPaneLayout, PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
 
 export type EditorPaneGridExposed = {

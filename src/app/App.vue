@@ -119,7 +119,7 @@ import {
   hydrateLayout,
   serializeLayout,
   useMultiPaneWorkspaceState
-} from '../composables/useMultiPaneWorkspaceState'
+} from './composables/useMultiPaneWorkspaceState'
 
 type SearchHit = { path: string; snippet: string; score: number }
 type PropertyPreviewRow = { key: string; value: string }

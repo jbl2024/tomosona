@@ -1,6 +1,6 @@
 import { createApp, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PaneTab } from '../../../composables/useMultiPaneWorkspaceState'
+import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import PaneSurfaceHost from './PaneSurfaceHost.vue'
 
 const lifecycle = vi.hoisted(() => ({

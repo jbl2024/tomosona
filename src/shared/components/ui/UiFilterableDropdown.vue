@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type CSSPro
 import {
   useFilterableListbox,
   type FilterableItemBase
-} from '../../../composables/useFilterableListbox'
+} from '../../composables/useFilterableListbox'
 
 /**
  * Shared filterable dropdown shell used across editor and panel menus.
