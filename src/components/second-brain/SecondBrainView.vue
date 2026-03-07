@@ -887,7 +887,8 @@ watch(
     if (!nonce.trim()) return
     inputMessage.value = props.requestedPrompt
     void nextTick(() => composerRef.value?.focus())
-  }
+  },
+  { immediate: true }
 )
 
 watch(contextPaths, (paths) => {

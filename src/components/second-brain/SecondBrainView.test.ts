@@ -149,6 +149,20 @@ describe('SecondBrainView', () => {
     mounted.app.unmount()
   })
 
+  it('hydrates the composer from an initial requested prompt on mount', async () => {
+    const mounted = mountView({
+      requestedPrompt: 'Turn this context into a concise outline.',
+      requestedPromptNonce: 1
+    })
+    await flushUi()
+
+    const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    expect(textarea).toBeTruthy()
+    expect(textarea?.value).toBe('Turn this context into a concise outline.')
+
+    mounted.app.unmount()
+  })
+
   it('toggles the Echoes anchor from a context chip and keeps open explicit', async () => {
     const mounted = mountView()
     for (let i = 0; i < 8 && mounted.root.querySelectorAll('.sb-chip').length === 0; i += 1) {
