@@ -52,8 +52,7 @@ import { buildCosmosGraph } from './lib/graphIndex'
 import {
   createDeliberationSession,
   loadDeliberationSession,
-  replaceSessionContext,
-  saveSessionDraft
+  replaceSessionContext
 } from './lib/secondBrainApi'
 import {
   normalizeContextPathsForUpdate,
@@ -425,7 +424,10 @@ const secondBrainBridge = useAppSecondBrainBridge({
 const {
   secondBrainRequestedSessionId,
   secondBrainRequestedSessionNonce,
+  secondBrainRequestedPrompt,
+  secondBrainRequestedPromptNonce,
   setSecondBrainSessionId,
+  setSecondBrainPrompt,
   addActiveNoteToSecondBrain,
   onSecondBrainContextChanged,
   onSecondBrainSessionChanged
@@ -1251,7 +1253,7 @@ async function openSecondBrainViewFromPalette() {
 
 async function openPulseContextInSecondBrain(payload: {
   contextPaths: string[]
-  draftContent?: string
+  prompt?: string
 }) {
   if (!filesystem.hasWorkspace.value) {
     filesystem.errorMessage.value = 'Open a workspace first.'
@@ -1269,15 +1271,8 @@ async function openPulseContextInSecondBrain(payload: {
     const sessionId = await secondBrainBridge.resolveSecondBrainSessionForPath(seedPath)
     await replaceSessionContext(sessionId, normalized)
 
-    if (payload.draftContent?.trim()) {
-      const session = await loadDeliberationSession(sessionId)
-      const merged = session.draft_content.trim()
-        ? `${session.draft_content}\n\n---\n\n${payload.draftContent.trim()}`
-        : payload.draftContent.trim()
-      await saveSessionDraft(sessionId, merged)
-    }
-
     setSecondBrainSessionId(sessionId, { bumpNonce: true })
+    setSecondBrainPrompt(payload.prompt?.trim() ?? '', { bumpNonce: true })
     await openSecondBrainViewFromPalette()
     return true
   } catch (err) {
@@ -3366,6 +3361,8 @@ onBeforeUnmount(() => {
                 allWorkspaceFiles,
                 requestedSessionId: secondBrainRequestedSessionId,
                 requestedSessionNonce: secondBrainRequestedSessionNonce,
+                requestedPrompt: secondBrainRequestedPrompt,
+                requestedPromptNonce: secondBrainRequestedPromptNonce,
                 activeNotePath: activeFilePath
               }"
               :launchpad="{

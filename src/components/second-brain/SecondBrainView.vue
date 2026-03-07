@@ -10,7 +10,6 @@ import {
   removeDeliberationSession,
   replaceSessionContext,
   runDeliberation,
-  saveSessionDraft,
   subscribeSecondBrainStream
 } from '../../lib/secondBrainApi'
 import { sanitizeHtmlForPreview } from '../../lib/htmlSanitizer'
@@ -19,7 +18,6 @@ import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../../l
 import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../lib/api'
 import { useEchoesPack } from '../../composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../../composables/useSecondBrainAtMentions'
-import { usePulseTransformation } from '../../composables/usePulseTransformation'
 import { PULSE_ACTIONS_BY_SOURCE } from '../../lib/pulse'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
@@ -31,6 +29,8 @@ const props = defineProps<{
   allWorkspaceFiles: string[]
   requestedSessionId: string
   requestedSessionNonce: number
+  requestedPrompt: string
+  requestedPromptNonce: number
   activeNotePath?: string
 }>()
 
@@ -67,7 +67,6 @@ const selectedEchoesContextPath = ref('')
 const composerRef = ref<HTMLTextAreaElement | null>(null)
 const threadRef = ref<HTMLElement | null>(null)
 const activeAssistantStreamMessageId = ref<string | null>(null)
-const pulse = usePulseTransformation()
 const pulseActionId = ref<PulseActionId>('synthesize')
 const streamUnsubscribers: Array<() => void> = []
 const ignoredAssistantMessageIds = new Set<string>()
@@ -136,7 +135,6 @@ const pulseActions = computed(() => PULSE_ACTIONS_BY_SOURCE.second_brain_context
 const activePulseAction = computed(
   () => pulseActions.value.find((item) => item.id === pulseActionId.value) ?? pulseActions.value[0]
 )
-const hasPulseCard = computed(() => pulse.running.value || Boolean(pulse.previewMarkdown.value.trim()) || Boolean(pulse.error.value))
 const echoesItems = computed<EchoesItem[]>(() => {
   const deduped: EchoesItem[] = []
   const seen = new Set<string>()
@@ -379,7 +377,8 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function renderMarkdownCard(sourceMarkdown: string): string {
+function renderAssistantMarkdown(message: SecondBrainMessage): string {
+  const sourceMarkdown = displayMessage(message)
   const source = sourceMarkdown.replace(/\r\n?/g, '\n')
   const lines = source.split('\n')
   const htmlParts: string[] = []
@@ -500,10 +499,6 @@ function renderMarkdownCard(sourceMarkdown: string): string {
 
   const html = htmlParts.join('')
   return sanitizeHtmlForPreview(html || `<p>${inlineTextToHtml(source)}</p>`)
-}
-
-function renderAssistantMarkdown(message: SecondBrainMessage): string {
-  return renderMarkdownCard(displayMessage(message))
 }
 
 async function applyMentionSuggestion(item: SecondBrainAtMentionItem) {
@@ -693,44 +688,21 @@ async function runPulseFromSecondBrain() {
     mentionInfo.value = 'Add note context before using Pulse.'
     return
   }
-  mentionInfo.value = ''
-  await pulse.run({
-    source_kind: 'second_brain_context',
-    action_id: pulseActionId.value,
-    instructions: inputMessage.value.trim() || undefined,
-    context_paths: contextPaths.value,
-    selection_label: sessionTitle.value || 'Second Brain context',
-    session_id: sessionId.value || undefined
-  })
-  void scrollThreadToBottom()
-}
-
-async function applyPulseToSecondBrainDraft(mode: 'replace_draft' | 'append_to_draft') {
-  if (!sessionId.value || !pulse.previewMarkdown.value.trim()) return
-  try {
-    const payload = await loadDeliberationSession(sessionId.value)
-    const next = mode === 'replace_draft'
-      ? pulse.previewMarkdown.value.trim()
-      : payload.draft_content.trim()
-        ? `${payload.draft_content}\n\n---\n\n${pulse.previewMarkdown.value.trim()}`
-        : pulse.previewMarkdown.value.trim()
-    await saveSessionDraft(sessionId.value, next)
-    mentionInfo.value = mode === 'replace_draft'
-      ? 'Pulse preview replaced the Second Brain draft.'
-      : 'Pulse preview appended to the Second Brain draft.'
-    pulse.reset()
-  } catch (err) {
-    mentionInfo.value = err instanceof Error ? err.message : 'Could not update the Second Brain draft.'
+  const nextInstruction = inputMessage.value.trim()
+  const pulsePrompts: Partial<Record<PulseActionId, string>> = {
+    synthesize: 'Synthesize the current context into a concise, structured summary. Highlight key themes and uncertainties.',
+    outline: 'Turn the current context into a clear outline with sections and logical progression.',
+    brief: 'Draft a working brief from the current context, including objective, key points, and open questions.'
   }
+  const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the current context into a useful written output.'
+  inputMessage.value = nextInstruction ? `${basePrompt}\n\nAdditional guidance: ${nextInstruction}` : basePrompt
+  mentionInfo.value = `${activePulseAction.value?.label || 'Pulse'} preset loaded into the composer.`
+  void nextTick(() => composerRef.value?.focus())
 }
 
 async function onPulseAction(actionId: PulseActionId) {
   pulseActionId.value = actionId
   await runPulseFromSecondBrain()
-}
-
-function discardPulseCard() {
-  pulse.reset()
 }
 
 async function onCopyAssistantMessage(message: SecondBrainMessage) {
@@ -909,6 +881,16 @@ watch(
   }
 )
 
+watch(
+  () => `${props.requestedPromptNonce}::${props.requestedPrompt}`,
+  (value) => {
+    const [nonce] = value.split('::')
+    if (!nonce.trim()) return
+    inputMessage.value = props.requestedPrompt
+    void nextTick(() => composerRef.value?.focus())
+  }
+)
+
 watch(contextPaths, (paths) => {
   if (!selectedEchoesContextPath.value) return
   if (!paths.includes(selectedEchoesContextPath.value)) {
@@ -970,40 +952,6 @@ watch(contextPaths, (paths) => {
           <pre v-else>{{ displayMessage(message) }}</pre>
         </article>
 
-        <article v-if="hasPulseCard" class="msg pulse-card">
-          <header class="pulse-card-head">
-            <div>
-              <strong>Pulse</strong>
-              <p>{{ activePulseAction?.label || 'Pulse' }}</p>
-            </div>
-            <span v-if="pulse.running.value" class="pulse-status">Generating...</span>
-          </header>
-          <div v-if="pulse.error.value" class="pulse-card-error">{{ pulse.error.value }}</div>
-          <div
-            v-else-if="pulse.previewMarkdown.value.trim()"
-            class="assistant-markdown pulse-card-body"
-            v-html="renderMarkdownCard(pulse.previewMarkdown.value)"
-          ></div>
-          <div v-else class="pulse-card-placeholder">
-            Pulse is working from the current context.
-          </div>
-          <div v-if="pulse.provenancePaths.value.length" class="pulse-card-sources">
-            <span v-for="path in pulse.provenancePaths.value" :key="path" class="pulse-source-chip">
-              {{ toRelativePath(path) }}
-            </span>
-          </div>
-          <div class="pulse-card-actions">
-            <button type="button" class="pulse-card-btn pulse-card-btn-strong" :disabled="!pulse.previewMarkdown.value.trim()" @click="void applyPulseToSecondBrainDraft('replace_draft')">
-              Replace draft
-            </button>
-            <button type="button" class="pulse-card-btn" :disabled="!pulse.previewMarkdown.value.trim()" @click="void applyPulseToSecondBrainDraft('append_to_draft')">
-              Append to draft
-            </button>
-            <button type="button" class="pulse-card-btn pulse-card-btn-ghost" @click="discardPulseCard">
-              Discard
-            </button>
-          </div>
-        </article>
       </section>
 
       <footer class="sb-input-row">
@@ -1033,7 +981,7 @@ watch(contextPaths, (paths) => {
                 type="button"
                 class="sb-pulse-chip"
                 :class="{ active: pulseActionId === action.id }"
-                :disabled="!contextPaths.length || requestInFlight || pulse.running.value"
+                :disabled="!contextPaths.length || requestInFlight"
                 @click="void onPulseAction(action.id)"
               >
                 {{ action.label }}
@@ -1486,84 +1434,6 @@ watch(contextPaths, (paths) => {
   background: var(--sb-input-bg);
   color: var(--sb-button-text);
   font-size: 12px;
-}
-
-.pulse-card {
-  background: color-mix(in srgb, var(--sb-assistant-bg) 82%, white 18%);
-}
-
-.pulse-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.pulse-card-head p {
-  margin: 4px 0 0;
-  color: var(--sb-text-dim);
-  font-size: 12px;
-}
-
-.pulse-status,
-.pulse-card-placeholder,
-.pulse-card-error {
-  font-size: 12px;
-}
-
-.pulse-card-placeholder {
-  color: var(--sb-text-dim);
-  padding-top: 8px;
-}
-
-.pulse-card-error {
-  color: var(--sb-danger-text);
-  padding-top: 8px;
-}
-
-.pulse-card-body {
-  margin-top: 10px;
-}
-
-.pulse-card-sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.pulse-source-chip {
-  border: 1px solid var(--sb-chip-border);
-  border-radius: 999px;
-  background: var(--sb-chip-bg);
-  color: var(--sb-chip-meta);
-  font-size: 11px;
-  padding: 4px 8px;
-}
-
-.pulse-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.pulse-card-btn {
-  border: 1px solid var(--sb-button-border);
-  border-radius: 10px;
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  font-size: 12px;
-  padding: 8px 12px;
-}
-
-.pulse-card-btn-strong {
-  background: color-mix(in srgb, var(--accent, #4f7a5d) 18%, var(--sb-button-bg));
-  color: var(--sb-active-text);
-}
-
-.pulse-card-btn-ghost {
-  background: transparent;
 }
 
 .composer-action {

@@ -47,7 +47,7 @@ const emit = defineEmits<{
   'open-selected': []
   'locate-selected': []
   'reset-view': []
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
 }>()
 
 const searchInputEl = ref<HTMLInputElement | null>(null)
@@ -122,19 +122,20 @@ async function runPulseFromCosmos() {
 }
 
 function onPulseApply(mode: PulseApplyMode) {
-  if (!pulse.previewMarkdown.value.trim()) return
-  if (mode === 'send_to_second_brain') {
-    emit('pulse-open-second-brain', {
-      contextPaths: pulseContextPaths.value
-    })
-    return
+  if (mode !== 'send_to_second_brain' || !props.selectedNode) return
+  const pulsePrompts: Partial<Record<PulseActionId, string>> = {
+    synthesize: 'Synthesize the selected graph context into a concise, structured summary. Highlight key themes and uncertainties.',
+    outline: 'Turn the selected graph context into a clear outline with sections and logical progression.',
+    brief: 'Draft a working brief from the selected graph context, including objective, key points, and open questions.',
+    extract_themes: 'Extract the dominant themes from the selected graph context and explain how they relate.',
+    identify_tensions: 'Identify tensions, contradictions, or open questions in the selected graph context.'
   }
-  if (mode === 'append_to_draft') {
-    emit('pulse-open-second-brain', {
-      contextPaths: pulseContextPaths.value,
-      draftContent: pulse.previewMarkdown.value
-    })
-  }
+  const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the selected graph context into a useful written output.'
+  const guidance = pulseInstruction.value.trim()
+  emit('pulse-open-second-brain', {
+    contextPaths: pulseContextPaths.value,
+    prompt: guidance ? `${basePrompt}\n\nAdditional guidance: ${guidance}` : basePrompt
+  })
 }
 </script>
 
@@ -281,7 +282,7 @@ function onPulseApply(mode: PulseApplyMode) {
         :provenance-paths="pulse.provenancePaths.value"
         :running="pulse.running.value"
         :error="pulse.error.value"
-        :apply-modes="['send_to_second_brain', 'append_to_draft']"
+        :apply-modes="['send_to_second_brain']"
         @update:action-id="(value) => { pulseActionId = value as PulseActionId }"
         @update:instruction="(value) => { pulseInstruction = value }"
         @run="void runPulseFromCosmos()"

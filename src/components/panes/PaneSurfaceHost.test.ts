@@ -107,6 +107,8 @@ describe('PaneSurfaceHost', () => {
             allWorkspaceFiles: ['/vault/a.md'],
             requestedSessionId: '',
             requestedSessionNonce: 0,
+            requestedPrompt: '',
+            requestedPromptNonce: 0,
             activeNotePath: '/vault/a.md'
           },
           launchpad: {
@@ -192,6 +194,8 @@ describe('PaneSurfaceHost', () => {
             allWorkspaceFiles: [],
             requestedSessionId: '',
             requestedSessionNonce: 0,
+            requestedPrompt: '',
+            requestedPromptNonce: 0,
             activeNotePath: ''
           },
           launchpad: {

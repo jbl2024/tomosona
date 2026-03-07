@@ -100,7 +100,12 @@ describe('SecondBrainView', () => {
     document.body.innerHTML = ''
   })
 
-  function mountView(options: { requestedSessionId?: string; requestedSessionNonce?: number } = {}) {
+  function mountView(options: {
+    requestedSessionId?: string
+    requestedSessionNonce?: number
+    requestedPrompt?: string
+    requestedPromptNonce?: number
+  } = {}) {
     const root = document.createElement('div')
     document.body.appendChild(root)
     const onOpenNote = vi.fn()
@@ -110,6 +115,8 @@ describe('SecondBrainView', () => {
       allWorkspaceFiles: ['/vault/seed.md', '/vault/notes/a.md', '/vault/readme.txt'],
       requestedSessionId: options.requestedSessionId ?? '',
       requestedSessionNonce: options.requestedSessionNonce ?? 0,
+      requestedPrompt: options.requestedPrompt ?? '',
+      requestedPromptNonce: options.requestedPromptNonce ?? 0,
       activeNotePath: '/vault/seed.md',
       onContextChanged: () => {},
       onOpenNote

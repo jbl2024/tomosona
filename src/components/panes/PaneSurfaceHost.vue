@@ -47,6 +47,8 @@ const props = defineProps<{
     allWorkspaceFiles: string[]
     requestedSessionId: string
     requestedSessionNonce: number
+    requestedPrompt: string
+    requestedPromptNonce: number
     activeNotePath: string
   }
   launchpad: {
@@ -64,7 +66,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
   'cosmos-query-update': [value: string]
   'cosmos-search-enter': []
   'cosmos-select-match': [nodeId: string]
@@ -220,6 +222,8 @@ defineExpose<EditorSurfaceExposed>({
     :all-workspace-files="secondBrain.allWorkspaceFiles"
     :requested-session-id="secondBrain.requestedSessionId"
     :requested-session-nonce="secondBrain.requestedSessionNonce"
+    :requested-prompt="secondBrain.requestedPrompt"
+    :requested-prompt-nonce="secondBrain.requestedPromptNonce"
     :active-note-path="secondBrain.activeNotePath"
     @open-note="emit('open-note', $event)"
     @context-changed="emit('second-brain-context-changed', $event)"

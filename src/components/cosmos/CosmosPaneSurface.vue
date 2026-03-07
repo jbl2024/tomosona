@@ -36,7 +36,7 @@ const emit = defineEmits<{
   'locate-selected': []
   'reset-view': []
   'select-node': [nodeId: string]
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
 }>()
 
 const panelWidth = ref(320)

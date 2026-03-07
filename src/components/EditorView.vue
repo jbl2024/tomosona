@@ -94,7 +94,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: HeadingNode[]]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; draftContent?: string }]
+  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
 }>()
 
 const holder = ref<HTMLDivElement | null>(null)
@@ -887,6 +887,23 @@ async function runPulseFromEditor() {
   })
 }
 
+function buildSecondBrainPulsePrompt(): string {
+  const pulsePrompts: Partial<Record<PulseActionId, string>> = {
+    rewrite: 'Rewrite the provided material into a clearer version while preserving the original meaning.',
+    condense: 'Condense the provided material into a shorter version that keeps the key information.',
+    expand: 'Expand the provided material into a fuller draft with clearer transitions and supporting detail.',
+    change_tone: 'Rewrite the provided material in a more appropriate tone while keeping the substance intact.',
+    synthesize: 'Synthesize the provided material into a concise, structured summary.',
+    outline: 'Turn the provided material into a clear outline with sections and logical progression.',
+    brief: 'Draft a working brief from the provided material, including objective, key points, and open questions.'
+  }
+  const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the provided material into a useful written output.'
+  const guidance = pulseInstruction.value.trim()
+  const sourceText = (pulseSourceText.value || editor?.getText() || '').trim()
+  const quotedSource = sourceText ? `\n\nSource material:\n"""\n${sourceText}\n"""` : ''
+  return guidance ? `${basePrompt}\n\nAdditional guidance: ${guidance}${quotedSource}` : `${basePrompt}${quotedSource}`
+}
+
 function replaceSelectionWithPulseOutput() {
   if (!editor || !pulse.previewMarkdown.value.trim() || !pulseSelectionRange.value) return
   editor
@@ -915,7 +932,10 @@ function insertPulseBelow() {
 
 function sendPulseContextToSecondBrain() {
   if (!currentPath.value) return
-  emit('pulse-open-second-brain', { contextPaths: [currentPath.value] })
+  emit('pulse-open-second-brain', {
+    contextPaths: [currentPath.value],
+    prompt: buildSecondBrainPulsePrompt()
+  })
   pulseOpen.value = false
 }
 

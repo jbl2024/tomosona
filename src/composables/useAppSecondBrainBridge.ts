@@ -36,6 +36,8 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
     })()
   )
   const secondBrainRequestedSessionNonce = ref(0)
+  const secondBrainRequestedPrompt = ref('')
+  const secondBrainRequestedPromptNonce = ref(0)
 
   /** Persists the requested session id for the currently open workspace. */
   function persistSecondBrainSessionId(sessionId: string) {
@@ -65,6 +67,13 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
     persistSecondBrainSessionId(normalized)
     if (optionsArg?.bumpNonce) {
       secondBrainRequestedSessionNonce.value += 1
+    }
+  }
+
+  function setSecondBrainPrompt(prompt: string, optionsArg?: { bumpNonce?: boolean }) {
+    secondBrainRequestedPrompt.value = prompt
+    if (optionsArg?.bumpNonce) {
+      secondBrainRequestedPromptNonce.value += 1
     }
   }
 
@@ -150,8 +159,11 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
   return {
     secondBrainRequestedSessionId,
     secondBrainRequestedSessionNonce,
+    secondBrainRequestedPrompt,
+    secondBrainRequestedPromptNonce,
     readPersistedSecondBrainSessionId,
     setSecondBrainSessionId,
+    setSecondBrainPrompt,
     resolveSecondBrainSessionForPath,
     ensurePathInSecondBrainSession,
     addActiveNoteToSecondBrain,
