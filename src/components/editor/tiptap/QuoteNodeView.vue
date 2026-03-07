@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 
 const props = defineProps<{
@@ -9,11 +9,23 @@ const props = defineProps<{
 }>()
 
 const text = computed(() => String(props.node.attrs.text ?? ''))
+const textareaEl = ref<HTMLTextAreaElement | null>(null)
 
 function onInput(event: Event) {
   const value = (event.target as HTMLTextAreaElement | null)?.value ?? ''
   props.updateAttributes({ text: value })
 }
+
+onMounted(() => {
+  if (!props.editor.isEditable) return
+  if (text.value.trim().length > 0) return
+  void nextTick().then(() => {
+    const textarea = textareaEl.value
+    if (!textarea) return
+    textarea.focus()
+    textarea.setSelectionRange(0, 0)
+  })
+})
 </script>
 
 <template>
@@ -24,6 +36,7 @@ function onInput(event: Event) {
       </blockquote>
     </div>
     <textarea
+      ref="textareaEl"
       class="tomosona-quote-source"
       :value="text"
       :readonly="!editor.isEditable"
@@ -33,3 +46,9 @@ function onInput(event: Event) {
     />
   </NodeViewWrapper>
 </template>
+
+<style scoped>
+.tomosona-quote-source {
+  caret-color: var(--editor-textarea-caret);
+}
+</style>
