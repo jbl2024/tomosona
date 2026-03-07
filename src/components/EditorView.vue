@@ -919,16 +919,6 @@ function openPulseForSelection() {
   pulseOpen.value = true
 }
 
-function openPulseForNote() {
-  if (!currentPath.value) return
-  pulseSourceKind.value = 'editor_note'
-  pulseActionId.value = 'synthesize'
-  pulseSelectionRange.value = null
-  pulseSourceText.value = editor?.getText().trim() ?? ''
-  pulseAnchorNonce.value += 1
-  pulseOpen.value = true
-}
-
 async function runPulseFromEditor() {
   if (!currentPath.value) return
   const sourceText = pulseSourceKind.value === 'editor_selection'
@@ -1059,9 +1049,6 @@ defineExpose({
     </div>
 
     <div v-else class="editor-shell flex min-h-0 flex-1 flex-col overflow-hidden border-x">
-      <div class="editor-pulse-bar">
-        <button type="button" class="editor-pulse-note-btn" @click="openPulseForNote">Pulse note</button>
-      </div>
       <EditorPropertiesPanel
         :expanded="propertiesExpanded(path)"
         :has-properties="structuredPropertyKeys.length > 0 || activeParseErrors.length > 0"
@@ -1310,21 +1297,6 @@ defineExpose({
 .editor-shell {
   border-color: var(--border-subtle);
   background: var(--surface-bg);
-}
-
-.editor-pulse-bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 6px 8px 0;
-}
-
-.editor-pulse-note-btn {
-  border: 1px solid var(--editor-menu-border);
-  border-radius: 10px;
-  background: var(--editor-menu-bg);
-  color: var(--editor-menu-text);
-  font-size: 12px;
-  padding: 6px 10px;
 }
 
 .editor-holder {
