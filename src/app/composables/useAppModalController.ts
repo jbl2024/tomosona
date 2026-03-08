@@ -27,6 +27,15 @@ export type UseAppModalControllerOptions = {
 export function useAppModalController(options: UseAppModalControllerOptions) {
   let modalFocusReturnTarget: HTMLElement | null = null
 
+  function focusWithoutScrolling(target: HTMLElement) {
+    if (typeof target.focus !== 'function') return
+    try {
+      target.focus({ preventScroll: true })
+    } catch {
+      target.focus()
+    }
+  }
+
   /** Captures the currently focused element before opening a modal. */
   function rememberFocusBeforeModalOpen() {
     modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -56,7 +65,7 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
   function restoreFocusAfterModalClose() {
     if (activeModalSelector()) return
     if (modalFocusReturnTarget && document.contains(modalFocusReturnTarget)) {
-      modalFocusReturnTarget.focus()
+      focusWithoutScrolling(modalFocusReturnTarget)
     } else {
       options.focusEditor()
     }

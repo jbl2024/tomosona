@@ -57,6 +57,22 @@ describe('useAppModalController', () => {
     expect(focusEditor).not.toHaveBeenCalled()
   })
 
+  it('restores focus without allowing the browser to scroll the opener into view', () => {
+    const { controller, newFileModalVisible } = createController()
+    const button = document.createElement('button')
+    document.body.appendChild(button)
+    button.focus()
+    const focusSpy = vi.fn()
+    button.focus = focusSpy as typeof button.focus
+
+    controller.rememberFocusBeforeModalOpen()
+    newFileModalVisible.value = true
+    newFileModalVisible.value = false
+    controller.restoreFocusAfterModalClose()
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
   it('traps tab within the active modal', () => {
     const { controller, quickOpenVisible } = createController()
     quickOpenVisible.value = true
