@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.14.5] - 2026-03-08
+
+### Fixed
+- fix(pulse): remove unused panel source summary (54b85fd)
+
 ## [0.14.4] - 2026-03-08
 
 ### Added
