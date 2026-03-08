@@ -18,8 +18,9 @@ describe('App modal theme contracts', () => {
     expect(quickOpenSource).toContain('var(--modal-chip-active-bg)')
     expect(quickOpenSource).not.toContain(':global(.ide-root.dark)')
 
-    expect(settingsSource).toContain('var(--modal-group-bg)')
-    expect(settingsSource).toContain('var(--modal-muted-btn-bg)')
+    expect(settingsSource).toContain('var(--panel-border)')
+    expect(settingsSource).toContain('var(--surface-bg)')
+    expect(settingsSource).toContain('var(--surface-muted)')
     expect(settingsSource).not.toContain(':global(.ide-root.dark)')
 
     expect(indexStatusSource).toContain('var(--index-card-bg)')

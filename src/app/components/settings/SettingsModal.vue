@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
+import UiField from '../../../shared/components/ui/UiField.vue'
+import UiInput from '../../../shared/components/ui/UiInput.vue'
+import UiSelect from '../../../shared/components/ui/UiSelect.vue'
 import {
   readAppSettings,
   writeAppSettings,
@@ -296,143 +299,262 @@ watch(() => props.visible, async (visible) => {
       aria-labelledby="settings-title"
       tabindex="-1"
     >
-      <h3 id="settings-title" class="confirm-title">Settings</h3>
-      <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
-        <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'llm' }" @click="settingsActiveTab = 'llm'">LLM</button>
-        <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'embeddings' }" @click="settingsActiveTab = 'embeddings'">Embeddings</button>
-      </div>
+      <div class="settings-shell">
+        <div class="settings-shell__eyebrow">Settings Panel</div>
+        <div class="settings-panel">
+          <header class="settings-panel__header">
+            <h3 id="settings-title" class="settings-panel__title">
+              {{ settingsActiveTab === 'llm' ? 'LLM SETTINGS' : 'EMBEDDINGS SETTINGS' }}
+            </h3>
+            <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
+              <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'llm' }" @click="settingsActiveTab = 'llm'">LLM</button>
+              <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'embeddings' }" @click="settingsActiveTab = 'embeddings'">Embeddings</button>
+            </div>
+          </header>
 
-      <div v-if="settingsActiveTab === 'llm'" class="settings-tab-panel">
-        <label class="modal-field-label" for="settings-llm-provider">Provider preset</label>
-        <select
-          id="settings-llm-provider"
-          class="tool-input"
-          :value="settingsLlmProviderPreset"
-          @change="applySettingsLlmPreset(($event.target as HTMLSelectElement).value as 'openai' | 'anthropic' | 'codex' | 'custom')"
-        >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="codex">OpenAI Codex</option>
-          <option value="custom">Custom</option>
-        </select>
+          <div class="settings-panel__body">
+            <div v-if="settingsActiveTab === 'llm'" class="settings-fields">
+              <UiField for-id="settings-llm-provider" label="Provider preset">
+                <template #default>
+                  <UiSelect
+                    id="settings-llm-provider"
+                    :model-value="settingsLlmProviderPreset"
+                    @update:model-value="applySettingsLlmPreset($event as 'openai' | 'anthropic' | 'codex' | 'custom')"
+                  >
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="codex">OpenAI Codex</option>
+                    <option value="custom">Custom</option>
+                  </UiSelect>
+                </template>
+              </UiField>
 
-        <label class="modal-field-label" for="settings-llm-label">Profile label</label>
-        <input id="settings-llm-label" v-model="settingsLlmLabel" class="tool-input" placeholder="Profile label" @keydown="onSettingsInputKeydown" />
+              <UiField for-id="settings-llm-label" label="Profile label">
+                <template #default="{ describedBy, invalid }">
+                  <UiInput
+                    id="settings-llm-label"
+                    v-model="settingsLlmLabel"
+                    size="sm"
+                    placeholder="OpenAI Codex"
+                    :aria-describedby="describedBy"
+                    :invalid="invalid"
+                    @keydown="onSettingsInputKeydown"
+                  />
+                </template>
+              </UiField>
 
-        <label v-if="settingsLlmProviderPreset === 'custom'" class="modal-field-label" for="settings-llm-custom-provider">Custom provider</label>
-        <input
-          v-if="settingsLlmProviderPreset === 'custom'"
-          id="settings-llm-custom-provider"
-          v-model="settingsLlmCustomProvider"
-          class="tool-input"
-          placeholder="openai_compatible"
-          @keydown="onSettingsInputKeydown"
-        />
+              <UiField v-if="settingsLlmProviderPreset === 'custom'" for-id="settings-llm-custom-provider" label="Custom provider">
+                <template #default="{ describedBy, invalid }">
+                  <UiInput
+                    id="settings-llm-custom-provider"
+                    v-model="settingsLlmCustomProvider"
+                    size="sm"
+                    placeholder="openai_compatible"
+                    :aria-describedby="describedBy"
+                    :invalid="invalid"
+                    @keydown="onSettingsInputKeydown"
+                  />
+                </template>
+              </UiField>
 
-        <label class="modal-field-label" for="settings-llm-model">Model</label>
-        <div class="settings-model-group">
-          <div class="settings-model-input-row">
-            <input id="settings-llm-model" v-model="settingsLlmModel" class="tool-input" placeholder="Model name" @keydown="onSettingsInputKeydown" />
-            <button
-              v-if="settingsLlmProviderPreset === 'codex'"
-              type="button"
-              class="settings-discover-btn"
-              :disabled="settingsLlmCodexModelsLoading"
-              @click="discoverCodexModels"
-            >
-              {{ settingsLlmCodexModelsLoading ? 'Discovering...' : 'Discover models' }}
-            </button>
+              <UiField
+                for-id="settings-llm-model"
+                label="Model"
+                :help="settingsLlmProviderPreset === 'codex'
+                  ? 'Use the Codex CLI session (~/.codex/auth.json). You can also enter any model ID manually.'
+                  : ''"
+              >
+                <template #default="{ describedBy, invalid }">
+                  <div class="settings-model-group">
+                    <UiInput
+                      id="settings-llm-model"
+                      v-model="settingsLlmModel"
+                      size="sm"
+                      placeholder="gpt-5.2-codex"
+                      class-name="settings-model-input"
+                      :aria-describedby="describedBy"
+                      :invalid="invalid"
+                      @keydown="onSettingsInputKeydown"
+                    />
+                    <div v-if="settingsLlmProviderPreset === 'codex'" class="settings-model-actions">
+                      <UiButton
+                        size="sm"
+                        variant="ghost"
+                        :loading="settingsLlmCodexModelsLoading"
+                        class-name="settings-discover-btn"
+                        @click="discoverCodexModels"
+                      >
+                        {{ settingsLlmCodexModelsLoading ? 'Discovering...' : 'Discover models' }}
+                      </UiButton>
+                    </div>
+                    <UiField
+                      v-if="settingsLlmProviderPreset === 'codex' && settingsLlmCodexModels.length > 0"
+                      for-id="settings-llm-codex-model"
+                      label="Discovered Codex models"
+                    >
+                      <template #default>
+                        <UiSelect
+                          id="settings-llm-codex-model"
+                          :model-value="settingsLlmModel"
+                          @update:model-value="settingsLlmModel = $event"
+                        >
+                          <option v-for="item in settingsLlmCodexModels" :key="item.id" :value="item.id">
+                            {{ item.display_name }} ({{ item.id }})
+                          </option>
+                        </UiSelect>
+                      </template>
+                    </UiField>
+                  </div>
+                </template>
+              </UiField>
+
+              <UiField v-if="settingsLlmProviderPreset !== 'codex'" for-id="settings-llm-base-url" label="Base URL (optional)">
+                <template #default="{ describedBy, invalid }">
+                  <UiInput
+                    id="settings-llm-base-url"
+                    v-model="settingsLlmBaseUrl"
+                    size="sm"
+                    placeholder="https://... or http://localhost:11434/v1"
+                    :aria-describedby="describedBy"
+                    :invalid="invalid"
+                    @keydown="onSettingsInputKeydown"
+                  />
+                </template>
+              </UiField>
+
+              <UiField
+                for-id="settings-llm-apikey"
+                label="API key"
+                :help="settingsLlmProviderPreset === 'codex' ? 'Codex uses the local CLI session instead of a saved API key.' : ''"
+              >
+                <template #default="{ describedBy, invalid }">
+                  <UiInput
+                    id="settings-llm-apikey"
+                    v-model="settingsLlmApiKey"
+                    size="sm"
+                    data-settings-llm-apikey="true"
+                    type="password"
+                    :placeholder="settingsLlmProviderPreset === 'codex'
+                      ? 'not used for Codex'
+                      : settingsLlmHasStoredApiKey
+                        ? 'stored key (leave empty to keep)'
+                        : 'api key'"
+                    :disabled="settingsLlmProviderPreset === 'codex'"
+                    :aria-describedby="describedBy"
+                    :invalid="invalid"
+                    @keydown="onSettingsInputKeydown"
+                  />
+                </template>
+              </UiField>
+            </div>
+
+            <div v-else class="settings-fields">
+              <fieldset class="settings-mode-group">
+                <legend class="settings-mode-group__legend">Embedding mode</legend>
+                <label class="settings-mode-option">
+                  <input
+                    :checked="settingsEmbeddingsMode === 'internal'"
+                    type="radio"
+                    name="settings-embeddings-mode"
+                    value="internal"
+                    @click="settingsEmbeddingsMode = 'internal'"
+                  />
+                  <span>Internal model (fastembed)</span>
+                </label>
+                <label class="settings-mode-option">
+                  <input
+                    :checked="settingsEmbeddingsMode === 'external'"
+                    type="radio"
+                    name="settings-embeddings-mode"
+                    value="external"
+                    @click="settingsEmbeddingsMode = 'external'"
+                  />
+                  <span>External model (API)</span>
+                </label>
+              </fieldset>
+
+              <template v-if="settingsEmbeddingsMode === 'external'">
+                <UiField for-id="settings-emb-provider" label="Provider">
+                  <template #default>
+                    <UiSelect id="settings-emb-provider" v-model="settingsEmbeddingsProvider">
+                      <option value="openai">OpenAI</option>
+                    </UiSelect>
+                  </template>
+                </UiField>
+
+                <UiField for-id="settings-emb-label" label="Profile label">
+                  <template #default="{ describedBy, invalid }">
+                    <UiInput
+                      id="settings-emb-label"
+                      v-model="settingsEmbeddingsLabel"
+                      size="sm"
+                      placeholder="OpenAI Embeddings"
+                      :aria-describedby="describedBy"
+                      :invalid="invalid"
+                      @keydown="onSettingsInputKeydown"
+                    />
+                  </template>
+                </UiField>
+
+                <UiField for-id="settings-emb-model" label="Model">
+                  <template #default="{ describedBy, invalid }">
+                    <UiInput
+                      id="settings-emb-model"
+                      v-model="settingsEmbeddingsModel"
+                      size="sm"
+                      placeholder="text-embedding-3-small"
+                      :aria-describedby="describedBy"
+                      :invalid="invalid"
+                      @keydown="onSettingsInputKeydown"
+                    />
+                  </template>
+                </UiField>
+
+                <UiField for-id="settings-emb-base-url" label="Base URL (optional)">
+                  <template #default="{ describedBy, invalid }">
+                    <UiInput
+                      id="settings-emb-base-url"
+                      v-model="settingsEmbeddingsBaseUrl"
+                      size="sm"
+                      placeholder="https://..."
+                      :aria-describedby="describedBy"
+                      :invalid="invalid"
+                      @keydown="onSettingsInputKeydown"
+                    />
+                  </template>
+                </UiField>
+
+                <UiField
+                  for-id="settings-emb-apikey"
+                  label="API key"
+                  :help="settingsEmbeddingsHasStoredApiKey ? 'Leave empty to keep the stored key.' : ''"
+                >
+                  <template #default="{ describedBy, invalid }">
+                    <UiInput
+                      id="settings-emb-apikey"
+                      v-model="settingsEmbeddingsApiKey"
+                      size="sm"
+                      type="password"
+                      :placeholder="settingsEmbeddingsHasStoredApiKey ? 'stored key (leave empty to keep)' : 'api key'"
+                      :aria-describedby="describedBy"
+                      :invalid="invalid"
+                      @keydown="onSettingsInputKeydown"
+                    />
+                  </template>
+                </UiField>
+              </template>
+            </div>
+
+            <p v-if="settingsConfigPath" class="settings-config-path"><code>{{ settingsConfigPath }}</code></p>
+            <p v-if="settingsModalError" class="modal-input-error settings-error">{{ settingsModalError }}</p>
           </div>
-          <select
-            v-if="settingsLlmProviderPreset === 'codex' && settingsLlmCodexModels.length > 0"
-            class="tool-input"
-            :value="settingsLlmModel"
-            @change="settingsLlmModel = ($event.target as HTMLSelectElement).value"
-          >
-            <option
-              v-for="item in settingsLlmCodexModels"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.display_name }} ({{ item.id }})
-            </option>
-          </select>
-        </div>
-        <p v-if="settingsLlmProviderPreset === 'codex'" class="modal-field-hint">
-          Use the Codex CLI session (<code>~/.codex/auth.json</code>).
-          You can also enter any model ID manually.
-        </p>
 
-        <label v-if="settingsLlmProviderPreset !== 'codex'" class="modal-field-label" for="settings-llm-base-url">Base URL (optional)</label>
-        <input
-          v-if="settingsLlmProviderPreset !== 'codex'"
-          id="settings-llm-base-url"
-          v-model="settingsLlmBaseUrl"
-          class="tool-input"
-          placeholder="https://... or http://localhost:11434/v1"
-          @keydown="onSettingsInputKeydown"
-        />
-
-        <label class="modal-field-label" for="settings-llm-apikey">API key</label>
-        <input
-          id="settings-llm-apikey"
-          v-model="settingsLlmApiKey"
-          data-settings-llm-apikey="true"
-          class="tool-input"
-          type="password"
-          :placeholder="settingsLlmProviderPreset === 'codex'
-            ? 'not used for Codex'
-            : settingsLlmHasStoredApiKey
-              ? 'stored key (leave empty to keep)'
-              : 'api key'"
-          :disabled="settingsLlmProviderPreset === 'codex'"
-          @keydown="onSettingsInputKeydown"
-        />
-      </div>
-
-      <div v-else class="settings-tab-panel">
-        <label class="modal-field-label settings-checkbox-row">
-          <input v-model="settingsEmbeddingsMode" type="radio" value="internal" />
-          <span>Internal model (fastembed)</span>
-        </label>
-        <label class="modal-field-label settings-checkbox-row">
-          <input v-model="settingsEmbeddingsMode" type="radio" value="external" />
-          <span>External model (API)</span>
-        </label>
-
-        <template v-if="settingsEmbeddingsMode === 'external'">
-          <label class="modal-field-label" for="settings-emb-provider">Provider</label>
-          <select id="settings-emb-provider" v-model="settingsEmbeddingsProvider" class="tool-input">
-            <option value="openai">OpenAI</option>
-          </select>
-
-          <label class="modal-field-label" for="settings-emb-label">Profile label</label>
-          <input id="settings-emb-label" v-model="settingsEmbeddingsLabel" class="tool-input" placeholder="OpenAI Embeddings" @keydown="onSettingsInputKeydown" />
-
-          <label class="modal-field-label" for="settings-emb-model">Model</label>
-          <input id="settings-emb-model" v-model="settingsEmbeddingsModel" class="tool-input" placeholder="text-embedding-3-small" @keydown="onSettingsInputKeydown" />
-
-          <label class="modal-field-label" for="settings-emb-base-url">Base URL (optional)</label>
-          <input id="settings-emb-base-url" v-model="settingsEmbeddingsBaseUrl" class="tool-input" placeholder="https://..." @keydown="onSettingsInputKeydown" />
-
-          <label class="modal-field-label" for="settings-emb-apikey">API key</label>
-          <input
-            id="settings-emb-apikey"
-            v-model="settingsEmbeddingsApiKey"
-            class="tool-input"
-            type="password"
-            :placeholder="settingsEmbeddingsHasStoredApiKey ? 'stored key (leave empty to keep)' : 'api key'"
-            @keydown="onSettingsInputKeydown"
-          />
-        </template>
-      </div>
-
-      <p v-if="settingsModalError" class="modal-input-error">{{ settingsModalError }}</p>
-      <div class="settings-footer">
-        <p class="settings-config-path"><code>{{ settingsConfigPath }}</code></p>
-        <div class="settings-footer-actions">
-          <UiButton size="sm" variant="ghost" @click="emit('cancel')">Cancel</UiButton>
-          <UiButton size="sm" variant="primary" @click="submitSettingsModal">Save</UiButton>
+          <footer class="settings-footer">
+            <div class="settings-footer-actions">
+              <UiButton size="sm" variant="ghost" @click="emit('cancel')">Cancel</UiButton>
+              <UiButton size="sm" variant="primary" @click="submitSettingsModal">Save</UiButton>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
@@ -441,104 +563,193 @@ watch(() => props.visible, async (visible) => {
 
 <style scoped>
 .settings-modal {
-  width: min(960px, calc(100vw - 32px));
+  width: min(920px, calc(100vw - 40px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-shell__eyebrow {
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  padding: 16px 24px 12px;
+}
+
+.settings-panel :deep(.ui-field__label) {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.settings-panel :deep(.ui-field__help) {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 24px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.settings-panel__title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-main);
+  text-transform: uppercase;
 }
 
 .settings-tabs {
   display: inline-flex;
-  gap: 6px;
-  margin: 2px 0 0;
+  gap: 12px;
+  align-items: center;
 }
 
 .settings-tab-btn {
-  border: 1px solid var(--modal-tab-border);
-  border-bottom-color: transparent;
-  background: var(--modal-tab-bg);
-  border-radius: 8px 8px 0 0;
-  font-size: 12px;
-  padding: 6px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
   color: var(--text-soft);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
 .settings-tab-btn.active {
-  border-color: var(--modal-tab-active-border);
-  border-bottom-color: var(--modal-tab-active-bg);
-  background: var(--modal-tab-active-bg);
-  color: var(--modal-tab-active-text);
-  position: relative;
-  z-index: 1;
+  border-color: var(--button-secondary-border);
+  background: var(--surface-bg);
+  color: var(--text-main);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
-.settings-tab-panel {
-  border: 1px solid var(--modal-panel-border);
-  border-top: 0;
-  border-radius: 0 8px 8px 8px;
-  padding: 12px;
-  background: var(--modal-panel-bg);
+.settings-tab-btn:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
 }
 
-.settings-checkbox-row {
+.settings-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px 14px;
+}
+
+.settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-mode-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-mode-group__legend {
+  margin: 0 0 4px;
+  color: var(--field-label);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.settings-mode-option {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-main);
+  font-size: 0.82rem;
 }
 
 .settings-model-group {
-  margin: 0 0 8px;
-  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border-radius: 8px;
-  background: var(--modal-group-bg);
+  gap: 6px;
 }
 
-.settings-model-input-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
+.settings-model-input {
+  min-width: 0;
+}
+
+.settings-panel :deep(.ui-select) {
+  height: 2.45rem;
+  font-size: 0.9rem;
+}
+
+.settings-model-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: -1px;
 }
 
 .settings-discover-btn {
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--text-soft);
-  background: var(--modal-muted-btn-bg);
-  cursor: pointer;
   white-space: nowrap;
-}
-
-.settings-discover-btn:hover:not(:disabled) {
-  background: var(--modal-muted-btn-hover);
-  color: var(--text-main);
-}
-
-.settings-discover-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.settings-footer {
-  margin-top: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  padding-inline: 0;
+  height: auto;
+  font-size: 0.74rem;
 }
 
 .settings-config-path {
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-dim);
+  margin: 6px 0 0;
+  color: var(--text-faint);
+  font-size: 0.76rem;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--panel-border);
 }
 
 .settings-footer-actions {
   display: flex;
-  align-items: center;
   gap: 10px;
+  justify-content: flex-end;
 }
 
+.settings-error {
+  margin-top: -2px;
+}
+
+@media (max-width: 720px) {
+  .settings-panel__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-tabs {
+    align-self: flex-start;
+  }
+
+  .settings-footer {
+    padding-inline: 24px;
+  }
+
+  .settings-panel__body,
+  .settings-panel__header,
+  .settings-shell__eyebrow {
+    padding-inline: 24px;
+  }
+}
 </style>

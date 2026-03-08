@@ -12,32 +12,32 @@
 
   /* Foundation tokens: proposal palette mapped to current semantic layer. */
   --color-surface-0: #f9f9f8;
-  --color-surface-1: #ffffff;
+  --color-surface-1: #fcfcfb;
   --color-surface-2: #f3f3f1;
-  --color-surface-3: #fbfbfa;
-  --color-surface-4: #eef0ed;
-  --color-overlay-1: rgba(255, 255, 255, 0.92);
-  --color-overlay-2: rgba(255, 255, 255, 0.84);
+  --color-surface-3: #ffffff;
+  --color-surface-4: #f6f5f2;
+  --color-overlay-1: rgba(252, 252, 251, 0.94);
+  --color-overlay-2: rgba(255, 255, 255, 0.98);
   --color-border-1: #e8e8e5;
   --color-border-2: #d4d4ce;
-  --color-border-3: #bfc1b8;
+  --color-border-3: #b0b0a8;
   --color-text-1: #1a1a18;
   --color-text-2: #5c5c56;
   --color-text-3: #7b7b73;
   --color-text-4: #9a9a92;
   --color-accent-1: #1e3a5f;
   --color-accent-2: #162d4a;
-  --color-accent-soft: rgba(30, 58, 95, 0.12);
-  --color-accent-focus: rgba(30, 58, 95, 0.18);
+  --color-accent-soft: #e8eef5;
+  --color-accent-focus: rgba(30, 58, 95, 0.14);
   --color-accent-contrast: #ffffff;
   --color-danger-1: #b02a2a;
   --color-danger-2: #8f1f1f;
   --color-danger-soft: rgba(176, 42, 42, 0.12);
   --color-success-1: #2d7a4f;
   --color-warning-1: #9a6200;
-  --shadow-panel: 0 0 0 1px rgba(212, 212, 206, 0.75), 0 12px 28px rgba(26, 26, 24, 0.08);
-  --shadow-overlay: 0 10px 30px rgba(26, 26, 24, 0.12);
-  --shadow-dropdown: 0 16px 36px rgba(26, 26, 24, 0.14);
+  --shadow-panel: 0 0 0 1px rgba(232, 232, 229, 0.95), 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-dropdown: 0 12px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05);
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
@@ -51,7 +51,7 @@
   --surface-raised: var(--color-surface-3);
   --surface-subtle: var(--color-surface-4);
   --surface-overlay: var(--color-overlay-1);
-  --surface-panel: var(--color-overlay-2);
+  --surface-panel: var(--color-surface-3);
   --text-main: var(--color-text-1);
   --text-soft: var(--color-text-2);
   --text-dim: var(--color-text-3);
@@ -96,10 +96,10 @@
   --button-primary-bg: var(--accent);
   --button-primary-text: var(--accent-contrast);
   --button-primary-hover: var(--accent-hover);
-  --button-secondary-border: color-mix(in srgb, var(--border-strong) 78%, transparent);
-  --button-secondary-bg: color-mix(in srgb, var(--surface-bg) 90%, transparent);
+  --button-secondary-border: color-mix(in srgb, var(--border-strong) 72%, transparent);
+  --button-secondary-bg: var(--surface-bg);
   --button-secondary-text: var(--text-main);
-  --button-secondary-hover: var(--surface-muted);
+  --button-secondary-hover: var(--surface-subtle);
   --button-ghost-border: color-mix(in srgb, var(--border-strong) 78%, transparent);
   --button-ghost-text: var(--text-soft);
   --button-ghost-hover-border: color-mix(in srgb, var(--border-strong) 95%, var(--text-soft));
@@ -112,17 +112,17 @@
   --button-danger-text: var(--danger);
   --button-danger-hover: color-mix(in srgb, var(--danger) 18%, var(--surface-bg));
 
-  --input-bg: color-mix(in srgb, var(--surface-bg) 95%, transparent);
-  --input-border: color-mix(in srgb, var(--border-strong) 78%, transparent);
+  --input-bg: var(--color-surface-3);
+  --input-border: color-mix(in srgb, var(--border-strong) 68%, transparent);
   --input-text: var(--text-main);
   --input-placeholder: var(--text-faint);
-  --input-focus-border: color-mix(in srgb, var(--accent) 70%, transparent);
+  --input-focus-border: color-mix(in srgb, var(--accent) 58%, transparent);
   --input-focus-ring: var(--focus-ring);
 
-  --panel-border: color-mix(in srgb, var(--border-strong) 72%, transparent);
+  --panel-border: color-mix(in srgb, var(--border-strong) 62%, transparent);
   --panel-bg: var(--surface-panel);
-  --panel-subtle-bg: color-mix(in srgb, var(--surface-muted) 84%, var(--surface-bg));
-  --panel-raised-bg: color-mix(in srgb, var(--surface-raised) 92%, white 8%);
+  --panel-subtle-bg: var(--surface-subtle);
+  --panel-raised-bg: var(--surface-raised);
   --panel-shadow: var(--shadow-panel);
 
   --field-label: var(--text-soft);
@@ -141,13 +141,13 @@
   --badge-danger-bg: color-mix(in srgb, var(--danger) 14%, var(--surface-bg));
   --badge-danger-text: var(--danger);
 
-  --shell-chrome-bg: var(--surface-muted);
+  --shell-chrome-bg: var(--surface-subtle);
   --shell-chrome-border: var(--border-subtle);
   --shell-chrome-text: var(--text-soft);
   --shell-chrome-text-strong: var(--text-main);
-  --shell-command-bg: color-mix(in srgb, var(--surface-bg) 80%, transparent);
-  --shell-command-hover-bg: color-mix(in srgb, var(--surface-bg) 96%, transparent);
-  --shell-command-border: color-mix(in srgb, var(--border-strong) 78%, transparent);
+  --shell-command-bg: color-mix(in srgb, var(--surface-bg) 90%, transparent);
+  --shell-command-hover-bg: var(--surface-bg);
+  --shell-command-border: color-mix(in srgb, var(--border-strong) 72%, transparent);
   --shell-command-shadow: inset 0 1px 0 color-mix(in srgb, white 65%, transparent);
   --shell-divider: color-mix(in srgb, var(--border-strong) 78%, transparent);
   --shell-splitter: color-mix(in srgb, var(--border-strong) 88%, transparent);
@@ -180,21 +180,21 @@
   --menu-bg: var(--surface-bg);
   --menu-text: var(--text-soft);
   --menu-text-strong: var(--text-main);
-  --menu-hover-bg: var(--surface-muted);
+  --menu-hover-bg: var(--surface-subtle);
   --menu-active-bg: var(--accent-soft);
   --menu-active-text: var(--accent);
   --menu-divider: var(--border-subtle);
   --menu-shadow: var(--shadow-overlay);
   --menu-backdrop: rgba(2, 6, 23, 0.45);
 
-  --tab-strip-bg: var(--surface-muted);
+  --tab-strip-bg: var(--surface-subtle);
   --tab-border: var(--border-subtle);
-  --tab-bg: color-mix(in srgb, var(--surface-muted) 92%, var(--surface-bg));
+  --tab-bg: var(--surface-subtle);
   --tab-text: var(--text-soft);
-  --tab-hover-bg: #e8ecf3;
-  --tab-hover-text: #1f2937;
+  --tab-hover-bg: var(--surface-muted);
+  --tab-hover-text: var(--text-main);
   --tab-active-bg: var(--surface-bg);
-  --tab-active-border: var(--border-subtle);
+  --tab-active-border: color-mix(in srgb, var(--border-strong) 66%, transparent);
   --tab-active-text: var(--text-main);
   --tab-active-bottom: var(--surface-bg);
 
@@ -292,23 +292,23 @@
   --modal-title: var(--text-main);
   --modal-copy: var(--text-soft);
   --modal-placeholder: var(--text-dim);
-  --modal-tab-bg: var(--surface-muted);
+  --modal-tab-bg: var(--surface-subtle);
   --modal-tab-border: var(--border-subtle);
   --modal-tab-active-bg: var(--surface-bg);
   --modal-tab-active-border: var(--border-strong);
   --modal-tab-active-text: var(--text-main);
-  --modal-panel-bg: color-mix(in srgb, var(--surface-muted) 80%, var(--surface-bg));
+  --modal-panel-bg: var(--surface-bg);
   --modal-panel-border: var(--border-subtle);
-  --modal-group-bg: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-bg));
+  --modal-group-bg: var(--surface-subtle);
   --modal-chip-bg: #ffffff;
   --modal-chip-border: var(--border-strong);
   --modal-chip-active-bg: #dbeafe;
   --modal-chip-active-border: #93c5fd;
   --modal-chip-active-text: #1d4ed8;
-  --modal-muted-btn-bg: #e2e8f0;
-  --modal-muted-btn-hover: #cbd5e1;
-  --modal-disabled-bg: #f1f5f9;
-  --modal-disabled-text: #94a3b8;
+  --modal-muted-btn-bg: var(--surface-subtle);
+  --modal-muted-btn-hover: var(--surface-muted);
+  --modal-disabled-bg: #f4f4f1;
+  --modal-disabled-text: #a0a098;
   --modal-danger-text: var(--danger-strong);
 
   --cosmos-panel-bg: var(--surface-muted);
