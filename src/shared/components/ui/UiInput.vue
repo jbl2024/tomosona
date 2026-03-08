@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** Physical size supported by the shared text input primitive. */
 export type UiInputSize = 'sm' | 'md' | 'lg'
 
 const props = withDefaults(defineProps<{

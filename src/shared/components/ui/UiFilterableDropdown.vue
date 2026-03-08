@@ -14,12 +14,12 @@ import {
  * - Use slots to customize trigger and rows while reusing keyboard/open/close behavior.
  */
 /**
- * Generic dropdown row payload.
+ * Generic dropdown row payload carried through the shared filterable dropdown.
  *
  * Why:
- * - Consumers often need extra fields (icons, targets, aliases).
- * - The component only requires `id` and `label` but safely carries through
- *   additional data to `select` and item slots.
+ * - Consumers often need extra fields such as icons, targets, aliases, or groups.
+ * - The component only requires `id` and `label`, but safely preserves
+ *   additional item metadata for `select` events and render slots.
  */
 export type FilterableDropdownItem = FilterableItemBase & Record<string, unknown>
 

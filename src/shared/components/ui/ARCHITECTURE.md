@@ -2,6 +2,8 @@
 
 Tomosona's design system uses four layers:
 
+For the exhaustive component reference for everything in this folder, see [README.md](./README.md).
+
 1. Tokens
 Semantic CSS custom properties in `src/assets/tailwind.css` define shared colors, surfaces, borders, typography, spacing, and component states. App code should consume semantic tokens like `--surface-bg`, `--menu-bg`, `--button-primary-bg`, not raw palette values.
 

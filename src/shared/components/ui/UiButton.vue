@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+/** Visual role supported by the shared button primitive. */
 export type UiButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+/** Physical size supported by the shared button primitive. */
 export type UiButtonSize = 'sm' | 'md' | 'lg'
 
 const props = withDefaults(defineProps<{

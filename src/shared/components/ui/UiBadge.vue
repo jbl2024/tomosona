@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** Semantic tone supported by the shared badge primitive. */
 export type UiBadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 
 withDefaults(defineProps<{

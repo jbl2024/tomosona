@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** Physical size supported by the shared select primitive. */
 export type UiSelectSize = 'sm' | 'md' | 'lg'
 
 withDefaults(defineProps<{
