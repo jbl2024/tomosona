@@ -1,71 +1,31 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type CSSProperties } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { DragHandle as DragHandleVue3 } from '@tiptap/extension-drag-handle-vue-3'
-import type { Middleware, MiddlewareState } from '@floating-ui/dom'
-import {
-  sanitizeExternalHref,
-  type EditorBlock
-} from '../lib/markdownBlocks'
-import { EDITOR_SLASH_COMMANDS } from '../lib/editorSlashCommands'
 import { openExternalUrl } from '../../../shared/api/workspaceApi'
-import EditorTitleField from './editor/EditorTitleField.vue'
-import EditorPropertiesPanel from './editor/EditorPropertiesPanel.vue'
-import EditorSlashOverlay from './editor/EditorSlashOverlay.vue'
-import EditorWikilinkOverlay from './editor/EditorWikilinkOverlay.vue'
+import type { PulseActionId } from '../../../shared/api/apiTypes'
+import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../../pulse/lib/pulse'
+import type { DocumentSession } from '../composables/useDocumentEditorSessions'
+import { hasPendingHeavyRender, waitForHeavyRenderIdle } from '../lib/tiptap/renderStabilizer'
+import { useEditorChromeRuntime } from '../composables/useEditorChromeRuntime'
+import { useEditorDocumentRuntime } from '../composables/useEditorDocumentRuntime'
+import { useEditorInteractionRuntime } from '../composables/useEditorInteractionRuntime'
 import EditorContextOverlays from './editor/EditorContextOverlays.vue'
-import EditorTableEdgeControls from './editor/EditorTableEdgeControls.vue'
-import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorFindToolbar from './editor/EditorFindToolbar.vue'
+import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorLargeDocOverlay from './editor/EditorLargeDocOverlay.vue'
 import EditorMermaidReplaceDialog from './editor/EditorMermaidReplaceDialog.vue'
+import EditorPropertiesPanel from './editor/EditorPropertiesPanel.vue'
+import EditorSlashOverlay from './editor/EditorSlashOverlay.vue'
+import EditorTableEdgeControls from './editor/EditorTableEdgeControls.vue'
+import EditorTitleField from './editor/EditorTitleField.vue'
+import EditorWikilinkOverlay from './editor/EditorWikilinkOverlay.vue'
 import PulsePanel from '../../pulse/components/PulsePanel.vue'
 import './editor/EditorViewContent.css'
-import { useFrontmatterProperties } from '../composables/useFrontmatterProperties'
-import { useEditorZoom } from '../composables/useEditorZoom'
-import { useMermaidReplaceDialog } from '../composables/useMermaidReplaceDialog'
-import { useInlineFormatToolbar } from '../composables/useInlineFormatToolbar'
-import { useEditorFindToolbar } from '../composables/useEditorFindToolbar'
-import { useEditorInputHandlers } from '../composables/useEditorInputHandlers'
-import { useEditorSessionLifecycle } from '../composables/useEditorSessionLifecycle'
-import { useBlockMenuControls } from '../composables/useBlockMenuControls'
-import { useTableToolbarControls } from '../composables/useTableToolbarControls'
-import { useEditorFileLifecycle } from '../composables/useEditorFileLifecycle'
-import { useEditorTableGeometry } from '../composables/useEditorTableGeometry'
-import { useEditorSlashInsertion } from '../composables/useEditorSlashInsertion'
-import { useEditorWikilinkOverlayState } from '../composables/useEditorWikilinkOverlayState'
-import { useEditorTiptapSetup } from '../composables/useEditorTiptapSetup'
-import { useEditorTableInteractions } from '../composables/useEditorTableInteractions'
-import { useEditorPathWatchers } from '../composables/useEditorPathWatchers'
-import { useEditorTitleState } from '../composables/useEditorTitleState'
-import { useEditorWikilinkDataSource } from '../composables/useEditorWikilinkDataSource'
-import { useEditorBlockHandleControls } from '../composables/useEditorBlockHandleControls'
-import { useEditorSessionStatus } from '../composables/useEditorSessionStatus'
-import { useEditorCaretOutline } from '../composables/useEditorCaretOutline'
-import { useEditorLayoutMetrics } from '../composables/useEditorLayoutMetrics'
-import { useEditorMountedSessions } from '../composables/useEditorMountedSessions'
-import { normalizeBlockId, normalizeHeadingAnchor, slugifyHeading } from '../lib/wikilinks'
-import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
-import { fromTiptapDoc } from '../lib/tiptap/tiptapDocToEditorBlocks'
-import { useDocumentEditorSessions, type PaneId } from '../composables/useDocumentEditorSessions'
-import { useEditorNavigation, type EditorHeadingNode } from '../composables/useEditorNavigation'
-import { useSlashMenu } from '../composables/useSlashMenu'
-import { type WikilinkCandidate } from '../lib/tiptap/plugins/wikilinkState'
-import { buildWikilinkCandidates } from '../lib/tiptap/wikilinkCandidates'
-import { hasPendingHeavyRender, waitForHeavyRenderIdle } from '../lib/tiptap/renderStabilizer'
-import {
-  extractSelectionClipboardPayload,
-  writeSelectionPayloadToClipboard,
-  type CopyAsFormat
-} from '../lib/editorClipboard'
-import type { BlockMenuTarget, TurnIntoType } from '../lib/tiptap/blockMenu/types'
-import { computeHandleLock, type DragHandleUiState } from '../lib/tiptap/blockMenu/dragHandleState'
-import { usePulseTransformation } from '../../pulse/composables/usePulseTransformation'
-import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../../pulse/lib/pulse'
-import type { PulseActionId } from '../../../shared/api/apiTypes'
 
-type HeadingNode = EditorHeadingNode
+type HeadingNode = { text: string; level: number; id?: string }
 type CorePropertyOption = { key: string; label?: string; description?: string }
+
 const CORE_PROPERTY_OPTIONS: CorePropertyOption[] = [
   { key: 'tags', label: 'tags', description: 'Tag list' },
   { key: 'aliases', label: 'aliases', description: 'Alternative names' },
@@ -75,8 +35,6 @@ const CORE_PROPERTY_OPTIONS: CorePropertyOption[] = [
   { key: 'archive', label: 'archive', description: 'Archive flag' },
   { key: 'published', label: 'published', description: 'Publish flag' }
 ]
-
-const SLASH_COMMANDS = EDITOR_SLASH_COMMANDS
 
 const props = defineProps<{
   path: string
@@ -92,485 +50,214 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
 }>()
 
-const emit = defineEmits<{
-  status: [payload: { path: string; dirty: boolean; saving: boolean; saveError: string }]
-  'path-renamed': [payload: { from: string; to: string; manual: boolean }]
-  outline: [payload: HeadingNode[]]
-  properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
-}>()
+const emit = defineEmits([
+  'status',
+  'path-renamed',
+  'outline',
+  'properties',
+  'pulse-open-second-brain'
+])
+
+function emitStatus(payload: { path: string; dirty: boolean; saving: boolean; saveError: string }) {
+  emit('status', payload)
+}
+
+function emitPathRenamed(payload: { from: string; to: string; manual: boolean }) {
+  emit('path-renamed', payload)
+}
+
+function emitOutline(payload: HeadingNode[]) {
+  emit('outline', payload)
+}
+
+function emitProperties(payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }) {
+  emit('properties', payload)
+}
+
+function emitPulseOpenSecondBrain(payload: { contextPaths: string[]; prompt?: string }) {
+  emit('pulse-open-second-brain', payload)
+}
 
 const holder = ref<HTMLDivElement | null>(null)
 const contentShell = ref<HTMLDivElement | null>(null)
-const titleEditorFocused = ref(false)
-let editor: Editor | null = null
-let suppressOnChange = false
-const MAIN_PANE_ID: PaneId = 'main'
-const isLoadingLargeDocument = ref(false)
-const loadStageLabel = ref('')
-const loadProgressPercent = ref(0)
-const loadProgressIndeterminate = ref(false)
-const loadDocumentStats = ref<{ chars: number; lines: number } | null>(null)
-const LARGE_DOC_THRESHOLD = 40_000
-const pulse = usePulseTransformation()
-const pulseOpen = ref(false)
 const pulsePanelWrap = ref<HTMLDivElement | null>(null)
-const pulsePanelMeasuredHeight = ref(360)
-const pulseSourceKind = ref<'editor_selection' | 'editor_note'>('editor_selection')
-const pulseActionId = ref<PulseActionId>('rewrite')
-const pulseInstruction = ref('')
-const pulseInstructionDirty = ref(false)
-const pulseSelectionRange = ref<{ from: number; to: number } | null>(null)
-const pulseSourceText = ref('')
-const pulseAnchorNonce = ref(0)
+const activeEditor = ref<Editor | null>(null) as Ref<Editor | null>
+const pathRef = computed(() => props.path ?? '')
+const openPathsRef = computed(() => props.openPaths ?? [])
+const currentPathSource = computed(() => props.path?.trim() || '')
 
+let getSession: (path: string) => DocumentSession | null = () => null
+let saveCurrentFileInternal: (manual?: boolean) => Promise<void> = async () => {}
+let onEditorDocChangedInternal: (path: string) => void = () => {}
+let closeSlashMenuInternal = () => {}
+let dismissSlashMenuInternal = () => {}
+let closeWikilinkMenuInternal = () => {}
+let openSlashAtSelectionInternal = () => {}
+let currentTextSelectionContextInternal: () => { text: string; nodeType: string; from: number; to: number } | null = () => null
+let insertBlockFromDescriptorInternal: (
+  type: string,
+  data: Record<string, unknown>,
+  options?: { replaceRange?: { from: number; to: number } | null }
+) => boolean = () => false
+let onEditorKeydownInternal = (_event: KeyboardEvent) => {}
+let onEditorKeyupInternal = () => {}
+let onEditorContextMenuInternal = (_event: MouseEvent) => {}
+let onEditorPasteInternal = (_event: ClipboardEvent) => {}
+let markEditorInteractionInternal = () => {}
+let resetWikilinkDataCacheInternal = () => {}
 
-const lastStableBlockMenuTarget = ref<BlockMenuTarget | null>(null)
-const blockMenuFloatingEl = ref<HTMLDivElement | null>(null)
-const blockMenuPos = ref({ x: 0, y: 0 })
-const tableToolbarFloatingEl = ref<HTMLDivElement | null>(null)
-const tableToolbarLeft = ref(0) // menu anchor, holder-relative
-const tableToolbarTop = ref(0) // menu anchor, holder-relative
-const tableToolbarViewportLeft = ref(0)
-const tableToolbarViewportTop = ref(0)
-const tableToolbarViewportMaxHeight = ref(420)
-const tableMenuBtnLeft = ref(0)
-const tableMenuBtnTop = ref(0)
-const tableBoxLeft = ref(0)
-const tableBoxTop = ref(0)
-const tableBoxWidth = ref(0)
-const tableBoxHeight = ref(0)
-const TABLE_EDGE_SHOW_THRESHOLD = 20
-const TABLE_EDGE_STICKY_THRESHOLD = 44
-const TABLE_EDGE_STICKY_MS = 280
-const TABLE_MARKDOWN_MODE = true
-const DRAG_HANDLE_PLUGIN_KEY = 'tomosona-drag-handle'
-const DRAG_HANDLE_DEBUG = false
-const DRAG_HANDLE_CONTENT_EDGE_GAP_PX = 2
-const dragHandleUiState = ref<DragHandleUiState>({
-  menuOpen: false,
-  gutterHover: false,
-  controlsHover: false,
-  dragging: false,
-  activeTarget: null,
-})
-const TURN_INTO_TYPES: TurnIntoType[] = [
-  'paragraph',
-  'heading1',
-  'heading2',
-  'heading3',
-  'bulletList',
-  'orderedList',
-  'taskList',
-  'codeBlock',
-  'quote',
-]
-const TURN_INTO_LABELS: Record<TurnIntoType, string> = {
-  paragraph: 'Paragraph',
-  heading1: 'Heading 1',
-  heading2: 'Heading 2',
-  heading3: 'Heading 3',
-  bulletList: 'Bullet list',
-  orderedList: 'Ordered list',
-  taskList: 'Task list',
-  codeBlock: 'Code block',
-  quote: 'Quote',
-}
-const currentPath = computed(() => props.path?.trim() || '')
-const lastEditorInteractionAt = ref(0)
-const USER_INTERACTION_CAPTURE_WINDOW_MS = 1200
-const sessionStore = useDocumentEditorSessions({
-  createEditor: (path) => createSessionEditor(path)
-})
-const slashCommandSource = computed(() => SLASH_COMMANDS)
-let closeCompetingBlockMenu = () => {}
-const slashMenu = useSlashMenu({
-  getEditor: () => editor,
-  commands: slashCommandSource,
-  closeCompetingMenus: () => closeCompetingBlockMenu()
-})
-const slashOpen = slashMenu.slashOpen
-const slashIndex = slashMenu.slashIndex
-const slashLeft = slashMenu.slashLeft
-const slashTop = slashMenu.slashTop
-const slashQuery = slashMenu.slashQuery
-const visibleSlashCommands = slashMenu.visibleSlashCommands
-const closeSlashMenu = slashMenu.closeSlashMenu
-const dismissSlashMenu = slashMenu.dismissSlashMenu
-const markSlashActivatedByUser = slashMenu.markSlashActivatedByUser
-const setSlashQuery = slashMenu.setSlashQuery
-const currentTextSelectionContext = slashMenu.currentTextSelectionContext
-const readSlashContext = slashMenu.readSlashContext
-const openSlashAtSelection = slashMenu.openSlashAtSelection
-const syncSlashMenuFromSelection = slashMenu.syncSlashMenuFromSelection
-let closeWikilinkMenuForBlockControls = () => {}
-
-const inlineFormatToolbar = useInlineFormatToolbar({
-  holder,
-  getEditor: () => editor,
-  sanitizeHref: sanitizeExternalHref
-})
-const findToolbar = useEditorFindToolbar({
-  holder,
-  getEditor: () => editor
-})
-const wikilinkDataSource = useEditorWikilinkDataSource({
-  loadLinkTargets: props.loadLinkTargets,
-  loadLinkHeadings: props.loadLinkHeadings
-})
-const computedDragLock = computed(() => computeHandleLock(dragHandleUiState.value))
-const debugTargetPos = computed(() => String(dragHandleUiState.value.activeTarget?.pos ?? ''))
-const pulsePanelStyle = computed<CSSProperties>(() => {
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1440
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900
-  const panelWidth = Math.min(420, Math.max(280, viewportWidth - 32))
-  const panelHeight = Math.max(220, pulsePanelMeasuredHeight.value)
-
-  if (!pulseOpen.value) {
-    return {
-      position: 'fixed',
-      right: '24px',
-      bottom: '24px',
-      width: `${panelWidth}px`
-    }
-  }
-
-  if (pulseSourceKind.value !== 'editor_selection' || !holder.value) {
-    return {
-      position: 'fixed',
-      right: '24px',
-      bottom: '24px',
-      width: `${panelWidth}px`
-    }
-  }
-
-  void pulseAnchorNonce.value
-  const holderEl = holder.value
-  const holderRect = holderEl.getBoundingClientRect()
-  const anchorTop = holderRect.top + inlineFormatToolbar.formatToolbarTop.value - holderEl.scrollTop
-  const rightDockLeft = viewportWidth - panelWidth - 24
-  const clampedLeft = Math.max(16, rightDockLeft)
-  const preferredBelow = anchorTop + 54
-  const preferredAbove = anchorTop - panelHeight - 20
-  const fitsBelow = preferredBelow + panelHeight <= viewportHeight - 16
-  const fitsAbove = preferredAbove >= 16
-  const targetTop = fitsBelow || !fitsAbove ? preferredBelow : preferredAbove
-  const clampedTop = Math.min(Math.max(16, targetTop), viewportHeight - panelHeight - 16)
-
-  return {
-    position: 'fixed',
-    left: `${clampedLeft}px`,
-    top: `${clampedTop}px`,
-    width: `${panelWidth}px`
-  }
-})
-
-function updatePulsePanelMetrics() {
-  const nextHeight = pulsePanelWrap.value?.offsetHeight ?? 0
-  if (nextHeight > 0) {
-    pulsePanelMeasuredHeight.value = nextHeight
-  }
-}
-
-watch(
-  [
-    pulseOpen,
+const chromeRuntime = useEditorChromeRuntime({
+  hostPort: {
+    holder,
+    contentShell,
     pulsePanelWrap,
-    () => pulse.previewMarkdown.value,
-    () => pulse.running.value,
-    () => pulse.error.value
-  ],
-  async ([open]) => {
-    if (!open) return
-    await nextTick()
-    updatePulsePanelMetrics()
+    currentPath: currentPathSource,
+    activeEditor,
+    getSession: (path) => getSession(path)
   },
-  { flush: 'post' }
-)
-// Keep template binding reactive when active session editor changes.
-const renderedEditor = computed(() => sessionStore.getActiveSession(MAIN_PANE_ID)?.editor ?? null)
-const blockMenuControls = useBlockMenuControls({
-  getEditor: () => renderedEditor.value,
-  turnIntoTypes: TURN_INTO_TYPES,
-  turnIntoLabels: TURN_INTO_LABELS,
-  activeTarget: computed(() => dragHandleUiState.value.activeTarget),
-  stableTarget: lastStableBlockMenuTarget
+  interactionPort: {
+    closeSlashMenu: () => closeSlashMenuInternal(),
+    dismissSlashMenu: () => dismissSlashMenuInternal(),
+    closeWikilinkMenu: () => closeWikilinkMenuInternal(),
+    openSlashAtSelection: () => openSlashAtSelectionInternal(),
+    currentTextSelectionContext: () => currentTextSelectionContextInternal(),
+    insertBlockFromDescriptor: (type, data, options) => insertBlockFromDescriptorInternal(type, data, options),
+    onEditorKeydown: (event) => onEditorKeydownInternal(event),
+    onEditorKeyup: () => onEditorKeyupInternal(),
+    onEditorContextMenu: (event) => onEditorContextMenuInternal(event),
+    onEditorPaste: (event) => onEditorPasteInternal(event),
+    markEditorInteraction: () => markEditorInteractionInternal(),
+    resetWikilinkDataCache: () => resetWikilinkDataCacheInternal()
+  },
+  emitPort: {
+    emitPulseOpenSecondBrain
+  }
 })
-const blockMenuOpen = blockMenuControls.blockMenuOpen
-const blockMenuIndex = blockMenuControls.blockMenuIndex
-const blockMenuTarget = blockMenuControls.blockMenuTarget
-const blockMenuActionTarget = blockMenuControls.actionTarget
-const blockMenuActions = blockMenuControls.actions
-const blockMenuConvertActions = blockMenuControls.convertActions
-const blockHandleControls = useEditorBlockHandleControls({
-  getEditor: () => editor,
-  blockMenuOpen,
-  blockMenuIndex,
-  blockMenuTarget,
-  blockMenuActionTarget,
-  dragHandleUiState,
-  lastStableBlockMenuTarget,
-  setBlockMenuPos: (payload) => {
-    blockMenuPos.value = payload
+
+const interactionRuntime = useEditorInteractionRuntime({
+  documentPort: {
+    currentPath: currentPathSource,
+    holder,
+    activeEditor,
+    getSession: (path) => getSession(path),
+    saveCurrentFile: (manual) => saveCurrentFileInternal(manual),
+    onEditorDocChanged: (path) => onEditorDocChangedInternal(path)
   },
-  setDragHandleLockMeta: (locked) => {
-    if (!editor) return
-    editor.commands.setMeta('lockDragHandle', locked)
-  },
-  closeSlashMenu,
-  closeWikilinkMenu: () => closeWikilinkMenuForBlockControls(),
-  openSlashAtSelection,
-  copyTextToClipboard: (text) => {
-    if (!navigator.clipboard?.writeText) return
-    void navigator.clipboard.writeText(text)
-  },
-  debug: DRAG_HANDLE_DEBUG
-    ? (event, detail) => {
-      // eslint-disable-next-line no-console
-      console.info('[drag-handle]', event, detail ?? '', dragHandleUiState.value)
+  chromePort: {
+    blockMenuOpen: chromeRuntime.blockMenuOpen,
+    tableToolbarOpen: chromeRuntime.tableToolbarOpen,
+    isDragMenuOpen: () => chromeRuntime.dragHandleUiState.value.menuOpen,
+    closeBlockMenu: () => chromeRuntime.closeBlockMenu(),
+    hideTableToolbar: () => chromeRuntime.hideTableToolbar(),
+    updateFormattingToolbar: () => chromeRuntime.updateFormattingToolbar(),
+    updateTableToolbar: () => chromeRuntime.updateTableToolbar(),
+    zoomEditorBy: (delta) => chromeRuntime.zoomEditorBy(delta),
+    resetEditorZoom: () => chromeRuntime.resetEditorZoom(),
+    inlineFormatToolbar: {
+      updateFormattingToolbar: chromeRuntime.inlineFormatToolbar.updateFormattingToolbar,
+      openLinkPopover: chromeRuntime.inlineFormatToolbar.openLinkPopover,
+      linkPopoverOpen: chromeRuntime.inlineFormatToolbar.linkPopoverOpen,
+      cancelLink: chromeRuntime.inlineFormatToolbar.cancelLink
     }
-    : undefined
-})
-
-const dragHandleLockXMiddleware: Middleware = {
-  name: 'tomosonaLockXToContent',
-  fn(state: MiddlewareState) {
-    const shellEl = contentShell.value
-    if (!shellEl) return {}
-    const shellRect = shellEl.getBoundingClientRect()
-    const shellStyle = window.getComputedStyle(shellEl)
-    const shellPaddingLeft = Number.parseFloat(shellStyle.paddingLeft || '0') || 0
-    const floatingEl = state.elements.floating
-    const offsetParent = floatingEl instanceof HTMLElement && floatingEl.offsetParent instanceof HTMLElement
-      ? floatingEl.offsetParent
-      : null
-    const offsetParentLeft = offsetParent?.getBoundingClientRect().left ?? 0
-    const referenceLeft = state.rects.reference.x
-    // Keep X fixed by remapping the reference column to the text-content edge.
-    const targetReferenceLeft =
-      shellRect.left + shellPaddingLeft - offsetParentLeft - DRAG_HANDLE_CONTENT_EDGE_GAP_PX
-    const nextX = state.x + (targetReferenceLeft - referenceLeft)
-    return { x: nextX }
-  }
-}
-const dragHandleComputePositionConfig = {
-  placement: 'left-start' as const,
-  middleware: [dragHandleLockXMiddleware]
-}
-const closeBlockMenu = blockHandleControls.closeBlockMenu
-const onBlockHandleNodeChange = blockHandleControls.onBlockHandleNodeChange
-const toggleBlockMenu = blockHandleControls.toggleBlockMenu
-const onBlockMenuPlus = blockHandleControls.onBlockMenuPlus
-const onBlockMenuSelect = blockHandleControls.onBlockMenuSelect
-const onHandleControlsEnter = blockHandleControls.onHandleControlsEnter
-const onHandleControlsLeave = blockHandleControls.onHandleControlsLeave
-const onHandleDragStart = blockHandleControls.onHandleDragStart
-const onHandleDragEnd = blockHandleControls.onHandleDragEnd
-closeCompetingBlockMenu = () => closeBlockMenu()
-const tableControls = useTableToolbarControls({
-  showThreshold: TABLE_EDGE_SHOW_THRESHOLD,
-  stickyThreshold: TABLE_EDGE_STICKY_THRESHOLD,
-  stickyMs: TABLE_EDGE_STICKY_MS
-})
-const tableToolbarTriggerVisible = tableControls.tableToolbarTriggerVisible
-const tableAddTopVisible = tableControls.tableAddTopVisible
-const tableAddBottomVisible = tableControls.tableAddBottomVisible
-const tableAddLeftVisible = tableControls.tableAddLeftVisible
-const tableAddRightVisible = tableControls.tableAddRightVisible
-const { editorZoomStyle, initFromStorage: initEditorZoomFromStorage, zoomBy: zoomEditorBy, resetZoom: resetEditorZoom, getZoom } = useEditorZoom()
-const { mermaidReplaceDialog, resolveMermaidReplaceDialog, requestMermaidReplaceConfirm } = useMermaidReplaceDialog()
-const navigation = useEditorNavigation({
-  getEditor: () => editor,
-  emitOutline: (headings) => emit('outline', headings),
-  normalizeHeadingAnchor,
-  slugifyHeading,
-  normalizeBlockId
-})
-const lifecycle = useEditorSessionLifecycle({
-  emitStatus: (payload) => emit('status', payload),
-  saveCurrentFile: (manual) => saveCurrentFile(manual),
-  isEditingTitle: () => isEditingVirtualTitle(),
-  autosaveIdleMs: 1800
-})
-const sessionStatus = useEditorSessionStatus({
-  getSession: (path) => sessionStore.getSession(path),
-  ensureSession: (path) => sessionStore.ensureSession(path),
-  patchStatus: (path, patch) => lifecycle.patchStatus(path, patch),
-  clearAutosaveTimer: () => lifecycle.clearAutosaveTimer(),
-  scheduleAutosave: () => lifecycle.scheduleAutosave()
-})
-const getSession = sessionStatus.getSession
-const ensureSession = sessionStatus.ensureSession
-const setDirty = sessionStatus.setDirty
-const setSaving = sessionStatus.setSaving
-const setSaveError = sessionStatus.setSaveError
-const clearAutosaveTimer = sessionStatus.clearAutosaveTimer
-const scheduleAutosave = sessionStatus.scheduleAutosave
-
-const tableGeometry = useEditorTableGeometry({
-  holder,
-  state: {
-    tableMenuBtnLeft,
-    tableMenuBtnTop,
-    tableBoxLeft,
-    tableBoxTop,
-    tableBoxWidth,
-    tableBoxHeight,
-    tableToolbarLeft,
-    tableToolbarTop,
-    tableToolbarViewportLeft,
-    tableToolbarViewportTop,
-    tableToolbarViewportMaxHeight
-  }
-})
-const tableInteractions = useEditorTableInteractions({
-  getEditor: () => editor,
-  holder,
-  floatingMenuEl: tableToolbarFloatingEl,
-  visibility: {
-    tableToolbarTriggerVisible,
-    tableAddTopVisible,
-    tableAddBottomVisible,
-    tableAddLeftVisible,
-    tableAddRightVisible
   },
-  hideEdgeControls: () => tableControls.hideAll(),
-  updateEdgeControlsFromDistances: (distances) => tableControls.updateFromDistances(distances),
-  updateTableToolbarPosition: (cellEl, tableEl) => tableGeometry.updateTableToolbarPosition(cellEl, tableEl)
-})
-const tableToolbarOpen = tableInteractions.tableToolbarOpen
-const tableToolbarActions = tableInteractions.tableToolbarActions
-const hideTableToolbar = tableInteractions.hideTableToolbar
-const hideTableToolbarAnchor = tableInteractions.hideTableToolbarAnchor
-const updateTableToolbar = tableInteractions.updateTableToolbar
-const onTableToolbarSelect = tableInteractions.onTableToolbarSelect
-const toggleTableToolbar = tableInteractions.toggleTableToolbar
-const addRowAfterFromTrigger = tableInteractions.addRowAfterFromTrigger
-const addRowBeforeFromTrigger = tableInteractions.addRowBeforeFromTrigger
-const addColumnBeforeFromTrigger = tableInteractions.addColumnBeforeFromTrigger
-const addColumnAfterFromTrigger = tableInteractions.addColumnAfterFromTrigger
-const onEditorMouseMove = tableInteractions.onEditorMouseMove
-const onEditorMouseLeave = tableInteractions.onEditorMouseLeave
-
-function isEditingVirtualTitle(): boolean {
-  return titleEditorFocused.value
-}
-
-function serializeCurrentDocBlocks(): EditorBlock[] {
-  if (!editor) return []
-  return fromTiptapDoc(editor.getJSON())
-}
-
-async function renderBlocks(blocks: EditorBlock[]) {
-  if (!editor) return
-  const doc = toTiptapDoc(blocks)
-  const rememberedScroll = holder.value?.scrollTop ?? 0
-  suppressOnChange = true
-  editor.commands.setContent(doc, { emitUpdate: false })
-  suppressOnChange = false
-  await nextTick()
-  findToolbar.syncFromEditor()
-  if (holder.value) holder.value.scrollTop = rememberedScroll
-}
-
-const caretOutline = useEditorCaretOutline({
-  currentPath,
-  getSession,
-  getEditor: () => editor,
-  emitOutline: (payload) => {
-    emit('outline', payload.headings)
+  ioPort: {
+    loadLinkTargets: props.loadLinkTargets,
+    loadLinkHeadings: props.loadLinkHeadings,
+    openLinkTarget: props.openLinkTarget,
+    openExternalUrl
   },
-  parseOutlineFromDoc: () => navigation.parseOutlineFromDoc()
+  emitPort: {
+    emitOutline
+  },
+  requestMermaidReplaceConfirm: chromeRuntime.requestMermaidReplaceConfirm
 })
-const captureCaret = caretOutline.captureCaret
-const restoreCaret = caretOutline.restoreCaret
-const clearOutlineTimer = caretOutline.clearOutlineTimer
-const emitOutlineSoon = caretOutline.emitOutlineSoon
 
-function onDocumentMouseDown(event: MouseEvent) {
-  const target = event.target
-  if (!(target instanceof Node)) return
-  const handleRoot = target instanceof Element ? target.closest('.tomosona-block-controls') : null
+closeSlashMenuInternal = interactionRuntime.closeSlashMenu
+dismissSlashMenuInternal = interactionRuntime.dismissSlashMenu
+closeWikilinkMenuInternal = interactionRuntime.closeWikilinkMenu
+openSlashAtSelectionInternal = interactionRuntime.openSlashAtSelection
+currentTextSelectionContextInternal = interactionRuntime.currentTextSelectionContext
+insertBlockFromDescriptorInternal = interactionRuntime.insertBlockFromDescriptor
+onEditorKeydownInternal = interactionRuntime.onEditorKeydown
+onEditorKeyupInternal = interactionRuntime.onEditorKeyup
+onEditorContextMenuInternal = interactionRuntime.onEditorContextMenu
+onEditorPasteInternal = interactionRuntime.onEditorPaste
+markEditorInteractionInternal = interactionRuntime.markEditorInteraction
+resetWikilinkDataCacheInternal = interactionRuntime.resetWikilinkDataCache
 
-  if (blockMenuOpen.value) {
-    if (blockMenuFloatingEl.value?.contains(target)) return
-    if (handleRoot) return
-    closeBlockMenu()
-  }
-
-  if (tableToolbarOpen.value) {
-    if (tableToolbarFloatingEl.value?.contains(target)) return
-    if (target instanceof Element && target.closest('.tomosona-table-control')) return
-    hideTableToolbar()
-  }
-
-  if (pulseOpen.value) {
-    if (pulsePanelWrap.value?.contains(target)) return
-    if (target instanceof Element && target.closest('.inline-format-toolbar')) return
-    if (target instanceof Element && target.closest('.editor-find-toolbar')) return
-    if (target instanceof Element && target.closest('.ui-filterable-dropdown-menu')) return
-    closePulsePanel()
-  }
-}
-
-function onDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && findToolbar.open.value) {
-    event.preventDefault()
-    event.stopPropagation()
-    findToolbar.closeToolbar({ focusEditor: true })
-    return
-  }
-
-  if (event.key === 'Escape' && pulseOpen.value) {
-    closePulsePanel()
-  }
-}
-
-const layoutMetrics = useEditorLayoutMetrics({
-  holder,
-  contentShell,
-  onScrollSync: () => updateTableToolbar()
+const documentRuntime = useEditorDocumentRuntime({
+  propsPort: {
+    path: pathRef,
+    openPaths: openPathsRef,
+    openFile: props.openFile,
+    saveFile: props.saveFile,
+    renameFileFromTitle: props.renameFileFromTitle,
+    loadPropertyTypeSchema: props.loadPropertyTypeSchema,
+    savePropertyTypeSchema: props.savePropertyTypeSchema
+  },
+  emitPort: {
+    emitStatus,
+    emitOutline,
+    emitProperties,
+    emitPathRenamed
+  },
+  sessionPort: {
+    holder,
+    activeEditor,
+    isEditingTitle: () => chromeRuntime.titleEditorFocused.value,
+    createSessionEditor: interactionRuntime.createSessionEditor
+  },
+  interactionPort: {
+    captureCaret: interactionRuntime.captureCaret,
+    restoreCaret: interactionRuntime.restoreCaret,
+    clearOutlineTimer: interactionRuntime.clearOutlineTimer,
+    emitOutlineSoon: interactionRuntime.emitOutlineSoon,
+    closeSlashMenu: interactionRuntime.closeSlashMenu,
+    closeWikilinkMenu: interactionRuntime.closeWikilinkMenu,
+    syncWikilinkUiFromPluginState: interactionRuntime.syncWikilinkUiFromPluginState
+  },
+  chromePort: {
+    largeDocThreshold: chromeRuntime.largeDocThreshold,
+    loadUiState: chromeRuntime.loadUiState,
+    resetTransientUiState: chromeRuntime.resetTransientUiState,
+    updateGutterHitboxStyle: chromeRuntime.updateGutterHitboxStyle,
+    hideTableToolbarAnchor: chromeRuntime.hideTableToolbarAnchor,
+    closeBlockMenu: chromeRuntime.closeBlockMenu,
+    onActiveSessionChanged: chromeRuntime.onActiveSessionChanged,
+    onDocumentContentChanged: chromeRuntime.onDocumentContentChanged,
+    onMountInit: chromeRuntime.onMountInit,
+    onUnmountCleanup: chromeRuntime.onUnmountCleanup
+  },
+  waitForHeavyRenderIdle,
+  hasPendingHeavyRender
 })
-const gutterHitboxStyle = layoutMetrics.gutterHitboxStyle
-const countLines = layoutMetrics.countLines
-const updateGutterHitboxStyle = layoutMetrics.updateGutterHitboxStyle
-const onHolderScroll = layoutMetrics.onHolderScroll
 
-const titleState = useEditorTitleState(currentPath)
-const currentTitle = titleState.currentTitle
+getSession = documentRuntime.getSession
+saveCurrentFileInternal = documentRuntime.saveCurrentFile
+onEditorDocChangedInternal = documentRuntime.onEditorDocChanged
 
-function onTitleInput(value: string) {
-  const path = currentPath.value
-  if (!path) return
-  titleState.setCurrentTitle(path, value)
-  setDirty(path, true)
-  setSaveError(path, '')
-  scheduleAutosave(path)
-}
-
-function onTitleCommit() {
-  const path = currentPath.value
-  if (!path) return
-  titleState.commitTitle(path)
-}
-
-function updateFormattingToolbar() {
-  inlineFormatToolbar.updateFormattingToolbar()
-}
-
+const currentPath = documentRuntime.currentPath
+const currentTitle = documentRuntime.currentTitle
+const renderPaths = documentRuntime.renderPaths
+const renderedEditorsByPath = documentRuntime.renderedEditorsByPath
+const isActiveMountedPath = documentRuntime.isActiveMountedPath
+const getZoom = chromeRuntime.getZoom
+const onTitleInput = documentRuntime.onTitleInput
+const onTitleCommit = documentRuntime.onTitleCommit
+const focusEditor = chromeRuntime.focusEditor
+// Kept as local bindings so Pulse contract tests can reach them through setupState
+// without reintroducing a broader public API on the component itself.
+const setPulseInstruction = chromeRuntime.setPulseInstruction
+const pulseSelectionRange = chromeRuntime.pulseSelectionRange
+void setPulseInstruction
+void pulseSelectionRange
 const {
   propertyEditorMode,
-  frontmatterByPath,
-  rawYamlByPath,
   activeParseErrors,
   activeRawYaml,
   canUseStructuredProperties,
   structuredPropertyFields,
   structuredPropertyKeys,
-  ensurePropertySchemaLoaded,
-  resetPropertySchemaState,
-  parseAndStoreFrontmatter,
-  serializableFrontmatterFields,
   addPropertyField,
   removePropertyField,
   onPropertyTypeChange,
@@ -583,534 +270,113 @@ const {
   propertiesExpanded,
   togglePropertiesVisibility,
   onRawYamlInput,
-  movePathState: moveFrontmatterPathState
-} = useFrontmatterProperties({
-  currentPath,
-  loadPropertyTypeSchema: props.loadPropertyTypeSchema,
-  savePropertyTypeSchema: props.savePropertyTypeSchema,
-  onDirty: (path) => {
-    setDirty(path, true)
-    setSaveError(path, '')
-    scheduleAutosave(path)
-  },
-  emitProperties: (payload) => emit('properties', payload)
-})
-
-watch(editorZoomStyle, () => {
-  void nextTick().then(() => {
-    updateGutterHitboxStyle()
-  })
-}, { deep: true })
-
-function onEditorDocChanged(path: string) {
-  if (suppressOnChange || !path) return
-  setDirty(path, true)
-  setSaveError(path, '')
-  scheduleAutosave(path)
-  emitOutlineSoon(path)
-  findToolbar.syncFromEditor()
-}
-
-function resetTransientUiState() {
-  slashMenu.slashActivatedByUser.value = false
-  closeSlashMenu()
-  closeWikilinkMenu()
-  closeBlockMenu()
-  blockMenuTarget.value = null
-  lastStableBlockMenuTarget.value = null
-  dragHandleUiState.value = { ...dragHandleUiState.value, activeTarget: null }
-  inlineFormatToolbar.dismissToolbar()
-  findToolbar.closeToolbar()
-  hideTableToolbarAnchor()
-  wikilinkDataSource.resetCache()
-}
-
-function setActiveSession(path: string) {
-  sessionStore.setActivePath(MAIN_PANE_ID, path)
-  const session = getSession(path)
-  editor = session?.editor ?? null
-  blockHandleControls.resetLockState()
-  findToolbar.syncFromEditor()
-}
-
-const wikilinkOverlay = useEditorWikilinkOverlayState({
-  getEditor: () => editor,
-  holder,
+  isLoadingLargeDocument,
+  loadStageLabel,
+  loadProgressPercent,
+  loadProgressIndeterminate,
+  loadDocumentStats
+} = documentRuntime
+const {
+  titleEditorFocused,
+  pulse,
+  pulseOpen,
+  pulseSourceKind,
+  pulseActionId,
+  pulseInstruction,
+  pulseSourceText,
+  mermaidReplaceDialog,
+  resolveMermaidReplaceDialog,
+  pulsePanelStyle,
+  renderedEditor,
+  blockMenuFloatingEl,
+  tableToolbarFloatingEl,
+  blockMenuPos,
+  tableMenuBtnLeft,
+  tableMenuBtnTop,
+  tableBoxLeft,
+  tableBoxTop,
+  tableBoxWidth,
+  tableBoxHeight,
+  tableToolbarViewportLeft,
+  tableToolbarViewportTop,
+  tableToolbarViewportMaxHeight,
+  dragHandleUiState,
+  computedDragLock,
+  debugTargetPos,
+  DRAG_HANDLE_PLUGIN_KEY,
+  DRAG_HANDLE_DEBUG,
+  TABLE_MARKDOWN_MODE,
+  dragHandleComputePositionConfig,
+  inlineFormatToolbar,
+  findToolbar,
   blockMenuOpen,
-  isDragMenuOpen: () => dragHandleUiState.value.menuOpen,
-  closeBlockMenu: () => closeBlockMenu()
-})
-const wikilinkOpen = wikilinkOverlay.wikilinkOpen
-const wikilinkIndex = wikilinkOverlay.wikilinkIndex
-const wikilinkLeft = wikilinkOverlay.wikilinkLeft
-const wikilinkTop = wikilinkOverlay.wikilinkTop
-const wikilinkResults = wikilinkOverlay.wikilinkResults
-const closeWikilinkMenu = wikilinkOverlay.closeWikilinkMenu
-const syncWikilinkUiFromPluginState = wikilinkOverlay.syncWikilinkUiFromPluginState
-const onWikilinkMenuSelect = wikilinkOverlay.onWikilinkMenuSelect
-const onWikilinkMenuIndexUpdate = wikilinkOverlay.onWikilinkMenuIndexUpdate
-closeWikilinkMenuForBlockControls = closeWikilinkMenu
-
-// Invariant: wikilink overlay must be initialized before tiptap callbacks are bound.
-const tiptapSetup = useEditorTiptapSetup({
-  currentPath,
-  getCurrentEditor: () => editor,
-  getSessionEditor: (path) => getSession(path)?.editor ?? null,
-  markSlashActivatedByUser,
-  syncSlashMenuFromSelection,
-  updateTableToolbar,
-  syncWikilinkUiFromPluginState,
-  captureCaret,
-  shouldCaptureCaret: (path) => {
-    if (!path || currentPath.value !== path) return false
-    if (suppressOnChange) return false
-    if (!holder.value) return false
-    const active = typeof document !== 'undefined' ? document.activeElement : null
-    if (!active || !holder.value.contains(active)) return false
-    const hasRecentUserInteraction = Date.now() - lastEditorInteractionAt.value <= USER_INTERACTION_CAPTURE_WINDOW_MS
-    return hasRecentUserInteraction
-  },
-  updateFormattingToolbar,
-  onEditorDocChanged,
-  requestMermaidReplaceConfirm,
-  getWikilinkCandidates,
-  openLinkTargetWithAutosave,
-  resolveWikilinkTarget: wikilinkDataSource.resolveWikilinkTarget,
-  sanitizeExternalHref,
-  openExternalUrl,
-  inlineFormatToolbar: {
-    updateFormattingToolbar: inlineFormatToolbar.updateFormattingToolbar,
-    openLinkPopover: inlineFormatToolbar.openLinkPopover
-  }
-})
-
-function createSessionEditor(path: string): Editor {
-  return tiptapSetup.createSessionEditor(path)
-}
-
-const mountedSessions = useEditorMountedSessions({
-  openPaths: computed(() => props.openPaths ?? []),
-  currentPath,
-  ensureSession
-})
-const renderPaths = mountedSessions.renderPaths
-const isActiveMountedPath = mountedSessions.isActivePath
-const renderedEditorsByPath = computed<Record<string, Editor | null>>(() => {
-  const byPath: Record<string, Editor | null> = {}
-  for (const path of renderPaths.value) {
-    byPath[path] = getSession(path)?.editor ?? null
-  }
-  return byPath
-})
-
-const fileLifecycle = useEditorFileLifecycle({
-  sessionPort: {
-    currentPath,
-    holder,
-    getEditor: () => editor,
-    getSession,
-    ensureSession,
-    renameSessionPath: (from, to) => {
-      sessionStore.renamePath(from, to)
-    },
-    moveLifecyclePathState: (from, to) => lifecycle.movePathState(from, to),
-    setSuppressOnChange: (value) => {
-      suppressOnChange = value
-    },
-    restoreCaret,
-    setDirty,
-    setSaving,
-    setSaveError
-  },
-  documentPort: {
-    ensurePropertySchemaLoaded,
-    parseAndStoreFrontmatter,
-    frontmatterByPath,
-    propertyEditorMode,
-    rawYamlByPath,
-    serializableFrontmatterFields,
-    moveFrontmatterPathState,
-    countLines,
-    noteTitleFromPath: titleState.noteTitleFromPath,
-    getCurrentTitle: titleState.getTitle,
-    syncLoadedTitle: titleState.syncLoadedTitle,
-    commitTitle: titleState.commitTitle,
-    moveTitlePathState: titleState.movePathState,
-    serializeCurrentDocBlocks,
-    renderBlocks
-  },
-  uiPort: {
-    clearAutosaveTimer,
-    clearOutlineTimer,
-    emitOutlineSoon,
-    emitPathRenamed: (payload) => emit('path-renamed', payload),
-    resetTransientUiState,
-    updateGutterHitboxStyle,
-    syncWikilinkUiFromPluginState,
-    largeDocThreshold: LARGE_DOC_THRESHOLD,
-    ui: {
-      isLoadingLargeDocument,
-      loadStageLabel,
-      loadProgressPercent,
-      loadProgressIndeterminate,
-      loadDocumentStats
-    }
-  },
-  ioPort: {
-    openFile: props.openFile,
-    saveFile: props.saveFile,
-    renameFileFromTitle: props.renameFileFromTitle
-  },
-  requestPort: {
-    isCurrentRequest: (requestId) => lifecycle.isCurrentRequest(requestId)
-  },
-  waitForHeavyRenderIdle,
-  hasPendingHeavyRender
-})
-
-async function loadCurrentFile(path: string, options?: { forceReload?: boolean; requestId?: number }) {
-  await fileLifecycle.loadCurrentFile(path, options)
-}
-
-async function saveCurrentFile(manual = true) {
-  await fileLifecycle.saveCurrentFile(manual)
-}
-
-const slashInsertion = useEditorSlashInsertion({
-  getEditor: () => editor,
-  currentTextSelectionContext,
-  readSlashContext
-})
-const insertBlockFromDescriptor = slashInsertion.insertBlockFromDescriptor
-
-async function getWikilinkCandidates(query: string): Promise<WikilinkCandidate[]> {
-  return buildWikilinkCandidates({
-    query,
-    loadTargets: () => wikilinkDataSource.loadWikilinkTargets(),
-    loadHeadings: (target) => wikilinkDataSource.loadWikilinkHeadings(target),
-    currentHeadings: () => navigation.parseOutlineFromDoc().map((item) => item.text),
-    resolve: (target) => wikilinkDataSource.resolveWikilinkTarget(target)
-  })
-}
-
-async function openLinkTargetWithAutosave(target: string) {
-  const path = currentPath.value
-  const session = path ? getSession(path) : null
-  if (path && session?.dirty) {
-    clearAutosaveTimer()
-    await saveCurrentFile(false)
-    if (getSession(path)?.dirty) return
-  }
-  await props.openLinkTarget(target)
-}
-
-const inputHandlers = useEditorInputHandlers({
-  editingPort: {
-    getEditor: () => editor,
-    currentPath,
-    captureCaret,
-    currentTextSelectionContext,
-    insertBlockFromDescriptor
-  },
-  menusPort: {
-    visibleSlashCommands,
-    slashOpen,
-    slashIndex,
-    closeSlashMenu: dismissSlashMenu,
-    blockMenuOpen,
-    closeBlockMenu: () => closeBlockMenu(),
-    tableToolbarOpen,
-    hideTableToolbar,
-    inlineFormatToolbar: {
-      linkPopoverOpen: inlineFormatToolbar.linkPopoverOpen,
-      cancelLink: inlineFormatToolbar.cancelLink
-    }
-  },
-  uiPort: {
-    updateFormattingToolbar,
-    updateTableToolbar,
-    syncSlashMenuFromSelection
-  },
-  zoomPort: {
-    zoomEditorBy,
-    resetEditorZoom
-  }
-})
-const onEditorKeydown = inputHandlers.onEditorKeydown
-const onEditorKeyup = inputHandlers.onEditorKeyup
-const onEditorContextMenu = inputHandlers.onEditorContextMenu
-const onEditorPaste = inputHandlers.onEditorPaste
-
-function markEditorInteraction() {
-  lastEditorInteractionAt.value = Date.now()
-}
-
-function onHolderPointerDownMarkInteraction() {
-  markEditorInteraction()
-}
-
-function onHolderKeydown(event: KeyboardEvent) {
-  markEditorInteraction()
-  if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'f') {
-    event.preventDefault()
-    event.stopPropagation()
-    findToolbar.openToolbar()
-    return
-  }
-  onEditorKeydown(event)
-}
-
-function onHolderContextMenu(event: MouseEvent) {
-  markEditorInteraction()
-  onEditorContextMenu(event)
-}
-
-function onHolderPaste(event: ClipboardEvent) {
-  markEditorInteraction()
-  onEditorPaste(event)
-}
-
-function onHolderCopy(event: ClipboardEvent) {
-  markEditorInteraction()
-  const root = holder.value
-  if (!root) return
-  const payload = extractSelectionClipboardPayload(root)
-  if (!payload) return
-  if (!event.clipboardData) return
-  event.preventDefault()
-  event.stopPropagation()
-  event.clipboardData.setData('text/plain', payload.plain)
-  event.clipboardData.setData('text/html', payload.html)
-  event.clipboardData.setData('text/markdown', payload.markdown)
-}
-
-async function onInlineToolbarCopyAs(format: CopyAsFormat) {
-  const root = holder.value
-  if (!root) return
-  const payload = extractSelectionClipboardPayload(root)
-  if (!payload) return
-  try {
-    await writeSelectionPayloadToClipboard(payload, format)
-  } catch {
-    // Keep UX silent; selection remains available for native copy fallback.
-  }
-}
-
-useEditorPathWatchers({
-  path: computed(() => props.path ?? ''),
-  openPaths: computed(() => props.openPaths ?? []),
-  holder,
-  currentPath,
-  nextRequestId: () => lifecycle.nextRequestId(),
-  ensureSession,
-  setActiveSession,
-  loadCurrentFile,
-  captureCaret,
-  getSession,
-  getActivePath: () => sessionStore.getActivePath(MAIN_PANE_ID),
-  setActivePath: (path) => sessionStore.setActivePath(MAIN_PANE_ID, path),
-  clearActiveEditor: () => {
-    editor = null
-  },
-  listPaths: () => sessionStore.listPaths(),
-  closePath: (path) => sessionStore.closePath(path),
-  resetPropertySchemaState,
-  emitEmptyProperties: () => {
-    emit('properties', { path: '', items: [], parseErrorCount: 0 })
-  },
-  closeSlashMenu,
+  blockMenuIndex,
+  blockMenuActions,
+  blockMenuConvertActions,
+  closeBlockMenu,
+  toggleBlockMenu,
+  onBlockMenuPlus,
+  onBlockMenuSelect,
+  onBlockHandleNodeChange,
+  onHandleControlsEnter,
+  onHandleControlsLeave,
+  onHandleDragStart,
+  onHandleDragEnd,
+  tableToolbarTriggerVisible,
+  tableAddTopVisible,
+  tableAddBottomVisible,
+  tableAddLeftVisible,
+  tableAddRightVisible,
+  tableToolbarOpen,
+  tableToolbarActions,
+  hideTableToolbar,
+  onTableToolbarSelect,
+  toggleTableToolbar,
+  addRowAfterFromTrigger,
+  addRowBeforeFromTrigger,
+  addColumnBeforeFromTrigger,
+  addColumnAfterFromTrigger,
+  onEditorMouseMove,
+  onEditorMouseLeave,
+  editorZoomStyle,
+  zoomEditorBy,
+  resetEditorZoom,
+  gutterHitboxStyle,
+  onInlineToolbarCopyAs,
+  onPulseActionChange,
+  onPulseInstructionChange,
+  runPulseFromEditor,
+  closePulsePanel,
+  openPulseForSelection,
+  replaceSelectionWithPulseOutput,
+  insertPulseBelow,
+  sendPulseContextToSecondBrain
+} = chromeRuntime
+const {
+  slashOpen,
+  slashIndex,
+  slashLeft,
+  slashTop,
+  slashQuery,
+  visibleSlashCommands,
   closeWikilinkMenu,
-  closeBlockMenu: () => closeBlockMenu(),
-  hideTableToolbarAnchor,
-  emitEmptyOutline: () => {
-    emit('outline', [])
-  },
-  onMountInit: async () => {
-    initEditorZoomFromStorage()
-
-    if (currentPath.value) {
-      const requestId = lifecycle.nextRequestId()
-      ensureSession(currentPath.value)
-      setActiveSession(currentPath.value)
-      await loadCurrentFile(currentPath.value, { requestId })
-    }
-
-    holder.value?.addEventListener('pointerdown', onHolderPointerDownMarkInteraction, true)
-    holder.value?.addEventListener('keydown', onHolderKeydown, true)
-    holder.value?.addEventListener('keyup', onEditorKeyup, true)
-    holder.value?.addEventListener('contextmenu', onHolderContextMenu, true)
-    holder.value?.addEventListener('paste', onHolderPaste, true)
-    holder.value?.addEventListener('copy', onHolderCopy, true)
-    holder.value?.addEventListener('scroll', onHolderScroll, true)
-    window.addEventListener('resize', updateGutterHitboxStyle)
-    document.addEventListener('keydown', onDocumentKeydown, true)
-    await nextTick()
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-    updateGutterHitboxStyle()
-    document.addEventListener('mousedown', onDocumentMouseDown, true)
-  },
-  onUnmountCleanup: async () => {
-    tableInteractions.clearTimers()
-    if (mermaidReplaceDialog.value.resolve) {
-      mermaidReplaceDialog.value.resolve(false)
-    }
-    holder.value?.removeEventListener('pointerdown', onHolderPointerDownMarkInteraction, true)
-    holder.value?.removeEventListener('keydown', onHolderKeydown, true)
-    holder.value?.removeEventListener('keyup', onEditorKeyup, true)
-    holder.value?.removeEventListener('contextmenu', onHolderContextMenu, true)
-    holder.value?.removeEventListener('paste', onHolderPaste, true)
-    holder.value?.removeEventListener('copy', onHolderCopy, true)
-    holder.value?.removeEventListener('scroll', onHolderScroll, true)
-    window.removeEventListener('resize', updateGutterHitboxStyle)
-    document.removeEventListener('mousedown', onDocumentMouseDown, true)
-    document.removeEventListener('keydown', onDocumentKeydown, true)
-    sessionStore.closeAll()
-    editor = null
-  }
-})
-
-watch(pulseActionId, (next, previous) => {
-  if (next === previous) return
-  if (!pulseInstructionDirty.value) {
-    setPulseInstruction(pulseDefaultInstruction(next), { markDirty: false })
-  }
-  if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-    resetPulseResult()
-  }
-})
-
-watch(pulseSourceText, (next, previous) => {
-  if (next === previous) return
-  if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-    resetPulseResult()
-  }
-})
-
-function focusEditor() {
-  editor?.commands.focus()
-}
-
-function pulseDefaultInstruction(actionId: PulseActionId): string {
-  return PULSE_ACTIONS_BY_SOURCE[pulseSourceKind.value].find((item) => item.id === actionId)?.description
-    ?? 'Transform the provided material into a useful written output.'
-}
-
-function setPulseInstruction(value: string, options?: { markDirty?: boolean }) {
-  pulseInstruction.value = value
-  if (options?.markDirty !== undefined) {
-    pulseInstructionDirty.value = options.markDirty
-  }
-}
-
-function onPulseActionChange(value: PulseActionId) {
-  pulseActionId.value = value
-}
-
-function onPulseInstructionChange(value: string) {
-  pulseInstruction.value = value
-  pulseInstructionDirty.value = true
-  if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-    resetPulseResult()
-  }
-}
-
-function resetPulseResult() {
-  pulse.reset()
-}
-
-function closePulsePanel() {
-  if (pulse.running.value) {
-    void pulse.cancel()
-  }
-  pulseOpen.value = false
-  resetPulseResult()
-}
-
-function openPulseForSelection() {
-  if (!editor) return
-  const { from, to, empty } = editor.state.selection
-  if (empty || from === to) return
-  const text = editor.state.doc.textBetween(from, to, '\n', '\n').trim()
-  if (!text) return
-  pulseSourceKind.value = 'editor_selection'
-  pulseActionId.value = 'rewrite'
-  setPulseInstruction(pulseDefaultInstruction('rewrite'), { markDirty: false })
-  pulseSelectionRange.value = { from, to }
-  pulseSourceText.value = text
-  resetPulseResult()
-  pulseAnchorNonce.value += 1
-  pulseOpen.value = true
-}
-
-async function runPulseFromEditor() {
-  if (pulse.running.value) return
-  if (!currentPath.value && pulseSourceKind.value !== 'editor_selection') return
-  const sourceText = pulseSourceKind.value === 'editor_selection'
-    ? pulseSourceText.value
-    : (pulseSourceText.value || (editor?.getText().trim() ?? ''))
-  await pulse.run({
-    source_kind: pulseSourceKind.value,
-    action_id: pulseActionId.value,
-    instructions: pulseInstruction.value.trim() || undefined,
-    context_paths: pulseSourceKind.value === 'editor_selection' ? [] : [currentPath.value],
-    source_text: sourceText || undefined,
-    selection_label: pulseSourceKind.value === 'editor_selection' ? 'Editor selection' : 'Current note'
-  })
-}
-
-function buildSecondBrainPulsePrompt(): string {
-  const pulsePrompts: Partial<Record<PulseActionId, string>> = {
-    rewrite: 'Rewrite the provided material into a clearer version while preserving the original meaning.',
-    condense: 'Condense the provided material into a shorter version that keeps the key information.',
-    expand: 'Expand the provided material into a fuller draft with clearer transitions and supporting detail.',
-    change_tone: 'Rewrite the provided material in a more appropriate tone while keeping the substance intact.',
-    synthesize: 'Synthesize the provided material into a concise, structured summary.',
-    outline: 'Turn the provided material into a clear outline with sections and logical progression.',
-    brief: 'Draft a working brief from the provided material, including objective, key points, and open questions.'
-  }
-  const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the provided material into a useful written output.'
-  const guidance = pulseInstruction.value.trim()
-  const sourceText = (pulseSourceText.value || editor?.getText() || '').trim()
-  const quotedSource = sourceText ? `\n\nSource material:\n"""\n${sourceText}\n"""` : ''
-  return guidance ? `${basePrompt}\n\nAdditional guidance: ${guidance}${quotedSource}` : `${basePrompt}${quotedSource}`
-}
-
-function replaceSelectionWithPulseOutput() {
-  if (!editor || !pulse.previewMarkdown.value.trim() || !pulseSelectionRange.value) return
-  editor
-    .chain()
-    .focus()
-    .setTextSelection(pulseSelectionRange.value)
-    .insertContent(pulse.previewMarkdown.value)
-    .run()
-  closePulsePanel()
-}
-
-function insertPulseBelow() {
-  if (!editor || !pulse.previewMarkdown.value.trim()) return
-  if (pulseSelectionRange.value) {
-    editor
-      .chain()
-      .focus()
-      .setTextSelection({ from: pulseSelectionRange.value.to, to: pulseSelectionRange.value.to })
-      .insertContent(`\n\n${pulse.previewMarkdown.value}`)
-      .run()
-  } else {
-    editor.chain().focus('end').insertContent(`\n\n${pulse.previewMarkdown.value}`).run()
-  }
-  closePulsePanel()
-}
-
-function sendPulseContextToSecondBrain() {
-  if (!currentPath.value && pulseSourceKind.value !== 'editor_selection') return
-  emit('pulse-open-second-brain', {
-    contextPaths: pulseSourceKind.value === 'editor_selection' ? [] : [currentPath.value],
-    prompt: buildSecondBrainPulsePrompt()
-  })
-  closePulsePanel()
-}
+  dismissSlashMenu,
+  setSlashQuery,
+  insertBlockFromDescriptor,
+  wikilinkOpen,
+  wikilinkIndex,
+  wikilinkLeft,
+  wikilinkTop,
+  wikilinkResults,
+  onWikilinkMenuSelect,
+  onWikilinkMenuIndexUpdate,
+  revealSnippet,
+  revealOutlineHeading,
+  revealAnchor
+} = interactionRuntime
 
 async function focusFirstContentBlock() {
+  const editor = activeEditor.value
   if (!editor) return
   let targetPos = 1
   editor.state.doc.descendants((node, pos) => {
@@ -1124,30 +390,30 @@ async function focusFirstContentBlock() {
 
 defineExpose({
   saveNow: async () => {
-    await saveCurrentFile(true)
+    await documentRuntime.saveCurrentFile(true)
   },
   reloadCurrent: async () => {
     if (!currentPath.value) return
-    const requestId = lifecycle.nextRequestId()
-    ensureSession(currentPath.value)
-    setActiveSession(currentPath.value)
-    await loadCurrentFile(currentPath.value, { forceReload: true, requestId })
+    const requestId = documentRuntime.nextRequestId()
+    documentRuntime.ensureSession(currentPath.value)
+    documentRuntime.setActiveSession(currentPath.value)
+    await documentRuntime.loadCurrentFile(currentPath.value, { forceReload: true, requestId })
   },
-  focusEditor,
+  focusEditor: chromeRuntime.focusEditor,
   focusFirstContentBlock,
-  revealSnippet: navigation.revealSnippet,
-  revealOutlineHeading: navigation.revealOutlineHeading,
-  revealAnchor: navigation.revealAnchor,
-  zoomIn: () => {
-    return zoomEditorBy(0.1)
-  },
-  zoomOut: () => {
-    return zoomEditorBy(-0.1)
-  },
-  resetZoom: () => {
-    return resetEditorZoom()
-  },
-  getZoom
+  revealSnippet,
+  revealOutlineHeading,
+  revealAnchor,
+  zoomIn: () => zoomEditorBy(0.1),
+  zoomOut: () => zoomEditorBy(-0.1),
+  resetZoom: () => resetEditorZoom(),
+  getZoom,
+  pulseOpen: chromeRuntime.pulseOpen,
+  pulseSourceKind: chromeRuntime.pulseSourceKind,
+  pulseActionId: chromeRuntime.pulseActionId,
+  pulseSourceText: chromeRuntime.pulseSourceText,
+  pulseSelectionRange: chromeRuntime.pulseSelectionRange,
+  setPulseInstruction: chromeRuntime.setPulseInstruction
 })
 </script>
 

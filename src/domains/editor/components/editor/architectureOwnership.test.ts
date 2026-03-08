@@ -6,10 +6,10 @@ import fileLifecycleSource from '../../composables/useEditorFileLifecycle.ts?raw
 import architectureDoc from './ARCHITECTURE.md?raw'
 
 describe('editor architecture ownership guardrails', () => {
-  it('keeps lifecycle/table/block ownership composables wired in EditorView', () => {
-    expect(editorViewSource).toContain('useEditorSessionLifecycle')
-    expect(editorViewSource).toContain('useBlockMenuControls')
-    expect(editorViewSource).toContain('useTableToolbarControls')
+  it('keeps runtime ownership wired in EditorView instead of direct mega-orchestration', () => {
+    expect(editorViewSource).toContain('useEditorDocumentRuntime')
+    expect(editorViewSource).toContain('useEditorInteractionRuntime')
+    expect(editorViewSource).toContain('useEditorChromeRuntime')
     expect(editorViewSource).not.toContain('pathLoadToken')
     expect(editorViewSource).not.toContain('tableEdgeTopSeenAt')
   })
@@ -22,15 +22,15 @@ describe('editor architecture ownership guardrails', () => {
   })
 
   it('keeps editor hot logic extracted from EditorView', () => {
-    expect(editorViewSource).toContain('useEditorTiptapSetup')
-    expect(editorViewSource).toContain('useEditorWikilinkOverlayState')
-    expect(editorViewSource).toContain('useEditorWikilinkDataSource')
-    expect(editorViewSource).toContain('useEditorSlashInsertion')
-    expect(editorViewSource).toContain('useEditorTableInteractions')
-    expect(editorViewSource).toContain('useEditorPathWatchers')
-    expect(editorViewSource).toContain('useEditorMountedSessions')
-    expect(editorViewSource).toContain('useEditorBlockHandleControls')
-    expect(editorViewSource).toContain('useEditorTitleState')
+    expect(editorViewSource).not.toContain('useEditorTiptapSetup')
+    expect(editorViewSource).not.toContain('useEditorWikilinkOverlayState')
+    expect(editorViewSource).not.toContain('useEditorWikilinkDataSource')
+    expect(editorViewSource).not.toContain('useEditorSlashInsertion')
+    expect(editorViewSource).not.toContain('useEditorTableInteractions')
+    expect(editorViewSource).not.toContain('useEditorPathWatchers')
+    expect(editorViewSource).not.toContain('useEditorMountedSessions')
+    expect(editorViewSource).not.toContain('useEditorBlockHandleControls')
+    expect(editorViewSource).not.toContain('useEditorTitleState')
     expect(editorViewSource).not.toContain('function createEditorOptions(')
     expect(editorViewSource).not.toContain('function syncWikilinkUiFromPluginState(')
     expect(editorViewSource).not.toContain('function applyWikilinkCandidateToken(')

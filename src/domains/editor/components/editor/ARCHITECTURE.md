@@ -1,6 +1,10 @@
 # Editor Architecture Ownership
 
 ## Ownership Map
+- Shell composition/orchestration boundary: `EditorView.vue`
+- Document/session runtime: `useEditorDocumentRuntime`
+- Interaction runtime (Tiptap/slash/wikilink/caret): `useEditorInteractionRuntime`
+- Chrome runtime (toolbars/overlays/layout/pulse): `useEditorChromeRuntime`
 - Session lifecycle/status/autosave/request token: `useEditorSessionLifecycle`
 - Session status mutation bridge for session store + lifecycle emits: `useEditorSessionStatus`
 - File load/save orchestration: `useEditorFileLifecycle`
@@ -24,7 +28,8 @@
 - Block + table overlays rendering: `EditorContextOverlays.vue`
 
 ## Invariants
-- `EditorView.vue` orchestrates; it does not duplicate lifecycle/action derivation engines.
+- `EditorView.vue` stays a shell; it wires runtimes and template, but does not own editor workflows directly.
+- Cross-runtime coordination should happen through explicit runtime APIs, not ad-hoc local helpers in `EditorView.vue`.
 - Any save/load status mutation should flow through lifecycle composable APIs.
 - Overlay wrappers must stay feature-scoped; avoid mega pass-through overlay components.
 - Reactive `computed` values must be pure and must not mutate refs.
@@ -37,6 +42,7 @@
 - Overlay trigger is not size-only: heavy markdown complexity and runtime pending render signals can escalate loading UI for below-threshold files.
 
 ## Anti-patterns
+- Re-introducing editor orchestration directly in `EditorView.vue`.
 - Duplicated behavior in both `EditorView` and composables.
 - No-op event forwarding (for example `@event="() => {}"`).
 - Side effects inside `computed` functions.
