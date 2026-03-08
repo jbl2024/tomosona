@@ -18,6 +18,12 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.15.1] - 2026-03-08
+
+### Changed
+- docs(readme): document macOS quarantine workaround (20516b0)
+- chore(ci): add dependabot configuration (21e10cc)
+
 ## [0.15.0] - 2026-03-08
 
 ### Added
