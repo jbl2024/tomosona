@@ -21,7 +21,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 directories = "5"
 rfd = "0.15"
 open = "5"
-notify = "6"
+notify = "8"
 ignore = "0.4"
 fastembed = "5"
 sqlite-vec = "0.1.6"
