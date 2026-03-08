@@ -286,7 +286,7 @@ const cosmos = useCosmosController({
   ftsSearch,
   buildCosmosGraph
 })
-const workspaceController = useAppWorkspaceController({
+const workspaceControllerShellPort = {
   workingFolderPath: filesystem.workingFolderPath,
   hasWorkspace: filesystem.hasWorkspace,
   activeFilePath,
@@ -294,9 +294,12 @@ const workspaceController = useAppWorkspaceController({
   errorMessage: filesystem.errorMessage,
   selectedCount: filesystem.selectedCount,
   storageKey: WORKING_FOLDER_STORAGE_KEY,
-  setWorkspacePath: (path) => filesystem.setWorkspacePath(path),
+  setWorkspacePath: (path: string) => filesystem.setWorkspacePath(path),
   clearWorkspacePath: () => filesystem.clearWorkspacePath(),
-  resetIndexingState: () => indexing.resetIndexingState(),
+  resetIndexingState: () => indexing.resetIndexingState()
+}
+
+const workspaceControllerFsPort = {
   setWorkingFolder,
   clearWorkingFolder,
   initDb,
@@ -304,20 +307,32 @@ const workspaceController = useAppWorkspaceController({
   pathExists,
   listChildren,
   listMarkdownFiles,
+  createEntry,
+  writeTextFile
+}
+
+const workspaceControllerDocumentPort = {
   readPropertyTypeSchema,
   writePropertyTypeSchema,
-  createEntry,
-  writeTextFile,
   normalizePath,
   normalizePathKey,
   isMarkdownPath,
   isIsoDate,
-  dailyNotePath,
-  enqueueMarkdownReindex: (path) => indexing.enqueueMarkdownReindex(path),
-  removeMarkdownFromIndexInBackground: (path) => indexing.removeMarkdownFromIndexInBackground(path),
-  refreshBacklinks,
+  dailyNotePath
+}
+
+const workspaceControllerEffectsPort = {
+  enqueueMarkdownReindex: (path: string) => indexing.enqueueMarkdownReindex(path),
+  removeMarkdownFromIndexInBackground: (path: string) => indexing.removeMarkdownFromIndexInBackground(path),
   refreshCosmosGraph: () => cosmos.refreshGraph(),
   hasCosmosSurface: () => multiPane.findPaneContainingSurface('cosmos') !== null
+}
+
+const workspaceController = useAppWorkspaceController({
+  workspaceShellPort: workspaceControllerShellPort,
+  workspaceFsPort: workspaceControllerFsPort,
+  workspaceDocumentPort: workspaceControllerDocumentPort,
+  workspaceEffectsPort: workspaceControllerEffectsPort
 })
 const {
   allWorkspaceFiles,
