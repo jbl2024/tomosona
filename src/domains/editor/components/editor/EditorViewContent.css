@@ -63,6 +63,11 @@
   margin: 0.42rem 0;
 }
 
+.editor-holder .ProseMirror strong,
+.editor-holder .ProseMirror b {
+  font-weight: 600;
+}
+
 .editor-holder .ProseMirror h1 {
   font-size: calc(var(--editor-heading-1-size) * var(--editor-zoom, 1));
   font-weight: 580;

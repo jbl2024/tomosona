@@ -18,6 +18,25 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.15.0] - 2026-03-08
+
+### Added
+- feat(favorites): add file-backed favorites sidebar and orphan cleanup (5755407)
+
+### Changed
+- refactor(favorites): align panel styling with explorer and add filter input (f0d3198)
+- style(editor): update line height (033446e)
+- docs(ui): add inline source docs for non-obvious shared components (3609dea)
+- docs(ui): add practical usage examples for shared design system components (fb7ae87)
+- refactor(modal): make shared modal shell body scrollable (8b1c9a5)
+- refactor(ui): add UiSelect sizing and use compact selects in settings (4cfb7d3)
+- refactor(settings): use compact inputs and remove inner settings panel (c999206)
+- refactor(toolbar): strengthen interaction states and use heroicon for pane menu (4604566)
+- refactor(ui): roll out shared design system primitives and patterns (c980d4e)
+
+### Fixed
+- fix(toolbar): close multi-pane dropdown on outside click (70a9ed6)
+
 ## [0.14.5] - 2026-03-08
 
 ### Fixed
