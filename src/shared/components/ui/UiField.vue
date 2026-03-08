@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+/**
+ * Shared field wrapper that owns label/help/error text and the derived
+ * `aria-describedby` contract consumed by child controls.
+ *
+ * Usage:
+ * - pass a stable `forId`
+ * - render the actual control in the default slot
+ * - forward `describedBy` and `invalid` slot props to the inner control
+ */
 const props = withDefaults(defineProps<{
   label?: string
   help?: string
@@ -15,6 +24,13 @@ const props = withDefaults(defineProps<{
   className: ''
 })
 
+/**
+ * Builds the `aria-describedby` value expected by the nested form control.
+ *
+ * Invariant:
+ * - help and error IDs are only generated when `forId` is available
+ * - the returned string may contain both help and error references
+ */
 const describedBy = computed(() => {
   const value = [props.help ? `${props.forId}-help` : '', props.error ? `${props.forId}-error` : '']
     .filter(Boolean)

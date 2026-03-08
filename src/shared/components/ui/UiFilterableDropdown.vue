@@ -28,6 +28,16 @@ type GroupedDropdownSection = {
   items: Array<{ item: FilterableDropdownItem; index: number }>
 }
 
+/**
+ * Controlled filterable dropdown shell.
+ *
+ * Important design choice:
+ * - parent code owns `modelValue`, `query`, and `activeIndex`
+ * - this component mirrors those values into the headless listbox helper
+ * - interaction updates are emitted back out instead of mutating parent state directly
+ *
+ * This keeps existing menu integrations predictable during migration.
+ */
 const props = withDefaults(defineProps<{
   items: FilterableDropdownItem[]
   modelValue: boolean
@@ -67,6 +77,11 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 const portalMenuStyle = ref<CSSProperties>({})
 
+/**
+ * Stable DOM id used by the filter input and listbox relationship.
+ *
+ * It is intentionally generated once per component instance.
+ */
 const listboxId = `tomosona-filterable-listbox-${Math.random().toString(36).slice(2)}`
 const itemsRef = computed(() => props.items)
 const maxHeightPx = computed(() =>
@@ -75,6 +90,10 @@ const maxHeightPx = computed(() =>
 const computedMenuStyle = computed<CSSProperties>(() =>
   props.menuMode === 'portal' ? portalMenuStyle.value : {}
 )
+/**
+ * Groups filtered results by the optional `group` field while preserving
+ * each item's original filtered index for keyboard and selection behavior.
+ */
 const groupedFilteredItems = computed<GroupedDropdownSection[]>(() => {
   const sections: GroupedDropdownSection[] = []
   const byGroup = new Map<string, GroupedDropdownSection>()
@@ -197,10 +216,12 @@ function openMenu() {
   api.openMenu()
 }
 
+/** Exposed as trigger slot API so parent renderers can close explicitly. */
 function closeMenu() {
   api.closeMenu()
 }
 
+/** Exposed as trigger slot API for custom trigger elements. */
 function toggleMenu() {
   if (props.disabled) return
   if (api.open.value) {
@@ -234,6 +255,14 @@ function onOptionClick(index: number) {
   api.selectIndex(index)
 }
 
+/**
+ * Computes fixed positioning for teleported menus.
+ *
+ * Invariant:
+ * - portal menus stay within viewport gutters
+ * - the dropdown opens above the trigger only when there is insufficient
+ *   space below and more room above
+ */
 function updatePortalPosition() {
   if (props.menuMode !== 'portal') return
   const root = rootRef.value
@@ -283,7 +312,7 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  // Used by menu wrappers that need direct access for positioning/hit testing.
+  /** Used by wrapper components that need direct menu access for hit testing. */
   menuEl
 })
 </script>

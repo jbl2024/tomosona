@@ -1,4 +1,18 @@
 <script setup lang="ts">
+/**
+ * Shared modal shell for standard application dialogs.
+ *
+ * Responsibilities:
+ * - render semantic dialog chrome and backdrop
+ * - wire title/description accessibility attributes
+ * - expose a predictable header/body/footer layout
+ * - keep the body scrollable while header and footer remain fixed
+ *
+ * Non-responsibilities:
+ * - focus trapping
+ * - escape-key ownership
+ * - domain-specific content and actions
+ */
 const props = withDefaults(defineProps<{
   modelValue: boolean
   title: string
@@ -20,6 +34,13 @@ const emit = defineEmits<{
   close: []
 }>()
 
+/**
+ * Closes the modal through the controlled component contract.
+ *
+ * Why:
+ * - parent state remains the single source of truth
+ * - callers can react to both the model update and the explicit close event
+ */
 function close() {
   emit('update:modelValue', false)
   emit('close')

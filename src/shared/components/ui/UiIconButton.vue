@@ -2,6 +2,14 @@
 import { computed, ref } from 'vue'
 import UiButton, { type UiButtonSize, type UiButtonVariant } from './UiButton.vue'
 
+/**
+ * Icon-only button wrapper built on top of `UiButton`.
+ *
+ * Why this exists:
+ * - keeps icon hit-target sizing consistent across toolbars and menus
+ * - preserves the same variant/size/loading contract as `UiButton`
+ * - exposes the underlying button element for anchor positioning use cases
+ */
 const props = withDefaults(defineProps<{
   variant?: UiButtonVariant
   size?: UiButtonSize
@@ -25,7 +33,9 @@ const props = withDefaults(defineProps<{
 })
 
 const buttonRef = ref<InstanceType<typeof UiButton> | null>(null)
+/** Underlying button element exposed for positioning and hit testing. */
 const rootEl = computed(() => buttonRef.value?.rootEl ?? null)
+/** Fallback accessible name resolution for icon-only controls. */
 const resolvedAriaLabel = computed(() => props.ariaLabel || props.title || '')
 
 defineExpose({
