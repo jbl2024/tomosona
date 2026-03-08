@@ -68,11 +68,15 @@ function close() {
 
 .ui-modal-shell__panel {
   width: min(100%, calc(100vw - 2rem));
+  max-height: calc(100vh - 6rem);
   border: 1px solid var(--modal-border);
   border-radius: var(--modal-radius);
   background: var(--modal-bg);
   box-shadow: var(--modal-shadow);
   color: var(--modal-title);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .ui-modal-shell__panel--sm {
@@ -108,6 +112,9 @@ function close() {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .ui-modal-shell__footer {

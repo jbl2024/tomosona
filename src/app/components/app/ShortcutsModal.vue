@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import UiButton from '../../../shared/components/ui/UiButton.vue'
+import UiInput from '../../../shared/components/ui/UiInput.vue'
+import UiModalShell from '../../../shared/components/ui/UiModalShell.vue'
 
 /**
  * ShortcutsModal
@@ -23,54 +25,60 @@ const emit = defineEmits<{
   close: []
   'update:filterQuery': [value: string]
 }>()
+
+function handleVisibilityChange(value: boolean) {
+  if (!value) {
+    emit('close')
+  }
+}
 </script>
 
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="emit('close')">
-    <div
-      class="modal shortcuts-modal"
-      data-modal="shortcuts"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shortcuts-title"
-      aria-describedby="shortcuts-description"
-      tabindex="-1"
-    >
-      <h3 id="shortcuts-title" class="confirm-title">Keyboard Shortcuts</h3>
-      <p id="shortcuts-description" class="sr-only">Browse and filter keyboard shortcuts.</p>
-      <input
-        :value="filterQuery"
-        data-shortcuts-filter="true"
-        class="tool-input shortcuts-filter-input"
-        placeholder="Filter shortcuts (ex: zoom, save, Ctrl+P)"
-        @input="emit('update:filterQuery', ($event.target as HTMLInputElement).value)"
-      />
-      <div class="shortcuts-sections">
-        <section v-for="section in sections" :key="section.title" class="shortcuts-section">
-          <h4 class="shortcuts-title">{{ section.title }}</h4>
-          <div class="shortcuts-grid">
-            <template v-for="item in section.items" :key="`${section.title}-${item.keys}-${item.action}`">
-              <span class="shortcut-keys">{{ item.keys }}</span>
-              <span class="shortcut-action">{{ item.action }}</span>
-            </template>
-          </div>
-        </section>
-        <div v-if="!sections.length" class="placeholder">No matching shortcuts</div>
-      </div>
-      <div class="confirm-actions">
-        <UiButton size="sm" variant="ghost" @click="emit('close')">Close</UiButton>
-      </div>
+  <UiModalShell
+    :model-value="visible"
+    title="Keyboard Shortcuts"
+    description="Browse and filter keyboard shortcuts."
+    labelledby="shortcuts-title"
+    describedby="shortcuts-description"
+    width="xl"
+    panel-class="shortcuts-modal"
+    @update:model-value="handleVisibilityChange"
+    @close="emit('close')"
+  >
+    <UiInput
+      :model-value="filterQuery"
+      data-shortcuts-filter="true"
+      size="sm"
+      class-name="shortcuts-filter-input"
+      placeholder="Filter shortcuts (ex: zoom, save, Ctrl+P)"
+      @update:model-value="emit('update:filterQuery', $event)"
+    />
+    <div data-modal="shortcuts" class="sr-only" aria-hidden="true"></div>
+    <div class="shortcuts-sections">
+      <section v-for="section in sections" :key="section.title" class="shortcuts-section">
+        <h4 class="shortcuts-title">{{ section.title }}</h4>
+        <div class="shortcuts-grid">
+          <template v-for="item in section.items" :key="`${section.title}-${item.keys}-${item.action}`">
+            <span class="shortcut-keys">{{ item.keys }}</span>
+            <span class="shortcut-action">{{ item.action }}</span>
+          </template>
+        </div>
+      </section>
+      <div v-if="!sections.length" class="placeholder">No matching shortcuts</div>
     </div>
-  </div>
+    <template #footer>
+      <UiButton size="sm" variant="ghost" @click="emit('close')">Close</UiButton>
+    </template>
+  </UiModalShell>
 </template>
 
 <style scoped>
 .shortcuts-modal {
-  width: min(1120px, calc(100vw - 32px));
-  max-height: calc(100vh - 120px);
+  max-height: min(740px, calc(100vh - 120px));
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
 .shortcuts-filter-input {
@@ -82,6 +90,8 @@ const emit = defineEmits<{
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 12px;
   margin-top: 2px;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow: auto;
   padding-right: 4px;
 }
