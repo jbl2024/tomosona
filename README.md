@@ -211,6 +211,15 @@ Desktop build:
 npm run tauri:build
 ```
 
+### Running the macOS app bundle
+
+If you download the packaged app on macOS, Gatekeeper may block it because the app is not notarized yet.
+Clear the quarantine attributes before launching it:
+
+```bash
+xattr -cr /Applications/tomosona.app
+```
+
 Recommended backend verification:
 
 ```bash
