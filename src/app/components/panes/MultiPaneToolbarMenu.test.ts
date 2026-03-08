@@ -65,4 +65,18 @@ describe('MultiPaneToolbarMenu', () => {
 
     mounted.app.unmount()
   })
+
+  it('closes the dropdown on outside click', async () => {
+    const mounted = mountHarness()
+
+    mounted.root.querySelector<HTMLButtonElement>('[aria-label="Multi-pane layout"]')?.click()
+    await nextTick()
+    expect(mounted.root.querySelector('.multi-pane-dropdown')).toBeTruthy()
+
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await nextTick()
+
+    expect(mounted.root.querySelector('.multi-pane-dropdown')).toBeNull()
+    mounted.app.unmount()
+  })
 })

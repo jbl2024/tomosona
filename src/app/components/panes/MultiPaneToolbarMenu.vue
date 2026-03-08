@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Squares2X2Icon } from '@heroicons/vue/24/outline'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
 import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
@@ -23,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const open = ref(false)
+const wrapRef = ref<HTMLElement | null>(null)
 
 const paneIndices = computed(() => [1, 2, 3, 4])
 
@@ -38,10 +39,25 @@ function run(action: () => void) {
   action()
   close()
 }
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  if (!open.value) return
+  if (!wrapRef.value?.contains(event.target as Node | null)) {
+    close()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleDocumentPointerDown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleDocumentPointerDown)
+})
 </script>
 
 <template>
-  <div class="multi-pane-menu" @keydown.esc.stop="close">
+  <div ref="wrapRef" class="multi-pane-menu" @keydown.esc.stop="close">
     <UiIconButton
       class-name="toolbar-icon-btn"
       aria-label="Multi-pane layout"
