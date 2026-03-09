@@ -5,6 +5,7 @@ import { editorDataToMarkdown, markdownToEditorData } from '../lib/markdownBlock
 import { composeMarkdownDocument, serializeFrontmatter, type FrontmatterEnvelope } from '../lib/frontmatter'
 import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
 import type { DocumentSession } from './useDocumentEditorSessions'
+import { finishOpenTrace, startOpenTrace, takePendingOpenTrace, traceOpenStep } from '../../../shared/lib/openTrace'
 
 /**
  * Adapter contract for waiting on async heavy node rendering (for example Mermaid node views).
@@ -237,12 +238,24 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
    */
   async function loadCurrentFile(path: string, loadOptions?: { forceReload?: boolean; requestId?: number }) {
     if (!path) return
+    const traceId = takePendingOpenTrace(path) ?? startOpenTrace(path, 'editor-load')
+    traceOpenStep(traceId, 'editor load started', { force_reload: Boolean(loadOptions?.forceReload) })
     await documentPort.ensurePropertySchemaLoaded()
-    if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
+    traceOpenStep(traceId, 'property schema ready')
+    if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+      finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_session' })
+      return
+    }
 
     const session = sessionPort.ensureSession(path)
+    traceOpenStep(traceId, 'session ready', {
+      cached_session: session.isLoaded
+    })
     const editor = sessionPort.getEditor()
-    if (!editor) return
+    if (!editor) {
+      finishOpenTrace(traceId, 'blocked', { stage: 'editor_unavailable' })
+      return
+    }
     const shouldReloadContent = !session.isLoaded || Boolean(loadOptions?.forceReload)
 
     if (shouldReloadContent) {
@@ -260,10 +273,22 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
     let largeDocOverlayShownAt = 0
     try {
       if (shouldReloadContent) {
+        const readStartedAt = performance.now()
         const txt = await ioPort.openFile(path)
-        if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
+        traceOpenStep(traceId, 'file read finished', {
+          duration_ms: Math.round(performance.now() - readStartedAt),
+          chars: txt.length
+        })
+        if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+          finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_after_read' })
+          return
+        }
 
+        const frontmatterStartedAt = performance.now()
         documentPort.parseAndStoreFrontmatter(path, txt)
+        traceOpenStep(traceId, 'frontmatter parsed', {
+          duration_ms: Math.round(performance.now() - frontmatterStartedAt)
+        })
         const body = documentPort.frontmatterByPath.value[path]?.body ?? txt
         const isLargeDocument = txt.length >= uiPort.largeDocThreshold
         const heavyComplexityScore = heavyRenderComplexityScore(body)
@@ -275,7 +300,14 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           await flushUiFrame()
         }
 
+        const parseStartedAt = performance.now()
         const parsed = markdownToEditorData(body)
+        traceOpenStep(traceId, 'markdown parsed', {
+          duration_ms: Math.round(performance.now() - parseStartedAt),
+          block_count: parsed.blocks.length,
+          heavy_render_score: heavyComplexityScore,
+          large_doc: isLargeDocument
+        })
         documentPort.syncLoadedTitle(path, documentPort.noteTitleFromPath(path))
         const shouldWaitForHeavyRender = isHeavyRenderMarkdown(body) && typeof options.waitForHeavyRenderIdle === 'function'
 
@@ -286,8 +318,12 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         }
 
         sessionPort.setSuppressOnChange(true)
+        const renderStartedAt = performance.now()
         session.editor.commands.setContent(toTiptapDoc(parsed.blocks as EditorBlock[]), { emitUpdate: false })
         sessionPort.setSuppressOnChange(false)
+        traceOpenStep(traceId, 'editor content set', {
+          duration_ms: Math.round(performance.now() - renderStartedAt)
+        })
 
         if (
           shouldWaitForHeavyRender &&
@@ -298,7 +334,10 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           // Why/invariant: below-threshold docs can still trigger expensive async node renders.
           // Delay escalation prevents unnecessary blocking for near-instant renders.
           await new Promise<void>((resolve) => window.setTimeout(resolve, heavyOverlayDelayMs))
-          if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
+          if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+            finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_heavy_overlay' })
+            return
+          }
           if (options.hasPendingHeavyRender()) {
             largeDocOverlayShownAt = Date.now()
             showLoadingOverlay(body, 'Finalizing rich blocks...', 90, true)
@@ -314,11 +353,18 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
             uiPort.ui.loadProgressPercent.value = 90
             uiPort.ui.loadProgressIndeterminate.value = true
           }
+          const heavyRenderStartedAt = performance.now()
           await options.waitForHeavyRenderIdle?.({
             timeoutMs: heavyRenderIdleTimeoutMs,
             settleMs: heavyRenderIdleSettleMs
           })
-          if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
+          traceOpenStep(traceId, 'heavy render settled', {
+            duration_ms: Math.round(performance.now() - heavyRenderStartedAt)
+          })
+          if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+            finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_after_heavy_render' })
+            return
+          }
           await flushPaintBarrier()
           if (uiPort.ui.isLoadingLargeDocument.value) {
             uiPort.ui.loadProgressIndeterminate.value = false
@@ -331,8 +377,15 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
       }
 
       await nextTick()
-      if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
-      if (sessionPort.currentPath.value !== path) return
+      traceOpenStep(traceId, 'post-render nextTick completed')
+      if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+        finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_commit' })
+        return
+      }
+      if (sessionPort.currentPath.value !== path) {
+        finishOpenTrace(traceId, 'blocked', { stage: 'path_changed_before_commit' })
+        return
+      }
 
       const remembered = session.scrollTop
       if (sessionPort.holder.value && typeof remembered === 'number') {
@@ -347,8 +400,15 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
       uiPort.emitOutlineSoon(path)
       uiPort.syncWikilinkUiFromPluginState()
       uiPort.updateGutterHitboxStyle()
+      finishOpenTrace(traceId, 'done', {
+        stage: shouldReloadContent ? 'editor_ready' : 'session_reused'
+      })
     } catch (error) {
       sessionPort.setSaveError(path, error instanceof Error ? error.message : 'Could not read file.')
+      finishOpenTrace(traceId, 'error', {
+        stage: 'load_current_file',
+        message: error instanceof Error ? error.message : 'Could not read file.'
+      })
     } finally {
       if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) return
       if (shouldReloadContent && largeDocOverlayShownAt > 0) {

@@ -191,6 +191,30 @@ This starts:
 - the Rust backend;
 - the Tauri IPC layer used by the shell, indexing, search, and AI features.
 
+### Note-open debug mode
+
+When investigating occasional freezes while opening a note, start the desktop app with backend note-open tracing enabled:
+
+```bash
+make tauri-dev-open-debug
+```
+
+This sets `TOMOSONA_DEBUG_OPEN=1` for the Tauri/Rust process and keeps the normal dev workflow.
+
+To enable the matching frontend trace logs in the app window, open devtools and run:
+
+```js
+localStorage.setItem('tomosona.debug.open', '1')
+```
+
+Then reload the app window with `Cmd+R`.
+
+What you get:
+
+- frontend `[open-trace]` logs in devtools for the click-to-editor path;
+- recent frontend trace entries in `window.__tomosonaOpenDebug.recent`;
+- backend `[fs-perf]` logs for `read_text_file` and `list_children` in the terminal running Tauri.
+
 ## Build and Verification
 
 Frontend build:

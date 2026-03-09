@@ -1,5 +1,6 @@
 import { nextTick, ref, type Ref } from 'vue'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
+import { clearPendingOpenTrace, finishOpenTrace, traceOpenStep } from '../../shared/lib/openTrace'
 
 /**
  * Module: useAppNavigationController
@@ -33,6 +34,7 @@ export type NavigationOpenOptions = {
   recordHistory?: boolean
   targetPaneId?: string
   revealInTargetPane?: boolean
+  traceId?: string | null
 }
 
 /** Minimal shape required from the document status provider used by the shell. */
@@ -240,13 +242,23 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
   async function openTabWithAutosave(path: string, navigation: NavigationOpenOptions = {}): Promise<boolean> {
     const target = path.trim()
     if (!target) return false
+    traceOpenStep(navigation.traceId ?? null, 'autosave guard started')
     const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
-    if (!canSwitch) return false
+    if (!canSwitch) {
+      clearPendingOpenTrace(target, navigation.traceId)
+      finishOpenTrace(navigation.traceId ?? null, 'blocked', { stage: 'autosave_guard' })
+      return false
+    }
+    traceOpenStep(navigation.traceId ?? null, 'autosave guard passed')
     if (navigation.revealInTargetPane) {
       panePort.revealDocumentInPane(target, navigation.targetPaneId)
     } else {
       panePort.openPathInPane(target, navigation.targetPaneId)
     }
+    traceOpenStep(navigation.traceId ?? null, 'pane open dispatched', {
+      target_pane: navigation.targetPaneId ?? panePort.getActivePaneId(),
+      reveal_only: Boolean(navigation.revealInTargetPane)
+    })
     if (navigation.recordHistory !== false) {
       historyPort.documentHistory.record(target)
     }

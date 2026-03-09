@@ -1,10 +1,11 @@
-.PHONY: help install dev tauri-dev build tauri-build preflight preflight-full clean clean-frontend clean-tauri clean-deps prepare-release
+.PHONY: help install dev tauri-dev tauri-dev-open-debug build tauri-build preflight preflight-full clean clean-frontend clean-tauri clean-deps prepare-release
 
 help:
 	@echo "Available targets:"
 	@echo "  make install      Install dependencies"
 	@echo "  make dev          Run frontend dev server"
 	@echo "  make tauri-dev    Run Tauri desktop app in dev mode"
+	@echo "  make tauri-dev-open-debug  Run Tauri dev with note-open tracing enabled"
 	@echo "  make build        Build frontend production bundle"
 	@echo "  make tauri-build  Build Tauri desktop app bundle/installers"
 	@echo "  make preflight    Run local CI-like frontend checks (typecheck + vite build)"
@@ -23,6 +24,9 @@ dev:
 
 tauri-dev:
 	npm run tauri:dev
+
+tauri-dev-open-debug:
+	TOMOSONA_DEBUG_OPEN=1 npm run tauri:dev
 
 build:
 	npm run build

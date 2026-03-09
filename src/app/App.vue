@@ -53,6 +53,13 @@ import {
   writePropertyTypeSchema
 } from '../shared/api/indexApi'
 import type { WikilinkGraph, WorkspaceFsChange } from '../shared/api/apiTypes'
+import {
+  bindPendingOpenTrace,
+  finishOpenTrace,
+  installOpenDebugLongTaskObserver,
+  startOpenTrace,
+  traceOpenStep
+} from '../shared/lib/openTrace'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
 import { applySearchMode, detectSearchMode, type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
@@ -1798,7 +1805,13 @@ function onExplorerPathsDeleted(paths: string[]) {
 }
 
 async function onExplorerOpen(path: string) {
-  const opened = await openTabWithAutosave(path)
+  const traceId = startOpenTrace(path, 'explorer-click')
+  bindPendingOpenTrace(path, traceId)
+  traceOpenStep(traceId, 'explorer open requested')
+  const opened = await openTabWithAutosave(path, { traceId })
+  if (!opened) {
+    finishOpenTrace(traceId, 'blocked', { stage: 'navigation' })
+  }
   if (!opened) return
 }
 
@@ -3423,6 +3436,7 @@ onMounted(() => {
   loadSavedSidebarMode()
   applyTheme()
   editorZoom.value = readStoredEditorZoom()
+  installOpenDebugLongTaskObserver()
   mediaQuery?.addEventListener('change', onSystemThemeChanged)
   window.addEventListener('keydown', onWindowKeydown, true)
   window.addEventListener('mousedown', onGlobalPointerDown, true)

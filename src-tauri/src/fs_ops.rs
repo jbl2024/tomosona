@@ -1,9 +1,10 @@
 #[cfg(windows)]
 use std::os::windows::fs::MetadataExt;
 use std::{
+    env,
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -177,6 +178,35 @@ fn normalize_existing_path(path: &str) -> Result<PathBuf> {
         return Err(AppError::InvalidPath);
     }
     Ok(pb)
+}
+
+fn should_log_fs_perf(elapsed_ms: u128) -> bool {
+    env::var("TOMOSONA_DEBUG_OPEN")
+        .map(|value| value == "1")
+        .unwrap_or(false)
+        || elapsed_ms >= 75
+}
+
+fn log_fs_perf(
+    command: &str,
+    path: &Path,
+    started_at: Instant,
+    extra_fields: &[(&str, String)],
+) {
+    let elapsed_ms = started_at.elapsed().as_millis();
+    if !should_log_fs_perf(elapsed_ms) {
+        return;
+    }
+
+    let mut fields = vec![
+        format!("cmd={command}"),
+        format!("total_ms={elapsed_ms}"),
+        format!("path={}", path.to_string_lossy()),
+    ];
+    for (key, value) in extra_fields {
+        fields.push(format!("{key}={value}"));
+    }
+    eprintln!("[fs-perf] {}", fields.join(" "));
 }
 
 fn ensure_within_root(root: &Path, path: &Path) -> Result<()> {
@@ -465,11 +495,19 @@ pub fn set_working_folder(path: String, app_handle: tauri::AppHandle) -> Result<
 
 #[tauri::command]
 pub fn list_children(dir_path: String) -> Result<Vec<TreeNode>> {
+    let started_at = Instant::now();
     let root = active_workspace_root()?;
     let dir = normalize_existing_dir(&dir_path)?;
     ensure_within_root(&root, &dir)?;
     let matcher = build_ignore_matcher(&root);
-    collect_children(&root, &dir, matcher.as_ref())
+    let children = collect_children(&root, &dir, matcher.as_ref())?;
+    log_fs_perf(
+        "list_children",
+        &dir,
+        started_at,
+        &[("entries", children.len().to_string())],
+    );
+    Ok(children)
 }
 
 #[tauri::command]
@@ -492,10 +530,21 @@ pub fn path_exists(path: String) -> Result<bool> {
 
 #[tauri::command]
 pub fn read_text_file(path: String) -> Result<String> {
+    let started_at = Instant::now();
     let root = active_workspace_root()?;
     let pb = normalize_existing_path(&path)?;
     ensure_within_root(&root, &pb)?;
-    Ok(fs::read_to_string(pb)?)
+    let content = fs::read_to_string(&pb)?;
+    log_fs_perf(
+        "read_text_file",
+        &pb,
+        started_at,
+        &[
+            ("chars", content.chars().count().to_string()),
+            ("bytes", content.len().to_string()),
+        ],
+    );
+    Ok(content)
 }
 
 fn system_time_to_unix_ms(value: SystemTime) -> Option<i64> {
