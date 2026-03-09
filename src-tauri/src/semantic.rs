@@ -527,7 +527,7 @@ pub fn try_delete_note_vector(conn: &Connection, path: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::Connection;
+    use rusqlite::{types::Value as SqlValue, Connection};
     use serde_json::Value;
 
     #[test]
@@ -617,14 +617,25 @@ mod tests {
         let vector = [0.5f32, f32::NAN, f32::INFINITY];
         try_upsert_note_vector(&conn, "notes/a.md", &vector).expect("upsert vector");
 
-        let payload: String = conn
+        let payload: SqlValue = conn
             .query_row(
                 "SELECT embedding FROM note_embeddings_vec WHERE path = ?1",
                 params!["notes/a.md"],
                 |row| row.get(0),
             )
             .expect("select payload");
-        assert_eq!(payload, "[0.5000000,0.0000000,0.0000000]");
+        match payload {
+            SqlValue::Text(text) => {
+                assert_eq!(text, "[0.5000000,0.0000000,0.0000000]");
+            }
+            SqlValue::Blob(blob) => {
+                let decoded = blob_to_vector(&blob, 3).expect("decode vector blob");
+                assert_eq!(decoded[0], 0.5);
+                assert!(decoded[1].is_nan());
+                assert!(decoded[2].is_infinite());
+            }
+            other => panic!("unexpected embedding payload: {other:?}"),
+        }
     }
 
     #[test]

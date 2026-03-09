@@ -829,14 +829,16 @@ mod tests {
         dir
     }
 
-    fn activate_workspace(root: &Path) {
+    fn activate_workspace(root: &Path) -> std::sync::MutexGuard<'static, ()> {
+        let guard = crate::workspace_test_guard();
         crate::set_active_workspace(&root.to_string_lossy()).expect("set active workspace");
+        guard
     }
 
     #[test]
     fn create_entry_renames_on_conflict() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.to_string_lossy().to_string();
 
         let first = create_entry(
@@ -863,7 +865,7 @@ mod tests {
     #[test]
     fn duplicate_file_creates_copy() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("doc.md");
         fs::write(&source, "hello").expect("write source");
 
@@ -881,7 +883,7 @@ mod tests {
     #[test]
     fn move_entry_renames_on_conflict() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("a.md");
         let destination_dir = dir.join("dest");
 
@@ -903,7 +905,7 @@ mod tests {
     #[test]
     fn trash_entry_moves_file_to_trash_folder() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("to-delete.md");
         fs::write(&source, "delete me").expect("write source");
 
@@ -918,7 +920,7 @@ mod tests {
     #[test]
     fn list_tree_excludes_internal_files() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.as_path();
         fs::write(root.join("doc.md"), "x").expect("write md");
         fs::write(root.join("tomosona.sqlite"), "legacy db").expect("write legacy db");
@@ -935,7 +937,7 @@ mod tests {
     #[test]
     fn list_tree_excludes_hidden_directories() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.as_path();
         fs::create_dir_all(root.join(".git")).expect("git dir");
         fs::create_dir_all(root.join(".obsidian")).expect("hidden dir");
@@ -950,7 +952,7 @@ mod tests {
     #[test]
     fn list_tree_respects_gitignore_and_tomosonaignore() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.as_path();
         fs::write(root.join(".gitignore"), "ignored.md\n").expect("write gitignore");
         fs::write(root.join(".tomosonaignore"), "secret/\n").expect("write tomosonaignore");
@@ -975,7 +977,7 @@ mod tests {
     #[test]
     fn list_markdown_files_is_recursive() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.as_path();
         let nested = root.join("docs");
         fs::create_dir_all(&nested).expect("mkdir");
@@ -996,7 +998,7 @@ mod tests {
     #[test]
     fn list_markdown_files_respects_ignore_rules() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.as_path();
         let nested = root.join("docs");
         fs::create_dir_all(&nested).expect("mkdir");
@@ -1016,7 +1018,7 @@ mod tests {
     #[test]
     fn rename_entry_changes_name() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("old.md");
         fs::write(&source, "content").expect("write source");
 
@@ -1035,7 +1037,7 @@ mod tests {
     #[test]
     fn rename_entry_rejects_invalid_name_characters() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("old.md");
         fs::write(&source, "content").expect("write source");
 
@@ -1053,7 +1055,7 @@ mod tests {
     #[test]
     fn create_entry_rejects_reserved_windows_names() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let root = dir.to_string_lossy().to_string();
 
         let result = create_entry(
@@ -1070,7 +1072,7 @@ mod tests {
     #[test]
     fn copy_entry_works_for_files() {
         let dir = make_temp_dir();
-        activate_workspace(&dir);
+        let _guard = activate_workspace(&dir);
         let source = dir.join("a.md");
         let target_dir = dir.join("sub");
         fs::create_dir_all(&target_dir).expect("create sub");
@@ -1091,7 +1093,7 @@ mod tests {
     #[test]
     fn open_path_external_rejects_path_outside_workspace() {
         let workspace = make_temp_dir();
-        activate_workspace(&workspace);
+        let _guard = activate_workspace(&workspace);
 
         let outside_dir = make_temp_dir();
         let outside = outside_dir.join("outside.md");
@@ -1108,7 +1110,7 @@ mod tests {
     #[test]
     fn reveal_in_file_manager_rejects_path_outside_workspace() {
         let workspace = make_temp_dir();
-        activate_workspace(&workspace);
+        let _guard = activate_workspace(&workspace);
 
         let outside_dir = make_temp_dir();
         let outside = outside_dir.join("outside.md");

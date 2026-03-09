@@ -257,21 +257,11 @@ pub fn rename_favorite(old_path: String, new_path: String) -> Result<()> {
 mod tests {
     use std::{
         path::PathBuf,
-        sync::{Mutex, OnceLock},
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use super::*;
-    use crate::{clear_active_workspace, set_active_workspace};
-
-    static FAVORITES_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-    fn favorites_test_guard() -> std::sync::MutexGuard<'static, ()> {
-        FAVORITES_TEST_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("favorites test mutex poisoned")
-    }
+    use crate::{clear_active_workspace, set_active_workspace, workspace_test_guard};
 
     fn create_temp_workspace(prefix: &str) -> PathBuf {
         let nonce = SystemTime::now()
@@ -289,7 +279,7 @@ mod tests {
 
     #[test]
     fn list_favorites_returns_empty_when_file_absent() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-empty");
         set_active_workspace(&workspace.to_string_lossy()).expect("set workspace");
 
@@ -302,7 +292,7 @@ mod tests {
 
     #[test]
     fn add_and_remove_favorite_round_trip() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-roundtrip");
         let note = workspace.join("notes.md");
         fs::write(&note, "# Notes").expect("write note");
@@ -324,7 +314,7 @@ mod tests {
 
     #[test]
     fn add_favorite_rejects_non_markdown_files() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-non-markdown");
         let note = workspace.join("notes.txt");
         fs::write(&note, "text").expect("write note");
@@ -339,7 +329,7 @@ mod tests {
 
     #[test]
     fn add_favorite_is_idempotent() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-idempotent");
         let note = workspace.join("notes.md");
         fs::write(&note, "# Notes").expect("write note");
@@ -357,7 +347,7 @@ mod tests {
 
     #[test]
     fn list_favorites_marks_missing_entries() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-missing");
         fs::create_dir_all(workspace.join(".tomosona")).expect("create internal dir");
         fs::write(
@@ -378,7 +368,7 @@ mod tests {
 
     #[test]
     fn remove_favorite_accepts_missing_entries() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-remove-missing");
         fs::create_dir_all(workspace.join(".tomosona")).expect("create internal dir");
         fs::write(
@@ -397,7 +387,7 @@ mod tests {
 
     #[test]
     fn rename_favorite_preserves_added_at() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-rename");
         let old_note = workspace.join("old.md");
         let new_note = workspace.join("new.md");
@@ -423,7 +413,7 @@ mod tests {
 
     #[test]
     fn list_favorites_sorts_alphabetically_case_insensitive() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-sort");
         fs::create_dir_all(workspace.join(".tomosona")).expect("create internal dir");
         fs::write(
@@ -444,7 +434,7 @@ mod tests {
 
     #[test]
     fn list_favorites_rejects_invalid_json() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-invalid");
         fs::create_dir_all(workspace.join(".tomosona")).expect("create internal dir");
         fs::write(workspace.join(".tomosona").join("favorites.json"), "{").expect("write favorites");
@@ -459,7 +449,7 @@ mod tests {
 
     #[test]
     fn remove_favorite_rewrites_json_file() {
-        let _guard = favorites_test_guard();
+        let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-favorites-file");
         let note = workspace.join("notes.md");
         fs::write(&note, "# Notes").expect("write note");

@@ -90,6 +90,8 @@ fn log_index(message: &str) {
 }
 
 static ACTIVE_WORKSPACE_ROOT: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+#[cfg(test)]
+static WORKSPACE_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 #[derive(Debug, Error)]
 enum AppError {
@@ -127,6 +129,14 @@ fn normalize_existing_dir(path: &str) -> Result<PathBuf> {
 
 fn active_workspace_slot() -> &'static Mutex<Option<PathBuf>> {
     ACTIVE_WORKSPACE_ROOT.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(test)]
+pub(crate) fn workspace_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    WORKSPACE_TEST_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("workspace test mutex poisoned")
 }
 
 fn lock_workspace_slot() -> Result<std::sync::MutexGuard<'static, Option<PathBuf>>> {
@@ -2916,20 +2926,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use directories::UserDirs;
 
     use super::*;
 
-    static WORKSPACE_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
     fn workspace_test_guard() -> std::sync::MutexGuard<'static, ()> {
-        WORKSPACE_TEST_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("workspace test mutex poisoned")
+        crate::workspace_test_guard()
     }
 
     fn create_temp_workspace(prefix: &str) -> PathBuf {
