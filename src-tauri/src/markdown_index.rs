@@ -19,6 +19,9 @@ use crate::workspace_paths::{
     normalize_workspace_relative_path, normalize_existing_file,
 };
 
+// Small semantic embedding batches reduce peak memory on large notes.
+const SEMANTIC_EMBED_BATCH_SIZE: usize = 8;
+
 #[derive(Debug, Clone)]
 pub(crate) struct IndexedProperty {
     pub key: String,
@@ -580,6 +583,57 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     Ok(())
 }
 
+fn embed_chunk_texts_in_batches<F>(
+    path_for_db: &str,
+    embed_texts: &[String],
+    embed_positions: &[usize],
+    mut embed_batch: F,
+) -> Result<Vec<(usize, Vec<f32>)>>
+where
+    F: FnMut(&[String]) -> std::result::Result<Vec<Vec<f32>>, String>,
+{
+    if embed_texts.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let batch_count = embed_texts.len().div_ceil(SEMANTIC_EMBED_BATCH_SIZE);
+    log_index(&format!(
+        "semantic:reindex:embed_batches path={path_for_db} chunks_to_embed={} batch_size={} batch_count={batch_count}",
+        embed_texts.len(),
+        SEMANTIC_EMBED_BATCH_SIZE
+    ));
+
+    let mut out = Vec::with_capacity(embed_positions.len());
+    for (batch_index, (texts, positions)) in embed_texts
+        .chunks(SEMANTIC_EMBED_BATCH_SIZE)
+        .zip(embed_positions.chunks(SEMANTIC_EMBED_BATCH_SIZE))
+        .enumerate()
+    {
+        let batch_number = batch_index + 1;
+        log_index(&format!(
+            "semantic:reindex:embed_batch:start path={path_for_db} batch_index={batch_number} batch_len={}",
+            texts.len()
+        ));
+
+        let batch_vectors =
+            embed_batch(texts).map_err(|err| AppError::InvalidOperation(err.to_string()))?;
+        if batch_vectors.len() != positions.len() {
+            return Err(AppError::OperationFailed);
+        }
+
+        log_index(&format!(
+            "semantic:reindex:embed_batch:done path={path_for_db} batch_index={batch_number} batch_len={}",
+            texts.len()
+        ));
+
+        for (target_pos, vector) in positions.iter().copied().zip(batch_vectors.into_iter()) {
+            out.push((target_pos, vector));
+        }
+    }
+
+    Ok(out)
+}
+
 pub(crate) fn reindex_markdown_file_semantic_sync(path: String) -> Result<()> {
     let started_at = Instant::now();
     let root = active_workspace_root()?;
@@ -645,15 +699,14 @@ pub(crate) fn reindex_markdown_file_semantic_sync(path: String) -> Result<()> {
     drop(stmt);
 
     if !embed_texts.is_empty() {
-        let mut new_vectors = semantic::embed_texts(&embed_texts)
-            .map_err(|err| AppError::InvalidOperation(err.to_string()))?;
-        if new_vectors.len() != embed_positions.len() {
-            return Err(AppError::OperationFailed);
-        }
+        // Process note chunks in small batches to limit local embedding memory spikes.
+        let new_vectors =
+            embed_chunk_texts_in_batches(&path_for_db, &embed_texts, &embed_positions, |texts| {
+                semantic::embed_texts(texts)
+            })?;
 
-        for (index, mut vector) in new_vectors.drain(..).enumerate() {
+        for (target_pos, mut vector) in new_vectors {
             semantic::normalize_in_place(&mut vector);
-            let target_pos = embed_positions[index];
             let chunk_id = chunk_ids[target_pos];
             let content_hash = chunk_hashes[target_pos].clone();
             tx.execute(
@@ -762,4 +815,124 @@ pub(crate) fn remove_markdown_file_from_index_sync(path: String) -> Result<()> {
     }
     log_index(&format!("reindex:removed path={path_for_db}"));
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::embed_chunk_texts_in_batches;
+    use crate::AppError;
+    use std::cell::RefCell;
+
+    #[test]
+    fn embed_chunk_texts_in_batches_skips_empty_input() {
+        let calls = RefCell::new(Vec::<usize>::new());
+        let vectors = embed_chunk_texts_in_batches("notes/a.md", &[], &[], |texts| {
+            calls.borrow_mut().push(texts.len());
+            Ok(Vec::new())
+        })
+        .expect("empty batches");
+
+        assert!(vectors.is_empty());
+        assert!(calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn embed_chunk_texts_in_batches_handles_single_short_batch() {
+        let texts = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let positions = vec![2usize, 4, 6];
+        let calls = RefCell::new(Vec::<usize>::new());
+
+        let vectors = embed_chunk_texts_in_batches("notes/a.md", &texts, &positions, |texts| {
+            calls.borrow_mut().push(texts.len());
+            Ok(texts.iter().map(|text| vec![text.len() as f32]).collect())
+        })
+        .expect("single batch");
+
+        assert_eq!(*calls.borrow(), vec![3]);
+        assert_eq!(
+            vectors,
+            vec![(2, vec![1.0]), (4, vec![1.0]), (6, vec![1.0])]
+        );
+    }
+
+    #[test]
+    fn embed_chunk_texts_in_batches_splits_exact_multiples() {
+        let texts: Vec<String> = (0..16).map(|index| format!("chunk-{index}")).collect();
+        let positions: Vec<usize> = (0..16).collect();
+        let calls = RefCell::new(Vec::<usize>::new());
+
+        let vectors = embed_chunk_texts_in_batches("notes/a.md", &texts, &positions, |texts| {
+            calls.borrow_mut().push(texts.len());
+            Ok(texts.iter().map(|text| vec![text.len() as f32]).collect())
+        })
+        .expect("exact multiple batches");
+
+        assert_eq!(*calls.borrow(), vec![8, 8]);
+        assert_eq!(vectors.len(), 16);
+        assert_eq!(vectors.first().expect("first vector").0, 0);
+        assert_eq!(vectors.last().expect("last vector").0, 15);
+    }
+
+    #[test]
+    fn embed_chunk_texts_in_batches_handles_tail_batch_and_preserves_positions() {
+        let texts: Vec<String> = (0..10).map(|index| format!("chunk-{index}")).collect();
+        let positions = vec![9usize, 1, 7, 3, 8, 2, 5, 0, 6, 4];
+        let calls = RefCell::new(Vec::<usize>::new());
+
+        let vectors = embed_chunk_texts_in_batches("notes/a.md", &texts, &positions, |texts| {
+            calls.borrow_mut().push(texts.len());
+            Ok(texts
+                .iter()
+                .enumerate()
+                .map(|(index, _)| vec![index as f32])
+                .collect())
+        })
+        .expect("tail batch");
+
+        assert_eq!(*calls.borrow(), vec![8, 2]);
+        assert_eq!(vectors[0], (9, vec![0.0]));
+        assert_eq!(vectors[7], (0, vec![7.0]));
+        assert_eq!(vectors[8], (6, vec![0.0]));
+        assert_eq!(vectors[9], (4, vec![1.0]));
+    }
+
+    #[test]
+    fn embed_chunk_texts_in_batches_errors_on_mismatched_vector_count() {
+        let texts: Vec<String> = (0..9).map(|index| format!("chunk-{index}")).collect();
+        let positions: Vec<usize> = (0..9).collect();
+        let calls = RefCell::new(Vec::<usize>::new());
+
+        let err = embed_chunk_texts_in_batches("notes/a.md", &texts, &positions, |texts| {
+            calls.borrow_mut().push(texts.len());
+            if texts.len() == 1 {
+                Ok(Vec::new())
+            } else {
+                Ok(texts.iter().map(|_| vec![1.0]).collect())
+            }
+        })
+        .expect_err("mismatched vector count should fail");
+
+        assert!(matches!(err, AppError::OperationFailed));
+        assert_eq!(*calls.borrow(), vec![8, 1]);
+    }
+
+    #[test]
+    fn embed_chunk_texts_in_batches_stops_after_batch_error() {
+        let texts: Vec<String> = (0..10).map(|index| format!("chunk-{index}")).collect();
+        let positions: Vec<usize> = (0..10).collect();
+        let calls = RefCell::new(Vec::<usize>::new());
+
+        let err = embed_chunk_texts_in_batches("notes/a.md", &texts, &positions, |texts| {
+            calls.borrow_mut().push(texts.len());
+            if texts.len() == 2 {
+                Err("Semantic embedding inference failed.".to_string())
+            } else {
+                Ok(texts.iter().map(|_| vec![1.0]).collect())
+            }
+        })
+        .expect_err("batch error should fail");
+
+        assert!(matches!(err, AppError::InvalidOperation(_)));
+        assert_eq!(*calls.borrow(), vec![8, 2]);
+    }
 }

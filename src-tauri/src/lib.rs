@@ -841,6 +841,80 @@ mod tests {
     }
 
     #[test]
+    fn semantic_reindex_reuses_stored_chunk_embeddings_for_multi_chunk_note() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-semantic-reuse-note-test");
+        let root = workspace.to_string_lossy().to_string();
+        let note_path = workspace.join("topic.md");
+        fs::write(&note_path, "# One\nalpha\n# Two\nbeta\n# Three\ngamma\n").expect("write note");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+        reindex_markdown_file_lexical_sync(note_path.to_string_lossy().to_string())
+            .expect("lexical reindex");
+
+        let conn = open_db().expect("open db");
+        let mut stmt = conn
+            .prepare("SELECT id, content_hash FROM chunks WHERE path = 'topic.md' ORDER BY chunk_ord ASC")
+            .expect("prepare chunk query");
+        let chunk_rows: Vec<(i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .expect("query chunk rows")
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .expect("collect chunk rows");
+        assert_eq!(chunk_rows.len(), 3);
+
+        for (index, (chunk_id, content_hash)) in chunk_rows.iter().enumerate() {
+            let vector = vec![index as f32 + 1.0, 0.5];
+            conn.execute(
+                "INSERT INTO embeddings(chunk_id, model, dim, content_hash, vector) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    *chunk_id,
+                    semantic::embedding_model_name(),
+                    vector.len() as i64,
+                    content_hash,
+                    semantic::vector_to_blob(&vector)
+                ],
+            )
+            .expect("insert chunk embedding");
+        }
+        drop(stmt);
+        drop(conn);
+
+        reindex_markdown_file_semantic_sync(note_path.to_string_lossy().to_string())
+            .expect("semantic reindex");
+
+        let conn = open_db().expect("reopen db");
+        let embedding_n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM embeddings WHERE chunk_id IN (SELECT id FROM chunks WHERE path = 'topic.md')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query chunk embeddings");
+        let note_embedding_n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM note_embeddings WHERE path = 'topic.md'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query note embeddings");
+        let note_embedding_dim: i64 = conn
+            .query_row(
+                "SELECT dim FROM note_embeddings WHERE path = 'topic.md'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query note embedding dim");
+        assert_eq!(embedding_n, 3);
+        assert_eq!(note_embedding_n, 1);
+        assert_eq!(note_embedding_dim, 2);
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
     fn compute_echoes_pack_rejects_non_markdown_anchor() {
         let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-echoes-invalid-anchor");
