@@ -72,4 +72,34 @@ describe('EditorTitleField', () => {
 
     app.unmount()
   })
+
+  it('does not overwrite the in-progress draft while focused', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const app = createApp(defineComponent({
+      setup() {
+        const title = ref('Alpha')
+        return () => h(EditorTitleField, {
+          modelValue: title.value,
+          'onUpdate:modelValue': (value: string) => {
+            title.value = value
+          }
+        })
+      }
+    }))
+
+    app.mount(root)
+    await flushUi()
+
+    const titleEl = root.querySelector('.editor-title-field') as HTMLElement
+    titleEl.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
+    titleEl.textContent = 'AlphaB'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    expect(titleEl.textContent).toBe('AlphaB')
+
+    app.unmount()
+  })
 })

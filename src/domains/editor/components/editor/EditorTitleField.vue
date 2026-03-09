@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: string
@@ -15,19 +15,26 @@ const emit = defineEmits<{
 }>()
 
 const rootEl = ref<HTMLElement | null>(null)
-const editingValue = ref(props.modelValue)
+const isFocused = ref(false)
 
 watch(
   () => props.modelValue,
   (value) => {
-    editingValue.value = value
+    if (isFocused.value) return
     if (rootEl.value && rootEl.value.textContent !== value) {
       rootEl.value.textContent = value
     }
-  }
+  },
+  { immediate: true }
 )
 
 const placeholderText = computed(() => props.placeholder ?? 'Untitled')
+
+onMounted(() => {
+  if (rootEl.value && rootEl.value.textContent !== props.modelValue) {
+    rootEl.value.textContent = props.modelValue
+  }
+})
 
 function readContent() {
   return (rootEl.value?.textContent ?? '').replace(/\u00a0/g, ' ')
@@ -35,7 +42,6 @@ function readContent() {
 
 function emitCurrentValue() {
   const next = readContent()
-  editingValue.value = next
   emit('update:modelValue', next)
 }
 
@@ -43,7 +49,12 @@ function onInput() {
   emitCurrentValue()
 }
 
+function onFocus() {
+  isFocused.value = true
+}
+
 function onBlur() {
+  isFocused.value = false
   emitCurrentValue()
   emit('commit')
 }
@@ -57,7 +68,6 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
     if (rootEl.value) rootEl.value.textContent = props.modelValue
-    editingValue.value = props.modelValue
     rootEl.value?.blur()
     return
   }
@@ -76,10 +86,11 @@ function onKeydown(event: KeyboardEvent) {
     :contenteditable="props.disabled ? 'false' : 'true'"
     :data-placeholder="placeholderText"
     spellcheck="false"
+    @focus="onFocus"
     @input="onInput"
     @blur="onBlur"
     @keydown="onKeydown"
-  >{{ editingValue }}</h1>
+  />
 </template>
 
 <style scoped>
