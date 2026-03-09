@@ -26,6 +26,7 @@ export type UseAppModalControllerOptions = {
 /** Owns modal selector derivation, focus restoration, and tab trapping for the shell. */
 export function useAppModalController(options: UseAppModalControllerOptions) {
   let modalFocusReturnTarget: HTMLElement | null = null
+  let modalOpenedFromEditor = false
 
   function focusWithoutScrolling(target: HTMLElement) {
     if (typeof target.focus !== 'function') return
@@ -39,6 +40,7 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
   /** Captures the currently focused element before opening a modal. */
   function rememberFocusBeforeModalOpen() {
     modalFocusReturnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    modalOpenedFromEditor = Boolean(modalFocusReturnTarget?.closest('.editor-holder, .editor-header-shell'))
   }
 
   /** Returns the selector for the top-most blocking modal currently visible. */
@@ -66,10 +68,11 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
     if (activeModalSelector()) return
     if (modalFocusReturnTarget && document.contains(modalFocusReturnTarget)) {
       focusWithoutScrolling(modalFocusReturnTarget)
-    } else {
+    } else if (!modalOpenedFromEditor) {
       options.focusEditor()
     }
     modalFocusReturnTarget = null
+    modalOpenedFromEditor = false
   }
 
   /** Keeps tab navigation trapped inside the currently active modal, if any. */

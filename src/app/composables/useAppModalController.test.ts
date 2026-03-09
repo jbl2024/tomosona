@@ -93,4 +93,22 @@ describe('useAppModalController', () => {
     expect(trapped).toBe(true)
     expect(document.activeElement).toBe(first)
   })
+
+  it('does not force editor focus when the opener was inside editor UI and got removed', () => {
+    const { controller, newFileModalVisible, focusEditor } = createController()
+    const holder = document.createElement('div')
+    holder.className = 'editor-holder'
+    const opener = document.createElement('button')
+    holder.appendChild(opener)
+    document.body.appendChild(holder)
+    opener.focus()
+
+    controller.rememberFocusBeforeModalOpen()
+    holder.remove()
+    newFileModalVisible.value = true
+    newFileModalVisible.value = false
+    controller.restoreFocusAfterModalClose()
+
+    expect(focusEditor).not.toHaveBeenCalled()
+  })
 })
