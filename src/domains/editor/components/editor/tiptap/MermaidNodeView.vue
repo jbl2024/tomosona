@@ -38,6 +38,12 @@ type MermaidRuntimeState = {
   themeKey: 'light' | 'dark' | null
 }
 
+type FontFaceSetLike = {
+  ready?: Promise<unknown>
+  addEventListener?: (type: 'loadingdone' | 'loadingerror', listener: EventListener) => void
+  removeEventListener?: (type: 'loadingdone' | 'loadingerror', listener: EventListener) => void
+}
+
 function runtimeState(): MermaidRuntimeState {
   const target = window as typeof window & { __tomosonaMermaidRuntime?: MermaidRuntimeState }
   if (!target.__tomosonaMermaidRuntime) {
@@ -48,6 +54,11 @@ function runtimeState(): MermaidRuntimeState {
 
 const instanceId = ++runtimeState().instanceSeq
 let themeObserver: MutationObserver | null = null
+let fontsReadyHandler: EventListener | null = null
+
+function documentFonts(): FontFaceSetLike | null {
+  return typeof document === 'undefined' ? null : ((document as Document & { fonts?: FontFaceSetLike }).fonts ?? null)
+}
 
 function resolveThemeKey(): 'light' | 'dark' {
   const root = document.documentElement
@@ -74,7 +85,9 @@ function buildMermaidConfig(themeKey: 'light' | 'dark') {
         tertiaryColor: '#282c34',
         clusterBkg: '#282c34',
         clusterBorder: '#64748b',
-        edgeLabelBackground: '#282c34'
+        edgeLabelBackground: '#282c34',
+        fontFamily: 'Geist, Noto Sans, DejaVu Sans, sans-serif',
+        fontSize: '14px'
       }
     }
   }
@@ -97,7 +110,9 @@ function buildMermaidConfig(themeKey: 'light' | 'dark') {
       tertiaryColor: '#ffffff',
       clusterBkg: '#f8fafc',
       clusterBorder: '#cbd5e1',
-      edgeLabelBackground: '#ffffff'
+      edgeLabelBackground: '#ffffff',
+      fontFamily: 'Geist, Noto Sans, DejaVu Sans, sans-serif',
+      fontSize: '14px'
     }
   }
 }
@@ -111,6 +126,17 @@ function ensureMermaid() {
   runtime.themeKey = themeKey
 }
 
+async function waitForFontsReady(requestId: number) {
+  const fonts = documentFonts()
+  if (!fonts?.ready) return requestId === renderRequestId
+  try {
+    await fonts.ready
+  } catch {
+    // Fall back to rendering with available fonts if the browser reports a font load failure.
+  }
+  return requestId === renderRequestId
+}
+
 async function renderPreview() {
   const target = previewEl.value
   if (!target) return
@@ -122,6 +148,7 @@ async function renderPreview() {
     return
   }
 
+  if (!(await waitForFontsReady(requestId))) return
   ensureMermaid()
   const renderToken = beginHeavyRender('mermaid-node-view')
   try {
@@ -177,12 +204,26 @@ onMounted(() => {
     void renderPreview()
   })
   themeObserver.observe(root, { attributes: true, attributeFilter: ['class', 'data-theme'] })
+  const fonts = documentFonts()
+  if (fonts?.addEventListener) {
+    fontsReadyHandler = () => {
+      void renderPreview()
+    }
+    fonts.addEventListener('loadingdone', fontsReadyHandler)
+    fonts.addEventListener('loadingerror', fontsReadyHandler)
+  }
   void renderPreview()
 })
 
 onBeforeUnmount(() => {
   themeObserver?.disconnect()
   themeObserver = null
+  const fonts = documentFonts()
+  if (fonts?.removeEventListener && fontsReadyHandler) {
+    fonts.removeEventListener('loadingdone', fontsReadyHandler)
+    fonts.removeEventListener('loadingerror', fontsReadyHandler)
+  }
+  fontsReadyHandler = null
 })
 
 watch(code, () => {

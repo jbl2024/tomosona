@@ -23,10 +23,52 @@ vi.mock('../../../lib/tiptap/renderStabilizer', () => ({
 
 import MermaidNodeView from './MermaidNodeView.vue'
 
+type FontEventType = 'loadingdone' | 'loadingerror'
+
+type MockFontFaceSet = {
+  ready: Promise<unknown>
+  addEventListener: (type: FontEventType, listener: EventListener) => void
+  removeEventListener: (type: FontEventType, listener: EventListener) => void
+  dispatch: (type: FontEventType) => void
+}
+
 async function flush() {
   await nextTick()
   await Promise.resolve()
   await nextTick()
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+function createMockFonts(ready: Promise<unknown> = Promise.resolve()): MockFontFaceSet {
+  const listeners = new Map<FontEventType, Set<EventListener>>([
+    ['loadingdone', new Set()],
+    ['loadingerror', new Set()]
+  ])
+
+  return {
+    ready,
+    addEventListener(type, listener) {
+      listeners.get(type)?.add(listener)
+    },
+    removeEventListener(type, listener) {
+      listeners.get(type)?.delete(listener)
+    },
+    dispatch(type) {
+      const event = new Event(type)
+      for (const listener of listeners.get(type) ?? []) {
+        listener(event)
+      }
+    }
+  }
 }
 
 function mountHarness(options?: {
@@ -65,7 +107,16 @@ function mountHarness(options?: {
 }
 
 describe('MermaidNodeView', () => {
+  let originalFonts: PropertyDescriptor | undefined
+  let mockFonts: MockFontFaceSet
+
   beforeEach(() => {
+    originalFonts = Object.getOwnPropertyDescriptor(document, 'fonts')
+    mockFonts = createMockFonts()
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: mockFonts
+    })
     mermaidInitialize.mockReset()
     mermaidRender.mockReset()
     beginHeavyRender.mockReset()
@@ -78,6 +129,13 @@ describe('MermaidNodeView', () => {
   })
 
   afterEach(() => {
+    if (originalFonts) {
+      Object.defineProperty(document, 'fonts', originalFonts)
+    } else {
+      Reflect.deleteProperty(document, 'fonts')
+    }
+    document.documentElement.classList.remove('dark')
+    document.documentElement.removeAttribute('data-theme')
     document.body.innerHTML = ''
   })
 
@@ -119,6 +177,41 @@ describe('MermaidNodeView', () => {
         primaryTextColor: '#e5e7eb'
       })
     }))
+    expect(mermaidRender).toHaveBeenCalledTimes(2)
+
+    harness.app.unmount()
+  })
+
+  it('waits for document fonts before first render', async () => {
+    const pendingFonts = deferred<void>()
+    mockFonts = createMockFonts(pendingFonts.promise)
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: mockFonts
+    })
+
+    const harness = mountHarness({ initialCode: 'sequenceDiagram\n  A->>B: Ping' })
+    await flush()
+
+    expect(mermaidRender).toHaveBeenCalledTimes(0)
+
+    pendingFonts.resolve()
+    await flush()
+
+    expect(mermaidRender).toHaveBeenCalledTimes(1)
+
+    harness.app.unmount()
+  })
+
+  it('rerenders when fonts finish loading after mount', async () => {
+    const harness = mountHarness({ initialCode: 'sequenceDiagram\n  A->>B: Ping' })
+    await flush()
+
+    expect(mermaidRender).toHaveBeenCalledTimes(1)
+
+    mockFonts.dispatch('loadingdone')
+    await flush()
+
     expect(mermaidRender).toHaveBeenCalledTimes(2)
 
     harness.app.unmount()
