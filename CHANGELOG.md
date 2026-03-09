@@ -18,6 +18,38 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.16.0] - 2026-03-09
+
+### Added
+- feat(debug): instrument note open performance traces (940a272)
+- feat(editor): support internal anchor links in tiptap (a269bdf)
+
+### Changed
+- style(rust): format src-tauri crate with cargo fmt (605c215)
+- refactor(backend): split tauri lib.rs into focused index modules (711ddee)
+- refactor(second-brain): split monolithic backend module and stabilize rust tests (0cd1001)
+- docs(editor): add runtime refactor backlog (cde699d)
+- refactor(editor): group chrome runtime public api (781fe70)
+- refactor(editor): simplify document runtime internals (4a74446)
+- refactor(editor): simplify interaction runtime internals (3a1de3d)
+- refactor(editor): simplify chrome runtime internals (6263363)
+- refactor(editor): simplify runtime port contracts (106b01e)
+- refactor(editor): split EditorView orchestration into runtimes (68dcc92)
+- refactor(app): simplify second brain bridge ports (e1ba2d7)
+- refactor(app): simplify quick open ports (874c432)
+- refactor(app): simplify indexing controller ports (d442a6c)
+- refactor(app): simplify workspace controller ports (3289b3d)
+- refactor(app): simplify navigation controller ports (8cb6529)
+
+### Fixed
+- fix(indexing): batch semantic note embeddings in groups of 8 (29b36d9)
+- fix(mermaid): wait for fonts before rendering diagrams (835442e)
+- fix(mermaid): use explicit theme colors for cross-platform rendering (d072f14)
+- fix(app): avoid scroll jump after rename link prompt (e561786)
+- fix(editor): reset title field when switching tabs (5f68b30)
+- fix(editor): preserve caret while editing note titles (98b62d5)
+- fix(editor): cancel deferred chrome listeners on unmount (948e901)
+
 ## [0.15.1] - 2026-03-08
 
 ### Changed

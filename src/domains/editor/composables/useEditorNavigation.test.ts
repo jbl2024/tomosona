@@ -22,8 +22,12 @@ function createEditor(nodes: Array<{ node: DescNode; pos: number }>) {
   Object.defineProperty(holder, 'scrollHeight', { value: 1200, configurable: true })
   Object.defineProperty(holder, 'scrollTop', { value: 100, writable: true, configurable: true })
   holder.getBoundingClientRect = () => ({ top: 50, left: 0, right: 800, bottom: 450, width: 800, height: 400, x: 0, y: 50, toJSON: () => ({}) }) as DOMRect
-  holder.scrollTo = vi.fn(({ top }: { top: number }) => {
-    holder.scrollTop = top
+  holder.scrollTo = vi.fn((optionsOrX?: ScrollToOptions | number, _y?: number) => {
+    if (typeof optionsOrX === 'number') {
+      holder.scrollTop = optionsOrX
+      return
+    }
+    holder.scrollTop = optionsOrX?.top ?? holder.scrollTop
   })
 
   const dom = document.createElement('div')
