@@ -5,6 +5,7 @@
 - Document/session runtime: `useEditorDocumentRuntime`
 - Interaction runtime (Tiptap/slash/wikilink/caret): `useEditorInteractionRuntime`
 - Chrome runtime (toolbars/overlays/layout/pulse): `useEditorChromeRuntime`
+  Internal organization should stay in a few local zones (`toolbars`, `blockAndTableControls`, `layoutAndZoom`, `pulseAndDialogs`) rather than new public mini-runtimes.
 - Session lifecycle/status/autosave/request token: `useEditorSessionLifecycle`
 - Session status mutation bridge for session store + lifecycle emits: `useEditorSessionStatus`
 - File load/save orchestration: `useEditorFileLifecycle`
@@ -51,5 +52,6 @@
 - Leaving dead transitional modules in tree (for example obsolete persistence abstractions).
 - Setup-order coupling where callbacks dereference later-declared composable instances.
 - Flat runtime contracts that re-expose technical callbacks instead of stable ports.
+- Turning internal chrome sub-zones into new public APIs before there is a demonstrated ownership boundary.
 - Using Vue-only selectors (for example `:deep(...)`) in extracted plain CSS files.
 - Hiding the large-document overlay before async heavy node views (Mermaid/tables) have settled.
