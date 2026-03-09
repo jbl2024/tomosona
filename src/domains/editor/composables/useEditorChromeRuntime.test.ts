@@ -194,7 +194,7 @@ describe('useEditorChromeRuntime', () => {
   it('delegates focus to the active editor', () => {
     const { runtime, activeEditor } = createRuntimeHarness()
 
-    runtime.focusEditor()
+    runtime.layout.focusEditor()
 
     expect(activeEditor.value?.commands.focus).toHaveBeenCalled()
   })
@@ -202,40 +202,40 @@ describe('useEditorChromeRuntime', () => {
   it('exposes loading overlay refs for document orchestration', () => {
     const { runtime } = createRuntimeHarness()
 
-    expect(runtime.loadUiState.isLoadingLargeDocument.value).toBe(false)
-    runtime.loadUiState.isLoadingLargeDocument.value = true
-    runtime.loadUiState.loadStageLabel.value = 'Parsing'
+    expect(runtime.loading.loadUiState.isLoadingLargeDocument.value).toBe(false)
+    runtime.loading.loadUiState.isLoadingLargeDocument.value = true
+    runtime.loading.loadUiState.loadStageLabel.value = 'Parsing'
 
-    expect(runtime.loadUiState.loadStageLabel.value).toBe('Parsing')
+    expect(runtime.loading.loadUiState.loadStageLabel.value).toBe('Parsing')
   })
 
   it('resetTransientUiState closes menus, toolbars, and transient caches', async () => {
     const { runtime, interactionMocks } = createRuntimeHarness()
-    runtime.dragHandleUiState.value = {
-      ...runtime.dragHandleUiState.value,
+    runtime.blockAndTable.dragHandleUiState.value = {
+      ...runtime.blockAndTable.dragHandleUiState.value,
       activeTarget: { pos: 12, node: null, dom: null } as any
     }
-    runtime.blockMenuTarget.value = { pos: 3, node: null, dom: null } as any
-    runtime.findToolbar.openToolbar()
+    runtime.blockAndTable.blockMenuTarget.value = { pos: 3, node: null, dom: null } as any
+    runtime.toolbars.findToolbar.openToolbar()
     await flushUi()
 
-    runtime.resetTransientUiState()
+    runtime.dialogsAndLifecycle.resetTransientUiState()
 
     expect(interactionMocks.dismissSlashMenu).toHaveBeenCalled()
     expect(interactionMocks.closeWikilinkMenu).toHaveBeenCalled()
     expect(interactionMocks.resetWikilinkDataCache).toHaveBeenCalled()
-    expect(runtime.blockMenuTarget.value).toBeNull()
-    expect(runtime.dragHandleUiState.value.activeTarget).toBeNull()
-    expect(runtime.findToolbar.open.value).toBe(false)
+    expect(runtime.blockAndTable.blockMenuTarget.value).toBeNull()
+    expect(runtime.blockAndTable.dragHandleUiState.value.activeTarget).toBeNull()
+    expect(runtime.toolbars.findToolbar.open.value).toBe(false)
   })
 
   it('onHolderKeydown opens find on Cmd/Ctrl+F and otherwise delegates to editor input', async () => {
     const { runtime, holder, interactionMocks } = createRuntimeHarness()
-    await runtime.onMountInit()
+    await runtime.dialogsAndLifecycle.onMountInit()
 
     holder.value?.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true }))
     await flushUi()
-    expect(runtime.findToolbar.open.value).toBe(true)
+    expect(runtime.toolbars.findToolbar.open.value).toBe(true)
     expect(interactionMocks.markEditorInteraction).toHaveBeenCalled()
     expect(interactionMocks.onEditorKeydown).not.toHaveBeenCalled()
 
@@ -243,12 +243,12 @@ describe('useEditorChromeRuntime', () => {
     await flushUi()
     expect(interactionMocks.onEditorKeydown).toHaveBeenCalled()
 
-    await runtime.onUnmountCleanup()
+    await runtime.dialogsAndLifecycle.onUnmountCleanup()
   })
 
   it('onHolderCopy is a safe no-op without payload and writes all clipboard formats when present', async () => {
     const { runtime, holder, interactionMocks } = createRuntimeHarness()
-    await runtime.onMountInit()
+    await runtime.dialogsAndLifecycle.onMountInit()
 
     extractSelectionClipboardPayloadMock.mockReturnValueOnce(null)
     holder.value?.dispatchEvent(createClipboardEvent())
@@ -269,58 +269,58 @@ describe('useEditorChromeRuntime', () => {
     expect(clipboardData.setData).toHaveBeenCalledWith('text/html', '<p>Plain</p>')
     expect(clipboardData.setData).toHaveBeenCalledWith('text/markdown', '**Plain**')
 
-    await runtime.onUnmountCleanup()
+    await runtime.dialogsAndLifecycle.onUnmountCleanup()
   })
 
   it('closePulsePanel cancels a running request and resets the preview state', () => {
     const { runtime } = createRuntimeHarness()
-    runtime.pulseOpen.value = true
+    runtime.pulse.pulseOpen.value = true
     previewMarkdown.value = 'Draft'
     running.value = true
 
-    runtime.closePulsePanel()
+    runtime.pulse.closePulsePanel()
 
     expect(cancelMock).toHaveBeenCalled()
     expect(resetMock).toHaveBeenCalled()
-    expect(runtime.pulseOpen.value).toBe(false)
+    expect(runtime.pulse.pulseOpen.value).toBe(false)
   })
 
   it('openPulseForSelection ignores missing or empty selections and initializes pulse state when valid', () => {
     const inactive = createRuntimeHarness({ activeEditor: ref<Editor | null>(null) as Ref<Editor | null> })
-    inactive.runtime.openPulseForSelection()
-    expect(inactive.runtime.pulseOpen.value).toBe(false)
+    inactive.runtime.pulse.openPulseForSelection()
+    expect(inactive.runtime.pulse.pulseOpen.value).toBe(false)
 
     const emptySelectionEditor = ref<Editor | null>(createEditorStub({ from: 1, to: 1, empty: true })) as Ref<Editor | null>
     const emptySelection = createRuntimeHarness({ activeEditor: emptySelectionEditor })
-    emptySelection.runtime.openPulseForSelection()
-    expect(emptySelection.runtime.pulseOpen.value).toBe(false)
+    emptySelection.runtime.pulse.openPulseForSelection()
+    expect(emptySelection.runtime.pulse.pulseOpen.value).toBe(false)
 
     const valid = createRuntimeHarness()
-    valid.runtime.openPulseForSelection()
-    expect(valid.runtime.pulseOpen.value).toBe(true)
-    expect(valid.runtime.pulseSourceKind.value).toBe('editor_selection')
-    expect(valid.runtime.pulseSelectionRange.value).toEqual({ from: 1, to: 2 })
-    expect(valid.runtime.pulseSourceText.value).toBe('Alpha')
+    valid.runtime.pulse.openPulseForSelection()
+    expect(valid.runtime.pulse.pulseOpen.value).toBe(true)
+    expect(valid.runtime.pulse.pulseSourceKind.value).toBe('editor_selection')
+    expect(valid.runtime.pulse.pulseSelectionRange.value).toEqual({ from: 1, to: 2 })
+    expect(valid.runtime.pulse.pulseSourceText.value).toBe('Alpha')
   })
 
   it('sendPulseContextToSecondBrain emits and closes Pulse, but ignores note mode without currentPath', () => {
     const noPath = createRuntimeHarness({ currentPath: '' })
-    noPath.runtime.pulseOpen.value = true
-    noPath.runtime.pulseSourceKind.value = 'editor_note'
-    noPath.runtime.sendPulseContextToSecondBrain()
+    noPath.runtime.pulse.pulseOpen.value = true
+    noPath.runtime.pulse.pulseSourceKind.value = 'editor_note'
+    noPath.runtime.pulse.sendPulseContextToSecondBrain()
     expect(noPath.emitPulseOpenSecondBrain).not.toHaveBeenCalled()
-    expect(noPath.runtime.pulseOpen.value).toBe(true)
+    expect(noPath.runtime.pulse.pulseOpen.value).toBe(true)
 
     const valid = createRuntimeHarness()
-    valid.runtime.pulseOpen.value = true
-    valid.runtime.pulseSourceKind.value = 'editor_note'
-    valid.runtime.pulseSourceText.value = 'Alpha'
-    valid.runtime.sendPulseContextToSecondBrain()
+    valid.runtime.pulse.pulseOpen.value = true
+    valid.runtime.pulse.pulseSourceKind.value = 'editor_note'
+    valid.runtime.pulse.pulseSourceText.value = 'Alpha'
+    valid.runtime.pulse.sendPulseContextToSecondBrain()
     expect(valid.emitPulseOpenSecondBrain).toHaveBeenCalledWith({
       contextPaths: ['a.md'],
       prompt: expect.stringContaining('Source material:')
     })
-    expect(valid.runtime.pulseOpen.value).toBe(false)
+    expect(valid.runtime.pulse.pulseOpen.value).toBe(false)
   })
 
   it('mount and unmount lifecycle bind listeners and resolve pending mermaid confirmations', async () => {
@@ -332,12 +332,12 @@ describe('useEditorChromeRuntime', () => {
     const harness = createRuntimeHarness()
     harness.holder.value = holder
     let resolved = false
-    harness.runtime.mermaidReplaceDialog.value.resolve = (approved) => {
+    harness.runtime.dialogsAndLifecycle.mermaidReplaceDialog.value.resolve = (approved) => {
       resolved = approved
     }
 
-    await harness.runtime.onMountInit()
-    await harness.runtime.onUnmountCleanup()
+    await harness.runtime.dialogsAndLifecycle.onMountInit()
+    await harness.runtime.dialogsAndLifecycle.onUnmountCleanup()
 
     expect(holderAddEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true)
     expect(addEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true)
@@ -361,9 +361,9 @@ describe('useEditorChromeRuntime', () => {
     vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameSpy)
 
     const harness = createRuntimeHarness()
-    const mountPromise = harness.runtime.onMountInit()
+    const mountPromise = harness.runtime.dialogsAndLifecycle.onMountInit()
     await nextTick()
-    await harness.runtime.onUnmountCleanup()
+    await harness.runtime.dialogsAndLifecycle.onUnmountCleanup()
 
     expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(42)
     expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true)
@@ -389,9 +389,9 @@ describe('useEditorChromeRuntime', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
 
     const harness = createRuntimeHarness()
-    const firstMount = harness.runtime.onMountInit()
+    const firstMount = harness.runtime.dialogsAndLifecycle.onMountInit()
     await nextTick()
-    const secondMount = harness.runtime.onMountInit()
+    const secondMount = harness.runtime.dialogsAndLifecycle.onMountInit()
     await nextTick()
 
     expect(frameCallbacks).toHaveLength(2)

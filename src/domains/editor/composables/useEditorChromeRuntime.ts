@@ -73,7 +73,12 @@ export type UseEditorChromeRuntimeOptions = {
 }
 
 /**
- * Coordinates editor-adjacent UI concerns while preserving a compact public API for EditorView.
+ * Coordinates editor-adjacent UI concerns behind a grouped public API so
+ * EditorView can consume stable sub-systems instead of a flat callback bag.
+ *
+ * The grouped API is intentionally a usage boundary, not yet a file/module
+ * extraction boundary. In particular, `pulse` is a stable public surface but
+ * still lives inside chrome until its ownership is proven independent.
  */
 export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
   const TABLE_EDGE_SHOW_THRESHOLD = 20
@@ -769,13 +774,8 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     setPulseInstruction
   }
 
-  return {
+  const loading = {
     titleEditorFocused,
-    isLoadingLargeDocument,
-    loadStageLabel,
-    loadProgressPercent,
-    loadProgressIndeterminate,
-    loadDocumentStats,
     loadUiState: {
       isLoadingLargeDocument,
       loadStageLabel,
@@ -783,19 +783,9 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
       loadProgressIndeterminate,
       loadDocumentStats
     },
-    largeDocThreshold: LARGE_DOC_THRESHOLD,
-    pulse: pulseAndDialogs.pulse,
-    pulseOpen: pulseAndDialogs.pulseOpen,
-    pulseSourceKind: pulseAndDialogs.pulseSourceKind,
-    pulseActionId: pulseAndDialogs.pulseActionId,
-    pulseInstruction: pulseAndDialogs.pulseInstruction,
-    pulseSourceText: pulseAndDialogs.pulseSourceText,
-    pulseSelectionRange: pulseAndDialogs.pulseSelectionRange,
-    mermaidReplaceDialog: pulseAndDialogs.mermaidReplaceDialog,
-    resolveMermaidReplaceDialog,
-    requestMermaidReplaceConfirm: pulseAndDialogs.requestMermaidReplaceConfirm,
-    pulsePanelStyle: pulseAndDialogs.pulsePanelStyle,
-    renderedEditor,
+    largeDocThreshold: LARGE_DOC_THRESHOLD
+  }
+  const blockAndTable = {
     blockMenuFloatingEl: blockAndTableControls.blockMenuFloatingEl,
     tableToolbarFloatingEl: blockAndTableControls.tableToolbarFloatingEl,
     blockMenuPos: blockAndTableControls.blockMenuPos,
@@ -811,12 +801,7 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     dragHandleUiState: blockAndTableControls.dragHandleUiState,
     computedDragLock: blockAndTableControls.computedDragLock,
     debugTargetPos: blockAndTableControls.debugTargetPos,
-    DRAG_HANDLE_PLUGIN_KEY,
-    DRAG_HANDLE_DEBUG,
-    TABLE_MARKDOWN_MODE,
     dragHandleComputePositionConfig,
-    inlineFormatToolbar: toolbars.inlineFormatToolbar,
-    findToolbar: toolbars.findToolbar,
     blockMenuOpen: blockAndTableControls.blockMenuControls.blockMenuOpen,
     blockMenuIndex: blockAndTableControls.blockMenuControls.blockMenuIndex,
     blockMenuTarget: blockAndTableControls.blockMenuControls.blockMenuTarget,
@@ -848,31 +833,63 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     addColumnBeforeFromTrigger: blockAndTableControls.tableInteractions.addColumnBeforeFromTrigger,
     addColumnAfterFromTrigger: blockAndTableControls.tableInteractions.addColumnAfterFromTrigger,
     onEditorMouseMove: blockAndTableControls.onEditorMouseMove,
-    onEditorMouseLeave: blockAndTableControls.onEditorMouseLeave,
+    onEditorMouseLeave: blockAndTableControls.onEditorMouseLeave
+  }
+  const layout = {
+    renderedEditor,
     editorZoomStyle: layoutAndZoom.editorZoomStyle,
-    initEditorZoomFromStorage,
+    getZoom: layoutAndZoom.getZoom,
     zoomEditorBy: layoutAndZoom.zoomEditorBy,
     resetEditorZoom: layoutAndZoom.resetEditorZoom,
-    getZoom: layoutAndZoom.getZoom,
+    focusEditor: layoutAndZoom.focusEditor,
     gutterHitboxStyle: layoutAndZoom.layoutMetrics.gutterHitboxStyle,
     onHolderScroll: layoutAndZoom.layoutMetrics.onHolderScroll,
-    updateGutterHitboxStyle: layoutAndZoom.updateGutterHitboxStyle,
-    resetTransientUiState,
-    updateFormattingToolbar: toolbars.updateFormattingToolbar,
-    focusEditor: layoutAndZoom.focusEditor,
-    onActiveSessionChanged: toolbars.onActiveSessionChanged,
-    onDocumentContentChanged: toolbars.onDocumentContentChanged,
-    onMountInit,
-    onUnmountCleanup,
+    updateGutterHitboxStyle: layoutAndZoom.updateGutterHitboxStyle
+  }
+  const pulseApi = {
+    pulse: pulseAndDialogs.pulse,
+    pulseOpen: pulseAndDialogs.pulseOpen,
+    pulseSourceKind: pulseAndDialogs.pulseSourceKind,
+    pulseActionId: pulseAndDialogs.pulseActionId,
+    pulseInstruction: pulseAndDialogs.pulseInstruction,
+    pulseSourceText: pulseAndDialogs.pulseSourceText,
+    pulseSelectionRange: pulseAndDialogs.pulseSelectionRange,
+    pulsePanelStyle: pulseAndDialogs.pulsePanelStyle,
     openPulseForSelection: pulseAndDialogs.openPulseForSelection,
-    onInlineToolbarCopyAs: toolbars.onInlineToolbarCopyAs,
-    onPulseActionChange: pulseAndDialogs.onPulseActionChange,
-    onPulseInstructionChange: pulseAndDialogs.onPulseInstructionChange,
-    setPulseInstruction: pulseAndDialogs.setPulseInstruction,
     runPulseFromEditor: pulseAndDialogs.runPulseFromEditor,
-    closePulsePanel: pulseAndDialogs.closePulsePanel,
     replaceSelectionWithPulseOutput: pulseAndDialogs.replaceSelectionWithPulseOutput,
     insertPulseBelow: pulseAndDialogs.insertPulseBelow,
-    sendPulseContextToSecondBrain: pulseAndDialogs.sendPulseContextToSecondBrain
+    sendPulseContextToSecondBrain: pulseAndDialogs.sendPulseContextToSecondBrain,
+    closePulsePanel: pulseAndDialogs.closePulsePanel,
+    onPulseActionChange: pulseAndDialogs.onPulseActionChange,
+    onPulseInstructionChange: pulseAndDialogs.onPulseInstructionChange,
+    setPulseInstruction: pulseAndDialogs.setPulseInstruction
+  }
+  const dialogsAndLifecycle = {
+    mermaidReplaceDialog: pulseAndDialogs.mermaidReplaceDialog,
+    resolveMermaidReplaceDialog,
+    requestMermaidReplaceConfirm: pulseAndDialogs.requestMermaidReplaceConfirm,
+    resetTransientUiState,
+    onMountInit,
+    onUnmountCleanup
+  }
+
+  return {
+    DRAG_HANDLE_PLUGIN_KEY,
+    DRAG_HANDLE_DEBUG,
+    TABLE_MARKDOWN_MODE,
+    loading,
+    toolbars: {
+      inlineFormatToolbar: toolbars.inlineFormatToolbar,
+      findToolbar: toolbars.findToolbar,
+      updateFormattingToolbar: toolbars.updateFormattingToolbar,
+      onInlineToolbarCopyAs: toolbars.onInlineToolbarCopyAs,
+      onActiveSessionChanged: toolbars.onActiveSessionChanged,
+      onDocumentContentChanged: toolbars.onDocumentContentChanged
+    },
+    blockAndTable,
+    layout,
+    pulse: pulseApi,
+    dialogsAndLifecycle
   }
 }

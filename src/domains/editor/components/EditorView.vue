@@ -133,29 +133,29 @@ interactionRuntime = useEditorInteractionRuntime({
   },
   interactionEditorPort: {
     emitOutline,
-    requestMermaidReplaceConfirm: chromeRuntime.requestMermaidReplaceConfirm
+    requestMermaidReplaceConfirm: chromeRuntime.dialogsAndLifecycle.requestMermaidReplaceConfirm
   },
   interactionChromePort: {
     menus: {
-      blockMenuOpen: chromeRuntime.blockMenuOpen,
-      tableToolbarOpen: chromeRuntime.tableToolbarOpen,
-      isDragMenuOpen: () => chromeRuntime.dragHandleUiState.value.menuOpen,
-      closeBlockMenu: () => chromeRuntime.closeBlockMenu(),
-      hideTableToolbar: () => chromeRuntime.hideTableToolbar()
+      blockMenuOpen: chromeRuntime.blockAndTable.blockMenuOpen,
+      tableToolbarOpen: chromeRuntime.blockAndTable.tableToolbarOpen,
+      isDragMenuOpen: () => chromeRuntime.blockAndTable.dragHandleUiState.value.menuOpen,
+      closeBlockMenu: () => chromeRuntime.blockAndTable.closeBlockMenu(),
+      hideTableToolbar: () => chromeRuntime.blockAndTable.hideTableToolbar()
     },
     toolbars: {
-      updateFormattingToolbar: () => chromeRuntime.updateFormattingToolbar(),
-      updateTableToolbar: () => chromeRuntime.updateTableToolbar(),
+      updateFormattingToolbar: () => chromeRuntime.toolbars.updateFormattingToolbar(),
+      updateTableToolbar: () => chromeRuntime.blockAndTable.updateTableToolbar(),
       inlineFormatToolbar: {
-        updateFormattingToolbar: chromeRuntime.inlineFormatToolbar.updateFormattingToolbar,
-        openLinkPopover: chromeRuntime.inlineFormatToolbar.openLinkPopover,
-        linkPopoverOpen: chromeRuntime.inlineFormatToolbar.linkPopoverOpen,
-        cancelLink: chromeRuntime.inlineFormatToolbar.cancelLink
+        updateFormattingToolbar: chromeRuntime.toolbars.inlineFormatToolbar.updateFormattingToolbar,
+        openLinkPopover: chromeRuntime.toolbars.inlineFormatToolbar.openLinkPopover,
+        linkPopoverOpen: chromeRuntime.toolbars.inlineFormatToolbar.linkPopoverOpen,
+        cancelLink: chromeRuntime.toolbars.inlineFormatToolbar.cancelLink
       }
     },
     zoom: {
-      zoomEditorBy: (delta) => chromeRuntime.zoomEditorBy(delta),
-      resetEditorZoom: () => chromeRuntime.resetEditorZoom()
+      zoomEditorBy: (delta) => chromeRuntime.layout.zoomEditorBy(delta),
+      resetEditorZoom: () => chromeRuntime.layout.resetEditorZoom()
     }
   },
   interactionIoPort: {
@@ -185,20 +185,20 @@ documentRuntime = useEditorDocumentRuntime({
   documentSessionPort: {
     holder,
     activeEditor,
-    isEditingTitle: () => chromeRuntime.titleEditorFocused.value,
+    isEditingTitle: () => chromeRuntime.loading.titleEditorFocused.value,
     createSessionEditor: interactionRuntime.createSessionEditor
   },
   documentUiPort: {
-    loading: chromeRuntime.loadUiState,
-    largeDocThreshold: chromeRuntime.largeDocThreshold,
-    resetTransientUi: chromeRuntime.resetTransientUiState,
-    syncLayout: chromeRuntime.updateGutterHitboxStyle,
-    hideTableToolbarAnchor: chromeRuntime.hideTableToolbarAnchor,
-    closeCompetingMenus: chromeRuntime.closeBlockMenu,
-    syncAfterSessionChange: chromeRuntime.onActiveSessionChanged,
-    syncAfterDocumentChange: chromeRuntime.onDocumentContentChanged,
-    initializeUi: chromeRuntime.onMountInit,
-    disposeUi: chromeRuntime.onUnmountCleanup,
+    loading: chromeRuntime.loading.loadUiState,
+    largeDocThreshold: chromeRuntime.loading.largeDocThreshold,
+    resetTransientUi: chromeRuntime.dialogsAndLifecycle.resetTransientUiState,
+    syncLayout: chromeRuntime.layout.updateGutterHitboxStyle,
+    hideTableToolbarAnchor: chromeRuntime.blockAndTable.hideTableToolbarAnchor,
+    closeCompetingMenus: chromeRuntime.blockAndTable.closeBlockMenu,
+    syncAfterSessionChange: chromeRuntime.toolbars.onActiveSessionChanged,
+    syncAfterDocumentChange: chromeRuntime.toolbars.onDocumentContentChanged,
+    initializeUi: chromeRuntime.dialogsAndLifecycle.onMountInit,
+    disposeUi: chromeRuntime.dialogsAndLifecycle.onUnmountCleanup,
     interaction: {
       captureCaret: interactionRuntime.captureCaret,
       restoreCaret: interactionRuntime.restoreCaret,
@@ -218,14 +218,15 @@ const currentTitle = documentRuntime.currentTitle
 const renderPaths = documentRuntime.renderPaths
 const renderedEditorsByPath = documentRuntime.renderedEditorsByPath
 const isActiveMountedPath = documentRuntime.isActiveMountedPath
-const getZoom = chromeRuntime.getZoom
+const { loading, toolbars, blockAndTable, layout, pulse, dialogsAndLifecycle } = chromeRuntime
+const getZoom = layout.getZoom
 const onTitleInput = documentRuntime.onTitleInput
 const onTitleCommit = documentRuntime.onTitleCommit
-const focusEditor = chromeRuntime.focusEditor
+const focusEditor = layout.focusEditor
 // Kept as local bindings so Pulse contract tests can reach them through setupState
 // without reintroducing a broader public API on the component itself.
-const setPulseInstruction = chromeRuntime.setPulseInstruction
-const pulseSelectionRange = chromeRuntime.pulseSelectionRange
+const setPulseInstruction = pulse.setPulseInstruction
+const pulseSelectionRange = pulse.pulseSelectionRange
 void setPulseInstruction
 void pulseSelectionRange
 const {
@@ -254,17 +255,17 @@ const {
   loadDocumentStats
 } = documentRuntime
 const {
-  titleEditorFocused,
-  pulse,
-  pulseOpen,
-  pulseSourceKind,
-  pulseActionId,
-  pulseInstruction,
-  pulseSourceText,
-  mermaidReplaceDialog,
-  resolveMermaidReplaceDialog,
-  pulsePanelStyle,
-  renderedEditor,
+  DRAG_HANDLE_PLUGIN_KEY,
+  DRAG_HANDLE_DEBUG,
+} = chromeRuntime
+const TABLE_MARKDOWN_MODE = chromeRuntime.TABLE_MARKDOWN_MODE
+const { titleEditorFocused } = loading
+const {
+  inlineFormatToolbar,
+  findToolbar,
+  onInlineToolbarCopyAs
+} = toolbars
+const {
   blockMenuFloatingEl,
   tableToolbarFloatingEl,
   blockMenuPos,
@@ -280,12 +281,7 @@ const {
   dragHandleUiState,
   computedDragLock,
   debugTargetPos,
-  DRAG_HANDLE_PLUGIN_KEY,
-  DRAG_HANDLE_DEBUG,
-  TABLE_MARKDOWN_MODE,
   dragHandleComputePositionConfig,
-  inlineFormatToolbar,
-  findToolbar,
   blockMenuOpen,
   blockMenuIndex,
   blockMenuActions,
@@ -314,12 +310,23 @@ const {
   addColumnBeforeFromTrigger,
   addColumnAfterFromTrigger,
   onEditorMouseMove,
-  onEditorMouseLeave,
+  onEditorMouseLeave
+} = blockAndTable
+const {
+  renderedEditor,
   editorZoomStyle,
   zoomEditorBy,
   resetEditorZoom,
-  gutterHitboxStyle,
-  onInlineToolbarCopyAs,
+  gutterHitboxStyle
+} = layout
+const {
+  pulseOpen,
+  pulse: pulseState,
+  pulseSourceKind,
+  pulseActionId,
+  pulseInstruction,
+  pulseSourceText,
+  pulsePanelStyle,
   onPulseActionChange,
   onPulseInstructionChange,
   runPulseFromEditor,
@@ -328,7 +335,11 @@ const {
   replaceSelectionWithPulseOutput,
   insertPulseBelow,
   sendPulseContextToSecondBrain
-} = chromeRuntime
+} = pulse
+const {
+  mermaidReplaceDialog,
+  resolveMermaidReplaceDialog
+} = dialogsAndLifecycle
 const {
   slashOpen,
   slashIndex,
@@ -380,7 +391,7 @@ defineExpose({
     documentRuntime.setActiveSession(currentPath.value)
     await documentRuntime.loadCurrentFile(currentPath.value, { forceReload: true, requestId })
   },
-  focusEditor: chromeRuntime.focusEditor,
+  focusEditor: layout.focusEditor,
   focusFirstContentBlock,
   revealSnippet,
   revealOutlineHeading,
@@ -389,12 +400,12 @@ defineExpose({
   zoomOut: () => zoomEditorBy(-0.1),
   resetZoom: () => resetEditorZoom(),
   getZoom,
-  pulseOpen: chromeRuntime.pulseOpen,
-  pulseSourceKind: chromeRuntime.pulseSourceKind,
-  pulseActionId: chromeRuntime.pulseActionId,
-  pulseSourceText: chromeRuntime.pulseSourceText,
-  pulseSelectionRange: chromeRuntime.pulseSelectionRange,
-  setPulseInstruction: chromeRuntime.setPulseInstruction
+  pulseOpen: pulse.pulseOpen,
+  pulseSourceKind: pulse.pulseSourceKind,
+  pulseActionId: pulse.pulseActionId,
+  pulseSourceText: pulse.pulseSourceText,
+  pulseSelectionRange: pulse.pulseSelectionRange,
+  setPulseInstruction: pulse.setPulseInstruction
 })
 </script>
 
@@ -618,17 +629,17 @@ defineExpose({
               :action-id="pulseActionId"
               :actions="PULSE_ACTIONS_BY_SOURCE[pulseSourceKind]"
               :instruction="pulseInstruction"
-              :preview-markdown="pulse.previewMarkdown.value"
-              :provenance-paths="pulse.provenancePaths.value"
-              :running="pulse.running.value"
-              :error="pulse.error.value"
+              :preview-markdown="pulseState.previewMarkdown.value"
+              :provenance-paths="pulseState.provenancePaths.value"
+              :running="pulseState.running.value"
+              :error="pulseState.error.value"
               :source-text="pulseSourceText"
               :apply-modes="pulseSourceKind === 'editor_selection' ? ['replace_selection', 'insert_below', 'send_to_second_brain'] : ['insert_below', 'send_to_second_brain']"
               :primary-apply-mode="pulseSourceKind === 'editor_selection' ? 'replace_selection' : 'insert_below'"
               @update:action-id="onPulseActionChange($event as PulseActionId)"
               @update:instruction="onPulseInstructionChange($event)"
               @run="void runPulseFromEditor()"
-              @cancel="void pulse.cancel()"
+              @cancel="void pulseState.cancel()"
               @close="closePulsePanel()"
               @apply="(mode: PulseApplyMode) => {
                 if (mode === 'replace_selection') replaceSelectionWithPulseOutput()

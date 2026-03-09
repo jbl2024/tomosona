@@ -8,6 +8,7 @@
   Internal organization should stay in a few local flow zones (`slashAndInsertion`, `wikilinkFlow`, `caretAndOutline`, `editorInputAndNavigation`) rather than more public runtime layers.
 - Chrome runtime (toolbars/overlays/layout/pulse): `useEditorChromeRuntime`
   Internal organization should stay in a few local zones (`toolbars`, `blockAndTableControls`, `layoutAndZoom`, `pulseAndDialogs`) rather than new public mini-runtimes.
+  Public API should stay grouped by usage (`loading`, `toolbars`, `blockAndTable`, `layout`, `pulse`, `dialogsAndLifecycle`) instead of being flattened back into `EditorView.vue`.
 - Session lifecycle/status/autosave/request token: `useEditorSessionLifecycle`
 - Session status mutation bridge for session store + lifecycle emits: `useEditorSessionStatus`
 - File load/save orchestration: `useEditorFileLifecycle`
@@ -55,6 +56,7 @@
 - Setup-order coupling where callbacks dereference later-declared composable instances.
 - Flat runtime contracts that re-expose technical callbacks instead of stable ports.
 - Turning internal chrome sub-zones into new public APIs before there is a demonstrated ownership boundary.
+- Re-flattening grouped chrome runtime APIs in `EditorView.vue` instead of consuming them by sub-system.
 - Turning internal interaction flow zones into new public APIs before there is a demonstrated ownership boundary.
 - Turning internal document runtime sub-zones into new public APIs before there is a demonstrated ownership boundary.
 - Using Vue-only selectors (for example `:deep(...)`) in extracted plain CSS files.
