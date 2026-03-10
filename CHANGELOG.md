@@ -18,6 +18,23 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.16.2] - 2026-03-10
+
+### Added
+- feat(mermaid): add zoom modal and svg/png export (d44a0ae)
+- feat(editor): add top-level table of contents slash command (9d5dcbf)
+- feat(launchpad): add viewed and updated recent note tabs (9151581)
+- feat(editor): generate toc entries as anchor links (45b5dc1)
+
+### Changed
+- chore(mermaid): remove png export action from preview dialog (3d2e670)
+- refactor(editor): harden markdown list parsing and round-trip stability (a74a825)
+
+### Fixed
+- fix(mermaid): serialize rendered svg for export (3024c20)
+- fix(mermaid): harden png export rasterization (acf9812)
+- fix(editor): keep enter inside code blocks (713dc5a)
+
 ## [0.16.1] - 2026-03-10
 
 ### Fixed
