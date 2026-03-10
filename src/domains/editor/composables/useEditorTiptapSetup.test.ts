@@ -41,10 +41,12 @@ describe('useEditorTiptapSetup', () => {
     const { setup } = createSetup()
     const editorOptions = setup.createEditorOptions('a.md') as any
     const extensionNames = (editorOptions.extensions ?? []).map((extension: { name?: string }) => extension.name)
+    const codeBlock = (editorOptions.extensions ?? []).find((extension: { name?: string }) => extension.name === 'codeBlock')
 
     expect(Array.isArray(editorOptions.extensions)).toBe(true)
     expect(editorOptions.extensions.length).toBeGreaterThan(8)
     expect(extensionNames).toContain('tableCellAlign')
+    expect(codeBlock?.options?.exitOnTripleEnter).toBe(false)
     expect(typeof editorOptions.editorProps.handleClick).toBe('function')
   })
 

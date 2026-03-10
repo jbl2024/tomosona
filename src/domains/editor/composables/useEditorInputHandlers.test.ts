@@ -226,6 +226,67 @@ describe('useEditorInputHandlers', () => {
     expect(event.stopPropagation).not.toHaveBeenCalled()
   })
 
+  it('keeps native paste inside code blocks', () => {
+    const insertContent = vi.fn()
+    const editor = {
+      state: {
+        selection: {
+          $from: {
+            parent: {
+              type: { name: 'codeBlock' }
+            },
+            marks: () => []
+          }
+        }
+      },
+      chain: () => ({
+        focus: () => ({
+          insertContent: (...args: unknown[]) => {
+            insertContent(...args)
+            return { run: () => true }
+          }
+        })
+      })
+    } as unknown as Editor
+
+    const { handlers } = createHandlers({
+      menusPort: {
+        visibleSlashCommands: ref([]),
+        slashOpen: ref(false),
+        slashIndex: ref(0),
+        closeSlashMenu: vi.fn(),
+        blockMenuOpen: ref(false),
+        closeBlockMenu: vi.fn(),
+        tableToolbarOpen: ref(false),
+        hideTableToolbar: vi.fn(),
+        inlineFormatToolbar: {
+          linkPopoverOpen: ref(false),
+          cancelLink: vi.fn()
+        }
+      },
+      editingPort: {
+        getEditor: () => editor,
+        currentPath: ref('a.md'),
+        captureCaret: vi.fn(),
+        currentTextSelectionContext: () => null,
+        insertBlockFromDescriptor: vi.fn(() => true)
+      }
+    })
+
+    const event = {
+      clipboardData: {
+        getData: (kind: string) => (kind === 'text/plain' ? '# title' : '')
+      },
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    } as unknown as ClipboardEvent
+
+    handlers.onEditorPaste(event)
+    expect(insertContent).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(event.stopPropagation).not.toHaveBeenCalled()
+  })
+
   it('replaces current paragraph when heading markdown with text is converted', () => {
     const { handlers, options } = createHandlers({
       menusPort: {

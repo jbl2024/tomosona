@@ -70,6 +70,13 @@ export type UseEditorInputHandlersOptions = {
  * - Handlers no-op when editor/runtime dependencies are unavailable.
  */
 export function useEditorInputHandlers(options: UseEditorInputHandlersOptions) {
+  function shouldUseNativePaste(editor: Editor): boolean {
+    const $from = editor.state?.selection?.$from
+    if (!$from) return false
+    if ($from.parent.type.name === 'codeBlock') return true
+    return $from.marks().some((mark) => mark.type.name === 'code')
+  }
+
   function onEditorKeydown(event: KeyboardEvent) {
     if (!options.editingPort.getEditor()) return
 
@@ -189,6 +196,7 @@ export function useEditorInputHandlers(options: UseEditorInputHandlersOptions) {
   function onEditorPaste(event: ClipboardEvent) {
     const editor = options.editingPort.getEditor()
     if (!editor) return
+    if (shouldUseNativePaste(editor)) return
 
     const plain = event.clipboardData?.getData('text/plain') ?? ''
     const html = event.clipboardData?.getData('text/html') ?? ''

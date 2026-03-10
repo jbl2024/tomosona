@@ -8,6 +8,7 @@ const lowlight = createLowlight(common)
 export const CodeBlockNode = CodeBlockLowlight.configure({
   lowlight,
   defaultLanguage: 'plaintext',
+  exitOnTripleEnter: false,
   enableTabIndentation: true,
   tabSize: 2
 }).extend({
