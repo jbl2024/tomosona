@@ -275,7 +275,7 @@ describe('EditorView interactions contract', () => {
     zoomButton.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     await flushUi()
 
-    expect(root.textContent).toContain('Preview the diagram at full size and export it as SVG or PNG.')
+    expect(root.textContent).toContain('Preview the diagram at full size and export it as SVG.')
     expect(root.querySelector('.editor-mermaid-preview svg')).toBeTruthy()
     expect(mermaidRender).toHaveBeenCalled()
 

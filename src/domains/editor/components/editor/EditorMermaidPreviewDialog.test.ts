@@ -30,8 +30,7 @@ describe('EditorMermaidPreviewDialog', () => {
             open.value = false
             closeEvents.push('close')
           },
-          onExportSvg: (previewSvg: SVGElement | null) => exportEvents.push(previewSvg?.tagName ?? 'svg:none'),
-          onExportPng: () => exportEvents.push('png')
+          onExportSvg: (previewSvg: SVGElement | null) => exportEvents.push(previewSvg?.tagName ?? 'svg:none')
         })
       }
     }))
@@ -39,16 +38,15 @@ describe('EditorMermaidPreviewDialog', () => {
     app.mount(root)
     await flushUi()
 
-    expect(root.textContent).toContain('Preview the diagram at full size and export it as SVG or PNG.')
+    expect(root.textContent).toContain('Preview the diagram at full size and export it as SVG.')
     expect(root.querySelector('.editor-mermaid-preview svg')).toBeTruthy()
 
     const buttons = Array.from(root.querySelectorAll('button')) as HTMLButtonElement[]
     buttons.find((button) => button.textContent?.includes('Export SVG'))?.click()
-    buttons.find((button) => button.textContent?.includes('Export PNG'))?.click()
     buttons.find((button) => button.textContent?.includes('Close'))?.click()
     await flushUi()
 
-    expect(exportEvents).toEqual(['svg', 'png'])
+    expect(exportEvents).toEqual(['svg'])
     expect(closeEvents).toEqual(['close'])
     app.unmount()
   })

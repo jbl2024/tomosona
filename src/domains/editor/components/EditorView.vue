@@ -343,8 +343,7 @@ const {
   resolveMermaidReplaceDialog,
   mermaidPreviewDialog,
   closeMermaidPreview,
-  exportMermaidSvg,
-  exportMermaidPng
+  exportMermaidSvg
 } = dialogsAndLifecycle
 const {
   slashOpen,
@@ -696,7 +695,6 @@ defineExpose({
       :export-error="mermaidPreviewDialog.exportError"
       @close="closeMermaidPreview()"
       @export-svg="exportMermaidSvg($event)"
-      @export-png="void exportMermaidPng($event)"
     />
   </div>
 </template>
