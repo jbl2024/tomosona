@@ -86,6 +86,14 @@ function inCodeContext(state: EditorState): boolean {
   return $from.marks().some((mark) => mark.type.name === 'code')
 }
 
+function selectionInsideListItem(state: EditorState): boolean {
+  const { $from } = state.selection
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === 'listItem') return true
+  }
+  return false
+}
+
 function mapRange(range: WikilinkEditingRange, tr: Transaction): WikilinkEditingRange {
   return {
     from: tr.mapping.map(range.from, 1),
@@ -461,6 +469,7 @@ export function createWikilinkStatePlugin(editor: Editor, options: WikilinkState
 
         if (state.mode === 'node_selected') {
           if (event.key === 'Enter') {
+            if (selectionInsideListItem(view.state)) return false
             event.preventDefault()
             if (state.nodeTarget) {
               void options.onNavigate(state.nodeTarget)
