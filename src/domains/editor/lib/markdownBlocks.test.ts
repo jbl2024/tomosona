@@ -381,6 +381,205 @@ describe('nested lists', () => {
   })
 })
 
+describe('robust list parsing', () => {
+  it('parses simple task lists and preserves checked state', () => {
+    const markdown = `
+- [x] done
+- [ ] todo
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks).toEqual([
+      {
+        type: 'list',
+        data: {
+          style: 'checklist',
+          items: [
+            { content: 'done', items: [], meta: { checked: true } },
+            { content: 'todo', items: [], meta: { checked: false } }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('parses three-level nested task lists', () => {
+    const markdown = `
+- [ ] parent
+  - [x] child
+    - [ ] grandchild
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks).toEqual([
+      {
+        type: 'list',
+        data: {
+          style: 'checklist',
+          items: [
+            {
+              content: 'parent',
+              meta: { checked: false },
+              items: [
+                {
+                  content: 'child',
+                  meta: { checked: true },
+                  items: [
+                    {
+                      content: 'grandchild',
+                      meta: { checked: false },
+                      items: []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('keeps indented continuation lines inside an unordered item', () => {
+    const markdown = `
+- parent
+  continuation line
+  - child
+- sibling
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks[0]).toEqual({
+      type: 'list',
+      data: {
+        style: 'unordered',
+        items: [
+          {
+            content: 'parent<br>continuation line',
+            items: [{ content: 'child', items: [] }]
+          },
+          { content: 'sibling', items: [] }
+        ]
+      }
+    })
+  })
+
+  it('keeps one blank line inside a task item when the next line remains attached', () => {
+    const markdown = `
+- [ ] parent
+
+  more details
+  - [x] child
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks[0]).toEqual({
+      type: 'list',
+      data: {
+        style: 'checklist',
+        items: [
+          {
+            content: 'parent<br><br>more details',
+            meta: { checked: false },
+            items: [{ content: 'child', meta: { checked: true }, items: [] }]
+          }
+        ]
+      }
+    })
+  })
+
+  it('stops the list on a blank line before a sibling item', () => {
+    const markdown = `
+- first
+
+- second
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks).toHaveLength(2)
+    expect(parsed.blocks[0]).toEqual({
+      type: 'list',
+      data: { style: 'unordered', items: [{ content: 'first', items: [] }] }
+    })
+    expect(parsed.blocks[1]).toEqual({
+      type: 'list',
+      data: { style: 'unordered', items: [{ content: 'second', items: [] }] }
+    })
+  })
+
+  it('normalizes unicode newlines and indentation spaces in lists', () => {
+    const markdown = '## Taches\u2028\u2028- [ ] parent\u2028\u00a0\u00a0- [x] child'
+    const parsed = markdownToEditorData(markdown)
+
+    expect(parsed.blocks).toEqual([
+      {
+        type: 'header',
+        data: { level: 2, text: 'Taches' }
+      },
+      {
+        type: 'list',
+        data: {
+          style: 'checklist',
+          items: [
+            {
+              content: 'parent',
+              meta: { checked: false },
+              items: [{ content: 'child', meta: { checked: true }, items: [] }]
+            }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('does not absorb explicit block starters into list continuations', () => {
+    const markdown = `
+- first
+  still first
+
+## Heading
+
+- second
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks.map((block) => block.type)).toEqual(['list', 'header', 'list'])
+    expect(parsed.blocks[0]).toEqual({
+      type: 'list',
+      data: {
+        style: 'unordered',
+        items: [{ content: 'first<br>still first', items: [] }]
+      }
+    })
+  })
+
+  it('keeps ordered lists from absorbing non-conforming text', () => {
+    const markdown = `
+1. first
+plain text
+2. second
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks.map((block) => block.type)).toEqual(['list', 'paragraph', 'list'])
+  })
+
+  it('round-trips task lists with continuations into canonical markdown', () => {
+    const markdown = `
+- [ ] parent
+  details
+  - [x] child
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    const output = editorDataToMarkdown(parsed)
+    const reparsed = markdownToEditorData(output)
+
+    expect(output).toContain('- [ ] parent\n  details\n  - [x] child')
+    expect(reparsed.blocks[0]).toEqual(parsed.blocks[0])
+  })
+})
+
 describe('wikilinks with underscores', () => {
   it('does not interpret intraword underscores as italic', () => {
     const markdown = '[[showcase/folder_with_underscore/note_in_folder.md]]'
@@ -419,6 +618,43 @@ describe('inline links with surrounding emphasis', () => {
     const html = inlineTextToHtml('**[[journal/2026-02-22.md]]**')
     expect(html).toContain('<strong><a href="wikilink:journal%2F2026-02-22.md"')
     expect(html).toContain('>journal/2026-02-22.md</a></strong>')
+  })
+
+  it('keeps adjacent wikilinks stable inside task items', () => {
+    const parsed = markdownToEditorData('- [x] Préparer[[Projets/JDEV.md|JDEV]] demander aux collègues')
+    expect(parsed.blocks).toEqual([
+      {
+        type: 'list',
+        data: {
+          style: 'checklist',
+          items: [
+            {
+              content:
+                'Préparer<a href="wikilink:Projets%2FJDEV.md" data-wikilink-target="Projets/JDEV.md">JDEV</a> demander aux collègues',
+              meta: { checked: true },
+              items: []
+            }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('treats empty markdown links as inert text', () => {
+    const parsed = markdownToEditorData('- [x] partager son agenda [](https://example.com)')
+    expect(parsed.blocks[0]).toEqual({
+      type: 'list',
+      data: {
+        style: 'checklist',
+        items: [
+          {
+            content: 'partager son agenda [](https://example.com)',
+            meta: { checked: true },
+            items: []
+          }
+        ]
+      }
+    })
   })
 })
 
@@ -501,5 +737,61 @@ describe('blockquote parsing', () => {
     const output = editorDataToMarkdown(parsed)
     expect(output).toContain('> > Citation imbriquée niveau 2')
     expect(output).toContain('> > > Citation niveau 3')
+  })
+})
+
+describe('markdownToEditorData regressions', () => {
+  it('keeps the reduced dashboard sample as one checklist block without paragraph inserts', () => {
+    const markdown = `
+## Tâches à faire
+
+- [x] Prendre RDV avec la DSI de l'ENS : 2026-03-11
+  - [ ] Prendre RDV avec le RSSI de l'ENS : à la suite du rdv
+- [x] Préparer[[Projets/JDEV.md|JDEV]] demander aux collègues
+  - [ ] S'inscrire sur [https://jdev26.sciencesconf.org/user/createaccount](https://jdev26.sciencesconf.org/user/createaccount)
+- [ ] Tickets à faire :
+  - [x] partager son agenda avec un usager (comment le retrouver)[](https://jdev26.sciencesconf.org/user/createaccount)
+  - [ ] Trouver un autre ticket à faire
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks).toHaveLength(2)
+    expect(parsed.blocks[0].type).toBe('header')
+    expect(parsed.blocks[1].type).toBe('list')
+    expect(((parsed.blocks[1].data as { items: unknown[] }).items)).toHaveLength(3)
+  })
+
+  it('keeps the larger dashboard sample free of paragraph blocks inside checklist sections', () => {
+    const markdown = `
+## Tâches à faire
+
+- [x] Prendre RDV avec la DSI de l'ENS : 2026-03-11
+  - [ ] Prendre RDV avec le RSSI de l'ENS : à la suite du rdv
+- [x] Préparer[[Projets/JDEV.md|JDEV]] demander aux collègues
+  - [ ] S'inscrire sur [https://jdev26.sciencesconf.org/user/createaccount](https://jdev26.sciencesconf.org/user/createaccount)
+- [x] Analyser demande disque dur 2To/4To
+  - [ ] On ne fait pas : trop de risques, prévenir [[Personnes/Ludovic.md|Ludovic]]
+- [ ] Tickets à faire :
+  - [x] paramétrer le wifi eduroam sur ma machine
+  - [x] partager son agenda avec un usager (comment le retrouver)[](https://jdev26.sciencesconf.org/user/createaccount)
+  - [ ] Trouver un autre ticket à faire
+- [ ] Préparer fiche de poste ASR (ASI) [[Projets/Recrutement ASR.md|Recrutement ASR]]
+- [ ] Préparer fiche de poste développeur Legacy
+- [x] Faire météo grist
+- [ ] Creuser [[Veille/ADR Architecture Document Record|ADR Architecture Document Record]]
+
+## Premiers pas
+
+## Accès
+
+- [x] Canal dev sur team
+- [x] Accès Kanboard
+  - [ ] Pas accès à tous les boards
+- [x] Accès Omicron RocketChat
+- [x] Accès Gitlab
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+    expect(parsed.blocks.map((block) => block.type)).toEqual(['header', 'list', 'header', 'header', 'list'])
   })
 })

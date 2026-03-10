@@ -1,12 +1,18 @@
 import { normalizeCalloutKind } from './callouts'
 import { parseWikilinkTarget } from './wikilinks'
 
+/**
+ * EditorJS-compatible block payload used by the markdown bridge.
+ */
 export type EditorBlock = {
   id?: string
   type: string
   data: Record<string, unknown>
 }
 
+/**
+ * Minimal EditorJS document envelope produced from markdown input.
+ */
 export type EditorDocument = {
   time: number
   blocks: EditorBlock[]
@@ -93,11 +99,29 @@ type RichListItem = {
 
 type ListStyle = 'ordered' | 'unordered' | 'checklist'
 type TableAlign = 'left' | 'center' | 'right' | null
+type ListLineClassification =
+  | { kind: 'list-item'; parsed: { indent: number; content: string; checked?: boolean } }
+  | { kind: 'list-continuation'; content: string }
+  | { kind: 'blank-in-list' }
+  | { kind: 'stop' }
 
 const TABLE_WIDTHS_LINE_RE = /^\{widths:\s*([^}]*)\s*\}$/i
 
+function normalizeLeadingIndentation(line: string): string {
+  const match = line.match(/^[\t \u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]+/)
+  if (!match) return line
+  const normalized = match[0]
+    .replace(/[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+  return `${normalized}${line.slice(match[0].length)}`
+}
+
 function normalizeInput(markdown: string): string {
-  return markdown.replace(/\r\n?/g, '\n')
+  return markdown
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0085\u2028\u2029]/g, '\n')
+    .split('\n')
+    .map(normalizeLeadingIndentation)
+    .join('\n')
 }
 
 function escapeHtml(value: string): string {
@@ -190,7 +214,7 @@ function parseInlineSegment(value: string): string {
 }
 
 function inlineMarkdownToHtml(value: string): string {
-  const tokenRe = /\[\[([^\|\]\n]+)(?:\|([^\|\]\n]*))?\]\]|\[([^\]]+)\]\(([^)\s]+)\)/g
+  const tokenRe = /\[\[([^\|\]\n]+)(?:\|([^\|\]\n]*))?\]\]|\[([^\]]*)\]\(([^)\s]+)\)/g
   const tokens: string[] = []
   let expanded = ''
   let lastIndex = 0
@@ -223,6 +247,11 @@ function inlineMarkdownToHtml(value: string): string {
     } else {
       const text = match[3]
       const href = match[4]
+      if (!text.length) {
+        expanded += full
+        lastIndex = index + full.length
+        continue
+      }
       const internalHref = href.trim().startsWith('#') && href.trim().length > 1 ? href.trim() : ''
       const safeHref = sanitizeExternalHref(href)
       if (internalHref) {
@@ -248,10 +277,18 @@ function inlineMarkdownToHtml(value: string): string {
   return html
 }
 
+/**
+ * Renders inline markdown fragments into the small HTML subset expected by editor blocks.
+ *
+ * The conversion is intentionally lossy and normalizes ambiguous markdown into a stable shape.
+ */
 export function inlineTextToHtml(value: string): string {
   return inlineMarkdownToHtml(value)
 }
 
+/**
+ * Accepts only safe external URL schemes that are valid for UI rendering.
+ */
 export function sanitizeExternalHref(raw: string): string | null {
   const value = String(raw ?? '').trim()
   if (!value) return null
@@ -783,12 +820,16 @@ function indentWidth(raw: string): number {
   return width
 }
 
+function leadingIndent(line: string): string {
+  return line.match(/^\s*/)?.[0] ?? ''
+}
+
 function parseListLine(
   line: string,
   style: ListStyle
 ): { indent: number; content: string; checked?: boolean } | null {
   if (style === 'ordered') {
-    const match = line.match(/^(\s*)\d+\.\s+(.+)$/)
+    const match = line.match(/^(\s*)\d+\.\s*(.*)$/)
     if (!match) return null
     return { indent: indentWidth(match[1]), content: match[2].trim() }
   }
@@ -803,41 +844,127 @@ function parseListLine(
     }
   }
 
-  const match = line.match(/^(\s*)[-*+]\s+(?!\[[ xX]\]\s*)(.+)$/)
+  const match = line.match(/^(\s*)[-*+]\s+(?!\[[ xX]\]\s*)(.*)$/)
   if (!match) return null
   return { indent: indentWidth(match[1]), content: match[2].trim() }
 }
 
+function isListContinuationLine(line: string, currentIndent: number): boolean {
+  if (!line.trim()) return false
+  if (isBlockStarter(line) || isHtmlBlockStart(line) || isRawFallbackStart(line)) return false
+  return indentWidth(leadingIndent(line)) > currentIndent
+}
+
+function classifyListLine(
+  lines: string[],
+  index: number,
+  style: ListStyle,
+  currentIndent: number | null
+): ListLineClassification {
+  const line = lines[index]
+  const parsed = parseListLine(line, style)
+  if (parsed) {
+    return { kind: 'list-item', parsed }
+  }
+
+  if (currentIndent === null) {
+    return { kind: 'stop' }
+  }
+
+  if (!line.trim()) {
+    const nextLine = lines[index + 1] ?? ''
+    const nextParsed = parseListLine(nextLine, style)
+    if (nextParsed && nextParsed.indent > currentIndent) {
+      return { kind: 'blank-in-list' }
+    }
+    if (isListContinuationLine(nextLine, currentIndent)) {
+      return { kind: 'blank-in-list' }
+    }
+    return { kind: 'stop' }
+  }
+
+  if (isListContinuationLine(line, currentIndent)) {
+    return { kind: 'list-continuation', content: line.trim() }
+  }
+
+  return { kind: 'stop' }
+}
+
 function parseRichList(lines: string[], start: number, style: ListStyle): { items: RichListItem[]; next: number } {
+  type ListFrame = { indent: number; items: RichListItem[]; item: RichListItem | null }
+  type RichListItemDraft = RichListItem & { contentLines?: string[] }
+
   const items: RichListItem[] = []
-  const stack: Array<{ indent: number; items: RichListItem[] }> = [{ indent: -1, items }]
+  const stack: ListFrame[] = [{ indent: -1, items, item: null }]
   let i = start
 
   while (i < lines.length) {
-    const parsed = parseListLine(lines[i], style)
-    if (!parsed) break
+    const currentItem = stack[stack.length - 1]?.item as RichListItemDraft | null
+    const classification = classifyListLine(lines, i, style, currentItem ? stack[stack.length - 1].indent : null)
 
+    if (classification.kind === 'stop') break
+
+    if (classification.kind === 'blank-in-list') {
+      if (currentItem) {
+        currentItem.contentLines ??= []
+        currentItem.contentLines.push('')
+      }
+      i += 1
+      continue
+    }
+
+    if (classification.kind === 'list-continuation') {
+      if (currentItem) {
+        currentItem.contentLines ??= []
+        currentItem.contentLines.push(classification.content)
+      }
+      i += 1
+      continue
+    }
+
+    const { parsed } = classification
     while (stack.length > 1 && parsed.indent <= stack[stack.length - 1].indent) {
       stack.pop()
     }
 
-    const item: RichListItem = {
-      content: blockTextToHtml(parsed.content),
+    const item: RichListItemDraft = {
+      content: '',
+      contentLines: [parsed.content],
       items: []
     }
     if (style === 'checklist') {
       item.meta = { checked: Boolean(parsed.checked) }
     }
 
+    item.content = blockTextToHtml((item.contentLines ?? []).join('\n'))
     const parent = stack[stack.length - 1]
     parent.items.push(item)
-    stack.push({ indent: parsed.indent, items: item.items as RichListItem[] })
+    stack.push({ indent: parsed.indent, items: item.items as RichListItem[], item })
     i += 1
   }
+
+  const finalize = (entries: RichListItem[]) => {
+    entries.forEach((entry) => {
+      const draft = entry as RichListItemDraft
+      if (draft.contentLines) {
+        draft.content = blockTextToHtml(draft.contentLines.join('\n'))
+        delete draft.contentLines
+      }
+      if (Array.isArray(entry.items) && entry.items.length) {
+        finalize(entry.items)
+      }
+    })
+  }
+  finalize(items)
 
   return { items, next: i }
 }
 
+/**
+ * Parses markdown into the small EditorJS block vocabulary used by the app.
+ *
+ * The parser deliberately prefers stable, normalized output over full CommonMark coverage.
+ */
 export function markdownToEditorData(markdown: string): EditorDocument {
   const normalized = normalizeInput(markdown)
   const lines = normalized.split('\n')
@@ -1069,7 +1196,15 @@ function flattenRichList(
         : marker === 'checklist'
           ? `- [${item.meta?.checked ? 'x' : ' '}] `
           : '- '
-    lines.push(`${'  '.repeat(depth)}${prefix}${content}`)
+    const contentLines = content.split('\n')
+    lines.push(`${'  '.repeat(depth)}${prefix}${contentLines[0] ?? ''}`)
+    contentLines.slice(1).forEach((line) => {
+      if (!line.length) {
+        lines.push('')
+        return
+      }
+      lines.push(`${'  '.repeat(depth + 1)}${line}`)
+    })
 
     if (Array.isArray(item.items) && item.items.length) {
       lines.push(...flattenRichList(item.items, depth + 1, marker))
@@ -1208,6 +1343,11 @@ function blockToMarkdown(block: EditorBlock): string {
   }
 }
 
+/**
+ * Serializes editor blocks back to canonical markdown.
+ *
+ * Round-tripping through this function may normalize ambiguous input syntax into a stable form.
+ */
 export function editorDataToMarkdown(data: { blocks?: EditorBlock[] } | null | undefined): string {
   const blocks = data?.blocks ?? []
   const lines = blocks
