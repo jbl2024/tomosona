@@ -34,31 +34,44 @@ function parseSvgSize(svgMarkup: string, liveSvg?: SVGElement | null) {
   return { width: 1600, height: 900 }
 }
 
-function normalizeSvgMarkup(svgMarkup: string, width: number, height: number) {
+function cloneAndNormalizeSvgElement(svg: SVGElement, width: number, height: number) {
+  const clone = svg.cloneNode(true) as SVGElement
+  if (!clone || clone.tagName.toLowerCase() !== 'svg') {
+    throw new Error('Export failed: invalid SVG markup.')
+  }
+
+  if (!clone.getAttribute('xmlns')) {
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  }
+  if (!clone.getAttribute('xmlns:xlink')) {
+    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+  }
+  if (!clone.getAttribute('width')) {
+    clone.setAttribute('width', String(Math.ceil(width)))
+  }
+  if (!clone.getAttribute('height')) {
+    clone.setAttribute('height', String(Math.ceil(height)))
+  }
+  if (!clone.getAttribute('viewBox')) {
+    clone.setAttribute('viewBox', `0 0 ${Math.ceil(width)} ${Math.ceil(height)}`)
+  }
+
+  return clone
+}
+
+function normalizeSvgMarkup(svgMarkup: string, width: number, height: number, liveSvg?: SVGElement | null) {
+  if (liveSvg) {
+    return new XMLSerializer().serializeToString(cloneAndNormalizeSvgElement(liveSvg, width, height))
+  }
+
   const parser = new DOMParser()
-  const doc = parser.parseFromString(svgMarkup, 'image/svg+xml')
+  const doc = parser.parseFromString(svgMarkup.replace(/<br(?!\s*\/)>/gi, '<br />'), 'image/svg+xml')
   const svg = doc.documentElement
   if (!svg || svg.tagName.toLowerCase() !== 'svg') {
-    throw new Error('PNG export failed: invalid SVG markup.')
+    throw new Error('Export failed: invalid SVG markup.')
   }
 
-  if (!svg.getAttribute('xmlns')) {
-    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-  }
-  if (!svg.getAttribute('xmlns:xlink')) {
-    svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
-  }
-  if (!svg.getAttribute('width')) {
-    svg.setAttribute('width', String(Math.ceil(width)))
-  }
-  if (!svg.getAttribute('height')) {
-    svg.setAttribute('height', String(Math.ceil(height)))
-  }
-  if (!svg.getAttribute('viewBox')) {
-    svg.setAttribute('viewBox', `0 0 ${Math.ceil(width)} ${Math.ceil(height)}`)
-  }
-
-  return new XMLSerializer().serializeToString(svg)
+  return new XMLSerializer().serializeToString(cloneAndNormalizeSvgElement(svg as unknown as SVGElement, width, height))
 }
 
 function sanitizeFilenameSegment(value: string) {
@@ -112,11 +125,19 @@ export function useMermaidPreviewDialog() {
     return `mermaid-${template}.${extension}`
   }
 
-  function exportMermaidSvg() {
+  function exportMermaidSvg(previewSvg?: SVGElement | null) {
     if (!mermaidPreviewDialog.value.svg) return
     mermaidPreviewDialog.value.exportError = ''
+    const { width, height } = parseSvgSize(mermaidPreviewDialog.value.svg, previewSvg)
+    let normalizedSvg = ''
+    try {
+      normalizedSvg = normalizeSvgMarkup(mermaidPreviewDialog.value.svg, width, height, previewSvg)
+    } catch (err) {
+      mermaidPreviewDialog.value.exportError = err instanceof Error ? err.message : 'SVG export failed.'
+      return
+    }
     triggerDownload(
-      new Blob([mermaidPreviewDialog.value.svg], { type: 'image/svg+xml;charset=utf-8' }),
+      new Blob([normalizedSvg], { type: 'image/svg+xml;charset=utf-8' }),
       exportFilename('svg')
     )
   }
@@ -128,7 +149,7 @@ export function useMermaidPreviewDialog() {
     const { width, height } = parseSvgSize(mermaidPreviewDialog.value.svg, previewSvg)
     let normalizedSvg = ''
     try {
-      normalizedSvg = normalizeSvgMarkup(mermaidPreviewDialog.value.svg, width, height)
+      normalizedSvg = normalizeSvgMarkup(mermaidPreviewDialog.value.svg, width, height, previewSvg)
     } catch (err) {
       mermaidPreviewDialog.value.exportError = err instanceof Error ? err.message : 'PNG export failed.'
       return

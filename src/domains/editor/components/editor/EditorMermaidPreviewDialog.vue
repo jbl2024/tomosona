@@ -10,11 +10,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  exportSvg: []
+  exportSvg: [previewSvg: SVGElement | null]
   exportPng: [previewSvg: SVGElement | null]
 }>()
 
 const previewEl = ref<HTMLDivElement | null>(null)
+
+function emitExportSvg() {
+  emit('exportSvg', previewEl.value?.querySelector('svg') ?? null)
+}
 
 function emitExportPng() {
   emit('exportPng', previewEl.value?.querySelector('svg') ?? null)
@@ -36,7 +40,7 @@ function emitExportPng() {
       <button
         type="button"
         class="editor-mermaid-preview-btn"
-        @click="emit('exportSvg')"
+        @click="emitExportSvg"
       >
         Export SVG
       </button>

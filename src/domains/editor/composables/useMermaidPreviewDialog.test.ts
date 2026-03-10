@@ -76,14 +76,22 @@ describe('useMermaidPreviewDialog', () => {
     })
   })
 
-  it('exports svg through a blob download', () => {
+  it('exports svg through a blob download with the rendered svg element', () => {
     const dialog = useMermaidPreviewDialog()
     dialog.openMermaidPreview({ svg: '<svg viewBox="0 0 10 10"></svg>', code: 'graph TD\nA-->B', templateId: 'flowchart' })
+    const previewSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    previewSvg.setAttribute('viewBox', '0 0 10 10')
+    const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+    const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div')
+    div.innerHTML = 'Line 1<br>Line 2'
+    foreignObject.appendChild(div)
+    previewSvg.appendChild(foreignObject)
 
-    dialog.exportMermaidSvg()
+    dialog.exportMermaidSvg(previewSvg)
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(1)
     expect(anchorClickMock).toHaveBeenCalledTimes(1)
+    expect(dialog.mermaidPreviewDialog.value.exportError).toBe('')
   })
 
   it('exports png through canvas rendering', async () => {

@@ -695,7 +695,7 @@ defineExpose({
       :svg="mermaidPreviewDialog.svg"
       :export-error="mermaidPreviewDialog.exportError"
       @close="closeMermaidPreview()"
-      @export-svg="exportMermaidSvg()"
+      @export-svg="exportMermaidSvg($event)"
       @export-png="void exportMermaidPng($event)"
     />
   </div>

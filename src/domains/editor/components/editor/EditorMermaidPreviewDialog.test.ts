@@ -30,7 +30,7 @@ describe('EditorMermaidPreviewDialog', () => {
             open.value = false
             closeEvents.push('close')
           },
-          onExportSvg: () => exportEvents.push('svg'),
+          onExportSvg: (previewSvg: SVGElement | null) => exportEvents.push(previewSvg?.tagName ?? 'svg:none'),
           onExportPng: () => exportEvents.push('png')
         })
       }
