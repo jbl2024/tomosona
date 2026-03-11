@@ -481,7 +481,8 @@ function shortUpdatedLabel(value: string): string {
 
 .launchpad-segmented {
   position: relative;
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
   margin: 0 12px 8px;
@@ -497,7 +498,7 @@ function shortUpdatedLabel(value: string): string {
   top: 3px;
   bottom: 3px;
   left: 3px;
-  width: calc(50% - 5px);
+  width: calc(50% - 4px);
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent-soft) 58%, var(--panel-bg));
   transition: transform 180ms ease;
@@ -510,6 +511,7 @@ function shortUpdatedLabel(value: string): string {
 .launchpad-segmented-tab {
   position: relative;
   z-index: 1;
+  min-width: 0;
   border: 0;
   border-radius: 999px;
   padding: 5px 10px;
@@ -517,6 +519,7 @@ function shortUpdatedLabel(value: string): string {
   color: var(--text-dim);
   font-size: 0.74rem;
   font-weight: 600;
+  text-align: center;
   transition: color 180ms ease;
 }
 
