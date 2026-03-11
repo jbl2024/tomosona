@@ -62,7 +62,7 @@ import {
   traceOpenStep
 } from '../shared/lib/openTrace'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
-import { applySearchMode, detectSearchMode, type SearchMode } from '../shared/lib/searchMode'
+import { type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
 import { parseWikilinkTarget } from '../domains/editor/lib/wikilinks'
 import { buildCosmosGraph } from '../domains/cosmos/lib/graphIndex'
@@ -103,8 +103,7 @@ import { formatDurationMs } from './lib/indexActivity'
 import {
   readRecentWorkspaces,
   removeRecentWorkspace,
-  upsertRecentWorkspace,
-  type RecentWorkspaceItem
+  upsertRecentWorkspace
 } from './lib/recentWorkspaces'
 import {
   readRecentNotes,
@@ -125,6 +124,9 @@ import {
   type HomeHistorySnapshot,
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
+import { useAppShellHistoryUi } from './composables/useAppShellHistoryUi'
+import { useAppShellLaunchpad } from './composables/useAppShellLaunchpad'
+import { useAppShellSearch, type AppShellSearchHit } from './composables/useAppShellSearch'
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
@@ -137,6 +139,11 @@ import { useCosmosController } from '../domains/cosmos/composables/useCosmosCont
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
 import { useFavoritesController } from '../domains/favorites/composables/useFavoritesController'
+import type {
+  AppShellCosmosViewModel,
+  AppShellLaunchpadViewModel,
+  AppShellSecondBrainViewModel
+} from './lib/appShellViewModels'
 import {
   createInitialLayout,
   hydrateLayout,
@@ -145,7 +152,7 @@ import {
 } from './composables/useMultiPaneWorkspaceState'
 import packageJson from '../../package.json'
 
-type SearchHit = { path: string; snippet: string; score: number }
+type SearchHit = AppShellSearchHit
 type PropertyPreviewRow = { key: string; value: string }
 type SemanticLinkRow = { path: string; score: number | null; direction: 'incoming' | 'outgoing' }
 
@@ -173,20 +180,6 @@ type VirtualDoc = {
   titleLine: string
 }
 
-type LaunchpadRecentWorkspace = {
-  path: string
-  label: string
-  subtitle: string
-  recencyLabel: string
-}
-
-type LaunchpadRecentNote = {
-  path: string
-  title: string
-  relativePath: string
-  recencyLabel: string
-}
-
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
 const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
@@ -208,12 +201,6 @@ const {
 } = useAppTheme({ storageKey: THEME_STORAGE_KEY })
 const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent)
 
-const searchQuery = ref('')
-const searchHits = ref<SearchHit[]>([])
-const searchLoading = ref(false)
-const hasSearched = ref(false)
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
-let searchRequestToken = 0
 const quickOpenVisible = ref(false)
 const quickOpenQuery = ref('')
 const quickOpenActiveIndex = ref(0)
@@ -250,11 +237,6 @@ const workspaceSetupWizardBusy = ref(false)
 const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const shortcutsFilterQuery = ref('')
-const recentWorkspaces = ref<RecentWorkspaceItem[]>(typeof window === 'undefined'
-  ? []
-  : readRecentWorkspaces(RECENT_WORKSPACES_STORAGE_KEY))
-const recentViewedNotes = ref<LaunchpadRecentNote[]>([])
-const recentUpdatedNotes = ref<LaunchpadRecentNote[]>([])
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
 const hydratedMultiPane = hydrateLayout(
   (() => {
@@ -274,14 +256,7 @@ const wikilinkRewriteQueue: Array<{
   resolve: (approved: boolean) => void
 }> = []
 let wikilinkRewriteResolver: ((approved: boolean) => void) | null = null
-const historyMenuOpen = ref<'back' | 'forward' | null>(null)
-const historyMenuStyle = ref<Record<string, string>>({})
-let historyMenuTimer: ReturnType<typeof setTimeout> | null = null
-let historyLongPressTarget: 'back' | 'forward' | null = null
 let unlistenWorkspaceFsChanged: (() => void) | null = null
-let recentUpdatedNotesRequestToken = 0
-let recentUpdatedNotesCacheKey = ''
-const recentNotesRefreshNonce = ref(0)
 const showDebugTools = import.meta.env.DEV
 const appVersion = packageJson.version
 
@@ -372,6 +347,41 @@ const {
   closeWorkspace: closeWorkspaceInternal,
   loadWorkingFolder: loadWorkingFolderInternal
 } = workspaceController
+const launchpad = useAppShellLaunchpad({
+  storageKey: RECENT_WORKSPACES_STORAGE_KEY,
+  workingFolderPath: filesystem.workingFolderPath,
+  hasWorkspace: filesystem.hasWorkspace,
+  allWorkspaceFiles,
+  loadingAllFiles,
+  readFileMetadata,
+  readRecentWorkspaces,
+  upsertRecentWorkspace,
+  removeRecentWorkspace,
+  readRecentNotes,
+  writeRecentNotes,
+  upsertRecentNote,
+  removeRecentNote,
+  renameRecentNote,
+  normalizePathKey,
+  toRelativePath,
+  noteTitleFromPath,
+  basenameLabel,
+  formatRelativeTime
+})
+const {
+  recentViewedNotes,
+  recentUpdatedNotes,
+  launchpadRecentWorkspaces,
+  launchpadShowWizardAction,
+  resetWorkspaceRecentState,
+  recordRecentWorkspace,
+  removeRecentWorkspaceEntry,
+  recordRecentNote,
+  removeLaunchpadRecentNote,
+  renameLaunchpadRecentNote,
+  invalidateRecentNotes,
+  dispose: disposeShellLaunchpad
+} = launchpad
 const favorites = useFavoritesController({
   workingFolderPath: filesystem.workingFolderPath,
   listFavorites,
@@ -524,22 +534,26 @@ const {
   onSecondBrainSessionChanged
 } = secondBrainBridge
 
-const groupedSearchResults = computed(() => {
-  const groups: Array<{ path: string; items: SearchHit[] }> = []
-  const byPath = new Map<string, SearchHit[]>()
-  for (const hit of searchHits.value) {
-    if (!byPath.has(hit.path)) {
-      byPath.set(hit.path, [])
-    }
-    byPath.get(hit.path)!.push(hit)
-  }
-  for (const [path, items] of byPath.entries()) {
-    groups.push({ path, items })
-  }
-  return groups
+const search = useAppShellSearch({
+  workingFolderPath: filesystem.workingFolderPath,
+  allWorkspaceFiles,
+  ensureAllFilesLoaded: loadAllFiles,
+  toRelativePath,
+  ftsSearch,
+  notifyError: (message: string) => filesystem.notifyError(message)
 })
-const globalSearchMode = computed<SearchMode>(() => detectSearchMode(searchQuery.value))
-const showSearchScore = computed(() => globalSearchMode.value === 'semantic')
+const {
+  searchQuery,
+  searchLoading,
+  hasSearched,
+  groupedSearchResults,
+  globalSearchMode,
+  showSearchScore,
+  resetSearchState,
+  runGlobalSearch,
+  selectGlobalSearchMode,
+  dispose: disposeShellSearch
+} = search
 const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'hybrid', label: 'Hybrid' },
   { mode: 'semantic', label: 'Semantic' },
@@ -815,6 +829,41 @@ const cosmosSelectedNodeForPanel = computed(() => {
     path: toRelativePath(cosmos.selectedNode.value.path)
   }
 })
+const cosmosPaneViewModel = computed<AppShellCosmosViewModel>(() => ({
+  graph: cosmos.visibleGraph.value,
+  loading: cosmos.loading.value,
+  error: cosmos.error.value,
+  selectedNodeId: cosmos.selectedNodeId.value,
+  focusMode: cosmos.focusMode.value,
+  focusDepth: cosmos.focusDepth.value,
+  summary: cosmos.summary.value,
+  query: cosmos.query.value,
+  matches: cosmos.queryMatches.value,
+  showSemanticEdges: cosmos.showSemanticEdges.value,
+  selectedNode: cosmosSelectedNodeForPanel.value,
+  selectedLinkCount: cosmos.selectedLinkCount.value,
+  preview: cosmos.preview.value,
+  previewLoading: cosmos.previewLoading.value,
+  previewError: cosmos.previewError.value,
+  outgoingNodes: cosmos.outgoingNodes.value,
+  incomingNodes: cosmos.incomingNodes.value
+}))
+const secondBrainPaneViewModel = computed<AppShellSecondBrainViewModel>(() => ({
+  workspacePath: filesystem.workingFolderPath.value,
+  allWorkspaceFiles: allWorkspaceFiles.value,
+  requestedSessionId: secondBrainRequestedSessionId.value,
+  requestedSessionNonce: secondBrainRequestedSessionNonce.value,
+  requestedPrompt: secondBrainRequestedPrompt.value,
+  requestedPromptNonce: secondBrainRequestedPromptNonce.value,
+  activeNotePath: activeFilePath.value
+}))
+const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
+  workspaceLabel: filesystem.workingFolderPath.value ? basenameLabel(filesystem.workingFolderPath.value) : '',
+  recentWorkspaces: launchpadRecentWorkspaces.value,
+  recentViewedNotes: recentViewedNotes.value,
+  recentUpdatedNotes: recentUpdatedNotes.value,
+  showWizardAction: launchpadShowWizardAction.value
+}))
 
 const mediaQuery = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -901,28 +950,6 @@ function formatRelativeTime(tsMs: number | null, prefix = ''): string {
   }
   return prefix ? `${prefix} just now` : 'just now'
 }
-
-function recentNotesStorageKey(workspaceRoot: string): string {
-  return `tomosona:recent-notes:${encodeURIComponent(normalizePathKey(workspaceRoot))}`
-}
-
-function activeRecentNotesStorageKey(): string {
-  const root = filesystem.workingFolderPath.value
-  return root ? recentNotesStorageKey(root) : ''
-}
-
-const launchpadRecentWorkspaces = computed<LaunchpadRecentWorkspace[]>(() =>
-  recentWorkspaces.value.map((workspace) => ({
-    path: workspace.path,
-    label: workspace.label,
-    subtitle: workspace.path,
-    recencyLabel: formatRelativeTime(workspace.lastOpenedAtMs, 'opened')
-  }))
-)
-
-const launchpadShowWizardAction = computed(() =>
-  !filesystem.hasWorkspace.value || allWorkspaceFiles.value.length === 0
-)
 
 function openIndexStatusModal() {
   rememberFocusBeforeModalOpen()
@@ -1075,11 +1102,6 @@ function zoomOutFromPalette() {
 function resetZoomFromPalette() {
   resetZoomFromOverflow()
   return false
-}
-
-function closeHistoryMenu() {
-  historyMenuOpen.value = null
-  historyMenuStyle.value = {}
 }
 
 function readCosmosHistorySnapshot(payload: unknown): CosmosHistorySnapshot | null {
@@ -1273,84 +1295,43 @@ const {
   openNextTabWithAutosave,
   dispose: disposeNavigationController
 } = navigation
+const historyUi = useAppShellHistoryUi({
+  topbarPort: {
+    getHistoryButtonEl: (side) => topbarRef.value?.getHistoryButtonEl(side) ?? null,
+    containsOverflowTarget: (target) => topbarRef.value?.containsOverflowTarget(target) ?? false,
+    containsHistoryMenuTarget: (side, target) => topbarRef.value?.containsHistoryMenuTarget(side, target) ?? false
+  },
+  closeOverflowMenu,
+  canOpenMenu: (side) => side === 'back' ? documentHistory.canGoBack.value : documentHistory.canGoForward.value,
+  getTargetCount: (side) => side === 'back'
+    ? documentHistory.backTargets.value.length
+    : documentHistory.forwardTargets.value.length
+})
+const {
+  historyMenuOpen,
+  historyMenuStyle,
+  closeHistoryMenu,
+  onHistoryButtonPointerDown,
+  cancelHistoryLongPress,
+  onHistoryButtonContextMenu,
+  shouldConsumeHistoryButtonClick,
+  onWindowResize,
+  onGlobalPointerDown: onGlobalPointerDownInternal,
+  dispose: disposeHistoryUi
+} = historyUi
 
 function scheduleCosmosNodeFocus(nodeId: string, remainingAttempts = 12) {
   if (!nodeId || remainingAttempts <= 0) return
 }
 
-function historyMenuItemCount(side: 'back' | 'forward'): number {
-  const count = side === 'back'
-    ? documentHistory.backTargets.value.length
-    : documentHistory.forwardTargets.value.length
-  return Math.max(1, Math.min(14, count))
-}
-
-function updateHistoryMenuPosition(side: 'back' | 'forward') {
-  const anchor = topbarRef.value?.getHistoryButtonEl(side) ?? null
-  if (!anchor) return
-
-  const rect = anchor.getBoundingClientRect()
-  const viewportPadding = 8
-  const menuWidth = 320
-  const menuHeight = historyMenuItemCount(side) * 32 + 12
-
-  const left = Math.max(
-    viewportPadding,
-    Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding)
-  )
-  const prefersDown = rect.bottom + 6 + menuHeight <= window.innerHeight - viewportPadding
-  const top = prefersDown
-    ? rect.bottom + 6
-    : Math.max(viewportPadding, rect.top - menuHeight - 6)
-
-  historyMenuStyle.value = {
-    position: 'fixed',
-    top: `${Math.round(top)}px`,
-    left: `${Math.round(left)}px`,
-    maxHeight: `${Math.max(120, window.innerHeight - viewportPadding * 2)}px`
-  }
-}
-
-function openHistoryMenu(side: 'back' | 'forward') {
-  closeOverflowMenu()
-  historyMenuOpen.value = side
-  updateHistoryMenuPosition(side)
-}
-
-function onHistoryButtonPointerDown(side: 'back' | 'forward', event: PointerEvent) {
-  if (event.button !== 0) return
-  const canOpen = side === 'back' ? documentHistory.canGoBack.value : documentHistory.canGoForward.value
-  if (!canOpen) return
-  historyLongPressTarget = null
-  if (historyMenuTimer) {
-    clearTimeout(historyMenuTimer)
-    historyMenuTimer = null
-  }
-  historyMenuTimer = setTimeout(() => {
-    historyLongPressTarget = side
-    openHistoryMenu(side)
-  }, 420)
-}
-
-function cancelHistoryLongPress() {
-  if (historyMenuTimer) {
-    clearTimeout(historyMenuTimer)
-    historyMenuTimer = null
-  }
-}
-
-function onHistoryButtonContextMenu(side: 'back' | 'forward', event: MouseEvent) {
-  event.preventDefault()
-  openHistoryMenu(side)
+function onGlobalPointerDown(event: MouseEvent) {
+  onGlobalPointerDownInternal(event, overflowMenuOpen.value)
 }
 
 function onHistoryButtonClick(side: 'back' | 'forward') {
-  if (historyLongPressTarget === side) {
-    historyLongPressTarget = null
+  if (shouldConsumeHistoryButtonClick(side)) {
     return
   }
-  historyLongPressTarget = null
-  closeHistoryMenu()
   if (side === 'back') {
     void goBackInHistory()
     return
@@ -1376,28 +1357,6 @@ function onHistoryTargetClick(targetIndex: number) {
     }
     documentHistory.jumpToEntry(previousIndex)
   })()
-}
-
-function onWindowResize() {
-  if (!historyMenuOpen.value) return
-  updateHistoryMenuPosition(historyMenuOpen.value)
-}
-
-function onGlobalPointerDown(event: MouseEvent) {
-  const target = event.target as Node | null
-  if (!target) return
-
-  if (overflowMenuOpen.value && !topbarRef.value?.containsOverflowTarget(target)) {
-    closeOverflowMenu()
-  }
-
-  if (historyMenuOpen.value === 'back' && !topbarRef.value?.containsHistoryMenuTarget('back', target)) {
-    closeHistoryMenu()
-  }
-
-  if (historyMenuOpen.value === 'forward' && !topbarRef.value?.containsHistoryMenuTarget('forward', target)) {
-    closeHistoryMenu()
-  }
 }
 
 function setThemeFromOverflow(next: ThemePreference) {
@@ -1609,134 +1568,16 @@ async function closeWorkspace() {
   multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
   documentHistory.reset()
   editorState.setActiveOutline([])
-  searchHits.value = []
+  resetSearchState()
   backlinks.value = []
   backlinksLoading.value = false
   semanticLinks.value = []
   semanticLinksLoading.value = false
   favorites.reset()
   cosmos.clearState()
-  recentViewedNotes.value = []
-  recentUpdatedNotes.value = []
-  recentUpdatedNotesCacheKey = ''
+  resetWorkspaceRecentState()
   await closeWorkspaceInternal()
   closeOverflowMenu()
-}
-
-function syncRecentWorkspaceEntry(path: string) {
-  recentWorkspaces.value = upsertRecentWorkspace(RECENT_WORKSPACES_STORAGE_KEY, {
-    path,
-    label: basenameLabel(path),
-    lastOpenedAtMs: Date.now()
-  })
-}
-
-function removeRecentWorkspaceEntry(path: string) {
-  recentWorkspaces.value = removeRecentWorkspace(RECENT_WORKSPACES_STORAGE_KEY, path)
-}
-
-function syncLaunchpadViewedNotes() {
-  const storageKey = activeRecentNotesStorageKey()
-  if (!storageKey) {
-    recentViewedNotes.value = []
-    return
-  }
-
-  const entries = readRecentNotes(storageKey)
-  const canCleanMissingPaths = !loadingAllFiles.value && allWorkspaceFiles.value.length > 0
-  const knownPaths = new Set(allWorkspaceFiles.value.map((path) => normalizePathKey(path)))
-  const valid = canCleanMissingPaths
-    ? entries.filter((entry) => knownPaths.has(normalizePathKey(entry.path)))
-    : entries
-
-  if (canCleanMissingPaths && valid.length !== entries.length) {
-    writeRecentNotes(storageKey, valid)
-  }
-
-  recentViewedNotes.value = valid.map((item) => ({
-    path: item.path,
-    title: item.title,
-    relativePath: toRelativePath(item.path),
-    recencyLabel: formatRelativeTime(item.lastViewedAtMs, 'opened')
-  }))
-}
-
-function recordRecentNote(path: string) {
-  const storageKey = activeRecentNotesStorageKey()
-  if (!storageKey) return
-  upsertRecentNote(storageKey, {
-    path,
-    title: noteTitleFromPath(path),
-    lastViewedAtMs: Date.now()
-  })
-  syncLaunchpadViewedNotes()
-}
-
-function removeLaunchpadRecentNote(path: string) {
-  const storageKey = activeRecentNotesStorageKey()
-  if (!storageKey) return
-  removeRecentNote(storageKey, path)
-  syncLaunchpadViewedNotes()
-}
-
-function renameLaunchpadRecentNote(fromPath: string, toPath: string) {
-  const storageKey = activeRecentNotesStorageKey()
-  if (!storageKey) return
-  renameRecentNote(storageKey, fromPath, toPath, noteTitleFromPath(toPath))
-  syncLaunchpadViewedNotes()
-}
-
-function invalidateRecentNotes() {
-  recentUpdatedNotesCacheKey = ''
-  recentNotesRefreshNonce.value += 1
-}
-
-async function refreshLaunchpadUpdatedNotes() {
-  const root = filesystem.workingFolderPath.value
-  if (!root) {
-    recentUpdatedNotes.value = []
-    recentUpdatedNotesCacheKey = ''
-    return
-  }
-
-  const fileSignature = allWorkspaceFiles.value.join('\n')
-  const cacheKey = `${normalizePathKey(root)}::${recentNotesRefreshNonce.value}::${fileSignature}`
-  if (cacheKey === recentUpdatedNotesCacheKey) return
-
-  const requestToken = ++recentUpdatedNotesRequestToken
-  const rows = await Promise.all(
-    allWorkspaceFiles.value.map(async (path) => {
-      try {
-        const metadata = await readFileMetadata(path)
-        return {
-          path,
-          title: noteTitleFromPath(path),
-          relativePath: toRelativePath(path),
-          updatedAtMs: metadata.updated_at_ms ?? 0
-        }
-      } catch {
-        return null
-      }
-    })
-  )
-  if (requestToken !== recentUpdatedNotesRequestToken) return
-
-  recentUpdatedNotes.value = rows
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .sort((left, right) => right.updatedAtMs - left.updatedAtMs || left.relativePath.localeCompare(right.relativePath))
-    .slice(0, 7)
-    .map((item) => ({
-      path: item.path,
-      title: item.title,
-      relativePath: item.relativePath,
-      recencyLabel: formatRelativeTime(item.updatedAtMs, 'updated')
-    }))
-  recentUpdatedNotesCacheKey = cacheKey
-}
-
-async function refreshLaunchpadRecentNotes() {
-  syncLaunchpadViewedNotes()
-  await refreshLaunchpadUpdatedNotes()
 }
 
 function closeWorkspaceSetupWizard() {
@@ -1863,13 +1704,13 @@ async function loadWorkingFolder(path: string) {
   if (!canonical) {
     multiPane.resetToSinglePane()
     multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
-    searchHits.value = []
+    resetSearchState()
     favorites.reset()
     return
   }
 
-  syncRecentWorkspaceEntry(canonical)
-  searchHits.value = []
+  recordRecentWorkspace(canonical)
+  resetSearchState()
   invalidateRecentNotes()
   await loadAllFiles()
   try {
@@ -2174,57 +2015,8 @@ async function saveFile(path: string, txt: string, options: SaveFileOptions): Pr
   return { persisted: true }
 }
 
-async function runGlobalSearch() {
-  const q = searchQuery.value.trim()
-  if (!q || !filesystem.workingFolderPath.value) {
-    hasSearched.value = false
-    searchHits.value = []
-    return
-  }
-
-  const requestToken = ++searchRequestToken
-  hasSearched.value = true
-  filesystem.errorMessage.value = ''
-  searchLoading.value = true
-  try {
-    if (!allWorkspaceFiles.value.length) {
-      await loadAllFiles()
-    }
-    const ftsHits = await ftsSearch(q)
-    const qLower = q.toLowerCase()
-    const filenameHits = allWorkspaceFiles.value
-      .filter((path) => toRelativePath(path).toLowerCase().includes(qLower))
-      .map((path) => ({
-        path,
-        snippet: `filename: ${toRelativePath(path)}`,
-        score: 0
-      }))
-
-    const merged = [...filenameHits, ...ftsHits]
-    const dedupe = new Set<string>()
-    const deduped = merged.filter((hit) => {
-      const key = `${hit.path}::${hit.snippet}`
-      if (dedupe.has(key)) return false
-      dedupe.add(key)
-      return true
-    })
-    if (requestToken === searchRequestToken) {
-      searchHits.value = deduped
-    }
-  } catch (err) {
-    if (requestToken === searchRequestToken) {
-      filesystem.errorMessage.value = err instanceof Error ? err.message : 'Search failed.'
-    }
-  } finally {
-    if (requestToken === searchRequestToken) {
-      searchLoading.value = false
-    }
-  }
-}
-
 function onGlobalSearchModeSelect(mode: SearchMode) {
-  const next = applySearchMode(searchQuery.value, mode)
-  searchQuery.value = next.value
+  const next = selectGlobalSearchMode(mode)
   void nextTick(() => {
     const input = document.querySelector<HTMLInputElement>('[data-search-input="true"]')
     if (!input) return
@@ -3430,23 +3222,6 @@ watch(cosmosCommandLoadingVisible, (visible) => {
   })
 })
 
-watch(searchQuery, (next) => {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = null
-  }
-  if (!next.trim() || !filesystem.workingFolderPath.value) {
-    searchRequestToken += 1
-    hasSearched.value = false
-    searchLoading.value = false
-    searchHits.value = []
-    return
-  }
-  searchDebounceTimer = setTimeout(() => {
-    void runGlobalSearch()
-  }, 180)
-})
-
 watch(newFilePathInput, () => {
   if (newFileModalError.value) {
     newFileModalError.value = ''
@@ -3483,22 +3258,8 @@ watch(
     backlinks.value = []
     semanticLinks.value = []
     virtualDocs.value = {}
-    recentViewedNotes.value = []
-    recentUpdatedNotes.value = []
-    recentUpdatedNotesCacheKey = ''
+    resetWorkspaceRecentState()
   }
-)
-
-watch(
-  [
-    () => filesystem.workingFolderPath.value,
-    () => allWorkspaceFiles.value,
-    () => recentNotesRefreshNonce.value
-  ],
-  () => {
-    void refreshLaunchpadRecentNotes()
-  },
-  { deep: true, immediate: true }
 )
 
 watch(
@@ -3590,14 +3351,9 @@ onBeforeUnmount(() => {
   clearWikilinkRewritePromptQueue()
   disposeIndexingController()
   disposeNavigationController()
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = null
-  }
-  if (historyMenuTimer) {
-    clearTimeout(historyMenuTimer)
-    historyMenuTimer = null
-  }
+  disposeShellSearch()
+  disposeShellLaunchpad()
+  disposeHistoryUi()
   mediaQuery?.removeEventListener('change', onSystemThemeChanged)
   window.removeEventListener('keydown', onWindowKeydown, true)
   window.removeEventListener('mousedown', onGlobalPointerDown, true)
@@ -3725,41 +3481,9 @@ onBeforeUnmount(() => {
               :loadPropertyTypeSchema="loadPropertyTypeSchema"
               :savePropertyTypeSchema="savePropertyTypeSchema"
               :openLinkTarget="openWikilinkTarget"
-              :cosmos="{
-                graph: cosmos.visibleGraph.value,
-                loading: cosmos.loading.value,
-                error: cosmos.error.value,
-                selectedNodeId: cosmos.selectedNodeId.value,
-                focusMode: cosmos.focusMode.value,
-                focusDepth: cosmos.focusDepth.value,
-                summary: cosmos.summary.value,
-                query: cosmos.query.value,
-                matches: cosmos.queryMatches.value,
-                showSemanticEdges: cosmos.showSemanticEdges.value,
-                selectedNode: cosmosSelectedNodeForPanel,
-                selectedLinkCount: cosmos.selectedLinkCount.value,
-                preview: cosmos.preview.value,
-                previewLoading: cosmos.previewLoading.value,
-                previewError: cosmos.previewError.value,
-                outgoingNodes: cosmos.outgoingNodes.value,
-                incomingNodes: cosmos.incomingNodes.value
-              }"
-              :second-brain="{
-                workspacePath: filesystem.workingFolderPath.value,
-                allWorkspaceFiles,
-                requestedSessionId: secondBrainRequestedSessionId,
-                requestedSessionNonce: secondBrainRequestedSessionNonce,
-                requestedPrompt: secondBrainRequestedPrompt,
-                requestedPromptNonce: secondBrainRequestedPromptNonce,
-                activeNotePath: activeFilePath
-              }"
-              :launchpad="{
-                workspaceLabel: filesystem.workingFolderPath.value ? basenameLabel(filesystem.workingFolderPath.value) : '',
-                recentWorkspaces: launchpadRecentWorkspaces,
-                recentViewedNotes,
-                recentUpdatedNotes,
-                showWizardAction: launchpadShowWizardAction
-              }"
+              :cosmos="cosmosPaneViewModel"
+              :second-brain="secondBrainPaneViewModel"
+              :launchpad="launchpadPaneViewModel"
               @pane-focus="multiPane.setActivePane($event.paneId)"
               @pane-tab-click="void onPaneTabClick($event)"
               @pane-tab-close="onPaneTabClose($event)"

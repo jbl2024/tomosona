@@ -7,6 +7,11 @@ import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { FileEditorStatus } from './EditorPaneTabs.vue'
 import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
+import type {
+  AppShellCosmosViewModel,
+  AppShellLaunchpadViewModel,
+  AppShellSecondBrainViewModel
+} from '../../lib/appShellViewModels'
 
 const props = defineProps<{
   paneId: string
@@ -23,42 +28,11 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   activeDocumentPath: string
-  cosmos: {
-    graph: any
-    loading: boolean
-    error: string
-    selectedNodeId: string
-    focusMode: boolean
-    focusDepth: number
-    summary: { nodes: number; edges: number }
-    query: string
-    matches: any[]
-    showSemanticEdges: boolean
-    selectedNode: any | null
-    selectedLinkCount: number
-    preview: string
-    previewLoading: boolean
-    previewError: string
-    outgoingNodes: any[]
-    incomingNodes: any[]
-  }
-  secondBrain: {
-    workspacePath: string
-    allWorkspaceFiles: string[]
-    requestedSessionId: string
-    requestedSessionNonce: number
-    requestedPrompt: string
-    requestedPromptNonce: number
-    activeNotePath: string
-  }
-  launchpad: {
+  cosmos: AppShellCosmosViewModel
+  secondBrain: AppShellSecondBrainViewModel
+  launchpad: AppShellLaunchpadViewModel & {
     showExperience: boolean
     mode: 'no-workspace' | 'workspace-launchpad'
-    workspaceLabel: string
-    recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
-    recentViewedNotes: Array<{ path: string; title: string; relativePath: string; recencyLabel: string }>
-    recentUpdatedNotes: Array<{ path: string; title: string; relativePath: string; recencyLabel: string }>
-    showWizardAction: boolean
   }
 }>()
 

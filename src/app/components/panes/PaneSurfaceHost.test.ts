@@ -84,7 +84,7 @@ describe('PaneSurfaceHost', () => {
           savePropertyTypeSchema: async () => {},
           openLinkTarget: async () => true,
           cosmos: {
-            graph: { nodes: [], links: [] },
+            graph: { nodes: [], edges: [], generated_at_ms: 0 },
             loading: false,
             error: '',
             selectedNodeId: '',
@@ -172,7 +172,7 @@ describe('PaneSurfaceHost', () => {
           savePropertyTypeSchema: async () => {},
           openLinkTarget: async () => true,
           cosmos: {
-            graph: { nodes: [], links: [] },
+            graph: { nodes: [], edges: [], generated_at_ms: 0 },
             loading: false,
             error: '',
             selectedNodeId: '',

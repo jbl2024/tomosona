@@ -4,6 +4,11 @@ import EditorPaneTabs, { type FileEditorStatus } from './EditorPaneTabs.vue'
 import PaneSurfaceHost from './PaneSurfaceHost.vue'
 import type { MultiPaneLayout, PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
+import type {
+  AppShellCosmosViewModel,
+  AppShellLaunchpadViewModel,
+  AppShellSecondBrainViewModel
+} from '../../lib/appShellViewModels'
 
 export type EditorPaneGridExposed = {
   saveNow: () => Promise<void>
@@ -35,41 +40,9 @@ const props = defineProps<{
   loadPropertyTypeSchema: () => Promise<Record<string, string>>
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
-  cosmos: {
-    graph: any
-    loading: boolean
-    error: string
-    selectedNodeId: string
-    focusMode: boolean
-    focusDepth: number
-    summary: { nodes: number; edges: number }
-    query: string
-    matches: any[]
-    showSemanticEdges: boolean
-    selectedNode: any | null
-    selectedLinkCount: number
-    preview: string
-    previewLoading: boolean
-    previewError: string
-    outgoingNodes: any[]
-    incomingNodes: any[]
-  }
-  secondBrain: {
-    workspacePath: string
-    allWorkspaceFiles: string[]
-    requestedSessionId: string
-    requestedSessionNonce: number
-    requestedPrompt: string
-    requestedPromptNonce: number
-    activeNotePath: string
-  }
-  launchpad: {
-    workspaceLabel: string
-    recentWorkspaces: Array<{ path: string; label: string; subtitle: string; recencyLabel: string }>
-    recentViewedNotes: Array<{ path: string; title: string; relativePath: string; recencyLabel: string }>
-    recentUpdatedNotes: Array<{ path: string; title: string; relativePath: string; recencyLabel: string }>
-    showWizardAction: boolean
-  }
+  cosmos: AppShellCosmosViewModel
+  secondBrain: AppShellSecondBrainViewModel
+  launchpad: AppShellLaunchpadViewModel
 }>()
 
 const emit = defineEmits<{
