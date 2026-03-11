@@ -49,6 +49,7 @@ describe('useEditorTiptapSetup', () => {
     expect(editorOptions.injectCSS).toBe(false)
     expect(extensionNames).toContain('tableCellAlign')
     expect(codeBlock?.options?.exitOnTripleEnter).toBe(false)
+    expect(typeof editorOptions.editorProps.handleDOMEvents.click).toBe('function')
     expect(typeof editorOptions.editorProps.handleClick).toBe('function')
   })
 
@@ -128,6 +129,35 @@ describe('useEditorTiptapSetup', () => {
 
     expect(click).toBe(true)
     expect(revealAnchor).toHaveBeenCalledWith({ heading: '1-resume' })
+  })
+
+  it('intercepts internal anchor DOM clicks before browser navigation', () => {
+    const revealAnchor = vi.fn(async () => true)
+    const { setup } = createSetup({ revealAnchor })
+    const editorOptions = setup.createEditorOptions('a.md') as any
+
+    const view = {
+      state: { doc: { content: { size: 100 } } },
+      posAtDOM: vi.fn(() => 14)
+    } as any
+
+    const internalAnchor = document.createElement('a')
+    internalAnchor.setAttribute('href', '#1-scuriser-lexistant')
+    const preventDefault = vi.fn()
+    const stopPropagation = vi.fn()
+
+    const click = editorOptions.editorProps.handleDOMEvents.click(view, {
+      target: internalAnchor,
+      metaKey: false,
+      ctrlKey: false,
+      preventDefault,
+      stopPropagation
+    })
+
+    expect(click).toBe(true)
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(stopPropagation).toHaveBeenCalledTimes(1)
+    expect(revealAnchor).toHaveBeenCalledWith({ heading: '1-scuriser-lexistant' })
   })
 
   it('opens link popover on modifier-click for internal anchor links', () => {

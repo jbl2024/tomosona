@@ -145,6 +145,80 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
     return true
   }
 
+  function resolveAnchorPos(view: ProseMirrorEditorView, anchor: HTMLAnchorElement): number {
+    try {
+      return view.posAtDOM(anchor, 0)
+    } catch {
+      return -1
+    }
+  }
+
+  function handleAnchorClick(
+    view: ProseMirrorEditorView,
+    path: string,
+    pos: number,
+    event: MouseEvent
+  ): boolean {
+    const anchor = closestAnchorFromEventTarget(event.target)
+    if (!anchor) return false
+
+    const modifierPressed = event.metaKey || event.ctrlKey
+    const anchorPos = pos >= 0 ? pos : resolveAnchorPos(view, anchor)
+
+    const wikilinkTarget = (
+      anchor.getAttribute('data-target') ??
+      anchor.getAttribute('data-wikilink-target') ??
+      ''
+    ).trim()
+    if (wikilinkTarget) {
+      if (modifierPressed) {
+        event.preventDefault()
+        event.stopPropagation()
+        const targetEditor = options.getSessionEditor(path) ?? options.getCurrentEditor()
+        if (!targetEditor) return true
+        const candidates = [anchorPos, anchorPos - 1, anchorPos + 1]
+        for (const candidate of candidates) {
+          if (candidate < 0 || candidate > view.state.doc.content.size) continue
+          const range = enterWikilinkEditFromNode(targetEditor, candidate)
+          if (!range) continue
+          view.dispatch(view.state.tr.setMeta(WIKILINK_STATE_KEY, { type: 'startEditing', range }))
+          return true
+        }
+        return true
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      void options.openLinkTargetWithAutosave(wikilinkTarget)
+      return true
+    }
+
+    const href = anchor.getAttribute('href')?.trim() ?? ''
+    const internalAnchor = parseInternalAnchorHref(href)
+    if (internalAnchor) {
+      if (modifierPressed) {
+        event.preventDefault()
+        event.stopPropagation()
+        return openLinkPopoverFromAnchorSelection(view, path, anchor, anchorPos)
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      void options.revealAnchor(internalAnchor)
+      return true
+    }
+
+    const safe = options.sanitizeExternalHref(href)
+    if (!safe) return false
+    if (modifierPressed) {
+      event.preventDefault()
+      event.stopPropagation()
+      return openLinkPopoverFromAnchorSelection(view, path, anchor, anchorPos)
+    }
+    event.preventDefault()
+    event.stopPropagation()
+    void options.openExternalUrl(safe)
+    return true
+  }
+
   function adjustHeadingLevelFromTab(view: ProseMirrorEditorView, event: KeyboardEvent): boolean {
     if (event.key !== 'Tab') return false
 
@@ -222,6 +296,9 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
         attributes: {
           class: 'ProseMirror tomosona-prosemirror'
         },
+        handleDOMEvents: {
+          click: (view: ProseMirrorEditorView, event: MouseEvent) => handleAnchorClick(view, path, -1, event)
+        },
         handleKeyDown: (view: ProseMirrorEditorView, event: KeyboardEvent) => {
           if (adjustHeadingLevelFromTab(view, event)) return true
           if (
@@ -235,75 +312,15 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           return false
         },
         handleClick: (view: ProseMirrorEditorView, pos: number, event: MouseEvent) => {
-          const anchor = closestAnchorFromEventTarget(event.target)
+          if (handleAnchorClick(view, path, pos, event)) return true
+
           const modifierPressed = event.metaKey || event.ctrlKey
-          if (!anchor) {
-            if (!modifierPressed) return false
-            const isoDateTarget = readIsoDateTokenAtPos(view, pos)
-            if (!isoDateTarget) return false
-            event.preventDefault()
-            event.stopPropagation()
-            void options.openLinkTargetWithAutosave(isoDateTarget)
-            return true
-          }
-
-          const wikilinkTarget = (
-            anchor.getAttribute('data-target') ??
-            anchor.getAttribute('data-wikilink-target') ??
-            ''
-          ).trim()
-          if (wikilinkTarget) {
-            if (modifierPressed) {
-              event.preventDefault()
-              event.stopPropagation()
-              let domPos = 0
-              try {
-                domPos = view.posAtDOM(anchor, 0)
-              } catch {
-                domPos = 0
-              }
-              const candidates = [domPos, domPos - 1, domPos + 1]
-              for (const candidate of candidates) {
-                if (candidate < 0 || candidate > view.state.doc.content.size) continue
-                const targetEditor = options.getSessionEditor(path) ?? options.getCurrentEditor()
-                if (!targetEditor) continue
-                const range = enterWikilinkEditFromNode(targetEditor, candidate)
-                if (!range) continue
-                view.dispatch(view.state.tr.setMeta(WIKILINK_STATE_KEY, { type: 'startEditing', range }))
-                return true
-              }
-              return true
-            }
-            event.preventDefault()
-            event.stopPropagation()
-            void options.openLinkTargetWithAutosave(wikilinkTarget)
-            return true
-          }
-
-          const href = anchor.getAttribute('href')?.trim() ?? ''
-          const internalAnchor = parseInternalAnchorHref(href)
-          if (internalAnchor) {
-            if (modifierPressed) {
-              event.preventDefault()
-              event.stopPropagation()
-              return openLinkPopoverFromAnchorSelection(view, path, anchor, pos)
-            }
-            event.preventDefault()
-            event.stopPropagation()
-            void options.revealAnchor(internalAnchor)
-            return true
-          }
-
-          const safe = options.sanitizeExternalHref(href)
-          if (!safe) return false
-          if (modifierPressed) {
-            event.preventDefault()
-            event.stopPropagation()
-            return openLinkPopoverFromAnchorSelection(view, path, anchor, pos)
-          }
+          if (!modifierPressed) return false
+          const isoDateTarget = readIsoDateTokenAtPos(view, pos)
+          if (!isoDateTarget) return false
           event.preventDefault()
           event.stopPropagation()
-          void options.openExternalUrl(safe)
+          void options.openLinkTargetWithAutosave(isoDateTarget)
           return true
         }
       },
