@@ -415,7 +415,7 @@ function shortUpdatedLabel(value: string): string {
 }
 
 .launchpad-card {
-  border: 1px solid color-mix(in srgb, var(--ui-border) 82%, transparent);
+  border: 0;
   border-radius: 10px;
   padding: 10px 0 0;
   background: transparent;
@@ -425,10 +425,7 @@ function shortUpdatedLabel(value: string): string {
 .launchpad-card-panel {
   padding: 12px;
   background: color-mix(in srgb, var(--panel-bg) 96%, var(--surface-bg));
-  border-color: color-mix(in srgb, var(--ui-border) 100%, var(--surface-bg));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 4%, transparent),
-    0 1px 2px color-mix(in srgb, black 4%, transparent);
+  box-shadow: none;
 }
 
 .launchpad-card-wide {
@@ -442,10 +439,7 @@ function shortUpdatedLabel(value: string): string {
   height: fit-content;
   padding-top: 8px;
   background: color-mix(in srgb, var(--surface-muted) 78%, var(--surface-bg));
-  border-color: color-mix(in srgb, var(--panel-border) 88%, var(--surface-bg));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 10%, transparent),
-    0 1px 2px color-mix(in srgb, black 3%, transparent);
+  box-shadow: none;
 }
 
 .launchpad-quick-panel .launchpad-section-head {
@@ -518,15 +512,13 @@ function shortUpdatedLabel(value: string): string {
 }
 
 .launchpad-table-row {
-  border-bottom: 1px solid color-mix(in srgb, var(--ui-border) 68%, transparent);
   color: var(--text-soft);
   text-align: left;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .launchpad-table-row:hover {
   background: color-mix(in srgb, var(--panel-soft-bg) 82%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 22%, var(--ui-border));
   color: var(--text-main);
 }
 
@@ -535,15 +527,13 @@ function shortUpdatedLabel(value: string): string {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ui-border) 68%, transparent);
   text-align: left;
   color: var(--text-soft);
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
 }
 
 .launchpad-rich-row:hover {
   background: color-mix(in srgb, var(--panel-soft-bg) 86%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 26%, var(--ui-border));
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--text-main);
 }
@@ -758,12 +748,10 @@ function shortUpdatedLabel(value: string): string {
 
 html[data-theme='light'] .launchpad-quick-panel {
   background: color-mix(in srgb, var(--surface-muted) 92%, var(--surface-subtle));
-  border-color: color-mix(in srgb, var(--border-strong) 82%, var(--surface-bg));
 }
 
 html[data-theme='dark'] .launchpad-quick-panel,
 html.dark .launchpad-quick-panel {
   background: color-mix(in srgb, var(--panel-bg) 96%, var(--surface-bg));
-  border-color: color-mix(in srgb, var(--panel-border) 82%, var(--surface-bg));
 }
 </style>
