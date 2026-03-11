@@ -241,7 +241,13 @@ function shortUpdatedLabel(value: string): string {
           <h3>Recent notes</h3>
           <span v-if="activeRecentNotes.length" class="launchpad-card-meta">{{ activeRecentNotes.length }}</span>
         </div>
-        <div class="launchpad-segmented" role="tablist" aria-label="Recent note lists">
+        <div
+          class="launchpad-segmented"
+          :data-active-tab="activeRecentTab"
+          role="tablist"
+          aria-label="Recent note lists"
+        >
+          <span class="launchpad-segmented-indicator" aria-hidden="true"></span>
           <button
             type="button"
             class="launchpad-segmented-tab"
@@ -474,6 +480,7 @@ function shortUpdatedLabel(value: string): string {
 }
 
 .launchpad-segmented {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -485,7 +492,24 @@ function shortUpdatedLabel(value: string): string {
   background: color-mix(in srgb, var(--panel-bg) 88%, var(--surface-bg));
 }
 
+.launchpad-segmented-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 5px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-soft) 58%, var(--panel-bg));
+  transition: transform 180ms ease;
+}
+
+.launchpad-segmented[data-active-tab='updated'] .launchpad-segmented-indicator {
+  transform: translateX(calc(100% + 4px));
+}
+
 .launchpad-segmented-tab {
+  position: relative;
+  z-index: 1;
   border: 0;
   border-radius: 999px;
   padding: 5px 10px;
@@ -493,10 +517,10 @@ function shortUpdatedLabel(value: string): string {
   color: var(--text-dim);
   font-size: 0.74rem;
   font-weight: 600;
+  transition: color 180ms ease;
 }
 
 .launchpad-segmented-tab-active {
-  background: color-mix(in srgb, var(--accent-soft) 58%, var(--panel-bg));
   color: color-mix(in srgb, var(--accent) 80%, var(--text-main));
 }
 
