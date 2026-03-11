@@ -177,6 +177,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
   function createEditorOptions(path: string) {
     return {
       autofocus: false,
+      injectCSS: false,
       extensions: [
         StarterKit.configure({
           blockquote: false,

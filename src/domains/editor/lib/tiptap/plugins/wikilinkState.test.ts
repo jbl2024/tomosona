@@ -46,7 +46,7 @@ afterEach(() => {
 })
 
 describe('createWikilinkStatePlugin', () => {
-  it('does not consume Enter for selected wikilinks inside list items', () => {
+  it('splits bullet list items when Enter is pressed on a selected terminal wikilink', () => {
     const onNavigate = vi.fn()
     const editor = createEditor({
       type: 'doc',
@@ -89,8 +89,68 @@ describe('createWikilinkStatePlugin', () => {
 
     const handled = plugin.props.handleKeyDown(editor.view, event)
 
-    expect(handled).toBe(false)
+    expect(handled).toBe(true)
     expect(onNavigate).not.toHaveBeenCalled()
+    expect(editor.state.selection.empty).toBe(true)
+    expect(editor.state.selection.$from.parent.type.name).toBe('paragraph')
+    expect(editor.state.selection.$from.parent.content.size).toBe(0)
+    expect(editor.state.selection.$from.node(-1).type.name).toBe('listItem')
+    expect(editor.getJSON().content?.[0]?.type).toBe('bulletList')
+    expect((editor.getJSON().content?.[0] as any)?.content).toHaveLength(2)
+  })
+
+  it('splits task list items when Enter is pressed on a selected terminal wikilink', () => {
+    const onNavigate = vi.fn()
+    const editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'taskList',
+          content: [
+            {
+              type: 'taskItem',
+              attrs: { checked: false },
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'wikilink',
+                      attrs: {
+                        target: 'Tasks/Next.md',
+                        label: 'Next',
+                        exists: true
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    })
+    const position = findFirstWikilinkPos(editor)
+    editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, position)))
+
+    const plugin = createWikilinkStatePlugin(editor, {
+      getCandidates: async () => [],
+      onNavigate,
+      onCreate: async () => {},
+      resolve: async () => true
+    }) as any
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+
+    const handled = plugin.props.handleKeyDown(editor.view, event)
+
+    expect(handled).toBe(true)
+    expect(onNavigate).not.toHaveBeenCalled()
+    expect(editor.state.selection.empty).toBe(true)
+    expect(editor.state.selection.$from.parent.type.name).toBe('paragraph')
+    expect(editor.state.selection.$from.parent.content.size).toBe(0)
+    expect(editor.state.selection.$from.node(-1).type.name).toBe('taskItem')
+    expect(editor.getJSON().content?.[0]?.type).toBe('taskList')
+    expect((editor.getJSON().content?.[0] as any)?.content).toHaveLength(2)
   })
 
   it('keeps Enter navigation for selected wikilinks outside lists', () => {

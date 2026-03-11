@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core'
-import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import {
   enterWikilinkEditFromNode,
@@ -89,9 +89,34 @@ function inCodeContext(state: EditorState): boolean {
 function selectionInsideListItem(state: EditorState): boolean {
   const { $from } = state.selection
   for (let depth = $from.depth; depth > 0; depth -= 1) {
-    if ($from.node(depth).type.name === 'listItem') return true
+    const typeName = $from.node(depth).type.name
+    if (typeName === 'listItem' || typeName === 'taskItem') return true
   }
   return false
+}
+
+function splitSelectedWikilinkListItem(editor: Editor, state: WikilinkPluginState): boolean {
+  if (!(editor.state.selection instanceof NodeSelection)) return false
+  const pos = state.nodePos
+  if (typeof pos !== 'number') return false
+
+  const selectedNode = editor.state.doc.nodeAt(pos)
+  if (!selectedNode) return false
+
+  const { $from } = editor.state.selection
+  let itemTypeName: 'listItem' | 'taskItem' | null = null
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const typeName = $from.node(depth).type.name
+    if (typeName === 'listItem' || typeName === 'taskItem') {
+      itemTypeName = typeName
+      break
+    }
+  }
+  if (!itemTypeName) return false
+
+  const cursorPos = pos + selectedNode.nodeSize
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, cursorPos)))
+  return editor.commands.splitListItem(itemTypeName)
 }
 
 function mapRange(range: WikilinkEditingRange, tr: Transaction): WikilinkEditingRange {
@@ -469,7 +494,10 @@ export function createWikilinkStatePlugin(editor: Editor, options: WikilinkState
 
         if (state.mode === 'node_selected') {
           if (event.key === 'Enter') {
-            if (selectionInsideListItem(view.state)) return false
+            if (selectionInsideListItem(view.state)) {
+              event.preventDefault()
+              return splitSelectedWikilinkListItem(editor, state)
+            }
             event.preventDefault()
             if (state.nodeTarget) {
               void options.onNavigate(state.nodeTarget)

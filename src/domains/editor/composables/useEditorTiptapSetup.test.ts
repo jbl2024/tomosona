@@ -46,6 +46,7 @@ describe('useEditorTiptapSetup', () => {
 
     expect(Array.isArray(editorOptions.extensions)).toBe(true)
     expect(editorOptions.extensions.length).toBeGreaterThan(8)
+    expect(editorOptions.injectCSS).toBe(false)
     expect(extensionNames).toContain('tableCellAlign')
     expect(codeBlock?.options?.exitOnTripleEnter).toBe(false)
     expect(typeof editorOptions.editorProps.handleClick).toBe('function')
