@@ -30,6 +30,7 @@
 
 ## Shell Composables
 - `useAppModalController`: modal selector derivation, focus restore, tab trapping.
+- `useAppShellCommands`: cross-domain command routing for palette, launchpad, pane chrome, and shell menus.
 - `useAppShellKeyboard`: global shortcut priority, `Escape` routing, pane/navigation shortcut dispatch.
 - `useAppShellSearch`: global search state, debounce, grouping, mode switching.
 - `useAppShellLaunchpad`: recent workspaces, recent notes, launchpad row derivation.
@@ -48,7 +49,7 @@
 ## Adding Features
 ### Add a new command palette action
 - Put the domain behavior in the owning domain/controller.
-- Put shell routing and UI wiring in the shell.
+- Put shell routing and UI wiring in `useAppShellCommands` when the action is reused by multiple shell entry points.
 - Reuse existing shell command helpers before adding a new inline handler in `App.vue`.
 
 ### Add a new shell modal

@@ -125,6 +125,7 @@ import {
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
 import { useAppShellHistoryUi } from './composables/useAppShellHistoryUi'
+import { useAppShellCommands } from './composables/useAppShellCommands'
 import { useAppShellKeyboard } from './composables/useAppShellKeyboard'
 import { useAppShellLaunchpad } from './composables/useAppShellLaunchpad'
 import { useAppShellSearch, type AppShellSearchHit } from './composables/useAppShellSearch'
@@ -1320,6 +1321,104 @@ const {
   onGlobalPointerDown: onGlobalPointerDownInternal,
   dispose: disposeHistoryUi
 } = historyUi
+const commands = useAppShellCommands({
+  workspacePort: {
+    hasWorkspace: filesystem.hasWorkspace,
+    activeFilePath,
+    allWorkspaceFiles,
+    previousNonCosmosMode,
+    setSidebarMode: (mode) => workspace.setSidebarMode(mode),
+    persistSidebarMode,
+    persistPreviousNonCosmosMode,
+    notifyError: (message) => filesystem.notifyError(message),
+    notifySuccess: (message) => filesystem.notifySuccess(message)
+  },
+  documentPort: {
+    isMarkdownPath,
+    normalizePathKey,
+    toRelativePath,
+    clearEditorStatusForPaths,
+    resetActiveOutline: () => editorState.setActiveOutline([])
+  },
+  panePort: {
+    activePaneId: computed(() => multiPane.layout.value.activePaneId),
+    panesById: computed(() => multiPane.layout.value.panesById),
+    openSurfaceInPane: (type) => multiPane.openSurfaceInPane(type),
+    splitPane: (paneId, axis) => multiPane.splitPane(paneId, axis),
+    setActivePane: (paneId) => multiPane.setActivePane(paneId),
+    focusPaneByIndex: (index) => multiPane.focusPaneByIndex(index),
+    focusAdjacentPane: (direction) => multiPane.focusAdjacentPane(direction),
+    moveActiveTabToAdjacentPane: (direction) => multiPane.moveActiveTabToAdjacentPane(direction),
+    closePane: (paneId) => multiPane.closePane(paneId),
+    joinAllPanes: () => multiPane.joinAllPanes(),
+    resetToSinglePane: () => multiPane.resetToSinglePane(),
+    closeAllTabsAndResetLayout: () => multiPane.closeAllTabsAndResetLayout(),
+    closeAllTabsInPane: (paneId) => multiPane.closeAllTabsInPane(paneId),
+    closeOtherTabsInPane: (paneId, tabId) => multiPane.closeOtherTabsInPane(paneId, tabId)
+  },
+  navigationPort: {
+    openTabWithAutosave,
+    recordHomeHistorySnapshot,
+    recordSecondBrainHistorySnapshot,
+    recordCosmosHistorySnapshot
+  },
+  favoritesPort: {
+    isFavorite: (path) => favorites.isFavorite(path),
+    addFavorite: (path) => favorites.addFavorite(path),
+    removeFavorite: (path) => favorites.removeFavorite(path)
+  },
+  cosmosPort: {
+    graph: cosmos.graph,
+    error: cosmos.error,
+    refreshGraph: () => cosmos.refreshGraph(),
+    selectNode: (nodeId) => cosmos.selectNode(nodeId)
+  },
+  actionPort: {
+    loadAllFiles,
+    addActiveNoteToSecondBrain,
+    openSettingsModal,
+    openQuickOpen,
+    openTodayNote,
+    openWorkspacePicker: onSelectWorkingFolder,
+    closeWorkspace,
+    revealInFileManager,
+    closeOverflowMenu,
+    focusSearchInput: () => {
+      document.querySelector<HTMLInputElement>('[data-search-input="true"]')?.focus()
+    },
+    scheduleCosmosNodeFocus
+  }
+})
+const {
+  openCosmosViewFromPalette,
+  openSecondBrainViewFromPalette,
+  openHomeViewFromPalette,
+  openFavoritesPanelFromPalette,
+  addActiveNoteToSecondBrainFromPalette,
+  addActiveNoteToFavoritesFromPalette,
+  removeActiveNoteFromFavoritesFromPalette,
+  removeFavoriteFromList,
+  toggleActiveNoteFavoriteFromRightPane,
+  openSettingsFromPalette,
+  openNoteInCosmosFromPalette,
+  openSearchPanel,
+  openFavoriteFromSidebar,
+  revealActiveInExplorer,
+  openCommandPalette,
+  runLaunchpadQuickStart,
+  closeAllTabsFromPalette,
+  closeAllTabsOnCurrentPaneFromPalette,
+  openWorkspaceFromPalette,
+  closeWorkspaceFromPalette,
+  closeOtherTabsFromPalette,
+  splitPaneFromPalette,
+  focusPaneFromPalette,
+  focusNextPaneFromPalette,
+  moveTabToNextPaneFromPalette,
+  closeActivePaneFromPalette,
+  joinPanesFromPalette,
+  resetPaneLayoutFromPalette
+} = commands
 const keyboard = useAppShellKeyboard({
   isMacOs,
   statePort: {
@@ -1429,40 +1528,6 @@ function setThemeFromPalette(next: ThemePreference) {
   return true
 }
 
-/**
- * Enters Cosmos mode without toggle semantics.
- *
- * Unlike toolbar toggle behavior, command-palette actions should be idempotent
- * and keep Cosmos open when already active.
- */
-async function openCosmosViewFromPalette() {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
-
-  multiPane.openSurfaceInPane('cosmos')
-  if (!cosmos.graph.value.nodes.length) {
-    await cosmos.refreshGraph()
-  }
-  recordCosmosHistorySnapshot()
-  return true
-}
-
-async function openSecondBrainViewFromPalette() {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
-
-  multiPane.openSurfaceInPane('second-brain-chat')
-  recordSecondBrainHistorySnapshot()
-  if (!allWorkspaceFiles.value.length) {
-    await loadAllFiles()
-  }
-  return true
-}
-
 async function openPulseContextInSecondBrain(payload: {
   contextPaths: string[]
   prompt?: string
@@ -1493,73 +1558,6 @@ async function openPulseContextInSecondBrain(payload: {
   }
 }
 
-async function openHomeViewFromPalette() {
-  multiPane.openSurfaceInPane('home')
-  recordHomeHistorySnapshot()
-  if (filesystem.hasWorkspace.value && !allWorkspaceFiles.value.length) {
-    await loadAllFiles()
-  }
-  return true
-}
-
-async function addActiveNoteToSecondBrainFromPalette() {
-  return await addActiveNoteToSecondBrain()
-}
-
-async function openFavoritesPanelFromPalette() {
-  closeOverflowMenu()
-  workspace.setSidebarMode('favorites')
-  previousNonCosmosMode.value = 'favorites'
-  persistPreviousNonCosmosMode()
-  persistSidebarMode()
-  return true
-}
-
-async function addActiveNoteToFavoritesFromPalette() {
-  const path = activeFilePath.value
-  if (!path || !isMarkdownPath(path)) return false
-  try {
-    await favorites.addFavorite(path)
-    filesystem.notifySuccess(`Added ${toRelativePath(path)} to favorites.`)
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not add favorite.'
-    return false
-  }
-}
-
-async function removeActiveNoteFromFavoritesFromPalette() {
-  const path = activeFilePath.value
-  if (!path || !favorites.isFavorite(path)) return false
-  try {
-    await favorites.removeFavorite(path)
-    filesystem.notifySuccess(`Removed ${toRelativePath(path)} from favorites.`)
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not remove favorite.'
-    return false
-  }
-}
-
-async function removeFavoriteFromList(path: string) {
-  try {
-    await favorites.removeFavorite(path)
-    filesystem.notifySuccess(`Removed ${toRelativePath(path)} from favorites.`)
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not remove favorite.'
-  }
-}
-
-async function toggleActiveNoteFavoriteFromRightPane() {
-  const path = activeFilePath.value
-  if (!path || !isMarkdownPath(path)) return
-  if (favorites.isFavorite(path)) {
-    await removeActiveNoteFromFavoritesFromPalette()
-    return
-  }
-  await addActiveNoteToFavoritesFromPalette()
-}
-
 function closeSettingsModal() {
   settingsModalVisible.value = false
   void nextTick(() => {
@@ -1580,46 +1578,6 @@ function onSettingsSaved(result: { path: string; embeddings_changed: boolean }) 
     filesystem.notifyInfo('Embedding settings changed. Rebuild index to resync semantic search.')
   }
   closeSettingsModal()
-}
-
-async function openSettingsFromPalette() {
-  await openSettingsModal()
-  return true
-}
-
-/**
- * Opens Cosmos and selects the active note node when available.
- */
-async function openNoteInCosmosFromPalette() {
-  const activePath = activeFilePath.value
-  if (!activePath) {
-    filesystem.errorMessage.value = 'No active note to open in Cosmos.'
-    return false
-  }
-
-  const opened = await openCosmosViewFromPalette()
-  if (!opened) return false
-
-  const target = activePath.trim()
-  const targetKey = normalizePathKey(target)
-  let match = cosmos.graph.value.nodes.find((node) => normalizePathKey(node.path) === targetKey || normalizePathKey(node.id) === targetKey)
-  if (!match) {
-    await cosmos.refreshGraph()
-    match = cosmos.graph.value.nodes.find((node) => normalizePathKey(node.path) === targetKey || normalizePathKey(node.id) === targetKey)
-  }
-  if (!match) {
-    if (cosmos.error.value) {
-      filesystem.errorMessage.value = cosmos.error.value
-      return false
-    }
-    filesystem.errorMessage.value = 'Active note is not available in the current graph index.'
-    return true
-  }
-
-  cosmos.selectNode(match.id)
-  scheduleCosmosNodeFocus(match.id)
-  recordCosmosHistorySnapshot()
-  return true
 }
 
 async function closeWorkspace() {
@@ -2192,21 +2150,6 @@ function setSidebarMode(mode: SidebarMode) {
   persistSidebarMode()
 }
 
-function openSearchPanel() {
-  closeOverflowMenu()
-  workspace.setSidebarMode('search')
-  previousNonCosmosMode.value = 'search'
-  persistPreviousNonCosmosMode()
-  persistSidebarMode()
-  nextTick(() => {
-    document.querySelector<HTMLInputElement>('[data-search-input=\"true\"]')?.focus()
-  })
-}
-
-async function openFavoriteFromSidebar(path: string) {
-  await openTabWithAutosave(path)
-}
-
 function collectSemanticLinksForPath(path: string, rawGraph: WikilinkGraph | null): SemanticLinkRow[] {
   if (!rawGraph) return []
   const nodeById = new Map(rawGraph.nodes.map((node) => [node.id, node]))
@@ -2336,17 +2279,6 @@ async function submitOpenDateFromModal() {
   if (!opened) return false
   closeOpenDateModal()
   return true
-}
-
-async function revealActiveInExplorer() {
-  if (!activeFilePath.value) return false
-  try {
-    await revealInFileManager(activeFilePath.value)
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not reveal file.'
-    return false
-  }
 }
 
 async function openWikilinkTarget(target: string) {
@@ -2541,11 +2473,6 @@ async function openQuickResult(item: QuickOpenResult) {
   })
 }
 
-function openCommandPalette() {
-  closeOverflowMenu()
-  void openQuickOpen('>')
-}
-
 async function runQuickOpenAction(id: string) {
   const action = quickOpenActionResults.value.find((item) => item.id === id)
   if (!action) return
@@ -2594,22 +2521,6 @@ async function createNewFileFromPalette() {
   const prefill = await suggestedNotePathPrefix()
   await openNewFileModal(prefill)
   return true
-}
-
-async function runLaunchpadQuickStart(kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette') {
-  if (kind === 'today') {
-    await openTodayNote()
-    return
-  }
-  if (kind === 'second-brain') {
-    await openSecondBrainViewFromPalette()
-    return
-  }
-  if (kind === 'cosmos') {
-    await openCosmosViewFromPalette()
-    return
-  }
-  openCommandPalette()
 }
 
 function closeNewFileModal() {
@@ -2808,82 +2719,6 @@ function clearEditorStatusForPaths(paths: string[]) {
   for (const path of paths) {
     editorState.clearStatus(path)
   }
-}
-
-function closeAllTabsFromPalette() {
-  const allDocumentPaths = Object.values(multiPane.layout.value.panesById)
-    .flatMap((pane) =>
-      pane.openTabs
-        .filter((tab) => tab.type === 'document')
-        .map((tab) => (tab.type === 'document' ? tab.path : ''))
-        .filter(Boolean)
-    )
-  multiPane.closeAllTabsAndResetLayout()
-  clearEditorStatusForPaths(allDocumentPaths)
-  editorState.setActiveOutline([])
-  return true
-}
-
-function closeAllTabsOnCurrentPaneFromPalette() {
-  const paneId = multiPane.layout.value.activePaneId
-  const panePaths = documentPathsForPane(paneId)
-  multiPane.closeAllTabsInPane(paneId)
-  clearEditorStatusForPaths(panePaths)
-  editorState.setActiveOutline([])
-  return true
-}
-
-async function openWorkspaceFromPalette() {
-  return await onSelectWorkingFolder()
-}
-
-function closeWorkspaceFromPalette() {
-  if (!filesystem.hasWorkspace.value) return false
-  void closeWorkspace()
-  return true
-}
-function closeOtherTabsFromPalette() {
-  const paneId = multiPane.layout.value.activePaneId
-  const active = multiPane.layout.value.panesById[paneId]?.activeTabId ?? ''
-  if (!active) return false
-  multiPane.closeOtherTabsInPane(paneId, active)
-  return true
-}
-
-async function splitPaneFromPalette(axis: 'row' | 'column') {
-  const createdPaneId = multiPane.splitPane(multiPane.layout.value.activePaneId, axis)
-  if (!createdPaneId) return false
-  // Some focus events from the previous editor can fire right after split.
-  // Re-apply the new pane focus after DOM update to keep UX deterministic.
-  await nextTick()
-  multiPane.setActivePane(createdPaneId)
-  return true
-}
-
-function focusPaneFromPalette(index: number) {
-  return multiPane.focusPaneByIndex(index)
-}
-
-function focusNextPaneFromPalette() {
-  return multiPane.focusAdjacentPane('next')
-}
-
-function moveTabToNextPaneFromPalette() {
-  return multiPane.moveActiveTabToAdjacentPane('next')
-}
-
-function closeActivePaneFromPalette() {
-  return multiPane.closePane(multiPane.layout.value.activePaneId)
-}
-
-function joinPanesFromPalette() {
-  multiPane.joinAllPanes()
-  return true
-}
-
-function resetPaneLayoutFromPalette() {
-  multiPane.resetToSinglePane()
-  return true
 }
 
 function onQuickOpenEnter() {
