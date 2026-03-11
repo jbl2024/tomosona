@@ -1712,7 +1712,6 @@ async function loadWorkingFolder(path: string) {
   recordRecentWorkspace(canonical)
   resetSearchState()
   invalidateRecentNotes()
-  await loadAllFiles()
   try {
     await favorites.loadFavorites()
   } catch (err) {
