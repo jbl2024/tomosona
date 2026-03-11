@@ -18,6 +18,19 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.16.5] - 2026-03-11
+
+### Added
+- feat(launchpad): animate recent-notes segmented control (d39e1c3)
+
+### Changed
+- refactor(theme): split fonts and theme tokens from tailwind entry (ec2f7bc)
+- refactor(theme): normalize semantic tokens across shell and panels (07353b4)
+
+### Fixed
+- fix(launchpad): align animated recent-notes segmented control (8aa55b6)
+- fix(launchpad): remove card and row borders from recent sections (9893c20)
+
 ## [0.16.4] - 2026-03-11
 
 ### Fixed
