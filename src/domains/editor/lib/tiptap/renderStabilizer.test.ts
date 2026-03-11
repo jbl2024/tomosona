@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { beginHeavyRender, endHeavyRender, hasPendingHeavyRender, waitForHeavyRenderIdle } from './renderStabilizer'
+import {
+  beginHeavyRender,
+  captureHeavyRenderEpoch,
+  endHeavyRender,
+  hasPendingHeavyRender,
+  waitForHeavyRenderIdle
+} from './renderStabilizer'
 
 describe('renderStabilizer', () => {
   beforeEach(() => {
@@ -56,5 +62,18 @@ describe('renderStabilizer', () => {
     endHeavyRender(token)
     endHeavyRender('missing-token')
     expect(hasPendingHeavyRender()).toBe(false)
+  })
+
+  it('can ignore renders started before a captured epoch', async () => {
+    const staleToken = beginHeavyRender('stale')
+    const sinceSeq = captureHeavyRenderEpoch()
+
+    expect(hasPendingHeavyRender({ sinceSeq })).toBe(false)
+
+    const waitPromise = waitForHeavyRenderIdle({ timeoutMs: 40, settleMs: 10, sinceSeq })
+    await vi.advanceTimersByTimeAsync(10)
+    await expect(waitPromise).resolves.toBe(true)
+
+    endHeavyRender(staleToken)
   })
 })

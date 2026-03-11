@@ -13,8 +13,9 @@ import { finishOpenTrace, startOpenTrace, takePendingOpenTrace, traceOpenStep } 
  * Failure behavior:
  * - Resolves `false` when the wait times out; callers should continue deterministic load completion.
  */
-export type WaitForHeavyRenderIdle = (options?: { timeoutMs?: number; settleMs?: number }) => Promise<boolean>
-export type HasPendingHeavyRender = () => boolean
+export type WaitForHeavyRenderIdle = (options?: { timeoutMs?: number; settleMs?: number; sinceSeq?: number }) => Promise<boolean>
+export type HasPendingHeavyRender = (options?: { sinceSeq?: number }) => boolean
+export type CaptureHeavyRenderEpoch = () => number
 
 // Regex-driven heavy render detection:
 // - Mermaid example detected: "```mermaid\nflowchart TD\nA-->B\n```"
@@ -149,6 +150,10 @@ export type UseEditorFileLifecycleOptions = {
    * Optional hook that reports whether heavy async rendering is currently in-flight.
    */
   hasPendingHeavyRender?: HasPendingHeavyRender
+  /**
+   * Optional hook that snapshots the current heavy-render sequence before content mount.
+   */
+  captureHeavyRenderEpoch?: CaptureHeavyRenderEpoch
   /**
    * Minimum overlay visibility once large-document loading is shown.
    *
@@ -310,6 +315,9 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         })
         documentPort.syncLoadedTitle(path, documentPort.noteTitleFromPath(path))
         const shouldWaitForHeavyRender = isHeavyRenderMarkdown(body) && typeof options.waitForHeavyRenderIdle === 'function'
+        const heavyRenderEpoch = shouldWaitForHeavyRender && typeof options.captureHeavyRenderEpoch === 'function'
+          ? options.captureHeavyRenderEpoch()
+          : 0
 
         if (uiPort.ui.isLoadingLargeDocument.value) {
           uiPort.ui.loadStageLabel.value = 'Rendering blocks in editor...'
@@ -329,7 +337,7 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           shouldWaitForHeavyRender &&
           !uiPort.ui.isLoadingLargeDocument.value &&
           typeof options.hasPendingHeavyRender === 'function' &&
-          options.hasPendingHeavyRender()
+          options.hasPendingHeavyRender({ sinceSeq: heavyRenderEpoch })
         ) {
           // Why/invariant: below-threshold docs can still trigger expensive async node renders.
           // Delay escalation prevents unnecessary blocking for near-instant renders.
@@ -338,7 +346,7 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
             finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_heavy_overlay' })
             return
           }
-          if (options.hasPendingHeavyRender()) {
+          if (options.hasPendingHeavyRender({ sinceSeq: heavyRenderEpoch })) {
             largeDocOverlayShownAt = Date.now()
             showLoadingOverlay(body, 'Finalizing rich blocks...', 90, true)
             await flushUiFrame()
@@ -356,7 +364,8 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           const heavyRenderStartedAt = performance.now()
           await options.waitForHeavyRenderIdle?.({
             timeoutMs: heavyRenderIdleTimeoutMs,
-            settleMs: heavyRenderIdleSettleMs
+            settleMs: heavyRenderIdleSettleMs,
+            sinceSeq: heavyRenderEpoch
           })
           traceOpenStep(traceId, 'heavy render settled', {
             duration_ms: Math.round(performance.now() - heavyRenderStartedAt)

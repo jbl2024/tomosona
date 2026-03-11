@@ -14,7 +14,7 @@
  * - `endHeavyRender` is idempotent and never throws for unknown tokens.
  */
 
-const pendingTokens = new Set<string>()
+const pendingTokens = new Map<string, number>()
 const listeners = new Set<() => void>()
 let tokenSeq = 0
 
@@ -30,8 +30,9 @@ function notifyQueueChange() {
  */
 export function beginHeavyRender(scope = 'heavy-render'): string {
   tokenSeq += 1
-  const token = `${scope}:${tokenSeq}`
-  pendingTokens.add(token)
+  const seq = tokenSeq
+  const token = `${scope}:${seq}`
+  pendingTokens.set(token, seq)
   notifyQueueChange()
   return token
 }
@@ -51,10 +52,28 @@ export function endHeavyRender(token: string): void {
 }
 
 /**
- * Returns whether any heavy async render is currently pending.
+ * Returns a snapshot of the latest issued heavy-render sequence number.
+ *
+ * Why/invariant:
+ * - Callers can capture a baseline before `setContent` and later ignore older
+ *   async renders that started under a previous document/workspace.
  */
-export function hasPendingHeavyRender(): boolean {
-  return pendingTokens.size > 0
+export function captureHeavyRenderEpoch(): number {
+  return tokenSeq
+}
+
+/**
+ * Returns whether any heavy async render is currently pending.
+ *
+ * @param options.sinceSeq When provided, only renders started after this
+ * sequence snapshot are considered relevant.
+ */
+export function hasPendingHeavyRender(options: { sinceSeq?: number } = {}): boolean {
+  const sinceSeq = options.sinceSeq ?? 0
+  for (const seq of pendingTokens.values()) {
+    if (seq > sinceSeq) return true
+  }
+  return false
 }
 
 /**
@@ -63,6 +82,7 @@ export function hasPendingHeavyRender(): boolean {
 export type HeavyRenderIdleWaitOptions = {
   timeoutMs?: number
   settleMs?: number
+  sinceSeq?: number
 }
 
 /**
@@ -82,6 +102,8 @@ export type HeavyRenderIdleWaitOptions = {
 export function waitForHeavyRenderIdle(options: HeavyRenderIdleWaitOptions = {}): Promise<boolean> {
   const timeoutMs = options.timeoutMs ?? 1_200
   const settleMs = options.settleMs ?? 48
+  const sinceSeq = options.sinceSeq ?? 0
+  const hasRelevantPendingHeavyRender = () => hasPendingHeavyRender({ sinceSeq })
 
   return new Promise<boolean>((resolve) => {
     let done = false
@@ -104,13 +126,13 @@ export function waitForHeavyRenderIdle(options: HeavyRenderIdleWaitOptions = {})
     const scheduleSettle = () => {
       if (settleTimer) clearTimeout(settleTimer)
       settleTimer = setTimeout(() => {
-        if (!hasPendingHeavyRender()) finish(true)
+        if (!hasRelevantPendingHeavyRender()) finish(true)
       }, settleMs)
     }
 
     const handleQueueChange = () => {
       if (done) return
-      if (hasPendingHeavyRender()) {
+      if (hasRelevantPendingHeavyRender()) {
         if (settleTimer) {
           clearTimeout(settleTimer)
           settleTimer = null

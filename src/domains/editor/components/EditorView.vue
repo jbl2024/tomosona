@@ -6,7 +6,7 @@ import { openExternalUrl } from '../../../shared/api/workspaceApi'
 import type { PulseActionId } from '../../../shared/api/apiTypes'
 import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../../pulse/lib/pulse'
 import type { DocumentSession } from '../composables/useDocumentEditorSessions'
-import { hasPendingHeavyRender, waitForHeavyRenderIdle } from '../lib/tiptap/renderStabilizer'
+import { captureHeavyRenderEpoch, hasPendingHeavyRender, waitForHeavyRenderIdle } from '../lib/tiptap/renderStabilizer'
 import { useEditorChromeRuntime } from '../composables/useEditorChromeRuntime'
 import { useEditorDocumentRuntime } from '../composables/useEditorDocumentRuntime'
 import { useEditorInteractionRuntime } from '../composables/useEditorInteractionRuntime'
@@ -212,7 +212,8 @@ documentRuntime = useEditorDocumentRuntime({
     }
   },
   waitForHeavyRenderIdle,
-  hasPendingHeavyRender
+  hasPendingHeavyRender,
+  captureHeavyRenderEpoch
 })
 
 const currentPath = documentRuntime.currentPath

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import type { DocumentSession } from './useDocumentEditorSessions'
 import {
+  type CaptureHeavyRenderEpoch,
   type EditorFileLifecycleDocumentPort,
   type HasPendingHeavyRender,
   useEditorFileLifecycle,
@@ -56,6 +57,7 @@ type UseEditorFileLifecycleOverrides = {
   requestPort?: Partial<EditorFileLifecycleRequestPort>
   waitForHeavyRenderIdle?: WaitForHeavyRenderIdle
   hasPendingHeavyRender?: HasPendingHeavyRender
+  captureHeavyRenderEpoch?: CaptureHeavyRenderEpoch
   minLargeDocOverlayVisibleMs?: number
   heavyRenderIdleTimeoutMs?: number
   heavyRenderIdleSettleMs?: number
@@ -163,6 +165,7 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
       requestPort: { ...requestPort, ...(overrides.requestPort ?? {}) },
       waitForHeavyRenderIdle: overrides.waitForHeavyRenderIdle,
       hasPendingHeavyRender: overrides.hasPendingHeavyRender,
+      captureHeavyRenderEpoch: overrides.captureHeavyRenderEpoch,
       minLargeDocOverlayVisibleMs: overrides.minLargeDocOverlayVisibleMs,
       heavyRenderIdleTimeoutMs: overrides.heavyRenderIdleTimeoutMs,
       heavyRenderIdleSettleMs: overrides.heavyRenderIdleSettleMs,
@@ -436,6 +439,27 @@ describe('useEditorFileLifecycle', () => {
     await loadPromise
     expect(options.uiPort.ui.isLoadingLargeDocument.value).toBe(false)
     vi.useRealTimers()
+  })
+
+  it('waits only for heavy renders started after the captured epoch', async () => {
+    const waitForHeavyRenderIdle = vi.fn(async () => true)
+    const captureHeavyRenderEpoch = vi.fn(() => 41)
+    const heavyDoc = ['# Title', '```mermaid', 'flowchart TD', 'A --> B', '```'].join('\n')
+    const { options } = createOptions({
+      ioPort: { openFile: vi.fn(async () => heavyDoc) } as Partial<EditorFileLifecycleIoPort>,
+      waitForHeavyRenderIdle,
+      captureHeavyRenderEpoch
+    })
+
+    const lifecycle = useEditorFileLifecycle(options)
+    await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+
+    expect(captureHeavyRenderEpoch).toHaveBeenCalledTimes(1)
+    expect(waitForHeavyRenderIdle).toHaveBeenCalledWith({
+      timeoutMs: 1_200,
+      settleMs: 48,
+      sinceSeq: 41
+    })
   })
 
   it('keeps mounted-tab switch lightweight when session is already loaded', async () => {

@@ -12,7 +12,12 @@ import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
 import { fromTiptapDoc } from '../lib/tiptap/tiptapDocToEditorBlocks'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import type { FrontmatterEnvelope } from '../lib/frontmatter'
-import type { WaitForHeavyRenderIdle, HasPendingHeavyRender, EditorLoadUiState } from './useEditorFileLifecycle'
+import type {
+  WaitForHeavyRenderIdle,
+  HasPendingHeavyRender,
+  CaptureHeavyRenderEpoch,
+  EditorLoadUiState
+} from './useEditorFileLifecycle'
 
 const MAIN_PANE_ID: PaneId = 'main'
 
@@ -76,6 +81,7 @@ export type UseEditorDocumentRuntimeOptions = {
   documentUiPort: EditorDocumentRuntimeUiPort
   waitForHeavyRenderIdle?: WaitForHeavyRenderIdle
   hasPendingHeavyRender?: HasPendingHeavyRender
+  captureHeavyRenderEpoch?: CaptureHeavyRenderEpoch
 }
 
 /**
@@ -338,7 +344,8 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
       isCurrentRequest: (requestId) => lifecycle.isCurrentRequest(requestId)
     },
     waitForHeavyRenderIdle: options.waitForHeavyRenderIdle,
-    hasPendingHeavyRender: options.hasPendingHeavyRender
+    hasPendingHeavyRender: options.hasPendingHeavyRender,
+    captureHeavyRenderEpoch: options.captureHeavyRenderEpoch
   })
 
   const documentPersistence = {
