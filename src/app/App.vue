@@ -53,7 +53,7 @@ import {
   updateWikilinksForRename,
   writePropertyTypeSchema
 } from '../shared/api/indexApi'
-import type { WikilinkGraph, WorkspaceFsChange } from '../shared/api/apiTypes'
+import type { WikilinkGraph } from '../shared/api/apiTypes'
 import {
   bindPendingOpenTrace,
   finishOpenTrace,
@@ -129,6 +129,7 @@ import { useAppShellCommands } from './composables/useAppShellCommands'
 import { useAppShellKeyboard } from './composables/useAppShellKeyboard'
 import { useAppShellLaunchpad } from './composables/useAppShellLaunchpad'
 import { useAppShellSearch, type AppShellSearchHit } from './composables/useAppShellSearch'
+import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
@@ -258,7 +259,6 @@ const wikilinkRewriteQueue: Array<{
   resolve: (approved: boolean) => void
 }> = []
 let wikilinkRewriteResolver: ((approved: boolean) => void) | null = null
-let unlistenWorkspaceFsChanged: (() => void) | null = null
 const showDebugTools = import.meta.env.DEV
 const appVersion = packageJson.version
 
@@ -1379,8 +1379,8 @@ const commands = useAppShellCommands({
     openSettingsModal,
     openQuickOpen,
     openTodayNote,
-    openWorkspacePicker: onSelectWorkingFolder,
-    closeWorkspace,
+    openWorkspacePicker: () => onSelectWorkingFolder(),
+    closeWorkspace: () => closeWorkspace(),
     revealInFileManager,
     closeOverflowMenu,
     focusSearchInput: () => {
@@ -1419,6 +1419,68 @@ const {
   joinPanesFromPalette,
   resetPaneLayoutFromPalette
 } = commands
+const workspaceLifecycle = useAppShellWorkspaceLifecycle({
+  shellPort: {
+    storageKey: WORKING_FOLDER_STORAGE_KEY,
+    workingFolderPath: filesystem.workingFolderPath,
+    hasWorkspace: filesystem.hasWorkspace,
+    activeFilePath,
+    normalizePath,
+    clearError: () => {
+      filesystem.errorMessage.value = ''
+    },
+    notifyError: (message) => filesystem.notifyError(message)
+  },
+  controllerPort: {
+    loadWorkingFolderInternal,
+    closeWorkspaceInternal,
+    resetWorkspaceState,
+    applyWorkspaceFsChanges
+  },
+  uiPort: {
+    activePaneId: computed(() => multiPane.layout.value.activePaneId),
+    resetToSinglePane: () => multiPane.resetToSinglePane(),
+    closeAllTabsInPane: (paneId) => multiPane.closeAllTabsInPane(paneId),
+    findPaneContainingSurface: () => multiPane.findPaneContainingSurface('cosmos'),
+    resetDocumentHistory: () => documentHistory.reset(),
+    resetActiveOutline: () => editorState.setActiveOutline([]),
+    resetSearchState,
+    resetWorkspaceRecentState,
+    recordRecentWorkspace,
+    removeRecentWorkspaceEntry,
+    invalidateRecentNotes,
+    removeLaunchpadRecentNote,
+    renameLaunchpadRecentNote,
+    resetInspectorPanels: () => {
+      backlinks.value = []
+      backlinksLoading.value = false
+      semanticLinks.value = []
+      semanticLinksLoading.value = false
+      virtualDocs.value = {}
+    },
+    closeOverflowMenu
+  },
+  favoritesPort: {
+    loadFavorites: () => favorites.loadFavorites(),
+    reset: () => favorites.reset(),
+    applyWorkspaceFsChanges: (changes) => favorites.applyWorkspaceFsChanges(changes),
+    renameFavorite: (fromPath, toPath) => favorites.renameFavorite(fromPath, toPath)
+  },
+  cosmosPort: {
+    clearState: () => cosmos.clearState(),
+    refreshGraph: () => cosmos.refreshGraph()
+  },
+  fsPort: {
+    selectWorkingFolder,
+    listenWorkspaceFsChanged
+  }
+})
+const {
+  closeWorkspace,
+  loadWorkingFolder,
+  onSelectWorkingFolder,
+  openRecentWorkspace
+} = workspaceLifecycle
 const keyboard = useAppShellKeyboard({
   isMacOs,
   statePort: {
@@ -1580,24 +1642,6 @@ function onSettingsSaved(result: { path: string; embeddings_changed: boolean }) 
   closeSettingsModal()
 }
 
-async function closeWorkspace() {
-  if (!filesystem.hasWorkspace.value) return
-  multiPane.resetToSinglePane()
-  multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
-  documentHistory.reset()
-  editorState.setActiveOutline([])
-  resetSearchState()
-  backlinks.value = []
-  backlinksLoading.value = false
-  semanticLinks.value = []
-  semanticLinksLoading.value = false
-  favorites.reset()
-  cosmos.clearState()
-  resetWorkspaceRecentState()
-  await closeWorkspaceInternal()
-  closeOverflowMenu()
-}
-
 function closeWorkspaceSetupWizard() {
   workspaceSetupWizardVisible.value = false
   workspaceSetupWizardBusy.value = false
@@ -1669,15 +1713,6 @@ async function applyWorkspaceSetupWizard(payload: {
   }
 }
 
-async function openRecentWorkspace(path: string) {
-  filesystem.errorMessage.value = ''
-  await loadWorkingFolder(path)
-  if (!filesystem.hasWorkspace.value) {
-    removeRecentWorkspaceEntry(path)
-    filesystem.errorMessage.value = filesystem.errorMessage.value || 'Could not reopen that workspace.'
-  }
-}
-
 function beginResize(side: 'left' | 'right', event: MouseEvent) {
   event.preventDefault()
   resizeState.value = {
@@ -1701,49 +1736,6 @@ function onPointerMove(event: MouseEvent) {
 
 function stopResize() {
   resizeState.value = null
-}
-
-async function onSelectWorkingFolder() {
-  filesystem.errorMessage.value = ''
-  try {
-    const path = await selectWorkingFolder()
-    if (!path) return false
-    await loadWorkingFolder(path)
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value =
-      err instanceof Error ? err.message : 'Could not open workspace. Protected folders are not allowed.'
-    return false
-  }
-}
-
-async function loadWorkingFolder(path: string) {
-  const canonical = await loadWorkingFolderInternal(path)
-  if (!canonical) {
-    multiPane.resetToSinglePane()
-    multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
-    resetSearchState()
-    favorites.reset()
-    return
-  }
-
-  recordRecentWorkspace(canonical)
-  resetSearchState()
-  invalidateRecentNotes()
-  try {
-    await favorites.loadFavorites()
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not load favorites.'
-  }
-  if (multiPane.findPaneContainingSurface('cosmos') !== null) {
-    await cosmos.refreshGraph()
-  }
-
-  if (activeFilePath.value && !activeFilePath.value.startsWith(canonical)) {
-    multiPane.resetToSinglePane()
-    multiPane.closeAllTabsInPane(multiPane.layout.value.activePaneId)
-    editorState.setActiveOutline([])
-  }
 }
 
 function onExplorerError(message: string) {
@@ -1770,27 +1762,6 @@ async function onExplorerOpen(path: string) {
     finishOpenTrace(traceId, 'blocked', { stage: 'navigation' })
   }
   if (!opened) return
-}
-
-function syncFavoritesForWorkspaceChanges(changes: WorkspaceFsChange[]) {
-  for (const change of changes) {
-    if (change.kind !== 'renamed' || !change.old_path || !change.new_path) continue
-    void favorites.renameFavorite(change.old_path, change.new_path).catch((err) => {
-      filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update favorite.'
-    })
-  }
-}
-
-function syncViewedNotesForWorkspaceChanges(changes: WorkspaceFsChange[]) {
-  for (const change of changes) {
-    if (change.kind === 'removed' && change.path) {
-      removeLaunchpadRecentNote(change.path)
-      continue
-    }
-    if (change.kind === 'renamed' && change.old_path && change.new_path) {
-      renameLaunchpadRecentNote(change.old_path, change.new_path)
-    }
-  }
 }
 
 async function openFile(path: string) {
@@ -2901,18 +2872,6 @@ watch(quickOpenItemCount, (count) => {
 })
 
 watch(
-  () => filesystem.workingFolderPath.value,
-  () => {
-    documentHistory.reset()
-    resetWorkspaceState()
-    backlinks.value = []
-    semanticLinks.value = []
-    virtualDocs.value = {}
-    resetWorkspaceRecentState()
-  }
-)
-
-watch(
   () => filesystem.indexingState.value,
   () => {
     if (indexStatusModalVisible.value) {
@@ -2972,28 +2931,7 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('mousemove', onPointerMove)
   window.addEventListener('mouseup', stopResize)
-  void listenWorkspaceFsChanged((payload) => {
-    const root = filesystem.workingFolderPath.value
-    if (!root) return
-    if (normalizePath(payload.root).toLowerCase() !== normalizePath(root).toLowerCase()) return
-    applyWorkspaceFsChanges(payload.changes)
-    favorites.applyWorkspaceFsChanges(payload.changes)
-    syncFavoritesForWorkspaceChanges(payload.changes)
-    syncViewedNotesForWorkspaceChanges(payload.changes)
-    if (payload.changes.some((change) => change.kind === 'modified' || change.kind === 'created' || change.kind === 'removed' || change.kind === 'renamed')) {
-      invalidateRecentNotes()
-    }
-  }).then((unlisten) => {
-    unlistenWorkspaceFsChanged = unlisten
-  }).catch(() => {
-    unlistenWorkspaceFsChanged = null
-  })
-
-  const savedFolder = window.localStorage.getItem(WORKING_FOLDER_STORAGE_KEY)
-  if (savedFolder) {
-    void loadWorkingFolder(savedFolder)
-  }
-
+  void workspaceLifecycle.start()
 })
 
 onBeforeUnmount(() => {
@@ -3003,16 +2941,13 @@ onBeforeUnmount(() => {
   disposeShellSearch()
   disposeShellLaunchpad()
   disposeHistoryUi()
+  workspaceLifecycle.dispose()
   keyboard.dispose()
   mediaQuery?.removeEventListener('change', onSystemThemeChanged)
   window.removeEventListener('mousedown', onGlobalPointerDown, true)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('mousemove', onPointerMove)
   window.removeEventListener('mouseup', stopResize)
-  if (unlistenWorkspaceFsChanged) {
-    unlistenWorkspaceFsChanged()
-    unlistenWorkspaceFsChanged = null
-  }
 })
 </script>
 

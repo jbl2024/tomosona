@@ -35,6 +35,7 @@
 - `useAppShellSearch`: global search state, debounce, grouping, mode switching.
 - `useAppShellLaunchpad`: recent workspaces, recent notes, launchpad row derivation.
 - `useAppShellHistoryUi`: back/forward menu long press, outside click, resize positioning.
+- `useAppShellWorkspaceLifecycle`: workspace restore, workspace close/reset, and global filesystem event orchestration.
 - Existing higher-level controllers remain domain or shell orchestrators:
   - `useAppWorkspaceController`
   - `useAppNavigationController`
