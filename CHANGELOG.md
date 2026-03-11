@@ -18,6 +18,13 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.16.4] - 2026-03-11
+
+### Fixed
+- fix(fs): hide dotfiles from explorer and watcher (be370c6)
+- fix(workspace): dedupe unicode paths during workspace scan (55ba4b0)
+- fix(watcher): ignore stale startup modify events (5e5110e)
+
 ## [0.16.3] - 2026-03-10
 
 ### Changed
