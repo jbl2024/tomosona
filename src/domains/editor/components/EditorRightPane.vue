@@ -190,8 +190,8 @@ watch(
 .right-pane {
   min-width: 0;
   min-height: 0;
-  background: var(--surface-muted);
-  border-left: 1px solid var(--border-subtle);
+  background: var(--right-pane-bg);
+  border-left: 1px solid var(--right-pane-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -202,9 +202,9 @@ watch(
 .pane-card {
   position: relative;
   border-radius: 10px;
-  background: var(--surface-raised);
+  background: var(--right-pane-card-bg);
   padding: 10px 8px 8px 10px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 32%, transparent);
+  box-shadow: inset 0 0 0 1px var(--right-pane-card-border);
   transition: box-shadow 160ms ease, background-color 160ms ease;
 }
 
@@ -213,7 +213,7 @@ watch(
 }
 
 .pane-card:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent);
+  box-shadow: inset 0 0 0 1px var(--right-pane-card-hover);
 }
 
 .pane-toolbar {
@@ -241,7 +241,7 @@ watch(
 .pane-toolbar-path {
   margin: 0;
   font-size: 12px;
-  color: var(--text-main);
+  color: var(--right-pane-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -253,7 +253,7 @@ watch(
   letter-spacing: 0.11em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--right-pane-title);
 }
 
 .favorite-toggle-btn {
@@ -263,7 +263,7 @@ watch(
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-soft);
+  color: var(--right-pane-text-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -276,8 +276,8 @@ watch(
 }
 
 .favorite-toggle-btn:hover:not(:disabled) {
-  background: var(--surface-subtle);
-  color: var(--menu-text-strong);
+  background: var(--right-pane-item-hover);
+  color: var(--right-pane-text);
 }
 
 .favorite-toggle-btn:active:not(:disabled) {
@@ -290,11 +290,11 @@ watch(
 }
 
 .favorite-toggle-btn--active {
-  color: #e0a100;
+  color: var(--right-pane-favorite);
 }
 
 .favorite-toggle-btn--active:hover:not(:disabled) {
-  color: #c88700;
+  color: var(--right-pane-favorite-hover);
 }
 
 .favorite-toggle-btn :deep(svg) {
@@ -313,7 +313,7 @@ watch(
   margin: 2px 0;
   font-size: 13px;
   line-height: 1.4;
-  color: var(--text-main);
+  color: var(--right-pane-text);
   transition: background-color 120ms ease, color 120ms ease;
 }
 
@@ -351,13 +351,13 @@ watch(
 }
 
 .semantic-link-direction {
-  color: var(--text-soft);
-  background: var(--surface-subtle);
+  color: var(--right-pane-text-soft);
+  background: var(--right-pane-item-hover);
 }
 
 .pane-item:hover {
-  background: var(--surface-subtle);
-  color: var(--menu-text-strong);
+  background: var(--right-pane-item-hover);
+  color: var(--right-pane-text);
 }
 
 .metadata-grid {
@@ -375,14 +375,14 @@ watch(
 
 .meta-label {
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--right-pane-text-dim);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .meta-value {
   font-size: 12px;
-  color: var(--text-main);
+  color: var(--right-pane-text);
   font-weight: 500;
   text-align: right;
   white-space: nowrap;
@@ -391,12 +391,12 @@ watch(
 }
 
 .empty-state {
-  color: var(--text-dim);
+  color: var(--right-pane-text-dim);
   font-size: 12px;
   line-height: 1.45;
   padding: 8px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--border-strong) 18%, transparent);
+  background: color-mix(in srgb, var(--right-pane-border) 24%, transparent);
 }
 
 .section-toggle {
@@ -415,7 +415,7 @@ watch(
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
-  color: var(--text-dim);
+  color: var(--right-pane-text-dim);
   transition: transform 140ms ease;
 }
 

@@ -174,8 +174,8 @@ defineExpose({
 <style scoped>
 .activity-bar {
   width: 44px;
-  border-right: 1px solid var(--shell-chrome-border);
-  background: var(--shell-chrome-bg);
+  border-right: 1px solid var(--left-rail-border);
+  background: var(--left-rail-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -189,7 +189,7 @@ defineExpose({
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--shell-chrome-text);
+  color: var(--left-rail-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -197,15 +197,15 @@ defineExpose({
 }
 
 .activity-btn:hover {
-  background: var(--menu-hover-bg);
-  color: var(--shell-chrome-text-strong);
+  background: var(--left-rail-hover-bg);
+  color: var(--left-rail-text-strong);
 }
 
 .activity-btn.active {
-  color: var(--menu-active-text);
-  border-color: var(--button-active-border);
-  box-shadow: inset 2px 0 0 var(--explorer-row-indicator);
-  background: var(--button-active-bg);
+  color: var(--left-rail-active-text);
+  border-color: var(--left-rail-active-border);
+  box-shadow: inset 2px 0 0 var(--left-rail-active-indicator);
+  background: var(--left-rail-active-bg);
 }
 
 .activity-btn-icon {
@@ -217,15 +217,15 @@ defineExpose({
 .left-sidebar {
   min-width: 0;
   min-height: 0;
-  background: var(--shell-chrome-bg);
-  border-right: 1px solid var(--shell-chrome-border);
+  background: var(--left-sidebar-bg);
+  border-right: 1px solid var(--left-sidebar-border);
   display: flex;
   flex-direction: column;
 }
 
 .panel-header {
   height: 34px;
-  border-bottom: 1px solid var(--shell-chrome-border);
+  border-bottom: 1px solid var(--left-sidebar-border);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -237,7 +237,7 @@ defineExpose({
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--left-sidebar-title);
 }
 
 .panel-body {
@@ -265,7 +265,7 @@ defineExpose({
 .inline-link-btn {
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--left-sidebar-link);
   font-size: 12px;
   font-weight: 500;
   padding: 0;
@@ -274,6 +274,6 @@ defineExpose({
 }
 
 .inline-link-btn:hover {
-  color: var(--accent-hover);
+  color: var(--left-sidebar-link-hover);
 }
 </style>

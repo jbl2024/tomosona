@@ -427,10 +427,10 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--ui-border);
+  border: 1px solid var(--workspace-pane-border);
   border-radius: 8px;
   overflow: hidden;
-  background: var(--surface-bg);
+  background: var(--workspace-pane-bg);
 }
 
 .pane-resizer {
@@ -443,7 +443,7 @@ onBeforeUnmount(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--ui-border), transparent 15%);
+  background: var(--workspace-pane-resizer);
 }
 
 .pane-resizer-col {
@@ -455,8 +455,8 @@ onBeforeUnmount(() => {
 }
 
 .editor-pane-active {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--workspace-pane-active-border);
+  box-shadow: 0 0 0 1px var(--workspace-pane-active-shadow);
 }
 
 .editor-pane :deep(.editor-shell) {

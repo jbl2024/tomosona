@@ -34,11 +34,11 @@ const emit = defineEmits<{
 <style scoped>
 .status-bar {
   height: 22px;
-  border-top: 1px solid var(--shell-chrome-border);
-  background: var(--shell-status-bg);
+  border-top: 1px solid var(--footer-border);
+  background: var(--footer-bg);
   font-size: var(--font-size-sm);
   font-family: var(--font-code);
-  color: var(--shell-status-text);
+  color: var(--footer-text);
   display: flex;
   align-items: center;
   gap: 0;
@@ -96,7 +96,7 @@ const emit = defineEmits<{
 }
 
 .status-item + .status-item {
-  border-left: 1px solid var(--shell-status-divider);
+  border-left: 1px solid var(--footer-divider);
 }
 
 @keyframes statusPulse {

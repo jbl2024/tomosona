@@ -1346,7 +1346,7 @@ watch(contextPaths, (paths) => {
   border-radius: 16px;
   background: var(--sb-input-bg);
   padding: 10px;
-  box-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+  box-shadow: var(--sb-composer-shadow);
 }
 
 .sb-pulse-bar {
@@ -1525,7 +1525,7 @@ watch(contextPaths, (paths) => {
   background: var(--sb-status-success-bg);
   color: var(--sb-status-success-text);
   font-size: 12px;
-  box-shadow: 0 10px 28px rgb(15 23 42 / 22%);
+  box-shadow: var(--sb-toast-shadow);
 }
 
 .sb-toast.error {

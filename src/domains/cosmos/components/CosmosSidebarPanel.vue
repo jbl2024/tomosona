@@ -511,7 +511,7 @@ function onPulseDropdownSelect(item: FilterableDropdownItem) {
 }
 
 .cosmos-search-clear-btn:hover {
-  background: rgb(148 163 184 / 14%);
+  background: var(--cosmos-search-clear-hover);
   color: var(--cosmos-text-secondary);
 }
 

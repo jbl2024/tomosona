@@ -127,8 +127,8 @@ function tabIcon(tab: PaneTab): string {
   display: flex;
   align-items: stretch;
   min-height: 32px;
-  border-bottom: 1px solid var(--ui-border);
-  background: var(--panel-bg);
+  border-bottom: 1px solid var(--tabbar-border);
+  background: var(--tabbar-bg);
   font-size: 0.84rem;
 }
 
@@ -148,7 +148,7 @@ function tabIcon(tab: PaneTab): string {
   padding: 0.28rem 0.52rem;
   border: 0;
   background: transparent;
-  color: var(--text-soft);
+  color: var(--tabbar-tab-text);
   cursor: pointer;
   position: relative;
 }
@@ -160,17 +160,17 @@ function tabIcon(tab: PaneTab): string {
   top: 6px;
   bottom: 6px;
   width: 1px;
-  background: color-mix(in srgb, var(--ui-border), transparent 5%);
+  background: var(--tabbar-tab-separator);
 }
 
 .pane-tab-item.active {
-  background: color-mix(in srgb, var(--panel-soft-bg), white 20%);
-  color: var(--text-main);
+  background: var(--tabbar-tab-active-bg);
+  color: var(--tabbar-tab-text-active);
 }
 
 .pane-tab-item.active-pane {
-  background: var(--panel-soft-bg);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #4f7a5d) 70%, transparent);
+  background: var(--tabbar-tab-active-pane-bg);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tabbar-tab-active-indicator) 70%, transparent);
 }
 
 .pane-tab-name {
@@ -210,13 +210,13 @@ function tabIcon(tab: PaneTab): string {
   align-items: center;
   gap: 0.2rem;
   padding: 0 0.3rem;
-  border-left: 1px solid var(--ui-border);
+  border-left: 1px solid var(--tabbar-border);
 }
 
 .pane-tab-action {
-  border: 1px solid var(--ui-border);
-  background: var(--surface-bg);
-  color: var(--text-soft);
+  border: 1px solid var(--tabbar-action-border);
+  background: var(--tabbar-action-bg);
+  color: var(--tabbar-action-text);
   padding: 0.12rem 0.32rem;
   border-radius: 4px;
   font-size: 0.68rem;
@@ -231,7 +231,7 @@ function tabIcon(tab: PaneTab): string {
 .pane-tab-empty {
   display: inline-flex;
   align-items: center;
-  color: var(--text-dim);
+  color: var(--tabbar-empty);
   padding: 0.32rem 0.56rem;
   font-size: 0.76rem;
 }

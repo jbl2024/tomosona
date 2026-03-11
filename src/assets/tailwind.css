@@ -124,6 +124,8 @@
   --panel-subtle-bg: var(--surface-subtle);
   --panel-raised-bg: var(--surface-raised);
   --panel-shadow: var(--shadow-panel);
+  --ui-border: var(--panel-border);
+  --panel-soft-bg: var(--panel-subtle-bg);
 
   --field-label: var(--text-soft);
   --field-help: var(--text-dim);
@@ -154,6 +156,68 @@
   --shell-status-bg: var(--surface-muted);
   --shell-status-text: var(--text-soft);
   --shell-status-divider: color-mix(in srgb, var(--border-strong) 88%, transparent);
+
+  --left-rail-bg: var(--shell-chrome-bg);
+  --left-rail-border: var(--shell-chrome-border);
+  --left-rail-text: var(--shell-chrome-text);
+  --left-rail-text-strong: var(--shell-chrome-text-strong);
+  --left-rail-hover-bg: var(--menu-hover-bg);
+  --left-rail-active-bg: var(--button-active-bg);
+  --left-rail-active-border: var(--button-active-border);
+  --left-rail-active-text: var(--menu-active-text);
+  --left-rail-active-indicator: var(--explorer-row-indicator);
+
+  --left-sidebar-bg: var(--shell-chrome-bg);
+  --left-sidebar-border: var(--shell-chrome-border);
+  --left-sidebar-title: var(--text-dim);
+  --left-sidebar-text: var(--shell-chrome-text);
+  --left-sidebar-text-strong: var(--shell-chrome-text-strong);
+  --left-sidebar-link: var(--accent);
+  --left-sidebar-link-hover: var(--accent-hover);
+
+  --topbar-bg: var(--shell-chrome-bg);
+  --topbar-border: var(--shell-chrome-border);
+  --topbar-divider: var(--shell-divider);
+  --topbar-text: var(--shell-chrome-text);
+  --topbar-text-strong: var(--shell-chrome-text-strong);
+  --topbar-command-bg: var(--shell-command-bg);
+  --topbar-command-border: var(--shell-command-border);
+  --topbar-command-hover-bg: var(--shell-command-hover-bg);
+  --topbar-command-shadow: var(--shell-command-shadow);
+  --topbar-command-shortcut: var(--text-dim);
+
+  --tabbar-bg: var(--tab-strip-bg);
+  --tabbar-border: var(--tab-border);
+  --tabbar-tab-text: var(--tab-text);
+  --tabbar-tab-text-active: var(--tab-active-text);
+  --tabbar-tab-separator: color-mix(in srgb, var(--tab-border), transparent 5%);
+  --tabbar-tab-active-bg: color-mix(in srgb, var(--tab-active-bg) 80%, white 20%);
+  --tabbar-tab-active-pane-bg: var(--tab-active-bg);
+  --tabbar-tab-active-indicator: var(--accent);
+  --tabbar-action-bg: var(--surface-bg);
+  --tabbar-action-border: var(--tab-border);
+  --tabbar-action-text: var(--tab-text);
+  --tabbar-empty: var(--text-dim);
+
+  --workspace-pane-bg: var(--surface-bg);
+  --workspace-pane-border: var(--panel-border);
+  --workspace-pane-active-border: var(--border-strong);
+  --workspace-pane-active-shadow: color-mix(in srgb, var(--accent) 14%, transparent);
+  --workspace-pane-resizer: color-mix(in srgb, var(--panel-border), transparent 15%);
+
+  --footer-bg: var(--shell-status-bg);
+  --footer-text: var(--shell-status-text);
+  --footer-border: var(--shell-chrome-border);
+  --footer-divider: var(--shell-status-divider);
+
+  --command-palette-bg: var(--modal-bg);
+  --command-palette-border: var(--modal-border);
+  --command-palette-item-bg: var(--modal-chip-bg);
+  --command-palette-item-border: var(--modal-chip-border);
+  --command-palette-item-text: var(--text-main);
+  --command-palette-item-active-bg: var(--modal-chip-active-bg);
+  --command-palette-item-active-border: var(--modal-chip-active-border);
+  --command-palette-item-active-text: var(--modal-chip-active-text);
 
   --search-chip-bg: var(--surface-bg);
   --search-chip-border: var(--border-strong);
@@ -239,6 +303,20 @@
   --properties-remove-hover-bg: #eff1f5;
   --properties-remove-hover-text: var(--text-main);
   --properties-placeholder: var(--text-dim);
+
+  --right-pane-bg: var(--surface-muted);
+  --right-pane-border: var(--border-subtle);
+  --right-pane-card-bg: var(--surface-raised);
+  --right-pane-card-border: color-mix(in srgb, var(--border-strong) 32%, transparent);
+  --right-pane-card-hover: color-mix(in srgb, var(--accent) 34%, transparent);
+  --right-pane-title: var(--text-dim);
+  --right-pane-text: var(--text-main);
+  --right-pane-text-soft: var(--text-soft);
+  --right-pane-text-dim: var(--text-dim);
+  --right-pane-item-hover: var(--surface-subtle);
+  --right-pane-item-active: var(--accent-soft);
+  --right-pane-favorite: var(--warning);
+  --right-pane-favorite-hover: color-mix(in srgb, var(--warning) 82%, var(--text-main));
 
   --editor-menu-bg: var(--surface-bg);
   --editor-menu-border: var(--border-subtle);
@@ -326,6 +404,7 @@
   --cosmos-preview-bg: color-mix(in srgb, var(--surface-bg) 48%, transparent);
   --cosmos-error: var(--danger-strong);
   --cosmos-chip-active-bg: var(--accent-soft);
+  --cosmos-search-clear-hover: color-mix(in srgb, var(--cosmos-text-muted) 18%, transparent);
   --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
   --cosmos-view-state-bg: rgb(255 255 255 / 86%);
   --cosmos-view-state-border: rgb(203 213 225 / 85%);
@@ -342,6 +421,8 @@
   --cosmos-label-hover: #1f2937;
   --cosmos-label-text: #4b5563;
   --cosmos-label-outline: rgba(255, 255, 255, 0.92);
+  --cosmos-resizer: color-mix(in srgb, var(--cosmos-border), transparent 20%);
+  --cosmos-resizer-hover: color-mix(in srgb, var(--cosmos-link-accent) 55%, transparent 20%);
 
   --sb-surface: var(--surface-bg);
   --sb-surface-muted: var(--surface-subtle);
@@ -380,6 +461,8 @@
   --sb-danger-text: var(--danger-strong);
   --sb-spinner-track: #93c5fd;
   --sb-spinner-head: #1d4ed8;
+  --sb-composer-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+  --sb-toast-shadow: 0 10px 28px rgb(15 23 42 / 22%);
 
   --echoes-card-bg: var(--surface-raised);
   --echoes-card-border: rgba(148, 163, 184, 0.15);

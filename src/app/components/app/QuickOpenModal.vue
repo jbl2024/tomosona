@@ -85,6 +85,11 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+.quick-open {
+  border-color: var(--command-palette-border);
+  background: var(--command-palette-bg);
+}
+
 .modal-list {
   margin-top: 8px;
   max-height: 360px;
@@ -95,18 +100,18 @@ const emit = defineEmits<{
 }
 
 .modal-item {
-  border: 1px solid var(--modal-chip-border);
-  background: var(--modal-chip-bg);
+  border: 1px solid var(--command-palette-item-border);
+  background: var(--command-palette-item-bg);
   border-radius: 4px;
   padding: 6px;
   text-align: left;
   font-size: 12px;
-  color: var(--text-main);
+  color: var(--command-palette-item-text);
 }
 
 .modal-item.active {
-  border-color: var(--modal-chip-active-border);
-  background: var(--modal-chip-active-bg);
-  color: var(--modal-chip-active-text);
+  border-color: var(--command-palette-item-active-border);
+  background: var(--command-palette-item-active-bg);
+  color: var(--command-palette-item-active-text);
 }
 </style>

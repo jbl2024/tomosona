@@ -316,8 +316,8 @@ defineExpose({
   height: 42px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--shell-chrome-border);
-  background: var(--shell-chrome-bg);
+  border-bottom: 1px solid var(--topbar-border);
+  background: var(--topbar-bg);
   flex: 0 0 auto;
 }
 
@@ -357,7 +357,7 @@ defineExpose({
   align-items: center;
   gap: 4px;
   padding-right: 8px;
-  border-right: 1px solid var(--shell-divider);
+  border-right: 1px solid var(--topbar-divider);
 }
 
 .toolbar-group:last-child {
@@ -377,23 +377,23 @@ defineExpose({
   min-width: 220px;
   max-width: 520px;
   height: 30px;
-  border: 1px solid var(--shell-command-border);
+  border: 1px solid var(--topbar-command-border);
   border-radius: 10px;
-  background: var(--shell-command-bg);
-  color: var(--shell-chrome-text);
+  background: var(--topbar-command-bg);
+  color: var(--topbar-text);
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 0 12px;
-  box-shadow: var(--shell-command-shadow);
+  box-shadow: var(--topbar-command-shadow);
   backdrop-filter: blur(10px);
 }
 
 .command-trigger:hover:not(:disabled) {
   border-color: var(--border-strong);
-  background: var(--shell-command-hover-bg);
-  color: var(--shell-chrome-text-strong);
+  background: var(--topbar-command-hover-bg);
+  color: var(--topbar-text-strong);
 }
 
 .command-trigger:disabled {
@@ -426,7 +426,7 @@ defineExpose({
   flex: 0 0 auto;
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--topbar-command-shortcut);
 }
 
 .history-menu {

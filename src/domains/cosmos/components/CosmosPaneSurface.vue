@@ -173,10 +173,10 @@ defineExpose({
   right: 2px;
   top: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--ui-border), transparent 20%);
+  background: var(--cosmos-resizer);
 }
 
 .cosmos-pane-resizer:hover::after {
-  background: color-mix(in srgb, var(--accent, #4f7a5d) 55%, transparent 20%);
+  background: var(--cosmos-resizer-hover);
 }
 </style>
