@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.16.6] - 2026-03-11
+
+### Changed
+- chore(tauri): add generated linux capability schema (4b7f8b2)
+
+### Fixed
+- fix(dev): sanitize snap GTK environment for tauri launches (342fa16)
+
 ## [0.16.5] - 2026-03-11
 
 ### Added
