@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.18.2] - 2026-03-12
+
+### Fixed
+- fix(editor): cancel in-flight loads on runtime unmount (6346023)
+
 ## [0.18.1] - 2026-03-12
 
 ### Added
