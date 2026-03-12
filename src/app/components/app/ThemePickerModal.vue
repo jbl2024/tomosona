@@ -189,9 +189,19 @@ function itemSwatches(item: ThemePickerItem): string[] {
   --swatch-accent: #61afef;
 }
 
+.theme-picker-swatch[data-theme-preview='acier-sable-rose'] {
+  --swatch-surface: #bfae9d;
+  --swatch-accent: #c88758;
+}
+
 .theme-picker-swatch[data-theme-preview='harbor-light'] {
   --swatch-surface: #d9e4f2;
   --swatch-accent: #16324f;
+}
+
+.theme-picker-swatch[data-theme-preview='midnight-rail'] {
+  --swatch-surface: #f6f7f9;
+  --swatch-accent: #17344f;
 }
 
 .theme-picker-swatch[data-theme-preview='github-light'] {

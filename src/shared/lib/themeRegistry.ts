@@ -4,7 +4,9 @@
 export type ThemeId =
   | 'tomosona-light'
   | 'tomosona-dark'
+  | 'acier-sable-rose'
   | 'harbor-light'
+  | 'midnight-rail'
   | 'github-light'
   | 'tokyo-night'
   | 'catppuccin-latte'
@@ -39,8 +41,20 @@ export const APP_THEMES: readonly AppThemeDefinition[] = [
     group: 'official'
   },
   {
+    id: 'acier-sable-rose',
+    label: 'Acier & Sable Rose',
+    colorScheme: 'light',
+    group: 'community'
+  },
+  {
     id: 'harbor-light',
     label: 'Harbor Light',
+    colorScheme: 'light',
+    group: 'community'
+  },
+  {
+    id: 'midnight-rail',
+    label: 'Midnight Rail',
     colorScheme: 'light',
     group: 'community'
   },

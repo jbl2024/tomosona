@@ -66,7 +66,9 @@ describe('useAppTheme', () => {
     expect(theme.availableThemes.map((item) => item.id)).toEqual([
       'tomosona-light',
       'tomosona-dark',
+      'acier-sable-rose',
       'harbor-light',
+      'midnight-rail',
       'github-light',
       'tokyo-night',
       'catppuccin-latte',

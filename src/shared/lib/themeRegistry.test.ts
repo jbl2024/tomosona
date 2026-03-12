@@ -12,7 +12,9 @@ describe('theme registry', () => {
     expect(APP_THEMES.map((theme) => theme.id)).toEqual([
       'tomosona-light',
       'tomosona-dark',
+      'acier-sable-rose',
       'harbor-light',
+      'midnight-rail',
       'github-light',
       'tokyo-night',
       'catppuccin-latte',

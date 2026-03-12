@@ -1,5 +1,7 @@
 @import "./themes/base.css";
+@import "./themes/acier-sable-rose.css";
 @import "./themes/harbor-light.css";
+@import "./themes/midnight-rail.css";
 @import "./themes/github-light.css";
 @import "./themes/tokyo-night.css";
 @import "./themes/catppuccin-latte.css";

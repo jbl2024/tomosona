@@ -1,0 +1,13 @@
+html[data-theme='midnight-rail'] {
+  color-scheme: light;
+
+  --left-rail-bg: #17344f;
+  --left-rail-border: #274763;
+  --left-rail-text: rgba(226, 236, 247, 0.78);
+  --left-rail-text-strong: #ffffff;
+  --left-rail-hover-bg: rgba(255, 255, 255, 0.1);
+  --left-rail-active-bg: rgba(255, 255, 255, 0.15);
+  --left-rail-active-border: rgba(214, 230, 247, 0.26);
+  --left-rail-active-text: #ffffff;
+  --left-rail-active-indicator: #7bb5f0;
+}

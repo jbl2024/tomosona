@@ -1,0 +1,89 @@
+html[data-theme='acier-sable-rose'] {
+  color-scheme: light;
+
+  --color-surface-0: #f4f0ea;
+  --color-surface-1: #f8f6f2;
+  --color-surface-2: #e8ddd1;
+  --color-surface-3: #fcfbf8;
+  --color-surface-4: #efe7dd;
+  --color-overlay-1: rgba(248, 246, 242, 0.95);
+  --color-overlay-2: rgba(252, 251, 248, 0.98);
+  --color-border-1: #cfc1b2;
+  --color-border-2: #b3a18e;
+  --color-border-3: #8e8174;
+  --color-text-1: #241d18;
+  --color-text-2: #51463d;
+  --color-text-3: #72655a;
+  --color-text-4: #95877b;
+  --color-accent-1: #c88758;
+  --color-accent-2: #b07045;
+  --color-accent-soft: #f0ddcf;
+  --color-accent-focus: rgba(200, 135, 88, 0.18);
+  --color-accent-contrast: #ffffff;
+  --color-danger-1: #b14f5a;
+  --color-danger-2: #963e49;
+  --color-danger-soft: rgba(177, 79, 90, 0.12);
+  --color-success-1: #5f8660;
+  --color-warning-1: #a17635;
+  --shadow-panel: 0 0 0 1px rgba(207, 193, 178, 0.92), 0 10px 24px rgba(49, 37, 30, 0.08);
+  --shadow-overlay: 0 16px 30px rgba(49, 37, 30, 0.12);
+  --shadow-dropdown: 0 18px 36px rgba(49, 37, 30, 0.14);
+
+  --shell-chrome-bg: #aab8c5;
+  --shell-chrome-border: #8e9aa7;
+  --shell-chrome-text: #273444;
+  --shell-chrome-text-strong: #1a2531;
+  --shell-command-bg: rgba(248, 246, 242, 0.7);
+  --shell-command-hover-bg: rgba(252, 251, 248, 0.9);
+  --shell-command-border: rgba(104, 119, 134, 0.4);
+  --shell-divider: rgba(78, 92, 107, 0.26);
+  --shell-splitter: rgba(116, 102, 91, 0.42);
+  --shell-status-bg: #aab8c5;
+  --shell-status-text: #273444;
+  --shell-status-divider: rgba(78, 92, 107, 0.34);
+
+  --left-rail-bg: #8fa0b1;
+  --left-rail-border: #6f8192;
+  --left-rail-text: rgba(246, 248, 250, 0.9);
+  --left-rail-text-strong: #ffffff;
+  --left-rail-hover-bg: rgba(255, 255, 255, 0.12);
+  --left-rail-active-bg: rgba(255, 255, 255, 0.16);
+  --left-rail-active-border: rgba(255, 255, 255, 0.22);
+  --left-rail-active-text: #ffffff;
+  --left-rail-active-indicator: #f7efe6;
+
+  --left-sidebar-bg: #c1b3a4;
+  --left-sidebar-border: #a59584;
+  --left-sidebar-title: #7f7367;
+  --left-sidebar-text: #392f28;
+  --left-sidebar-text-strong: #241d18;
+  --left-sidebar-link: #9c6038;
+  --left-sidebar-link-hover: #854f2d;
+
+  --topbar-bg: #c88758;
+  --topbar-border: #af6e42;
+  --topbar-text: rgba(255, 247, 240, 0.9);
+  --topbar-text-strong: #ffffff;
+  --topbar-command-bg: rgba(248, 233, 221, 0.3);
+  --topbar-command-border: rgba(255, 242, 234, 0.24);
+  --topbar-command-hover-bg: rgba(255, 244, 238, 0.24);
+  --topbar-command-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --topbar-command-shortcut: rgba(255, 238, 228, 0.76);
+
+  --explorer-row-hover-bg: rgba(200, 135, 88, 0.08);
+  --explorer-row-hover-text: #241d18;
+  --explorer-row-selected-bg: rgba(200, 135, 88, 0.16);
+  --explorer-row-selected-text: #241d18;
+  --explorer-row-focused-bg: rgba(200, 135, 88, 0.1);
+  --explorer-row-active-bg: #ce8a5a;
+  --explorer-row-active-text: #ffffff;
+  --explorer-row-indicator: #b87448;
+  --explorer-toolbar-hover-bg: rgba(200, 135, 88, 0.12);
+
+  --properties-accent: #c88758;
+  --right-pane-bg: #f0ece6;
+  --cosmos-view-bg: linear-gradient(165deg, #fbfaf7 0%, #f3ede6 100%);
+  --sb-layout-bg: linear-gradient(135deg, #fbfaf7, #f3ede6 45%, #e6edf4);
+  --sb-user-bg: #f4efe9;
+  --sb-assistant-bg: #f0ddcf;
+}
