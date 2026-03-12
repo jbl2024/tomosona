@@ -50,16 +50,18 @@ describe('EditorEchoesPanel', () => {
     expect(root.textContent).toContain('direct link')
     expect(root.textContent).toContain('semantic similarity')
 
+    const cardButtons = Array.from(root.querySelectorAll('.echoes-card-copy')) as HTMLButtonElement[]
+    cardButtons[0].click()
+    cardButtons[1].click()
     const actionButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
     actionButtons[0].click()
     actionButtons[1].click()
-    actionButtons[2].click()
-    actionButtons[3].click()
 
     expect(onOpen).toHaveBeenCalledWith('/vault/notes/a.md')
-    expect(onAdd).toHaveBeenCalledWith('/vault/notes/a.md')
     expect(onOpen).toHaveBeenCalledWith('/vault/notes/b.md')
+    expect(onAdd).toHaveBeenCalledWith('/vault/notes/a.md')
     expect(onRemove).toHaveBeenCalledWith('/vault/notes/b.md')
+    expect(root.textContent).not.toContain('notes/a.md')
     app.unmount()
   })
 

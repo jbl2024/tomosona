@@ -25,13 +25,6 @@ const emit = defineEmits<{
   remove: [path: string]
 }>()
 
-function compactRelativePath(path: string): string {
-  const relative = props.toRelativePath(path)
-  const segments = relative.split('/').filter(Boolean)
-  if (segments.length <= 2) return relative
-  return `.../${segments.slice(-2).join('/')}`
-}
-
 function reasonLabel(reason: string) {
   switch (reason) {
     case 'Direct link':
@@ -79,32 +72,26 @@ function onContextClick(item: EditorEchoesListItem) {
       class="echoes-card"
       :data-in-context="item.isInContext"
     >
-      <div class="echoes-card-copy">
+      <button
+        type="button"
+        class="echoes-card-copy"
+        :title="props.toRelativePath(item.path)"
+        @click="emit('open', item.path)"
+      >
         <strong class="echoes-item-title">{{ item.title }}</strong>
         <span class="echoes-item-reason">{{ reasonLabel(item.reasonLabel) }}</span>
-        <span class="echoes-item-path" :title="props.toRelativePath(item.path)">{{ compactRelativePath(item.path) }}</span>
-      </div>
+      </button>
       <div class="echoes-card-actions">
         <UiButton
-          variant="secondary"
+          variant="ghost"
           size="sm"
-          class-name="echoes-action-btn"
-          @click="emit('open', item.path)"
-        >
-          Open
-        </UiButton>
-        <UiButton
-          :variant="item.isInContext ? 'secondary' : 'ghost'"
-          size="sm"
-          class="echoes-action-btn echoes-action-btn-context"
           :class-name="[
             'echoes-action-btn',
-            'echoes-action-btn-context',
-            item.isInContext ? 'echoes-action-btn-context--active' : ''
+            item.isInContext ? 'echoes-action-btn--active' : ''
           ].filter(Boolean).join(' ')"
           @click="onContextClick(item)"
         >
-          {{ item.isInContext ? 'Remove' : '+ Context' }}
+          {{ item.isInContext ? 'Added' : '+' }}
         </UiButton>
       </div>
     </article>
@@ -171,13 +158,25 @@ function onContextClick(item: EditorEchoesListItem) {
 
 .echoes-card {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 8px 10px;
   margin: 8px 0 0;
   border-radius: 10px;
   background: var(--echoes-empty-bg);
   box-shadow: inset 0 0 0 1px var(--echoes-item-hover-border);
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.echoes-card:hover {
+  background: color-mix(in srgb, var(--echoes-empty-bg) 72%, var(--right-pane-item-hover));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--right-pane-favorite) 22%, var(--echoes-item-hover-border)),
+    0 4px 14px color-mix(in srgb, var(--right-pane-border) 35%, transparent);
+  transform: translateY(-1px);
 }
 
 .echoes-card[data-in-context='true'] {
@@ -185,51 +184,65 @@ function onContextClick(item: EditorEchoesListItem) {
 }
 
 .echoes-card-copy {
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 .echoes-item-title,
-.echoes-item-path,
 .echoes-item-reason {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .echoes-item-title {
-  font-size: 14px;
+  font-size: 12.5px;
+  line-height: 1.3;
+  font-weight: 600;
   color: var(--echoes-item-title);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
 }
 
 .echoes-item-reason {
-  font-size: 12px;
-  color: var(--echoes-copy);
-}
-
-.echoes-item-path {
   font-size: 11px;
-  color: var(--echoes-item-path);
+  line-height: 1.25;
+  color: var(--echoes-copy);
+  white-space: nowrap;
 }
 
 .echoes-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .echoes-action-btn {
-  min-height: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding-inline: 0.5rem;
+  font-weight: 700;
+  opacity: 0.82;
+  transform: scale(0.98);
+  transition: opacity 140ms ease, transform 140ms ease;
 }
 
-.echoes-action-btn-context {
-  color: var(--right-pane-favorite);
+.echoes-card:hover .echoes-action-btn {
+  opacity: 1;
+  transform: scale(1);
 }
 
-.echoes-action-btn-context--active {
+.echoes-action-btn--active {
   color: var(--right-pane-text);
 }
 </style>

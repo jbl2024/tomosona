@@ -100,7 +100,7 @@ describe('EditorRightPane', () => {
     expect(onActiveNoteOpenCosmos).toHaveBeenCalledTimes(1)
 
     const echoesButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
-    echoesButtons[1].click()
+    echoesButtons[0].click()
     expect(onEchoesAddToContext).toHaveBeenCalledWith('/wk/notes/e.md')
 
     ;(root.querySelector('.context-open-btn') as HTMLButtonElement).click()
