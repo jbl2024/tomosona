@@ -1,6 +1,14 @@
 import { nextTick, ref, type Ref } from 'vue'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
-import { clearPendingOpenTrace, finishOpenTrace, traceOpenStep } from '../../shared/lib/openTrace'
+import {
+  bindPendingOpenTrace,
+  clearPendingOpenTrace,
+  finishOpenTrace,
+  startOpenTrace,
+  startOpenTraceSpan,
+  finishOpenTraceSpan,
+  traceOpenStep
+} from '../../shared/lib/openTrace'
 
 /**
  * Module: useAppNavigationController
@@ -243,23 +251,43 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
   async function openTabWithAutosave(path: string, navigation: NavigationOpenOptions = {}): Promise<boolean> {
     const target = path.trim()
     if (!target) return false
-    traceOpenStep(navigation.traceId ?? null, 'autosave guard started')
+    if (!navigation.targetPaneId && editorPort.activeFilePath.value === target && !navigation.revealInTargetPane) return true
+    const traceId = navigation.traceId ?? startOpenTrace(target, 'navigation-open')
+    if (!navigation.traceId) {
+      bindPendingOpenTrace(target, traceId)
+    }
+    const requestSpanId = startOpenTraceSpan(traceId, 'open.request')
+    const autosaveSpanId = startOpenTraceSpan(traceId, 'open.autosave_guard', {
+      parentSpanId: requestSpanId
+    })
+    traceOpenStep(traceId, 'autosave guard started')
     const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
     if (!canSwitch) {
-      clearPendingOpenTrace(target, navigation.traceId)
-      finishOpenTrace(navigation.traceId ?? null, 'blocked', { stage: 'autosave_guard' })
+      finishOpenTraceSpan(traceId, autosaveSpanId, 'blocked', { stage: 'autosave_guard' })
+      finishOpenTraceSpan(traceId, requestSpanId, 'blocked', { stage: 'autosave_guard' })
+      clearPendingOpenTrace(target, traceId)
+      finishOpenTrace(traceId, 'blocked', { stage: 'autosave_guard' })
       return false
     }
-    traceOpenStep(navigation.traceId ?? null, 'autosave guard passed')
+    finishOpenTraceSpan(traceId, autosaveSpanId, 'done')
+    traceOpenStep(traceId, 'autosave guard passed')
+    const paneDispatchSpanId = startOpenTraceSpan(traceId, 'open.pane_dispatch', {
+      parentSpanId: requestSpanId
+    })
     if (navigation.revealInTargetPane) {
       panePort.revealDocumentInPane(target, navigation.targetPaneId)
     } else {
       panePort.openPathInPane(target, navigation.targetPaneId)
     }
-    traceOpenStep(navigation.traceId ?? null, 'pane open dispatched', {
+    finishOpenTraceSpan(traceId, paneDispatchSpanId, 'done', {
       target_pane: navigation.targetPaneId ?? panePort.getActivePaneId(),
       reveal_only: Boolean(navigation.revealInTargetPane)
     })
+    traceOpenStep(traceId, 'pane open dispatched', {
+      target_pane: navigation.targetPaneId ?? panePort.getActivePaneId(),
+      reveal_only: Boolean(navigation.revealInTargetPane)
+    })
+    finishOpenTraceSpan(traceId, requestSpanId, 'done')
     if (navigation.recordHistory !== false) {
       historyPort.documentHistory.record(target)
     }
@@ -271,9 +299,29 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
   async function setActiveTabWithAutosave(path: string, navigation: NavigationOpenOptions = {}): Promise<boolean> {
     const target = path.trim()
     if (!target) return false
+    if (editorPort.activeFilePath.value === target) return true
+    const traceId = navigation.traceId ?? startOpenTrace(target, 'tab-activate')
+    const requestSpanId = startOpenTraceSpan(traceId, 'open.request')
+    const autosaveSpanId = startOpenTraceSpan(traceId, 'open.autosave_guard', {
+      parentSpanId: requestSpanId
+    })
     const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
-    if (!canSwitch) return false
+    if (!canSwitch) {
+      finishOpenTraceSpan(traceId, autosaveSpanId, 'blocked', { stage: 'autosave_guard' })
+      finishOpenTraceSpan(traceId, requestSpanId, 'blocked', { stage: 'autosave_guard' })
+      finishOpenTrace(traceId, 'blocked', { stage: 'autosave_guard' })
+      return false
+    }
+    finishOpenTraceSpan(traceId, autosaveSpanId, 'done')
+    const paneDispatchSpanId = startOpenTraceSpan(traceId, 'open.pane_dispatch', {
+      parentSpanId: requestSpanId
+    })
     panePort.setActivePathInPane(panePort.getActivePaneId(), target)
+    finishOpenTraceSpan(traceId, paneDispatchSpanId, 'done', {
+      target_pane: panePort.getActivePaneId(),
+      reveal_only: false
+    })
+    finishOpenTraceSpan(traceId, requestSpanId, 'done')
     if (navigation.recordHistory !== false) {
       historyPort.documentHistory.record(target)
     }

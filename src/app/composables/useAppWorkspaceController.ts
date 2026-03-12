@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import type { FileMetadata, WorkspaceFsChange } from '../../shared/api/apiTypes'
 import { toWorkspaceRelativePath } from '../../domains/explorer/lib/workspacePaths'
+import { finishOpenTraceSpan, startOpenTraceSpan, traceOpenStep } from '../../shared/lib/openTrace'
 
 /**
  * Module: useAppWorkspaceController
@@ -16,6 +17,11 @@ type WorkspaceChildEntry = {
   path: string
   is_dir: boolean
   is_markdown: boolean
+}
+
+type RefreshActiveFileMetadataOptions = {
+  traceId?: string | null
+  parentSpanId?: string | null
 }
 
 /**
@@ -146,21 +152,44 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
   }
 
   /** Refreshes active-file metadata while discarding stale responses from older requests. */
-  async function refreshActiveFileMetadata(path: string | null = workspaceShellPort.activeFilePath.value) {
+  async function refreshActiveFileMetadata(
+    path: string | null = workspaceShellPort.activeFilePath.value,
+    options: RefreshActiveFileMetadataOptions = {}
+  ) {
     const targetPath = path?.trim() || ''
     const requestToken = ++activeFileMetadataRequestToken
     if (!targetPath) {
       activeFileMetadata.value = null
       return
     }
+    const spanId = startOpenTraceSpan(options.traceId ?? null, 'open.metadata', {
+      parentSpanId: options.parentSpanId,
+      bucket: 'metadata',
+      payload: { path: targetPath }
+    })
     try {
       const next = await workspaceFsPort.readFileMetadata(targetPath)
       if (requestToken === activeFileMetadataRequestToken && workspaceShellPort.activeFilePath.value === targetPath) {
         activeFileMetadata.value = next
+        finishOpenTraceSpan(options.traceId ?? null, spanId, 'done')
+      } else {
+        traceOpenStep(options.traceId ?? null, 'metadata response ignored', {
+          path: targetPath
+        })
+        finishOpenTraceSpan(options.traceId ?? null, spanId, 'blocked', {
+          stage: 'stale_metadata_response'
+        })
       }
     } catch {
       if (requestToken === activeFileMetadataRequestToken && workspaceShellPort.activeFilePath.value === targetPath) {
         activeFileMetadata.value = null
+        finishOpenTraceSpan(options.traceId ?? null, spanId, 'error', {
+          stage: 'read_file_metadata'
+        })
+      } else {
+        finishOpenTraceSpan(options.traceId ?? null, spanId, 'blocked', {
+          stage: 'stale_metadata_error'
+        })
       }
     }
   }

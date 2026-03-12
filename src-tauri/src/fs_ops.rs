@@ -555,15 +555,19 @@ fn system_time_to_unix_ms(value: SystemTime) -> Option<i64> {
 
 #[tauri::command]
 pub fn read_file_metadata(path: String) -> Result<FileMetadata> {
+    let started_at = Instant::now();
     let root = active_workspace_root()?;
     let pb = normalize_existing_path(&path)?;
     ensure_within_root(&root, &pb)?;
-    let metadata = fs::metadata(pb)?;
+    let metadata = fs::metadata(&pb)?;
 
-    Ok(FileMetadata {
+    let result = FileMetadata {
         created_at_ms: metadata.created().ok().and_then(system_time_to_unix_ms),
         updated_at_ms: metadata.modified().ok().and_then(system_time_to_unix_ms),
-    })
+    };
+    log_fs_perf("read_file_metadata", &pb, started_at, &[]);
+
+    Ok(result)
 }
 
 #[tauri::command]

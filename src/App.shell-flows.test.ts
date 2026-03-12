@@ -1,5 +1,6 @@
 import { createApp, defineComponent, h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { clearOpenTraceDebugState, readRecentOpenTraceEntries } from './shared/lib/openTrace'
 
 const hoisted = vi.hoisted(() => {
   const existingPaths = new Set<string>(['/vault', '/vault/a.md'])
@@ -218,6 +219,7 @@ describe('App shell flows', () => {
     document.body.innerHTML = ''
     window.localStorage.clear()
     window.sessionStorage.clear()
+    clearOpenTraceDebugState()
     hoisted.resetWorkspaceState()
     vi.clearAllMocks()
     hoisted.getWikilinkGraph.mockResolvedValue({ nodes: [], edges: [], generated_at_ms: Date.now() })
@@ -275,6 +277,22 @@ describe('App shell flows', () => {
     expect(workspaceApi.writeTextFile).toHaveBeenCalledWith('/vault/journal/2026-02-22.md', '')
     expect(mounted.root.querySelector('[data-open-date-input="true"]')).toBeNull()
     expect(mounted.root.textContent).toContain('journal/2026-02-22.md')
+
+    mounted.app.unmount()
+  })
+
+  it('emits an open summary after a traced note open completes', async () => {
+    window.localStorage.setItem('tomosona.debug.open', '1')
+    const mounted = mountApp()
+    await flushUi()
+
+    await runPaletteCommand(mounted.root, '>open today')
+    await flushUi()
+
+    const entries = readRecentOpenTraceEntries()
+    expect(entries.some((entry) => entry.message === 'open.active_note_effects started')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open summary')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open done' && entry.stage === 'open.complete')).toBe(true)
 
     mounted.app.unmount()
   })

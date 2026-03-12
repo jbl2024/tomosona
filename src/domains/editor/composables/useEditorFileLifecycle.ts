@@ -5,7 +5,15 @@ import { editorDataToMarkdown, markdownToEditorData } from '../lib/markdownBlock
 import { composeMarkdownDocument, serializeFrontmatter, type FrontmatterEnvelope } from '../lib/frontmatter'
 import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
 import type { DocumentSession } from './useDocumentEditorSessions'
-import { finishOpenTrace, startOpenTrace, takePendingOpenTrace, traceOpenStep } from '../../../shared/lib/openTrace'
+import {
+  finishOpenTrace,
+  finishOpenTraceSpan,
+  runWithOpenTraceSpan,
+  startOpenTrace,
+  startOpenTraceSpan,
+  takePendingOpenTrace,
+  traceOpenStep
+} from '../../../shared/lib/openTrace'
 
 /**
  * Adapter contract for waiting on async heavy node rendering (for example Mermaid node views).
@@ -243,11 +251,18 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
    */
   async function loadCurrentFile(path: string, loadOptions?: { forceReload?: boolean; requestId?: number }) {
     if (!path) return
-    const traceId = takePendingOpenTrace(path) ?? startOpenTrace(path, 'editor-load')
+    const pendingTraceId = takePendingOpenTrace(path)
+    const traceId = pendingTraceId ?? startOpenTrace(path, 'editor-load')
+    const finalizeTraceInLifecycle = !pendingTraceId
+    const editorLoadSpanId = startOpenTraceSpan(traceId, 'open.editor_load', {
+      bucket: 'editor_load',
+      payload: { force_reload: Boolean(loadOptions?.forceReload) }
+    })
     traceOpenStep(traceId, 'editor load started', { force_reload: Boolean(loadOptions?.forceReload) })
     await documentPort.ensurePropertySchemaLoaded()
     traceOpenStep(traceId, 'property schema ready')
     if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+      finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'stale_request_before_session' })
       finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_session' })
       return
     }
@@ -258,6 +273,7 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
     })
     const editor = sessionPort.getEditor()
     if (!editor) {
+      finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'editor_unavailable' })
       finishOpenTrace(traceId, 'blocked', { stage: 'editor_unavailable' })
       return
     }
@@ -278,13 +294,15 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
     let largeDocOverlayShownAt = 0
     try {
       if (shouldReloadContent) {
-        const readStartedAt = performance.now()
-        const txt = await ioPort.openFile(path)
+        const txt = await runWithOpenTraceSpan(traceId, 'open.ipc.read_text_file', async () => await ioPort.openFile(path), {
+          parentSpanId: editorLoadSpanId,
+          payload: { path }
+        })
         traceOpenStep(traceId, 'file read finished', {
-          duration_ms: Math.round(performance.now() - readStartedAt),
           chars: txt.length
         })
         if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+          finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'stale_request_after_read' })
           finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_after_read' })
           return
         }
@@ -343,6 +361,7 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           // Delay escalation prevents unnecessary blocking for near-instant renders.
           await new Promise<void>((resolve) => window.setTimeout(resolve, heavyOverlayDelayMs))
           if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+            finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'stale_request_before_heavy_overlay' })
             finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_heavy_overlay' })
             return
           }
@@ -371,6 +390,7 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
             duration_ms: Math.round(performance.now() - heavyRenderStartedAt)
           })
           if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+            finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'stale_request_after_heavy_render' })
             finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_after_heavy_render' })
             return
           }
@@ -385,13 +405,21 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         sessionPort.setDirty(path, false)
       }
 
+      finishOpenTraceSpan(traceId, editorLoadSpanId, 'done', {
+        stage: shouldReloadContent ? 'editor_loaded' : 'session_reused'
+      })
+      const postRenderSpanId = startOpenTraceSpan(traceId, 'open.editor_post_render', {
+        bucket: 'editor_post_render'
+      })
       await nextTick()
       traceOpenStep(traceId, 'post-render nextTick completed')
       if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
+        finishOpenTraceSpan(traceId, postRenderSpanId, 'blocked', { stage: 'stale_request_before_commit' })
         finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_before_commit' })
         return
       }
       if (sessionPort.currentPath.value !== path) {
+        finishOpenTraceSpan(traceId, postRenderSpanId, 'blocked', { stage: 'path_changed_before_commit' })
         finishOpenTrace(traceId, 'blocked', { stage: 'path_changed_before_commit' })
         return
       }
@@ -409,11 +437,21 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
       uiPort.emitOutlineSoon(path)
       uiPort.syncWikilinkUiFromPluginState()
       uiPort.updateGutterHitboxStyle()
-      finishOpenTrace(traceId, 'done', {
+      finishOpenTraceSpan(traceId, postRenderSpanId, 'done', {
         stage: shouldReloadContent ? 'editor_ready' : 'session_reused'
       })
+      if (finalizeTraceInLifecycle) {
+        finishOpenTrace(traceId, 'done', {
+          stage: shouldReloadContent ? 'editor_ready' : 'session_reused'
+        })
+      } else {
+        traceOpenStep(traceId, 'editor ready; awaiting active note effects')
+      }
     } catch (error) {
       sessionPort.setSaveError(path, error instanceof Error ? error.message : 'Could not read file.')
+      finishOpenTraceSpan(traceId, editorLoadSpanId, 'error', {
+        stage: 'load_current_file'
+      })
       finishOpenTrace(traceId, 'error', {
         stage: 'load_current_file',
         message: error instanceof Error ? error.message : 'Could not read file.'

@@ -2,8 +2,10 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    env,
     fs,
     path::{Path, PathBuf},
+    time::Instant,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -60,6 +62,30 @@ pub(crate) struct SemanticLink {
 #[derive(Serialize)]
 pub(crate) struct WikilinkRewriteResult {
     pub updated_files: usize,
+}
+
+fn should_log_open_perf(elapsed_ms: u128) -> bool {
+    env::var("TOMOSONA_DEBUG_OPEN")
+        .map(|value| value == "1")
+        .unwrap_or(false)
+        || elapsed_ms >= 75
+}
+
+fn log_open_perf(command: &str, path: &str, started_at: Instant, extra_fields: &[(&str, String)]) {
+    let elapsed_ms = started_at.elapsed().as_millis();
+    if !should_log_open_perf(elapsed_ms) {
+        return;
+    }
+
+    let mut fields = vec![
+        format!("cmd={command}"),
+        format!("total_ms={elapsed_ms}"),
+        format!("path={path}"),
+    ];
+    for (key, value) in extra_fields {
+        fields.push(format!("{key}={value}"));
+    }
+    eprintln!("[open-perf] {}", fields.join(" "));
 }
 
 pub(crate) fn build_wikilink_graph_from_index(
@@ -255,6 +281,7 @@ pub(crate) fn get_wikilink_graph() -> Result<WikilinkGraphDto> {
 }
 
 pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
+    let started_at = Instant::now();
     let root_canonical = active_workspace_root()?;
     let mut path_buf = PathBuf::from(path);
     if path_buf.as_os_str().is_empty() {
@@ -292,10 +319,17 @@ pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
             path: workspace_absolute_path(&root_canonical, &source_path),
         });
     }
+    log_open_perf(
+        "backlinks_for_path",
+        &path_buf.to_string_lossy(),
+        started_at,
+        &[("count", out.len().to_string())],
+    );
     Ok(out)
 }
 
 pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
+    let started_at = Instant::now();
     let root_canonical = active_workspace_root()?;
     let mut path_buf = PathBuf::from(path);
     if path_buf.as_os_str().is_empty() {
@@ -348,6 +382,12 @@ pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>>
         out.push(item);
     }
 
+    log_open_perf(
+        "semantic_links_for_path",
+        &path_buf.to_string_lossy(),
+        started_at,
+        &[("count", out.len().to_string())],
+    );
     Ok(out)
 }
 

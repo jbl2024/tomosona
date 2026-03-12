@@ -58,8 +58,12 @@ import {
 import type { SemanticLink } from '../shared/api/apiTypes'
 import {
   bindPendingOpenTrace,
+  findOpenTrace,
+  finishOpenTraceSpan,
   finishOpenTrace,
   installOpenDebugLongTaskObserver,
+  runWithOpenTraceSpan,
+  startOpenTraceSpan,
   startOpenTrace,
   traceOpenStep
 } from '../shared/lib/openTrace'
@@ -172,6 +176,11 @@ import packageJson from '../../package.json'
 type SearchHit = AppShellSearchHit
 type PropertyPreviewRow = { key: string; value: string }
 type SemanticLinkRow = SemanticLink
+type RefreshBacklinksOptions = {
+  path?: string
+  traceId?: string | null
+  parentSpanId?: string | null
+}
 
 type EditorViewExposed = EditorPaneGridExposed
 
@@ -2356,21 +2365,36 @@ function setSidebarMode(mode: SidebarMode) {
   persistSidebarMode()
 }
 
-async function refreshBacklinks() {
+let activeNoteEffectsRequestToken = 0
+
+function isCurrentActiveNoteEffectsRequest(requestToken: number, path: string) {
+  return requestToken === activeNoteEffectsRequestToken && activeFilePath.value === path
+}
+
+async function refreshBacklinks(options: RefreshBacklinksOptions = {}) {
   const root = filesystem.workingFolderPath.value
-  const path = activeFilePath.value
+  const path = options.path ?? activeFilePath.value
   if (!root || !path) {
     backlinks.value = []
     semanticLinks.value = []
     return
   }
 
+  const traceId = options.traceId ?? null
   backlinksLoading.value = true
   semanticLinksLoading.value = true
   try {
     const [results, relatedSemanticLinks] = await Promise.all([
-      backlinksForPath(path),
-      semanticLinksForPath(path)
+      runWithOpenTraceSpan(traceId, 'open.backlinks', async () => await backlinksForPath(path), {
+        parentSpanId: options.parentSpanId,
+        bucket: 'backlinks',
+        payload: { path }
+      }),
+      runWithOpenTraceSpan(traceId, 'open.semantic_links', async () => await semanticLinksForPath(path), {
+        parentSpanId: options.parentSpanId,
+        bucket: 'semantic_links',
+        payload: { path }
+      })
     ])
     backlinks.value = results.map((item) => item.path)
     semanticLinks.value = relatedSemanticLinks
@@ -2387,23 +2411,109 @@ async function openTodayNote() {
   return await openDailyNote(formatIsoDate(new Date()), openTabWithAutosave)
 }
 
-async function showExplorerForActiveFile(options: { focusTree?: boolean } = {}) {
+async function showExplorerForActiveFile(options: { focusTree?: boolean; traceId?: string | null; parentSpanId?: string | null } = {}) {
   setSidebarMode('explorer')
   if (!workspace.sidebarVisible.value) return
-  await nextTick()
   const activePath = activeFilePath.value
   if (!activePath) return
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const revealPathInView = explorerRef.value?.revealPathInView
-    if (typeof revealPathInView === 'function') {
-      await revealPathInView(activePath, {
-        focusTree: options.focusTree ?? false,
-        behavior: 'auto'
-      })
+  await runWithOpenTraceSpan(options.traceId ?? null, 'open.explorer_reveal', async () => {
+    await nextTick()
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const revealPathInView = explorerRef.value?.revealPathInView
+      if (typeof revealPathInView === 'function') {
+        await revealPathInView(activePath, {
+          focusTree: options.focusTree ?? false,
+          behavior: 'auto'
+        })
+        return
+      }
+      await nextTick()
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    }
+  }, {
+    parentSpanId: options.parentSpanId,
+    bucket: 'explorer_reveal',
+    payload: { path: activePath }
+  })
+}
+
+async function runActiveNoteEffects(path: string) {
+  const traceId = findOpenTrace(path)
+  const requestToken = ++activeNoteEffectsRequestToken
+
+  if (!path) {
+    editorState.setActiveOutline([])
+    backlinks.value = []
+    semanticLinks.value = []
+    await refreshActiveFileMetadata(path)
+    return
+  }
+
+  const activeEffectsSpanId = startOpenTraceSpan(traceId, 'open.active_note_effects', {
+    bucket: 'active_note_effects',
+    payload: { path }
+  })
+  const rightPaneSpanId = startOpenTraceSpan(traceId, 'open.right_pane_data', {
+    parentSpanId: activeEffectsSpanId,
+    bucket: 'right_pane_data',
+    payload: { path }
+  })
+
+  const finishBlocked = (stage: string) => {
+    finishOpenTraceSpan(traceId, rightPaneSpanId, 'blocked', { stage, path })
+    finishOpenTraceSpan(traceId, activeEffectsSpanId, 'blocked', { stage, path })
+    finishOpenTrace(traceId, 'blocked', { stage, path })
+  }
+
+  try {
+    await refreshActiveFileMetadata(path, {
+      traceId,
+      parentSpanId: activeEffectsSpanId
+    })
+    if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
+      finishBlocked('stale_after_metadata')
       return
     }
-    await nextTick()
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+    const snippet = editorState.consumeRevealSnippet(path)
+    if (snippet) {
+      await runWithOpenTraceSpan(traceId, 'open.reveal_snippet', async () => {
+        await nextTick()
+        await editorRef.value?.revealSnippet(snippet)
+      }, {
+        parentSpanId: activeEffectsSpanId,
+        payload: { path, chars: snippet.length }
+      })
+    }
+    if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
+      finishBlocked('stale_after_reveal_snippet')
+      return
+    }
+
+    await refreshBacklinks({
+      path,
+      traceId,
+      parentSpanId: rightPaneSpanId
+    })
+    if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
+      finishBlocked('stale_after_right_pane')
+      return
+    }
+
+    finishOpenTraceSpan(traceId, rightPaneSpanId, 'done', { path })
+    finishOpenTraceSpan(traceId, activeEffectsSpanId, 'done', { path })
+    finishOpenTrace(traceId, 'done', {
+      stage: 'open.complete',
+      path
+    })
+  } catch (error) {
+    finishOpenTraceSpan(traceId, rightPaneSpanId, 'error', { path })
+    finishOpenTraceSpan(traceId, activeEffectsSpanId, 'error', { path })
+    finishOpenTrace(traceId, 'error', {
+      stage: 'active_note_effects',
+      path,
+      message: error instanceof Error ? error.message : String(error)
+    })
   }
 }
 
@@ -2836,7 +2946,18 @@ watch(
 watch(
   () => activeFilePath.value,
   (path) => {
-    void refreshActiveFileMetadata(path)
+    const isInitialRun = activeNoteEffectsRequestToken === 0
+    if (isInitialRun) {
+      activeNoteEffectsRequestToken += 1
+      if (!path) {
+        editorState.setActiveOutline([])
+        backlinks.value = []
+        semanticLinks.value = []
+      }
+      void refreshActiveFileMetadata(path)
+      return
+    }
+    void runActiveNoteEffects(path)
   },
   { immediate: true }
 )
@@ -2847,30 +2968,6 @@ watch(
     window.sessionStorage.setItem(MULTI_PANE_STORAGE_KEY, JSON.stringify(serializeLayout(layout)))
   },
   { deep: true }
-)
-
-watch(
-  () => activeFilePath.value,
-  async (path) => {
-    if (!path) {
-      editorState.setActiveOutline([])
-      return
-    }
-
-    const snippet = editorState.consumeRevealSnippet(path)
-    if (!snippet) return
-
-    await nextTick()
-    await editorRef.value?.revealSnippet(snippet)
-    await refreshBacklinks()
-  }
-)
-
-watch(
-  () => activeFilePath.value,
-  () => {
-    void refreshBacklinks()
-  }
 )
 
 onMounted(() => {
