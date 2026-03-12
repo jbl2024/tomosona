@@ -32,7 +32,7 @@ describe('editor content styles contract', () => {
     expect(editorStyles).toContain('padding: 0.24rem 0.34rem;')
     expect(editorStyles).toContain('min-width: 2.6rem;')
     expect(editorStyles).toContain('.editor-holder .tomosona-quote-source')
-    expect(editorStyles).toContain('min-height: 72px;')
+    expect(editorStyles).not.toContain('min-height: 72px;')
     expect(editorStyles).toContain('font-size: calc(0.95rem * var(--editor-zoom, 1));')
   })
 })

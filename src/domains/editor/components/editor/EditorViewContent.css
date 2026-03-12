@@ -371,7 +371,6 @@
 }
 
 .editor-holder .tomosona-quote-source {
-  min-height: 72px;
   font-size: calc(0.95rem * var(--editor-zoom, 1));
   line-height: 1.48;
   padding: 0.62rem 0.72rem;

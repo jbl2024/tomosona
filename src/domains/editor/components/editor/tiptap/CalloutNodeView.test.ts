@@ -1,5 +1,5 @@
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CalloutNodeView from './CalloutNodeView.vue'
 
@@ -48,8 +48,16 @@ function mountHarness(options?: {
 }
 
 describe('CalloutNodeView', () => {
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0)
+      return 1
+    })
+  })
+
   afterEach(() => {
     document.body.innerHTML = ''
+    vi.unstubAllGlobals()
   })
 
   it('updates callout kind from filterable dropdown selection', async () => {
@@ -88,6 +96,53 @@ describe('CalloutNodeView', () => {
 
     expect(harness.updateAttributes).toHaveBeenCalledWith({ message: 'After update' })
     expect(harness.message.value).toBe('After update')
+
+    harness.app.unmount()
+  })
+
+  it('autosizes callout textarea from a single-line minimum', async () => {
+    const harness = mountHarness({ initialMessage: '' })
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 84 })
+
+    textarea.value = 'line 1\nline 2\nline 3'
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+
+    expect(textarea.getAttribute('rows')).toBe('1')
+    expect(textarea.style.height).toBe('84px')
+
+    harness.app.unmount()
+  })
+
+  it('keeps a full single-line height for callout textarea', async () => {
+    const harness = mountHarness({ initialMessage: '' })
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 49 })
+
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+
+    expect(textarea.style.height).toBe('49px')
+
+    harness.app.unmount()
+  })
+
+  it('does not pin the callout textarea to 0px when initial metrics are unavailable', async () => {
+    const harness = mountHarness({ initialMessage: '' })
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 0 })
+
+    textarea.dispatchEvent(new Event('focus'))
+    await flush()
+
+    expect(textarea.style.height).toBe('')
 
     harness.app.unmount()
   })

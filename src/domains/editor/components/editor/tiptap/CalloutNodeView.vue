@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, nextTick, onMounted, ref, watch, type Component } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import {
   BeakerIcon,
@@ -26,6 +26,7 @@ const props = defineProps<{
 
 const kind = computed(() => normalizeCalloutKind(props.node.attrs.kind))
 const message = computed(() => String(props.node.attrs.message ?? ''))
+const textareaEl = ref<HTMLTextAreaElement | null>(null)
 const showKindMenu = ref(false)
 const kindQuery = ref('')
 const activeKindIndex = ref(0)
@@ -64,10 +65,42 @@ function onKindSelect(item: FilterableDropdownItem) {
   props.updateAttributes({ kind: next })
 }
 
+function autosizeTextarea(textarea: HTMLTextAreaElement) {
+  textarea.style.height = 'auto'
+  if (textarea.scrollHeight <= 0) {
+    textarea.style.removeProperty('height')
+    return
+  }
+  textarea.style.height = `${textarea.scrollHeight}px`
+}
+
+function scheduleAutosize() {
+  void nextTick().then(() => {
+    const requestRaf = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 16)
+    requestRaf(() => {
+      const textarea = textareaEl.value
+      if (!textarea) return
+      autosizeTextarea(textarea)
+    })
+  })
+}
+
 function onMessageInput(event: Event) {
-  const value = (event.target as HTMLTextAreaElement | null)?.value ?? ''
+  const textarea = event.target as HTMLTextAreaElement | null
+  if (textarea) autosizeTextarea(textarea)
+  const value = textarea?.value ?? ''
   props.updateAttributes({ message: value })
 }
+
+onMounted(() => {
+  scheduleAutosize()
+})
+
+watch(message, () => {
+  scheduleAutosize()
+}, { flush: 'post' })
 </script>
 
 <template>
@@ -117,11 +150,14 @@ function onMessageInput(event: Event) {
       </div>
     </div>
     <textarea
+      ref="textareaEl"
       class="tomosona-quote-source tomosona-callout-message"
       :value="message"
       :readonly="!editor.isEditable"
+      rows="1"
       spellcheck="false"
       placeholder="Callout text"
+      @focus="scheduleAutosize"
       @input="onMessageInput"
     />
   </NodeViewWrapper>
