@@ -3,6 +3,7 @@ import { toEchoesPack, type EchoesPack } from '../../domains/echoes/lib/echoes'
 import type {
   IndexLogEntry,
   IndexRuntimeStatus,
+  SemanticLink,
   WikilinkGraph
 } from './apiTypes'
 
@@ -49,6 +50,11 @@ export async function ftsSearch(query: string): Promise<Array<{ path: string; sn
 /** Returns backlinks for a given workspace note path. */
 export async function backlinksForPath(path: string): Promise<Array<{ path: string }>> {
   return await invoke('backlinks_for_path', { path })
+}
+
+/** Returns semantic relations for a given workspace note path. */
+export async function semanticLinksForPath(path: string): Promise<SemanticLink[]> {
+  return await invoke('semantic_links_for_path', { path })
 }
 
 /** Fetches the indexed wikilink graph payload used by Cosmos view. */

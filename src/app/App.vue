@@ -51,10 +51,11 @@ import {
   requestIndexCancel,
   reindexMarkdownFileLexical,
   reindexMarkdownFileSemantic,
+  semanticLinksForPath,
   updateWikilinksForRename,
   writePropertyTypeSchema
 } from '../shared/api/indexApi'
-import type { WikilinkGraph } from '../shared/api/apiTypes'
+import type { SemanticLink } from '../shared/api/apiTypes'
 import {
   bindPendingOpenTrace,
   finishOpenTrace,
@@ -170,7 +171,7 @@ import packageJson from '../../package.json'
 
 type SearchHit = AppShellSearchHit
 type PropertyPreviewRow = { key: string; value: string }
-type SemanticLinkRow = { path: string; score: number | null; direction: 'incoming' | 'outgoing' }
+type SemanticLinkRow = SemanticLink
 
 type EditorViewExposed = EditorPaneGridExposed
 
@@ -2355,49 +2356,6 @@ function setSidebarMode(mode: SidebarMode) {
   persistSidebarMode()
 }
 
-function collectSemanticLinksForPath(path: string, rawGraph: WikilinkGraph | null): SemanticLinkRow[] {
-  if (!rawGraph) return []
-  const nodeById = new Map(rawGraph.nodes.map((node) => [node.id, node]))
-  const activeNode = rawGraph.nodes.find((node) => normalizePathKey(node.path) === normalizePathKey(path))
-  if (!activeNode) return []
-
-  const merged = new Map<string, SemanticLinkRow>()
-  for (const edge of rawGraph.edges) {
-    if (edge.type !== 'semantic') continue
-    const isOutgoing = edge.source === activeNode.id
-    const isIncoming = edge.target === activeNode.id
-    if (!isOutgoing && !isIncoming) continue
-    const otherId = isOutgoing ? edge.target : edge.source
-    if (otherId === activeNode.id) continue
-    const otherNode = nodeById.get(otherId)
-    if (!otherNode) continue
-    const key = normalizePathKey(otherNode.path)
-    const nextScore = typeof edge.score === 'number' ? edge.score : null
-    const current = merged.get(key)
-    if (!current) {
-      merged.set(key, {
-        path: otherNode.path,
-        score: nextScore,
-        direction: isOutgoing ? 'outgoing' : 'incoming'
-      })
-      continue
-    }
-    const currentScore = current.score ?? -1
-    const candidateScore = nextScore ?? -1
-    if (candidateScore > currentScore) {
-      current.score = nextScore
-      current.direction = isOutgoing ? 'outgoing' : 'incoming'
-    }
-  }
-
-  return Array.from(merged.values()).sort((a, b) => {
-    const scoreA = a.score ?? -1
-    const scoreB = b.score ?? -1
-    if (scoreB !== scoreA) return scoreB - scoreA
-    return a.path.localeCompare(b.path)
-  })
-}
-
 async function refreshBacklinks() {
   const root = filesystem.workingFolderPath.value
   const path = activeFilePath.value
@@ -2410,12 +2368,12 @@ async function refreshBacklinks() {
   backlinksLoading.value = true
   semanticLinksLoading.value = true
   try {
-    const [results, rawGraph] = await Promise.all([
+    const [results, relatedSemanticLinks] = await Promise.all([
       backlinksForPath(path),
-      getWikilinkGraph().catch(() => null)
+      semanticLinksForPath(path)
     ])
     backlinks.value = results.map((item) => item.path)
-    semanticLinks.value = collectSemanticLinksForPath(path, rawGraph)
+    semanticLinks.value = relatedSemanticLinks
   } catch {
     backlinks.value = []
     semanticLinks.value = []

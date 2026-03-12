@@ -64,8 +64,9 @@ use search_index::{
 };
 use wikilink_graph::{
     backlinks_for_path as backlinks_for_path_impl, get_wikilink_graph as get_wikilink_graph_impl,
-    update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, WikilinkGraphDto,
-    WikilinkRewriteResult,
+    semantic_links_for_path as semantic_links_for_path_impl,
+    update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, SemanticLink,
+    WikilinkGraphDto, WikilinkRewriteResult,
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
@@ -308,6 +309,11 @@ fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
 }
 
 #[tauri::command]
+fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
+    semantic_links_for_path_impl(path)
+}
+
+#[tauri::command]
 fn update_wikilinks_for_rename(
     old_path: String,
     new_path: String,
@@ -357,6 +363,7 @@ pub fn run() {
             read_index_runtime_status,
             read_index_logs,
             backlinks_for_path,
+            semantic_links_for_path,
             update_wikilinks_for_rename,
             get_wikilink_graph,
             read_property_type_schema,
@@ -742,6 +749,56 @@ mod tests {
             .edges
             .iter()
             .any(|edge| edge.source == "a.md" && edge.target == "notes/nested.md"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn path_link_queries_use_indexed_relations() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-path-link-queries-test");
+        let root = workspace.to_string_lossy().to_string();
+
+        fs::write(workspace.join("a.md"), "# A").expect("write a");
+        fs::write(workspace.join("b.md"), "# B").expect("write b");
+        fs::write(workspace.join("c.md"), "# C").expect("write c");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let conn = open_db().expect("open db");
+        conn.execute(
+            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
+            params!["a.md", "b"],
+        )
+        .expect("insert backlink source");
+        conn.execute(
+            "INSERT INTO semantic_edges(source_path, target_path, score, model, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["a.md", "b.md", 0.72f32, "test-model", now_ms() as i64],
+        )
+        .expect("insert incoming semantic edge");
+        conn.execute(
+            "INSERT INTO semantic_edges(source_path, target_path, score, model, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["b.md", "c.md", 0.91f32, "test-model", now_ms() as i64],
+        )
+        .expect("insert outgoing semantic edge");
+
+        let backlinks = backlinks_for_path(workspace.join("b.md").to_string_lossy().to_string())
+            .expect("load backlinks");
+        assert_eq!(backlinks.len(), 1);
+        assert!(backlinks[0].path.ends_with("/a.md"));
+
+        let semantic_links =
+            semantic_links_for_path(workspace.join("b.md").to_string_lossy().to_string())
+                .expect("load semantic links");
+        assert_eq!(semantic_links.len(), 2);
+        assert!(semantic_links
+            .iter()
+            .any(|item| item.path.ends_with("/a.md") && item.direction == "incoming"));
+        assert!(semantic_links
+            .iter()
+            .any(|item| item.path.ends_with("/c.md") && item.direction == "outgoing"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

@@ -70,6 +70,12 @@ export type IndexLogEntry = {
   message: string
 }
 
+export type SemanticLink = {
+  path: string
+  score: number | null
+  direction: 'incoming' | 'outgoing'
+}
+
 export type SecondBrainConfigStatus = {
   configured: boolean
   provider: string | null

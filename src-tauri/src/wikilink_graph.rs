@@ -10,7 +10,6 @@ use std::{
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::markdown_index::parse_note_targets;
 use crate::{
     active_workspace_root, list_markdown_files_via_find, normalize_note_key,
     normalize_note_key_from_workspace_path, normalize_workspace_path,
@@ -49,6 +48,13 @@ pub(crate) struct WikilinkGraphDto {
 #[derive(Serialize)]
 pub(crate) struct Backlink {
     pub path: String,
+}
+
+#[derive(Serialize)]
+pub(crate) struct SemanticLink {
+    pub path: String,
+    pub score: Option<f32>,
+    pub direction: String,
 }
 
 #[derive(Serialize)]
@@ -266,41 +272,82 @@ pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
         return Ok(vec![]);
     }
 
-    let markdown_files = list_markdown_files_via_find(&root_canonical)?;
-    let mut out = Vec::new();
-    let mut seen = HashSet::new();
-
-    for candidate in markdown_files {
-        let canonical_candidate = match fs::canonicalize(&candidate) {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
-        let source_key = match normalize_note_key(&root_canonical, &canonical_candidate) {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
-        if source_key == target_key {
+    let conn = open_db()?;
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT DISTINCT source_path
+        FROM note_links
+        WHERE target_key = ?1
+        ORDER BY source_path COLLATE NOCASE
+    "#,
+    )?;
+    let rows = stmt.query_map([target_key.clone()], |row| row.get::<_, String>(0))?;
+    let mut out: Vec<Backlink> = Vec::new();
+    for row in rows {
+        let source_path = row?;
+        if source_path == target_key {
             continue;
         }
+        out.push(Backlink {
+            path: workspace_absolute_path(&root_canonical, &source_path),
+        });
+    }
+    Ok(out)
+}
 
-        let markdown = match fs::read_to_string(&canonical_candidate) {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
-        if !parse_note_targets(&markdown)
-            .iter()
-            .any(|item| item == &target_key)
-        {
-            continue;
-        }
-
-        let source_path = canonical_candidate.to_string_lossy().to_string();
-        if seen.insert(source_path.clone()) {
-            out.push(Backlink { path: source_path });
-        }
+pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
+    let root_canonical = active_workspace_root()?;
+    let mut path_buf = PathBuf::from(path);
+    if path_buf.as_os_str().is_empty() {
+        return Err(AppError::InvalidPath);
+    }
+    if !path_buf.is_absolute() {
+        path_buf = root_canonical.join(path_buf);
+    }
+    if path_buf.exists() {
+        path_buf = fs::canonicalize(path_buf)?;
     }
 
-    out.sort_by(|a, b| a.path.to_lowercase().cmp(&b.path.to_lowercase()));
+    let target_path = normalize_workspace_relative_path(&root_canonical, &path_buf)?;
+    let conn = open_db()?;
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT target_path AS related_path, score, 'outgoing' AS direction
+        FROM semantic_edges
+        WHERE source_path = ?1
+        UNION ALL
+        SELECT source_path AS related_path, score, 'incoming' AS direction
+        FROM semantic_edges
+        WHERE target_path = ?1
+        ORDER BY score DESC, related_path COLLATE NOCASE
+    "#,
+    )?;
+    let rows = stmt.query_map([target_path], |row| {
+        Ok(SemanticLink {
+            path: workspace_absolute_path(&root_canonical, &row.get::<_, String>(0)?),
+            score: row.get::<_, f32>(1).ok(),
+            direction: row.get::<_, String>(2)?,
+        })
+    })?;
+
+    let mut out: Vec<SemanticLink> = Vec::new();
+    let mut positions_by_key: HashMap<String, usize> = HashMap::new();
+    for row in rows {
+        let item = row?;
+        let key = item.path.to_lowercase();
+        if let Some(index) = positions_by_key.get(&key).copied() {
+            let existing: &mut SemanticLink = &mut out[index];
+            let existing_score = existing.score.unwrap_or(-1.0);
+            let next_score = item.score.unwrap_or(-1.0);
+            if next_score > existing_score {
+                *existing = item;
+            }
+            continue;
+        }
+        positions_by_key.insert(key, out.len());
+        out.push(item);
+    }
+
     Ok(out)
 }
 

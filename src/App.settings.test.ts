@@ -83,6 +83,7 @@ vi.mock('./shared/api/indexApi', () => ({
   removeMarkdownFileFromIndex: vi.fn(async () => {}),
   ftsSearch: vi.fn(async () => []),
   backlinksForPath: vi.fn(async () => []),
+  semanticLinksForPath: vi.fn(async () => []),
   updateWikilinksForRename: vi.fn(async () => ({ updated_files: 0 })),
   rebuildWorkspaceIndex: vi.fn(async () => ({ indexed_files: 0, canceled: false })),
   requestIndexCancel: vi.fn(async () => {}),
