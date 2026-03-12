@@ -68,6 +68,7 @@ const emit = defineEmits<{
   'cosmos-locate-selected': []
   'cosmos-reset-view': []
   'cosmos-select-node': [nodeId: string]
+  'cosmos-add-to-context': [path: string]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -353,6 +354,7 @@ onBeforeUnmount(() => {
         @cosmos-locate-selected="emit('cosmos-locate-selected')"
         @cosmos-reset-view="emit('cosmos-reset-view')"
         @cosmos-select-node="emit('cosmos-select-node', $event)"
+        @cosmos-add-to-context="emit('cosmos-add-to-context', $event)"
         @open-note="emit('open-note', $event)"
         @launchpad-open-workspace="emit('launchpad-open-workspace')"
         @launchpad-open-wizard="emit('launchpad-open-wizard')"

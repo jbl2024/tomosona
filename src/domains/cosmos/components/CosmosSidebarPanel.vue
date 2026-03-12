@@ -12,6 +12,7 @@ import { applySearchMode, detectSearchMode, type SearchMode } from '../../../sha
 import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../pulse/lib/pulse'
 import type { PulseActionId } from '../../../shared/api/apiTypes'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
+import UiButton from '../../../shared/components/ui/UiButton.vue'
 
 type GraphSummary = {
   nodes: number
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   'open-selected': []
   'locate-selected': []
   'reset-view': []
+  'add-to-context': [path: string]
   'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
 }>()
 
@@ -239,6 +241,14 @@ function onPulseDropdownSelect(item: FilterableDropdownItem) {
         </div>
         <p class="cosmos-node-meta">Degree: {{ selectedNode.degree }} · Cluster: {{ selectedNode.cluster }}</p>
         <p class="cosmos-node-meta">Visible links: {{ selectedLinkCount }}</p>
+        <UiButton
+          variant="secondary"
+          size="sm"
+          class-name="cosmos-context-btn"
+          @click="emit('add-to-context', selectedNode.path)"
+        >
+          Add to Context
+        </UiButton>
         <p v-if="previewLoading" class="cosmos-node-preview">Loading preview...</p>
         <p v-else-if="previewError" class="cosmos-node-preview cosmos-node-preview-error">{{ previewError }}</p>
         <pre v-else class="cosmos-node-preview">{{ preview || 'No preview content.' }}</pre>
@@ -683,6 +693,11 @@ function onPulseDropdownSelect(item: FilterableDropdownItem) {
   margin: 4px 0 0;
   font-size: 11px;
   color: var(--cosmos-text-secondary);
+}
+
+.cosmos-context-btn {
+  width: fit-content;
+  margin-top: 8px;
 }
 
 .cosmos-node-preview {

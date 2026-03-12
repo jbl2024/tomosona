@@ -111,7 +111,10 @@ vi.mock('./shared/api/favoritesApi', () => ({
 vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
   default: defineComponent({
     name: 'EditorPaneGridStub',
-    setup(_, { expose, emit }) {
+    props: {
+      layout: { type: Object, required: true }
+    },
+    setup(props, { expose, emit }) {
       expose({
         saveNow: async () => {},
         reloadCurrent: async () => {},
@@ -126,10 +129,20 @@ vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
         getZoom: () => 1,
         focusCosmosNodeById: () => {}
       })
-      return () => h('div', { 'data-pane-grid-stub': 'true' }, [
-        h('button', { type: 'button', 'data-open-a': 'true', onClick: () => emit('open-note', '/vault/a.md') }, 'open-a'),
-        h('button', { type: 'button', 'data-open-b': 'true', onClick: () => emit('open-note', '/vault/b.md') }, 'open-b')
-      ])
+      return () => {
+        const layout = props.layout as {
+          activePaneId: string
+          panesById: Record<string, { openTabs: Array<{ type: string }> }>
+        }
+        const pane = layout.panesById[layout.activePaneId]
+        const tabs = (pane?.openTabs ?? []).map((tab) => tab.type).join(',')
+        return h('div', { 'data-pane-grid-stub': 'true' }, [
+          h('div', { 'data-pane-tabs': 'true' }, tabs),
+          h('button', { type: 'button', 'data-open-a': 'true', onClick: () => emit('open-note', '/vault/a.md') }, 'open-a'),
+          h('button', { type: 'button', 'data-open-b': 'true', onClick: () => emit('open-note', '/vault/b.md') }, 'open-b'),
+          h('button', { type: 'button', 'data-grid-cosmos-add-context': 'true', onClick: () => emit('cosmos-add-to-context', '/vault/b.md') }, 'grid-cosmos-add-context')
+        ])
+      }
     }
   })
 }))
@@ -154,6 +167,7 @@ vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({
     },
     emits: [
       'active-note-add-to-context',
+      'active-note-open-cosmos',
       'echoes-add-to-context',
       'context-preserve',
       'context-open-second-brain',
@@ -166,6 +180,7 @@ vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({
         h('div', { 'data-context-count': 'true' }, String((props.contextItems as Array<unknown>).length)),
         h('div', { 'data-context-can-reason': 'true' }, String(props.canReasonOnContext)),
         h('button', { type: 'button', 'data-add-active-context': 'true', onClick: () => emit('active-note-add-to-context') }, 'add-active'),
+        h('button', { type: 'button', 'data-open-note-cosmos': 'true', onClick: () => emit('active-note-open-cosmos') }, 'open-note-cosmos'),
         h('button', { type: 'button', 'data-add-echoes-context': 'true', onClick: () => emit('echoes-add-to-context', '/vault/b.md') }, 'add-echo'),
         h('button', { type: 'button', 'data-preserve-context': 'true', onClick: () => emit('context-preserve') }, 'preserve'),
         h('button', { type: 'button', 'data-open-context-second-brain': 'true', onClick: () => emit('context-open-second-brain') }, 'open-sb'),
@@ -266,6 +281,24 @@ describe('App constituted context', () => {
     mounted.root.querySelector<HTMLButtonElement>('[data-open-b="true"]')?.click()
     await flushUi()
     expect(mounted.root.querySelector('[data-context-mode="true"]')?.textContent).toBe('preserved')
+    expect(mounted.root.querySelector('[data-context-count="true"]')?.textContent).toBe('1')
+
+    mounted.app.unmount()
+  })
+
+  it('adds the selected cosmos note into the constituted context', async () => {
+    const mounted = mountApp()
+    await flushUi()
+    await showRightPane()
+
+    mounted.root.querySelector<HTMLButtonElement>('[data-open-a="true"]')?.click()
+    await flushUi()
+    mounted.root.querySelector<HTMLButtonElement>('[data-open-note-cosmos="true"]')?.click()
+    await flushUi()
+    expect(mounted.root.querySelector('[data-pane-tabs="true"]')?.textContent).toContain('cosmos')
+
+    mounted.root.querySelector<HTMLButtonElement>('[data-grid-cosmos-add-context="true"]')?.click()
+    await flushUi()
     expect(mounted.root.querySelector('[data-context-count="true"]')?.textContent).toBe('1')
 
     mounted.app.unmount()

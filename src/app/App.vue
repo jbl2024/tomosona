@@ -1888,7 +1888,7 @@ function setThemeFromPalette(next: ThemePreference) {
 }
 
 function addPathToConstitutedContext(path: string) {
-  const anchorPath = activeFilePath.value.trim()
+  const anchorPath = activeFilePath.value.trim() || constitutedContext.anchorPath.value.trim() || path.trim()
   if (!anchorPath || !path.trim()) return
   constitutedContext.add(path, anchorPath, (itemPath) => ({
     path: itemPath,
@@ -3264,6 +3264,7 @@ onBeforeUnmount(() => {
               @cosmos-locate-selected="onCosmosLocateSelectedNode"
               @cosmos-reset-view="onCosmosResetView"
               @cosmos-select-node="onCosmosSelectNode"
+              @cosmos-add-to-context="addPathToConstitutedContext($event)"
               @status="onEditorStatus"
               @path-renamed="onEditorPathRenamed"
               @outline="onEditorOutline"
@@ -3318,6 +3319,7 @@ onBeforeUnmount(() => {
             @toggle-favorite="void toggleActiveNoteFavoriteFromRightPane()"
             @active-note-add-to-context="toggleActiveNoteInConstitutedContext()"
             @active-note-remove-from-context="toggleActiveNoteInConstitutedContext()"
+            @active-note-open-cosmos="void openNoteInCosmosFromPalette()"
             @echoes-open="void onBacklinkOpen($event)"
             @echoes-add-to-context="addPathToConstitutedContext($event)"
             @echoes-remove-from-context="removePathFromConstitutedContext($event)"

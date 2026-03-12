@@ -35,13 +35,13 @@ function compactRelativePath(path: string): string {
 function reasonLabel(reason: string) {
   switch (reason) {
     case 'Direct link':
-      return 'lien direct'
+      return 'direct link'
     case 'Backlink':
       return 'backlink'
     case 'Semantically related':
-      return 'proximite semantique'
+      return 'semantic similarity'
     case 'Recently active':
-      return 'activite recente'
+      return 'recent activity'
     default:
       return reason.toLowerCase()
   }
@@ -61,7 +61,7 @@ function onContextClick(item: EditorEchoesListItem) {
     <div class="echoes-head">
       <div>
         <h3 class="section-title">Echoes</h3>
-        <p v-if="hintVisible" class="echoes-helper">Suggestions autour de cette note.</p>
+        <p v-if="hintVisible" class="echoes-helper">Suggestions around this note.</p>
       </div>
       <span v-if="!loading && !error && items.length" class="echoes-count">{{ items.length }} suggestion{{ items.length > 1 ? 's' : '' }}</span>
     </div>
@@ -91,7 +91,7 @@ function onContextClick(item: EditorEchoesListItem) {
           class-name="echoes-action-btn"
           @click="emit('open', item.path)"
         >
-          Ouvrir
+          Open
         </UiButton>
         <UiButton
           :variant="item.isInContext ? 'secondary' : 'ghost'"
@@ -104,7 +104,7 @@ function onContextClick(item: EditorEchoesListItem) {
           ].filter(Boolean).join(' ')"
           @click="onContextClick(item)"
         >
-          {{ item.isInContext ? 'Retirer' : '+ Contexte' }}
+          {{ item.isInContext ? 'Remove' : '+ Context' }}
         </UiButton>
       </div>
     </article>

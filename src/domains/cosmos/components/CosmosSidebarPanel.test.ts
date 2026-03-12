@@ -98,7 +98,8 @@ describe('CosmosSidebarPanel', () => {
       resetView: 0,
       selectMatch: '' as string,
       jumpRelated: '' as string,
-      focusMode: false
+      focusMode: false,
+      addToContext: '' as string
     }
 
     const Harness = defineComponent({
@@ -136,6 +137,9 @@ describe('CosmosSidebarPanel', () => {
             },
             onToggleFocusMode: (value: boolean) => {
               events.focusMode = value
+            },
+            onAddToContext: (path: string) => {
+              events.addToContext = path
             }
           })
       }
@@ -153,6 +157,7 @@ describe('CosmosSidebarPanel', () => {
     root.querySelector<HTMLButtonElement>('.cosmos-match-item')?.click()
     root.querySelectorAll<HTMLButtonElement>('.cosmos-links-item')[0]?.click()
     root.querySelector<HTMLInputElement>('.cosmos-toggle input')?.click()
+    root.querySelector<HTMLButtonElement>('.cosmos-context-btn')?.click()
     await flushUi()
 
     expect(events.openSelected).toBe(1)
@@ -161,6 +166,7 @@ describe('CosmosSidebarPanel', () => {
     expect(events.selectMatch).toBe('a')
     expect(events.jumpRelated).toBe('b')
     expect(events.focusMode).toBe(true)
+    expect(events.addToContext).toBe('graph/a.md')
 
     app.unmount()
   })

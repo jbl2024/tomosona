@@ -11,6 +11,7 @@ describe('EditorRightPane', () => {
     const onToggleFavorite = vi.fn()
     const onActiveNoteAddToContext = vi.fn()
     const onActiveNoteRemoveFromContext = vi.fn()
+    const onActiveNoteOpenCosmos = vi.fn()
     const onEchoesAddToContext = vi.fn()
     const onContextOpen = vi.fn()
     const onContextRemove = vi.fn()
@@ -62,6 +63,7 @@ describe('EditorRightPane', () => {
           onBacklinkOpen,
           onActiveNoteAddToContext,
           onActiveNoteRemoveFromContext,
+          onActiveNoteOpenCosmos,
           onEchoesAddToContext,
           onContextOpen,
           onContextRemove,
@@ -77,23 +79,25 @@ describe('EditorRightPane', () => {
     app.mount(root)
     const sectionTitles = Array.from(root.querySelectorAll('.section-title')).map((el) => el.textContent?.trim())
     expect(sectionTitles.slice(0, 5)).toEqual([
-      'Note Active',
+      'Active Note',
       'Echoes',
-      'Contexte de cette note',
-      'Plan',
-      'Liens Semantiques'
+      'Context for This Note',
+      'Outline',
+      'Semantic Links'
     ])
     expect(root.querySelectorAll('.section-toggle')).toHaveLength(5)
     expect(root.querySelector('.favorite-toggle-btn--active')).toBeTruthy()
-    expect(root.textContent).toContain('Raisonner sur ce contexte')
-    expect(root.textContent).toContain('Explorer dans Cosmos')
-    expect(root.textContent).toContain('Transformer avec Pulse')
+    expect(root.textContent).toContain('Reason on This Context')
+    expect(root.textContent).toContain('Explore in Cosmos')
+    expect(root.textContent).toContain('Transform with Pulse')
 
     ;(root.querySelector('.favorite-toggle-btn') as HTMLButtonElement).click()
     expect(onToggleFavorite).toHaveBeenCalledTimes(1)
 
     ;(root.querySelector('.primary-context-btn') as HTMLButtonElement).click()
     expect(onActiveNoteAddToContext).toHaveBeenCalledTimes(1)
+    ;(root.querySelector('.secondary-note-btn') as HTMLButtonElement).click()
+    expect(onActiveNoteOpenCosmos).toHaveBeenCalledTimes(1)
 
     const echoesButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
     echoesButtons[1].click()
@@ -182,8 +186,8 @@ describe('EditorRightPane', () => {
     }))
 
     app.mount(root)
-    expect(root.textContent).toContain('Contexte conserve')
-    expect(root.textContent).toContain('Aucune note ajoutee.')
+    expect(root.textContent).toContain('Preserved Context')
+    expect(root.textContent).toContain('No notes added.')
     expect((root.querySelector('.context-primary-cta') as HTMLButtonElement).disabled).toBe(true)
     app.unmount()
   })

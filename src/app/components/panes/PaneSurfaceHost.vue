@@ -53,6 +53,7 @@ const emit = defineEmits<{
   'cosmos-locate-selected': []
   'cosmos-reset-view': []
   'cosmos-select-node': [nodeId: string]
+  'cosmos-add-to-context': [path: string]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -188,6 +189,7 @@ defineExpose<EditorSurfaceExposed>({
     @locate-selected="emit('cosmos-locate-selected')"
     @reset-view="emit('cosmos-reset-view')"
     @select-node="emit('cosmos-select-node', $event)"
+    @add-to-context="emit('cosmos-add-to-context', $event)"
     @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
   />
 

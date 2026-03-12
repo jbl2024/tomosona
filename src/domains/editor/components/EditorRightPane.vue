@@ -60,6 +60,7 @@ const emit = defineEmits<{
   'toggle-favorite': []
   'active-note-add-to-context': []
   'active-note-remove-from-context': []
+  'active-note-open-cosmos': []
   'echoes-open': [path: string]
   'echoes-add-to-context': [path: string]
   'echoes-remove-from-context': [path: string]
@@ -80,10 +81,10 @@ const backlinksExpanded = ref(false)
 const metadataExpanded = ref(false)
 const propertiesExpanded = ref(false)
 const hasEchoesContent = computed(() => props.echoesItems.length > 0 && !props.echoesLoading && !props.echoesError)
-const contextTitle = computed(() => props.contextMode === 'preserved' ? 'Contexte conserve' : 'Contexte de cette note')
+const contextTitle = computed(() => props.contextMode === 'preserved' ? 'Preserved Context' : 'Context for This Note')
 const contextEmptyCopy = computed(() => {
-  if (props.contextMode === 'preserved') return 'Aucune note ajoutee.'
-  return 'Ajoutez des notes depuis Echoes ou la note active.'
+  if (props.contextMode === 'preserved') return 'No notes added.'
+  return 'Add notes from Echoes or the active note.'
 })
 
 watch(
@@ -101,7 +102,7 @@ watch(
     <section class="pane-card pane-toolbar">
       <div class="pane-toolbar-row">
         <div class="pane-toolbar-copy">
-          <h3 class="section-title pane-toolbar-title">Note Active</h3>
+          <h3 class="section-title pane-toolbar-title">Active Note</h3>
           <p class="pane-toolbar-note-title">{{ props.activeNoteTitle || 'No active note' }}</p>
           <p class="pane-toolbar-meta">
             {{ props.activeStateLabel }}
@@ -135,7 +136,16 @@ watch(
         :disabled="!props.activeNotePath"
         @click="props.activeNoteInContext ? emit('active-note-remove-from-context') : emit('active-note-add-to-context')"
       >
-        {{ props.activeNoteInContext ? 'Retirer du contexte' : 'Ajouter au contexte' }}
+        {{ props.activeNoteInContext ? 'Remove from Context' : 'Add to Context' }}
+      </UiButton>
+      <UiButton
+        variant="ghost"
+        size="sm"
+        class-name="secondary-note-btn"
+        :disabled="!props.activeNotePath"
+        @click="emit('active-note-open-cosmos')"
+      >
+        Open in Cosmos
       </UiButton>
     </section>
 
@@ -166,9 +176,9 @@ watch(
             class-name="context-chip-btn"
             @click="emit('context-preserve')"
           >
-            Conserver
+            Preserve
           </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear')">Vider</UiButton>
+          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear')">Clear</UiButton>
         </div>
       </div>
 
@@ -180,7 +190,7 @@ watch(
             <span class="context-row-title">{{ item.title }}</span>
             <span class="context-row-path">{{ props.toRelativePath(item.path) }}</span>
           </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove', item.path)">Retirer</UiButton>
+          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove', item.path)">Remove</UiButton>
         </div>
       </div>
     </section>
@@ -194,7 +204,7 @@ watch(
         :loading="props.isLaunchingContextAction"
         @click="emit('context-open-second-brain')"
       >
-        Raisonner sur ce contexte
+        Reason on This Context
       </UiButton>
 
       <div class="context-secondary-actions">
@@ -205,7 +215,7 @@ watch(
           :disabled="!props.canReasonOnContext || props.isLaunchingContextAction"
           @click="emit('context-open-cosmos')"
         >
-          Explorer dans Cosmos
+          Explore in Cosmos
         </UiButton>
         <UiButton
           variant="ghost"
@@ -214,18 +224,18 @@ watch(
           :disabled="!props.canReasonOnContext || props.isLaunchingContextAction"
           @click="emit('context-open-pulse')"
         >
-          Transformer avec Pulse
+          Transform with Pulse
         </UiButton>
       </div>
     </section>
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="outlineExpanded = !outlineExpanded">
-        <h3 class="section-title">Plan</h3>
+        <h3 class="section-title">Outline</h3>
         <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: outlineExpanded }" />
       </button>
       <template v-if="outlineExpanded">
-        <div v-if="!props.outline.length" class="empty-state">Aucun titre</div>
+        <div v-if="!props.outline.length" class="empty-state">No headings</div>
         <button
           v-for="(heading, idx) in props.outline"
           :key="`${heading.text}-${idx}`"
@@ -241,12 +251,12 @@ watch(
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="semanticExpanded = !semanticExpanded">
-        <h3 class="section-title">Liens Semantiques</h3>
+        <h3 class="section-title">Semantic Links</h3>
         <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: semanticExpanded }" />
       </button>
       <template v-if="semanticExpanded">
         <div v-if="props.semanticLinksLoading" class="empty-state">Loading...</div>
-        <div v-else-if="!props.semanticLinks.length" class="empty-state">Aucun lien semantique</div>
+        <div v-else-if="!props.semanticLinks.length" class="empty-state">No semantic links</div>
         <button
           v-for="item in props.semanticLinks"
           :key="`semantic-${item.path}`"
@@ -408,6 +418,11 @@ watch(
 .context-primary-cta {
   width: 100%;
   margin-top: 10px;
+}
+
+.secondary-note-btn {
+  width: 100%;
+  margin-top: 8px;
 }
 
 .context-card {

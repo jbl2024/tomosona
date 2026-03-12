@@ -46,9 +46,9 @@ describe('EditorEchoesPanel', () => {
 
     app.mount(root)
     expect(root.textContent).toContain('Echoes')
-    expect(root.textContent).toContain('Suggestions autour de cette note.')
-    expect(root.textContent).toContain('lien direct')
-    expect(root.textContent).toContain('proximite semantique')
+    expect(root.textContent).toContain('Suggestions around this note.')
+    expect(root.textContent).toContain('direct link')
+    expect(root.textContent).toContain('semantic similarity')
 
     const actionButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
     actionButtons[0].click()
