@@ -18,6 +18,37 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.17.0] - 2026-03-12
+
+### Changed
+- Merge pull request #20 from jbl2024/codex/review-rfd-017-pr9 (b0cd5ab)
+- chore(deps): upgrade rfd to v0.17 (ecbbfdf)
+- Merge pull request #19 from jbl2024/codex/review-notify-8-pr12 (2640a7f)
+- chore(deps): upgrade notify to v8 (13e9384)
+- Merge pull request #18 from jbl2024/codex/review-thiserror-2-pr14 (e39b312)
+- chore(deps): upgrade thiserror to v2 (c50a8c1)
+- Merge pull request #17 from jbl2024/codex/review-vite-7-pr13 (f51349d)
+- chore(build): upgrade vite to v7 (feadddf)
+- Merge pull request #16 from jbl2024/codex/group-github-actions-bumps (3e72dc6)
+- chore(ci): group GitHub Actions major upgrades (a7e811a)
+- chore(deps): apply safe dependabot updates from open github prs (769e7a4)
+- Merge pull request #1 from jbl2024/dependabot/github_actions/actions/cache-5 (789d8bc)
+- docs(agents): codify engineering philosophy documentation and testing standards (379cf98)
+- refactor(app): extract shell workspace entry flows from App (c0a9642)
+- refactor(app): extract shell modal orchestration from App (ec9d784)
+- refactor(app): extract shell workspace lifecycle from App (edb6827)
+- refactor(app): extract reusable shell commands from App (f552fcf)
+- refactor(app): extract shell keyboard controller from App (8d56a2f)
+- refactor(app): extract shell search launchpad and history UI from App (4ad2df2)
+- chore(deps): bump actions/cache from 4 to 5 (c240815)
+
+### Fixed
+- fix(editor): remove drag handle vertical offset (b0a4a5c)
+- fix(editor): align drag handle grip icon (4e13dad)
+- fix(editor): scope heavy render waits to current document (b3784e0)
+- fix(editor): intercept internal anchor clicks before browser navigation (9385853)
+- fix(app): avoid blocking workspace file preload on note open (5834b10)
+
 ## [0.16.9] - 2026-03-11
 
 ### Added
