@@ -185,6 +185,8 @@ type VirtualDoc = {
   titleLine: string
 }
 
+// Top-level shell persistence lives here so App stays the single assembly point
+// for workspace restore and cross-session UI state.
 const THEME_STORAGE_KEY = 'tomosona.theme.preference'
 const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
 const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
@@ -564,6 +566,8 @@ const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'lexical', label: 'Lexical' }
 ]
 
+// Palette ranking is explicit so command ordering stays stable as shell
+// commands evolve and new actions are added over time.
 const paletteActionPriority: Record<string, number> = {
   'open-file': 0,
   'open-workspace': 1,
@@ -1268,6 +1272,8 @@ async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Prom
 
   multiPane.openSurfaceInPane('cosmos')
 
+  // History replay may happen before the graph is ready, so restoration needs
+  // to rebuild enough domain state before selection/focus is applied.
   if (!cosmos.graph.value.nodes.length) {
     await cosmos.refreshGraph()
   }
@@ -1688,6 +1694,8 @@ async function openPulseContextInSecondBrain(payload: {
     const sessionId = await secondBrainBridge.resolveSecondBrainSessionForPath(seedPath)
     await replaceSessionContext(sessionId, normalized)
 
+    // The shell forwards explicit session/prompt requests so the pane reacts
+    // through public inputs instead of reaching into bridge internals.
     setSecondBrainSessionId(sessionId, { bumpNonce: true })
     setSecondBrainPrompt(payload.prompt?.trim() ?? '', { bumpNonce: true })
     await openSecondBrainViewFromPalette()
@@ -1804,6 +1812,8 @@ function onExplorerPathsDeleted(paths: string[]) {
 }
 
 async function onExplorerOpen(path: string) {
+  // Explorer opens participate in the shared open trace pipeline so shell-level
+  // latency remains debuggable across entry points.
   const traceId = startOpenTrace(path, 'explorer-click')
   bindPendingOpenTrace(path, traceId)
   traceOpenStep(traceId, 'explorer open requested')
@@ -1849,6 +1859,8 @@ function openNextWikilinkRewritePrompt() {
   if (wikilinkRewritePrompt.value || wikilinkRewriteQueue.length === 0) return
   const next = wikilinkRewriteQueue.shift()
   if (!next) return
+  // Renames can enqueue multiple prompts; serialize them to avoid stacked
+  // blocking modals and inconsistent approval order.
   rememberFocusBeforeModalOpen()
   wikilinkRewritePrompt.value = {
     fromPath: next.fromPath,
@@ -2600,6 +2612,8 @@ async function saveActiveTab() {
   await editorRef.value?.saveNow()
 }
 
+// Remaining watchers in App are composition-level concerns: persisted shell UI
+// state, theme integration, and top-level editor/navigation synchronization.
 watch(themePreference, () => {
   persistThemePreference()
   applyTheme()
