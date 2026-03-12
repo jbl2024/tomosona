@@ -388,6 +388,9 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
    * points at an editor instance after unmount.
    */
   async function disposeDocumentRuntime() {
+    // Invalidate any in-flight load/save completions owned by this runtime
+    // instance before tearing down the editor surface.
+    sessionState.nextRequestId()
     await ui.disposeUi()
     sessionStore.closeAll()
     session.activeEditor.value = null

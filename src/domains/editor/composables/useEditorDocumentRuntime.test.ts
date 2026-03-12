@@ -234,6 +234,27 @@ describe('useEditorDocumentRuntime', () => {
     harness.app.unmount()
   })
 
+  it('cancels in-flight loads when the runtime unmounts', async () => {
+    const aLoad = deferred<string>()
+    const harness = createHarness({
+      openFile: async () => aLoad.promise
+    })
+
+    harness.app.mount(document.createElement('div'))
+    await flushUi()
+
+    const sessionBeforeUnmount = harness.runtime.getSession('a.md')
+    expect(sessionBeforeUnmount).toBeTruthy()
+    harness.app.unmount()
+
+    aLoad.resolve('# A\n\nAlpha')
+    await flushUi()
+
+    expect(sessionBeforeUnmount?.isLoaded).toBe(false)
+    expect(sessionBeforeUnmount?.loadedText).toBe('')
+    expect(harness.activeEditor.value).toBeNull()
+  })
+
   it('marks title edits dirty, clears save errors, and autosaves after the idle window', async () => {
     vi.useFakeTimers()
     const harness = createHarness()
