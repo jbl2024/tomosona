@@ -16,6 +16,8 @@ import { sanitizeHtmlForPreview } from '../../../shared/lib/htmlSanitizer'
 import { inlineTextToHtml } from '../../editor/lib/markdownBlocks'
 import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../lib/secondBrainContextPaths'
 import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../../shared/api/apiTypes'
+import { writeClipboardText } from '../../../shared/api/clipboardApi'
+import { readTextFile } from '../../../shared/api/workspaceApi'
 import { useEchoesPack } from '../../echoes/composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../composables/useSecondBrainAtMentions'
 import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../pulse/lib/pulse'
@@ -472,6 +474,71 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
   return sanitizeHtmlForPreview(html || `<p>${inlineTextToHtml(source)}</p>`)
 }
 
+function showCopyToast(kind: 'success' | 'error', message: string, durationMs = COPY_TOAST_MS) {
+  if (copyToastTimer) clearTimeout(copyToastTimer)
+  copyToast.value = {
+    visible: true,
+    kind,
+    message
+  }
+  copyToastTimer = setTimeout(() => {
+    copyToast.value.visible = false
+    copyToastTimer = null
+  }, durationMs)
+}
+
+function buildConversationMarkdown(contextEntries: Array<{ path: string; content: string }>): string {
+  const lines: string[] = [`# ${sessionTitle.value || 'Second Brain Session'}`, '', '## Context', '']
+
+  for (const entry of contextEntries) {
+    lines.push(`### ${toRelativePath(entry.path)}`, '', entry.content.trimEnd(), '')
+  }
+
+  lines.push('## Conversation', '')
+  for (const message of messages.value) {
+    lines.push(`### ${message.role === 'assistant' ? 'Assistant' : 'You'}`, '')
+    lines.push(displayMessage(message).trimEnd(), '')
+  }
+
+  return lines.join('\n').trim()
+}
+
+async function writeTextToClipboard(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+  } catch {
+    // Fall through to the native Tauri fallback used by desktop webviews without Clipboard API access.
+  }
+  await writeClipboardText(text)
+}
+
+const canCopyConversation = computed(() =>
+  Boolean(sessionId.value && !requestInFlight.value && (contextPaths.value.length > 0 || messages.value.length > 0))
+)
+
+async function onCopyConversation() {
+  if (!canCopyConversation.value) return
+
+  try {
+    const contextEntries = await Promise.all(contextPaths.value.map(async (path) => ({
+      path,
+      content: await readTextFile(path)
+    })))
+    const markdown = buildConversationMarkdown(contextEntries)
+    await writeTextToClipboard(markdown)
+    showCopyToast('success', 'Conversation copied to clipboard.')
+  } catch (err) {
+    showCopyToast(
+      'error',
+      err instanceof Error ? err.message : 'Could not copy conversation.',
+      COPY_TOAST_MS + 700
+    )
+  }
+}
+
 async function applyMentionSuggestion(item: SecondBrainAtMentionItem) {
   const trigger = mentions.trigger.value
   const previousComposerPaths = [...composerContextPaths.value]
@@ -696,7 +763,7 @@ async function onCopyAssistantMessage(message: SecondBrainMessage) {
   if (!content) return
 
   try {
-    await navigator.clipboard.writeText(content)
+    await writeTextToClipboard(content)
     copiedByMessageId.value = {
       ...copiedByMessageId.value,
       [message.id]: true
@@ -710,28 +777,13 @@ async function onCopyAssistantMessage(message: SecondBrainMessage) {
       copiedByMessageId.value = next
       delete copyFeedbackTimers[message.id]
     }, COPY_FEEDBACK_MS)
-
-    if (copyToastTimer) clearTimeout(copyToastTimer)
-    copyToast.value = {
-      visible: true,
-      kind: 'success',
-      message: 'Copied to clipboard.'
-    }
-    copyToastTimer = setTimeout(() => {
-      copyToast.value.visible = false
-      copyToastTimer = null
-    }, COPY_TOAST_MS)
+    showCopyToast('success', 'Copied to clipboard.')
   } catch (err) {
-    if (copyToastTimer) clearTimeout(copyToastTimer)
-    copyToast.value = {
-      visible: true,
-      kind: 'error',
-      message: err instanceof Error ? err.message : 'Could not copy assistant response.'
-    }
-    copyToastTimer = setTimeout(() => {
-      copyToast.value.visible = false
-      copyToastTimer = null
-    }, COPY_TOAST_MS + 700)
+    showCopyToast(
+      'error',
+      err instanceof Error ? err.message : 'Could not copy assistant response.',
+      COPY_TOAST_MS + 700
+    )
   }
 }
 
@@ -894,6 +946,15 @@ watch(contextPaths, (paths) => {
           <p v-if="configError" class="sb-error">{{ configError }}</p>
         </div>
         <div class="sb-session-actions">
+          <button
+            v-if="sessionId"
+            type="button"
+            class="sb-session-copy-btn"
+            :disabled="!canCopyConversation"
+            @click="void onCopyConversation()"
+          >
+            Copy conversation
+          </button>
           <button
             type="button"
             class="sb-session-create-btn"
@@ -1115,6 +1176,17 @@ watch(contextPaths, (paths) => {
   gap: 6px;
 }
 
+.sb-session-copy-btn {
+  min-height: 32px;
+  border: 1px solid var(--sb-button-border);
+  border-radius: 10px;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .sb-session-create-btn {
   width: 32px;
   height: 32px;
@@ -1127,6 +1199,7 @@ watch(contextPaths, (paths) => {
   justify-content: center;
 }
 
+.sb-session-copy-btn:disabled,
 .sb-session-create-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

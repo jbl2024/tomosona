@@ -28,6 +28,18 @@ vi.mock('../../../shared/api/indexApi', async () => {
   }
 })
 
+const workspaceApi = vi.hoisted(() => ({
+  readTextFile: vi.fn()
+}))
+
+vi.mock('../../../shared/api/workspaceApi', () => workspaceApi)
+
+const clipboardApi = vi.hoisted(() => ({
+  writeClipboardText: vi.fn(async () => {})
+}))
+
+vi.mock('../../../shared/api/clipboardApi', () => clipboardApi)
+
 async function flushUi() {
   await nextTick()
   await Promise.resolve()
@@ -42,6 +54,12 @@ async function waitForEchoesTransition() {
 describe('SecondBrainView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn()
+      }
+    })
 
     api.fetchSecondBrainConfigStatus.mockResolvedValue({ configured: true, error: null })
     api.fetchSecondBrainSessions.mockResolvedValue([
@@ -94,6 +112,8 @@ describe('SecondBrainView', () => {
         signalSources: ['semantic']
       }]
     }))
+    workspaceApi.readTextFile.mockImplementation(async (path: string) => `# ${path}\n\nContext for ${path}`)
+    clipboardApi.writeClipboardText.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -517,6 +537,259 @@ describe('SecondBrainView', () => {
     expect(mounted.root.textContent).not.toContain('No session selected')
 
     mounted.app.unmount()
+  })
+
+  it('copies context before conversation into the clipboard as markdown', async () => {
+    api.loadDeliberationSession.mockResolvedValueOnce({
+      session_id: 's2',
+      title: 'Session Two',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      created_at_ms: 1,
+      updated_at_ms: 3,
+      target_note_path: '',
+      context_items: [
+        { path: 'seed.md', token_estimate: 12 },
+        { path: 'notes/a.md', token_estimate: 10 }
+      ],
+      messages: [
+        {
+          id: 'u1',
+          role: 'user',
+          mode: 'freestyle',
+          content_md: 'Question',
+          citations_json: '[]',
+          attachments_json: '[]',
+          created_at_ms: 1
+        },
+        {
+          id: 'a1',
+          role: 'assistant',
+          mode: 'freestyle',
+          content_md: 'Answer',
+          citations_json: '[]',
+          attachments_json: '[]',
+          created_at_ms: 2
+        }
+      ],
+      draft_content: ''
+    })
+
+    const mounted = mountView({ requestedSessionId: 's2', requestedSessionNonce: 1 })
+    for (let i = 0; i < 8 && !mounted.root.querySelector('.sb-session-copy-btn'); i += 1) {
+      await flushUi()
+    }
+
+    const copyBtn = mounted.root.querySelector<HTMLButtonElement>('.sb-session-copy-btn')
+    expect(copyBtn).toBeTruthy()
+    if (!copyBtn) return
+
+    copyBtn.click()
+    await flushUi()
+    await flushUi()
+
+    expect(workspaceApi.readTextFile).toHaveBeenNthCalledWith(1, '/vault/seed.md')
+    expect(workspaceApi.readTextFile).toHaveBeenNthCalledWith(2, '/vault/notes/a.md')
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1)
+    const markdown = vi.mocked(navigator.clipboard.writeText).mock.calls[0]?.[0]
+    expect(markdown).toContain('# Session Two')
+    expect(markdown).toContain('## Context')
+    expect(markdown).toContain('### seed.md')
+    expect(markdown).toContain('Context for /vault/seed.md')
+    expect(markdown).toContain('### notes/a.md')
+    expect(markdown).toContain('## Conversation')
+    expect(markdown).toContain('### You')
+    expect(markdown).toContain('Question')
+    expect(markdown).toContain('### Assistant')
+    expect(markdown).toContain('Answer')
+    expect(markdown.indexOf('## Context')).toBeLessThan(markdown.indexOf('## Conversation'))
+    expect(markdown.indexOf('Context for /vault/notes/a.md')).toBeLessThan(markdown.indexOf('### You'))
+    expect(mounted.root.textContent).toContain('Conversation copied to clipboard.')
+
+    mounted.app.unmount()
+  })
+
+  it('copies the streamed assistant content that is currently displayed', async () => {
+    const streamHandlers = new Map<string, (payload: {
+      session_id: string
+      message_id: string
+      chunk: string
+      done: boolean
+      error: string | null
+    }) => void>()
+    api.subscribeSecondBrainStream.mockImplementation(async (eventName: string, handler: (payload: {
+      session_id: string
+      message_id: string
+      chunk: string
+      done: boolean
+      error: string | null
+    }) => void) => {
+      streamHandlers.set(eventName, handler)
+      return () => {}
+    })
+
+    const pendingRun = deferredPromise<{ userMessageId: string; assistantMessageId: string }>()
+    api.runDeliberation.mockReturnValueOnce(pendingRun.promise)
+
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
+    await flushUi()
+
+    const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    const sendBtn = mounted.root.querySelector<HTMLButtonElement>('.send-icon-btn')
+    expect(textarea).toBeTruthy()
+    expect(sendBtn).toBeTruthy()
+    if (!textarea || !sendBtn) return
+
+    textarea.value = 'Need streamed answer'
+    textarea.selectionStart = textarea.value.length
+    textarea.selectionEnd = textarea.value.length
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    sendBtn.click()
+    await flushUi()
+
+    streamHandlers.get('second-brain://assistant-start')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: '',
+      done: false,
+      error: null
+    })
+    streamHandlers.get('second-brain://assistant-delta')?.({
+      session_id: 's1',
+      message_id: 'a-stream',
+      chunk: 'Live draft',
+      done: false,
+      error: null
+    })
+    await flushUi()
+
+    pendingRun.resolve({ userMessageId: 'u1', assistantMessageId: 'a-stream' })
+    await flushUi()
+
+    const copyBtn = mounted.root.querySelector<HTMLButtonElement>('.sb-session-copy-btn')
+    expect(copyBtn).toBeTruthy()
+    if (!copyBtn) return
+
+    copyBtn.click()
+    await flushUi()
+
+    const markdown = vi.mocked(navigator.clipboard.writeText).mock.calls[0]?.[0]
+    expect(markdown).toContain('Live draft')
+    expect(markdown).not.toContain('### Assistant\n\n\n')
+
+    mounted.app.unmount()
+  })
+
+  it('shows an error toast and skips clipboard write when context copy cannot read a note', async () => {
+    workspaceApi.readTextFile.mockRejectedValueOnce(new Error('missing context note'))
+    api.loadDeliberationSession.mockResolvedValueOnce({
+      session_id: 's2',
+      title: 'Session Two',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      created_at_ms: 1,
+      updated_at_ms: 3,
+      target_note_path: '',
+      context_items: [{ path: 'seed.md', token_estimate: 12 }],
+      messages: [],
+      draft_content: ''
+    })
+
+    const mounted = mountView({ requestedSessionId: 's2', requestedSessionNonce: 1 })
+    for (let i = 0; i < 8 && !mounted.root.querySelector('.sb-session-copy-btn'); i += 1) {
+      await flushUi()
+    }
+
+    const copyBtn = mounted.root.querySelector<HTMLButtonElement>('.sb-session-copy-btn')
+    expect(copyBtn).toBeTruthy()
+    if (!copyBtn) return
+
+    copyBtn.click()
+    await flushUi()
+
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('missing context note')
+
+    mounted.app.unmount()
+  })
+
+  it('falls back to native clipboard when browser clipboard is denied', async () => {
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('denied'))
+    api.loadDeliberationSession.mockResolvedValueOnce({
+      session_id: 's2',
+      title: 'Session Two',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      created_at_ms: 1,
+      updated_at_ms: 3,
+      target_note_path: '',
+      context_items: [{ path: 'seed.md', token_estimate: 12 }],
+      messages: [],
+      draft_content: ''
+    })
+
+    const mounted = mountView({ requestedSessionId: 's2', requestedSessionNonce: 1 })
+    for (let i = 0; i < 8 && !mounted.root.querySelector('.sb-session-copy-btn'); i += 1) {
+      await flushUi()
+    }
+
+    const copyBtn = mounted.root.querySelector<HTMLButtonElement>('.sb-session-copy-btn')
+    expect(copyBtn).toBeTruthy()
+    if (!copyBtn) return
+
+    copyBtn.click()
+    await flushUi()
+    await flushUi()
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1)
+    expect(clipboardApi.writeClipboardText).toHaveBeenCalledTimes(1)
+    expect(mounted.root.textContent).toContain('Conversation copied to clipboard.')
+
+    mounted.app.unmount()
+  })
+
+  it('shows the copy button only for an active session and disables it while sending', async () => {
+    const mounted = mountView()
+    await flushUi()
+
+    expect(mounted.root.querySelector('.sb-session-copy-btn')).toBeNull()
+    mounted.app.unmount()
+
+    const pendingRun = deferredPromise<{ userMessageId: string; assistantMessageId: string }>()
+    api.runDeliberation.mockReturnValueOnce(pendingRun.promise)
+
+    const mountedActive = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
+    for (let i = 0; i < 8 && !mountedActive.root.querySelector('.sb-session-copy-btn'); i += 1) {
+      await flushUi()
+    }
+
+    const textarea = mountedActive.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    const sendBtn = mountedActive.root.querySelector<HTMLButtonElement>('.send-icon-btn')
+    const copyBtn = mountedActive.root.querySelector<HTMLButtonElement>('.sb-session-copy-btn')
+    expect(textarea).toBeTruthy()
+    expect(sendBtn).toBeTruthy()
+    expect(copyBtn).toBeTruthy()
+    if (!textarea || !sendBtn || !copyBtn) return
+
+    expect(copyBtn.disabled).toBe(false)
+
+    textarea.value = 'disable while sending'
+    textarea.selectionStart = textarea.value.length
+    textarea.selectionEnd = textarea.value.length
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    sendBtn.click()
+    await flushUi()
+
+    expect(copyBtn.disabled).toBe(true)
+
+    pendingRun.resolve({ userMessageId: 'u1', assistantMessageId: 'a1' })
+    await flushUi()
+
+    mountedActive.app.unmount()
   })
 
   it('rolls back mention context chip on immediate sync failure', async () => {

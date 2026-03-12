@@ -20,6 +20,8 @@ mod workspace_watch;
 // Tauri command surface for workspace I/O, index/search, and graph data used by Cosmos view.
 use std::{
     collections::{HashMap, VecDeque},
+    io::Write,
+    process::{Command, Stdio},
     sync::{atomic::AtomicBool, Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -232,6 +234,68 @@ fn write_property_type_schema(schema: HashMap<String, String>) -> Result<()> {
 }
 
 #[tauri::command]
+fn write_clipboard_text(text: String) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        write_clipboard_via_command("pbcopy", &[], &text)?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        write_clipboard_via_command("cmd", &["/C", "clip"], &text)?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let commands: [(&str, &[&str]); 3] = [
+            ("wl-copy", &[]),
+            ("xclip", &["-selection", "clipboard"]),
+            ("xsel", &["--clipboard", "--input"]),
+        ];
+        for (program, args) in commands {
+            if write_clipboard_via_command(program, args, &text).is_ok() {
+                return Ok(());
+            }
+        }
+        return Err(AppError::InvalidOperation(
+            "Clipboard access is not available on this Linux desktop.".to_string(),
+        ));
+    }
+
+    #[allow(unreachable_code)]
+    Err(AppError::InvalidOperation(
+        "Clipboard access is not supported on this platform.".to_string(),
+    ))
+}
+
+fn write_clipboard_via_command(program: &str, args: &[&str], text: &str) -> Result<()> {
+    let mut child = Command::new(program)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| AppError::OperationFailed)?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|_| AppError::OperationFailed)?;
+    } else {
+        return Err(AppError::OperationFailed);
+    }
+
+    let status = child.wait().map_err(|_| AppError::OperationFailed)?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(AppError::OperationFailed)
+    }
+}
+
+#[tauri::command]
 async fn fts_search(query: String) -> Result<Vec<Hit>> {
     tauri::async_runtime::spawn_blocking(move || fts_search_sync_impl(query))
         .await
@@ -297,6 +361,7 @@ pub fn run() {
             get_wikilink_graph,
             read_property_type_schema,
             write_property_type_schema,
+            write_clipboard_text,
             favorites::list_favorites,
             favorites::add_favorite,
             favorites::remove_favorite,
