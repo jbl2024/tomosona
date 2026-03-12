@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.18.1] - 2026-03-12
+
+### Added
+- feat(theme): add xcode light and dark themes (15fbfb1)
+
 ## [0.18.0] - 2026-03-12
 
 ### Added
