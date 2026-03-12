@@ -21,6 +21,7 @@ import { readTextFile } from '../../../shared/api/workspaceApi'
 import { useEchoesPack } from '../../echoes/composables/useEchoesPack'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from '../composables/useSecondBrainAtMentions'
 import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../pulse/lib/pulse'
+import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
@@ -946,15 +947,16 @@ watch(contextPaths, (paths) => {
           <p v-if="configError" class="sb-error">{{ configError }}</p>
         </div>
         <div class="sb-session-actions">
-          <button
+          <UiIconButton
             v-if="sessionId"
-            type="button"
             class="sb-session-copy-btn"
+            aria-label="Copy conversation"
+            title="Copy conversation"
             :disabled="!canCopyConversation"
             @click="void onCopyConversation()"
           >
-            Copy conversation
-          </button>
+            <ClipboardDocumentIcon class="h-4 w-4" />
+          </UiIconButton>
           <button
             type="button"
             class="sb-session-create-btn"
@@ -1177,14 +1179,7 @@ watch(contextPaths, (paths) => {
 }
 
 .sb-session-copy-btn {
-  min-height: 32px;
-  border: 1px solid var(--sb-button-border);
-  border-radius: 10px;
-  background: var(--sb-button-bg);
   color: var(--sb-button-text);
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .sb-session-create-btn {
