@@ -18,6 +18,23 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.19.0] - 2026-03-12
+
+### Added
+- feat(cosmos): add context action and right-pane note shortcut (e624f3c)
+- feat(editor): add constituted context workflow to right pane (ceef39f)
+- feat(debug): add end-to-end note open tracing (0519b84)
+
+### Changed
+- refactor(echoes): make card body add context and title open note (01d8eb9)
+- style(editor): left-align right-pane context items (6412749)
+- refactor(echoes): compact suggestion cards in right pane (9786a7f)
+
+### Fixed
+- fix(editor): left-align context note button content (c431b90)
+- fix(debug): make open trace console output scan-friendly (511bcdd)
+- fix(opening): stop scanning the whole vault for active note side panels (4bb885e)
+
 ## [0.18.3] - 2026-03-12
 
 ### Added
