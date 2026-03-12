@@ -522,8 +522,10 @@ watch(
 }
 
 .context-open-btn:deep(.ui-button > span:last-child) {
+  display: block;
   width: 100%;
   text-align: left;
+  margin-right: auto;
 }
 
 .context-open-btn:deep(.ui-button__spinner),

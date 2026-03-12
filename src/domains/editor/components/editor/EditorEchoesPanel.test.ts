@@ -50,11 +50,12 @@ describe('EditorEchoesPanel', () => {
     expect(root.textContent).toContain('direct link')
     expect(root.textContent).toContain('semantic similarity')
 
-    const cardButtons = Array.from(root.querySelectorAll('.echoes-card-copy')) as HTMLButtonElement[]
-    cardButtons[0].click()
-    cardButtons[1].click()
+    const titleButtons = Array.from(root.querySelectorAll('.echoes-title-btn')) as HTMLButtonElement[]
+    titleButtons[0].click()
+    titleButtons[1].click()
+    const cards = Array.from(root.querySelectorAll('.echoes-card')) as HTMLDivElement[]
+    cards[0].click()
     const actionButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
-    actionButtons[0].click()
     actionButtons[1].click()
 
     expect(onOpen).toHaveBeenCalledWith('/vault/notes/a.md')

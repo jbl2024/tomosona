@@ -47,6 +47,10 @@ function onContextClick(item: EditorEchoesListItem) {
   }
   emit('add', item.path)
 }
+
+function onCardClick(item: EditorEchoesListItem) {
+  onContextClick(item)
+}
 </script>
 
 <template>
@@ -71,16 +75,19 @@ function onContextClick(item: EditorEchoesListItem) {
       :key="`echo-${item.path}`"
       class="echoes-card"
       :data-in-context="item.isInContext"
+      @click="onCardClick(item)"
     >
-      <button
-        type="button"
-        class="echoes-card-copy"
-        :title="props.toRelativePath(item.path)"
-        @click="emit('open', item.path)"
-      >
-        <strong class="echoes-item-title">{{ item.title }}</strong>
+      <div class="echoes-card-copy">
+        <button
+          type="button"
+          class="echoes-title-btn"
+          :title="props.toRelativePath(item.path)"
+          @click.stop="emit('open', item.path)"
+        >
+          <strong class="echoes-item-title">{{ item.title }}</strong>
+        </button>
         <span class="echoes-item-reason">{{ reasonLabel(item.reasonLabel) }}</span>
-      </button>
+      </div>
       <div class="echoes-card-actions">
         <UiButton
           variant="ghost"
@@ -89,7 +96,7 @@ function onContextClick(item: EditorEchoesListItem) {
             'echoes-action-btn',
             item.isInContext ? 'echoes-action-btn--active' : ''
           ].filter(Boolean).join(' ')"
-          @click="onContextClick(item)"
+          @click.stop="onContextClick(item)"
         >
           {{ item.isInContext ? 'Added' : '+' }}
         </UiButton>
@@ -169,6 +176,7 @@ function onContextClick(item: EditorEchoesListItem) {
     background-color 140ms ease,
     box-shadow 140ms ease,
     transform 140ms ease;
+  cursor: pointer;
 }
 
 .echoes-card:hover {
@@ -191,9 +199,14 @@ function onContextClick(item: EditorEchoesListItem) {
   gap: 2px;
   align-items: flex-start;
   text-align: left;
+}
+
+.echoes-title-btn {
+  min-width: 0;
   border: 0;
   background: transparent;
   padding: 0;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -214,6 +227,11 @@ function onContextClick(item: EditorEchoesListItem) {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   white-space: normal;
+}
+
+.echoes-title-btn:hover .echoes-item-title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .echoes-item-reason {
