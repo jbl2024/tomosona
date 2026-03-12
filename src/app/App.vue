@@ -134,7 +134,11 @@ import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceE
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
-import { useAppQuickOpen, type PaletteAction, type QuickOpenResult } from './composables/useAppQuickOpen'
+import {
+  useAppQuickOpen,
+  type PaletteAction,
+  type QuickOpenResult
+} from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from '../domains/editor/composables/useEditorState'
@@ -704,7 +708,8 @@ const paletteActions = computed<PaletteAction[]>(() => [
 
 const quickOpenDataPort = {
   allWorkspaceFiles,
-  workingFolderPath: filesystem.workingFolderPath
+  workingFolderPath: filesystem.workingFolderPath,
+  recentViewedNotes
 }
 
 const quickOpenDocumentPort = {
@@ -722,6 +727,10 @@ const {
   quickOpenIsActionMode,
   quickOpenActionResults,
   quickOpenResults,
+  quickOpenBrowseRecentResults,
+  quickOpenBrowseActionResults,
+  quickOpenBrowseItems,
+  quickOpenHasTextQuery,
   quickOpenItemCount,
   moveQuickOpenSelection,
   setQuickOpenActiveIndex,
@@ -2442,7 +2451,7 @@ async function loadWikilinkHeadings(target: string): Promise<string[]> {
 }
 
 async function openQuickResult(item: QuickOpenResult) {
-  if (item.kind === 'file') {
+  if (item.kind === 'file' || item.kind === 'recent') {
     const opened = await openTabWithAutosave(item.path)
     if (!opened) return
     closeQuickOpen()
@@ -2455,7 +2464,7 @@ async function openQuickResult(item: QuickOpenResult) {
 }
 
 async function runQuickOpenAction(id: string) {
-  const action = quickOpenActionResults.value.find((item) => item.id === id)
+  const action = paletteActions.value.find((item) => item.id === id)
   if (!action) return
   const closesBeforeRun = Boolean(action.closeBeforeRun)
   const hasLoadingModal = Boolean(action.loadingLabel)
@@ -2523,10 +2532,21 @@ function onQuickOpenEnter() {
     return
   }
 
-  const item = quickOpenResults.value[quickOpenActiveIndex.value]
-  if (item) {
-    void openQuickResult(item)
+  if (quickOpenHasTextQuery.value) {
+    const item = quickOpenResults.value[quickOpenActiveIndex.value]
+    if (item) {
+      void openQuickResult(item)
+    }
+    return
   }
+
+  const browseItem = quickOpenBrowseItems.value[quickOpenActiveIndex.value]
+  if (!browseItem) return
+  if (browseItem.kind === 'action') {
+    void runQuickOpenAction(browseItem.id)
+    return
+  }
+  void openQuickResult(browseItem)
 }
 
 function onQuickOpenInputKeydown(event: KeyboardEvent) {
@@ -2960,7 +2980,10 @@ onBeforeUnmount(() => {
       :visible="quickOpenVisible"
       :query="quickOpenQuery"
       :is-action-mode="quickOpenIsActionMode"
+      :has-text-query="quickOpenHasTextQuery"
       :action-results="quickOpenActionResults"
+      :recent-results="quickOpenBrowseRecentResults"
+      :browse-action-results="quickOpenBrowseActionResults"
       :file-results="quickOpenResults"
       :active-index="quickOpenActiveIndex"
       @close="closeQuickOpen()"

@@ -1,6 +1,7 @@
-import { ref, type Ref } from 'vue'
+import { nextTick, ref, type Ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { useAppQuickOpen, type PaletteAction } from './useAppQuickOpen'
+import type { LaunchpadRecentNote } from '../lib/appShellViewModels'
 
 function createActions(): PaletteAction[] {
   return [
@@ -14,6 +15,7 @@ function createActions(): PaletteAction[] {
 type QuickOpenTestOptions = {
   allWorkspaceFiles?: string[]
   workingFolderPath?: string
+  recentViewedNotes?: LaunchpadRecentNote[]
   paletteActions?: PaletteAction[]
   paletteActionPriority?: Record<string, number>
   quickOpenQuery?: Ref<string>
@@ -24,7 +26,8 @@ function createQuickOpenHarness(options: QuickOpenTestOptions = {}) {
   return useAppQuickOpen({
     quickOpenDataPort: {
       allWorkspaceFiles: ref(options.allWorkspaceFiles ?? []),
-      workingFolderPath: ref(options.workingFolderPath ?? '/vault')
+      workingFolderPath: ref(options.workingFolderPath ?? '/vault'),
+      recentViewedNotes: ref(options.recentViewedNotes ?? [])
     },
     quickOpenDocumentPort: {
       isIsoDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
@@ -46,6 +49,60 @@ function createQuickOpenHarness(options: QuickOpenTestOptions = {}) {
 }
 
 describe('useAppQuickOpen', () => {
+  it('returns recent notes then quick actions when the query is empty', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: [
+        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+      ],
+      recentViewedNotes: [
+        {
+          path: '/vault/notes/alpha.md',
+          title: 'Alpha',
+          relativePath: 'notes/alpha.md',
+          recencyLabel: '2m ago'
+        }
+      ]
+    })
+
+    expect(api.quickOpenHasTextQuery.value).toBe(false)
+    expect(api.quickOpenBrowseRecentResults.value).toEqual([
+      {
+        kind: 'recent',
+        path: '/vault/notes/alpha.md',
+        label: 'notes/alpha.md',
+        recencyLabel: '2m ago'
+      }
+    ])
+    expect(api.quickOpenBrowseActionResults.value.map((item) => item.id)).toEqual([
+      'open-home-view',
+      'create-new-file',
+      'open-settings'
+    ])
+  })
+
+  it('returns only browse actions when there are no recent notes', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: [
+        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
+        { id: 'open-today', label: 'Open Today', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
+        { id: 'open-favorites', label: 'Open Favorites', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+      ]
+    })
+
+    expect(api.quickOpenBrowseRecentResults.value).toEqual([])
+    expect(api.quickOpenBrowseActionResults.value.map((item) => item.id)).toEqual([
+      'open-home-view',
+      'open-today',
+      'create-new-file',
+      'open-favorites',
+      'open-settings'
+    ])
+  })
+
   it('returns file results and a daily note candidate', () => {
     const api = createQuickOpenHarness({
       allWorkspaceFiles: ['/vault/notes/a.md', '/vault/journal/2026-03-06.md']
@@ -216,13 +273,25 @@ describe('useAppQuickOpen', () => {
 
   it('wraps selection movement based on visible item count', () => {
     const api = createQuickOpenHarness({
-      allWorkspaceFiles: ['/vault/a.md', '/vault/b.md']
+      paletteActions: [
+        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+      ],
+      allWorkspaceFiles: ['/vault/a.md', '/vault/b.md'],
+      recentViewedNotes: [
+        {
+          path: '/vault/notes/alpha.md',
+          title: 'Alpha',
+          relativePath: 'notes/alpha.md',
+          recencyLabel: '2m ago'
+        }
+      ]
     })
 
-    api.quickOpenQuery.value = 'a'
     api.moveQuickOpenSelection(-1)
 
-    expect(api.quickOpenActiveIndex.value).toBe(1)
+    expect(api.quickOpenActiveIndex.value).toBe(3)
 
     api.quickOpenQuery.value = 'md'
     api.moveQuickOpenSelection(-1)
@@ -236,7 +305,27 @@ describe('useAppQuickOpen', () => {
 
     api.moveQuickOpenSelection(1)
 
-    expect(api.quickOpenActiveIndex.value).toBe(3)
+    expect(api.quickOpenActiveIndex.value).toBe(0)
+  })
+
+  it('resets the active index when the visible mode changes', async () => {
+    const api = createQuickOpenHarness({
+      recentViewedNotes: [
+        {
+          path: '/vault/notes/alpha.md',
+          title: 'Alpha',
+          relativePath: 'notes/alpha.md',
+          recencyLabel: '2m ago'
+        }
+      ],
+      allWorkspaceFiles: ['/vault/notes/alpha.md']
+    })
+
+    api.quickOpenActiveIndex.value = 2
+    api.quickOpenQuery.value = 'alpha'
+    await nextTick()
+
+    expect(api.quickOpenActiveIndex.value).toBe(0)
   })
 
   it('resets the active index to zero whenever quick open state is reset', () => {

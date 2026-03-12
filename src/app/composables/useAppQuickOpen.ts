@@ -1,4 +1,5 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
+import type { LaunchpadRecentNote } from '../lib/appShellViewModels'
 
 /**
  * Module: useAppQuickOpen
@@ -11,6 +12,16 @@ import { computed, ref, type Ref } from 'vue'
 export type QuickOpenResult =
   | { kind: 'file'; path: string; label: string }
   | { kind: 'daily'; date: string; path: string; label: string; exists: boolean }
+  | { kind: 'recent'; path: string; label: string; recencyLabel: string }
+
+/** Represents a frequent action shown in quick-open browse mode. */
+export type QuickOpenBrowseAction = {
+  kind: 'action'
+  id: string
+  label: string
+}
+
+export type QuickOpenBrowseItem = QuickOpenResult | QuickOpenBrowseAction
 
 /** Describes a command-palette action shown in quick-open action mode. */
 export type PaletteAction = {
@@ -25,6 +36,7 @@ export type PaletteAction = {
 export type AppQuickOpenDataPort = {
   allWorkspaceFiles: Ref<string[]>
   workingFolderPath: Ref<string>
+  recentViewedNotes: Ref<LaunchpadRecentNote[]>
 }
 
 /** Groups document/path helpers so quick-open does not take a flat list of callbacks. */
@@ -61,6 +73,14 @@ function normalizeSearchText(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+const QUICK_OPEN_BROWSE_ACTION_IDS = [
+  'open-home-view',
+  'open-today',
+  'create-new-file',
+  'open-favorites',
+  'open-settings'
+] as const
+
 /**
  * Derives quick-open search results, action matches, and list navigation state.
  */
@@ -70,13 +90,15 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   const quickOpenActiveIndex = options.quickOpenActiveIndex ?? ref(0)
 
   const quickOpenIsActionMode = computed(() => quickOpenQuery.value.trimStart().startsWith('>'))
+  const quickOpenHasTextQuery = computed(() =>
+    !quickOpenIsActionMode.value && quickOpenQuery.value.trim().length > 0
+  )
   const quickOpenActionQuery = computed(() => quickOpenQuery.value.trimStart().slice(1).trim().toLowerCase())
 
   const quickOpenResults = computed<QuickOpenResult[]>(() => {
-    if (quickOpenIsActionMode.value) return []
+    if (!quickOpenHasTextQuery.value) return []
     const rawQuery = quickOpenQuery.value.trim()
     const q = normalizeSearchText(rawQuery)
-    if (!q) return []
 
     const fileResults = quickOpenDataPort.allWorkspaceFiles.value
       .filter((path) => {
@@ -102,6 +124,37 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
 
     return [dateResult, ...fileResults]
   })
+
+  const quickOpenBrowseRecentResults = computed<QuickOpenResult[]>(() => {
+    if (quickOpenIsActionMode.value || quickOpenHasTextQuery.value) return []
+    return quickOpenDataPort.recentViewedNotes.value.map((item) => ({
+      kind: 'recent' as const,
+      path: item.path,
+      label: item.relativePath,
+      recencyLabel: item.recencyLabel
+    }))
+  })
+
+  const quickOpenBrowseActionResults = computed<QuickOpenBrowseAction[]>(() => {
+    if (quickOpenIsActionMode.value || quickOpenHasTextQuery.value) return []
+    const byId = new Map(quickOpenPalettePort.paletteActions.value.map((item) => [item.id, item] as const))
+    return QUICK_OPEN_BROWSE_ACTION_IDS
+      .map((id) => {
+        const action = byId.get(id)
+        if (!action) return null
+        return {
+          kind: 'action' as const,
+          id: action.id,
+          label: action.label
+        }
+      })
+      .filter((item): item is QuickOpenBrowseAction => Boolean(item))
+  })
+
+  const quickOpenBrowseItems = computed<QuickOpenBrowseItem[]>(() => [
+    ...quickOpenBrowseRecentResults.value,
+    ...quickOpenBrowseActionResults.value
+  ])
 
   const quickOpenActionResults = computed(() => {
     if (!quickOpenIsActionMode.value) return []
@@ -132,7 +185,25 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   })
 
   const quickOpenItemCount = computed(() =>
-    quickOpenIsActionMode.value ? quickOpenActionResults.value.length : quickOpenResults.value.length
+    quickOpenIsActionMode.value
+      ? quickOpenActionResults.value.length
+      : quickOpenHasTextQuery.value
+        ? quickOpenResults.value.length
+        : quickOpenBrowseItems.value.length
+  )
+
+  watch(
+    [quickOpenItemCount, quickOpenIsActionMode, quickOpenHasTextQuery],
+    ([count]) => {
+      if (count <= 0) {
+        quickOpenActiveIndex.value = 0
+        return
+      }
+      if (quickOpenActiveIndex.value >= count || quickOpenActiveIndex.value < 0) {
+        quickOpenActiveIndex.value = 0
+      }
+    },
+    { immediate: true }
   )
 
   /** Moves selection with wraparound so keyboard navigation never leaves the list. */
@@ -159,7 +230,11 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenIsActionMode,
     quickOpenActionQuery,
     quickOpenResults,
+    quickOpenBrowseRecentResults,
+    quickOpenBrowseActionResults,
+    quickOpenBrowseItems,
     quickOpenActionResults,
+    quickOpenHasTextQuery,
     quickOpenItemCount,
     moveQuickOpenSelection,
     setQuickOpenActiveIndex,

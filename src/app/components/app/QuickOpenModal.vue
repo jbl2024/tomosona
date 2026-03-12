@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaletteAction, QuickOpenResult } from '../../composables/useAppQuickOpen'
+import type { PaletteAction, QuickOpenBrowseAction, QuickOpenResult } from '../../composables/useAppQuickOpen'
 
 /**
  * QuickOpenModal
@@ -16,7 +16,10 @@ defineProps<{
   visible: boolean
   query: string
   isActionMode: boolean
+  hasTextQuery: boolean
   actionResults: PaletteAction[]
+  recentResults: QuickOpenResult[]
+  browseActionResults: QuickOpenBrowseAction[]
   fileResults: QuickOpenResult[]
   activeIndex: number
 }>()
@@ -29,6 +32,12 @@ const emit = defineEmits<{
   'select-result': [item: QuickOpenResult]
   'set-active-index': [index: number]
 }>()
+
+function quickOpenItemKey(item: QuickOpenResult): string {
+  if (item.kind === 'daily') return `daily-${item.date}`
+  if (item.kind === 'recent') return `recent-${item.path}`
+  return item.path
+}
 </script>
 
 <template>
@@ -53,31 +62,67 @@ const emit = defineEmits<{
         @keydown="emit('keydown', $event)"
       />
       <div class="modal-list">
-        <button
-          v-for="(item, index) in actionResults"
-          :key="item.id"
-          type="button"
-          class="modal-item"
-          :class="{ active: activeIndex === index }"
-          @click="emit('select-action', item.id)"
-          @mousemove="emit('set-active-index', index)"
-        >
-          {{ item.label }}
-        </button>
-        <button
-          v-for="(item, index) in fileResults"
-          :key="item.kind === 'file' ? item.path : `daily-${item.date}`"
-          type="button"
-          class="modal-item"
-          :class="{ active: activeIndex === index }"
-          @click="emit('select-result', item)"
-          @mousemove="emit('set-active-index', index)"
-        >
-          {{ item.label }}
-        </button>
+        <template v-if="isActionMode">
+          <button
+            v-for="(item, index) in actionResults"
+            :key="item.id"
+            type="button"
+            class="modal-item"
+            :class="{ active: activeIndex === index }"
+            @click="emit('select-action', item.id)"
+            @mousemove="emit('set-active-index', index)"
+          >
+            {{ item.label }}
+          </button>
+        </template>
+        <template v-else-if="hasTextQuery">
+          <button
+            v-for="(item, index) in fileResults"
+            :key="quickOpenItemKey(item)"
+            type="button"
+            class="modal-item"
+            :class="{ active: activeIndex === index }"
+            @click="emit('select-result', item)"
+            @mousemove="emit('set-active-index', index)"
+          >
+            {{ item.label }}
+          </button>
+        </template>
+        <template v-else>
+          <section v-if="recentResults.length" class="modal-section">
+            <p class="modal-section-title">Recent notes</p>
+            <button
+              v-for="(item, index) in recentResults"
+              :key="quickOpenItemKey(item)"
+              type="button"
+              class="modal-item modal-item-browse"
+              :class="{ active: activeIndex === index }"
+              @click="emit('select-result', item)"
+              @mousemove="emit('set-active-index', index)"
+            >
+              <span class="modal-item-main">{{ item.label }}</span>
+              <span v-if="item.kind === 'recent'" class="modal-item-meta">{{ item.recencyLabel }}</span>
+            </button>
+          </section>
+          <section v-if="browseActionResults.length" class="modal-section">
+            <p class="modal-section-title">Quick actions</p>
+            <button
+              v-for="(item, index) in browseActionResults"
+              :key="item.id"
+              type="button"
+              class="modal-item modal-item-browse"
+              :class="{ active: activeIndex === recentResults.length + index }"
+              @click="emit('select-action', item.id)"
+              @mousemove="emit('set-active-index', recentResults.length + index)"
+            >
+              <span class="modal-item-main">{{ item.label }}</span>
+            </button>
+          </section>
+        </template>
         <div v-if="isActionMode && !actionResults.length" class="placeholder">No matching actions</div>
-        <div v-else-if="!isActionMode && !fileResults.length" class="placeholder">
-          {{ query.trim() ? 'No matching files' : 'Type to search files' }}
+        <div v-else-if="hasTextQuery && !fileResults.length" class="placeholder">No matching files</div>
+        <div v-else-if="!isActionMode && !hasTextQuery && !recentResults.length && !browseActionResults.length" class="placeholder">
+          No recent notes yet
         </div>
       </div>
     </div>
@@ -109,9 +154,48 @@ const emit = defineEmits<{
   color: var(--command-palette-item-text);
 }
 
+.modal-item-browse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .modal-item.active {
   border-color: var(--command-palette-item-active-border);
   background: var(--command-palette-item-active-bg);
   color: var(--command-palette-item-active-text);
+}
+
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-section + .modal-section {
+  margin-top: 8px;
+}
+
+.modal-section-title {
+  margin: 4px 2px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.modal-item-main {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-item-meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 </style>
