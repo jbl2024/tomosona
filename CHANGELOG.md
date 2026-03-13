@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.19.3] - 2026-03-13
+
+### Fixed
+- fix(build): restore TypeScript compatibility for index diagnostics (751a81b)
+
 ## [0.19.2] - 2026-03-13
 
 ### Changed
