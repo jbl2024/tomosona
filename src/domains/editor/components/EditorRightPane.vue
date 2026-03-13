@@ -12,7 +12,7 @@
  *   and cross-surface orchestration.
  */
 import { computed, ref, watch } from 'vue'
-import { ChevronRightIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
+import { BookmarkIcon, ChevronRightIcon, StarIcon as StarOutlineIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
 import EditorEchoesPanel from './editor/EditorEchoesPanel.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
@@ -171,12 +171,23 @@ watch(
           <UiButton
             variant="ghost"
             size="sm"
-            class-name="context-chip-btn"
+            class-name="context-icon-btn"
+            title="Pin Context"
+            aria-label="Pin Context"
             @click="emit('context-pin')"
           >
-            Pin Context
+            <BookmarkIcon />
           </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear-local')">Clear</UiButton>
+          <UiButton
+            variant="ghost"
+            size="sm"
+            class-name="context-icon-btn"
+            title="Clear Context"
+            aria-label="Clear Context"
+            @click="emit('context-clear-local')"
+          >
+            <XMarkIcon />
+          </UiButton>
         </div>
       </div>
 
@@ -207,7 +218,16 @@ watch(
           </p>
         </div>
         <div class="context-actions" v-if="hasPinnedContext">
-          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear-pinned')">Clear</UiButton>
+          <UiButton
+            variant="ghost"
+            size="sm"
+            class-name="context-icon-btn"
+            title="Clear Pinned Context"
+            aria-label="Clear Pinned Context"
+            @click="emit('context-clear-pinned')"
+          >
+            <XMarkIcon />
+          </UiButton>
         </div>
       </div>
 
@@ -489,11 +509,25 @@ watch(
   display: flex;
   gap: 4px;
   flex: 0 0 auto;
+  margin-left: auto;
 }
 
-.context-chip-btn {
-  min-height: 1.75rem;
-  padding-inline: 0.5rem;
+.context-icon-btn {
+  min-width: 1.9rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: var(--right-pane-text-soft);
+}
+
+.context-icon-btn:hover,
+.context-icon-btn:focus-visible {
+  color: var(--right-pane-text);
+}
+
+.context-icon-btn :deep(svg) {
+  width: 0.95rem;
+  height: 0.95rem;
 }
 
 .context-list {

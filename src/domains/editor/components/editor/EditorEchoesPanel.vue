@@ -287,35 +287,31 @@ function onCardClick(item: EditorEchoesListItem) {
   margin-top: 4px;
 }
 
+.echoes-head + .echoes-card,
+.echoes-helper + .echoes-card,
+.empty-state + .echoes-card {
+  margin-top: 10px;
+}
+
 .echoes-card:hover {
   background: var(--right-pane-item-hover);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--right-pane-card-border) 48%, transparent);
 }
 
-.echoes-card[data-in-context='true'] {
-  box-shadow: inset 0 0 0 1px var(--right-pane-accent, var(--echoes-item-hover-border));
-  background: color-mix(in srgb, var(--right-pane-item-hover) 84%, transparent);
-}
-
-.echoes-card[data-signal-tone='echoes-signal--backlink']:hover,
-.echoes-card[data-signal-tone='echoes-signal--backlink'][data-in-context='true'] {
+.echoes-card[data-signal-tone='echoes-signal--backlink']:hover {
   --echoes-item-hover-border: color-mix(in srgb, var(--accent) 78%, var(--text-soft));
 }
 
-.echoes-card[data-signal-tone='echoes-signal--semantic']:hover,
-.echoes-card[data-signal-tone='echoes-signal--semantic'][data-in-context='true'] {
+.echoes-card[data-signal-tone='echoes-signal--semantic']:hover {
   --echoes-item-hover-border: color-mix(in srgb, var(--success) 78%, var(--text-soft));
 }
 
-.echoes-card[data-signal-tone='echoes-signal--recent']:hover,
-.echoes-card[data-signal-tone='echoes-signal--recent'][data-in-context='true'] {
+.echoes-card[data-signal-tone='echoes-signal--recent']:hover {
   --echoes-item-hover-border: color-mix(in srgb, var(--warning) 82%, var(--text-soft));
 }
 
 .echoes-card[data-signal-tone='echoes-signal--direct']:hover,
-.echoes-card[data-signal-tone='echoes-signal--default']:hover,
-.echoes-card[data-signal-tone='echoes-signal--direct'][data-in-context='true'],
-.echoes-card[data-signal-tone='echoes-signal--default'][data-in-context='true'] {
+.echoes-card[data-signal-tone='echoes-signal--default']:hover {
   --echoes-item-hover-border: color-mix(in srgb, var(--accent) 70%, var(--text-soft));
 }
 
@@ -341,8 +337,7 @@ function onCardClick(item: EditorEchoesListItem) {
 }
 
 .echoes-card:hover .echoes-card-accent,
-.echoes-card:focus-within .echoes-card-accent,
-.echoes-card[data-in-context='true'] .echoes-card-accent {
+.echoes-card:focus-within .echoes-card-accent {
   opacity: 1;
   background: var(--echoes-item-hover-border);
 }
@@ -427,8 +422,7 @@ function onCardClick(item: EditorEchoesListItem) {
 }
 
 .echoes-card:hover .echoes-card-actions,
-.echoes-card:focus-within .echoes-card-actions,
-.echoes-card[data-in-context='true'] .echoes-card-actions {
+.echoes-card:focus-within .echoes-card-actions {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(-50%);
@@ -474,6 +468,8 @@ function onCardClick(item: EditorEchoesListItem) {
 
 .echoes-action-btn--active {
   color: var(--right-pane-text);
+  background: color-mix(in srgb, var(--right-pane-item-hover) 84%, var(--surface-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--right-pane-card-border) 72%, transparent);
 }
 
 @keyframes echoes-pulse {

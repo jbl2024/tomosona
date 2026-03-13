@@ -117,10 +117,10 @@ describe('EditorRightPane', () => {
     expect(onContextRemoveLocal).toHaveBeenCalledWith('/wk/notes/c.md')
     expect(onContextRemovePinned).toHaveBeenCalledWith('/wk/notes/p.md')
 
-    const chipButtons = Array.from(root.querySelectorAll('.context-chip-btn')) as HTMLButtonElement[]
-    chipButtons[0].click()
-    chipButtons[1].click()
-    chipButtons[2].click()
+    const iconButtons = Array.from(root.querySelectorAll('.context-icon-btn')) as HTMLButtonElement[]
+    iconButtons[0].click()
+    iconButtons[1].click()
+    iconButtons[2].click()
     expect(onContextPin).toHaveBeenCalledTimes(1)
     expect(onContextClearLocal).toHaveBeenCalledTimes(1)
     expect(onContextClearPinned).toHaveBeenCalledTimes(1)
