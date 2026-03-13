@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.19.2] - 2026-03-13
+
+### Changed
+- test(editor): document and expand block conversion edge cases (adf6e91)
+
+### Fixed
+- fix(indexing): add semantic refresh diagnostics and live progress UI (8abeb23)
+
 ## [0.19.1] - 2026-03-13
 
 ### Added
