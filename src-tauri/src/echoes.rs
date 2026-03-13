@@ -307,25 +307,12 @@ fn resolve_target_path(resolver: &PathResolver, target_key: &str) -> Option<Stri
     })
 }
 
-fn read_title_for_path(root: &Path, relative_path: &str) -> String {
-    let fallback = Path::new(relative_path)
+fn title_from_candidate_path(relative_path: &str) -> String {
+    Path::new(relative_path)
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or(relative_path)
-        .to_string();
-    let absolute = root.join(relative_path);
-    let Ok(markdown) = fs::read_to_string(absolute) else {
-        return fallback;
-    };
-    for line in markdown.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("# ") {
-            if !rest.trim().is_empty() {
-                return rest.trim().to_string();
-            }
-        }
-    }
-    fallback
+        .to_string()
 }
 
 fn collect_direct_candidates(
@@ -681,7 +668,7 @@ fn build_echoes_pack_dto(
                 .collect::<Vec<_>>();
             EchoesItemDto {
                 path: workspace_absolute_path(root, &candidate.path),
-                title: read_title_for_path(root, &candidate.path),
+                title: title_from_candidate_path(&candidate.path),
                 reason_label,
                 reason_labels,
                 score: candidate.score,
@@ -773,5 +760,14 @@ mod tests {
         assert_eq!(selected[0].path, "a.md");
         assert_eq!(selected[1].path, "b.md");
         assert_eq!(selected[2].path, "c.md");
+    }
+
+    #[test]
+    fn title_from_candidate_path_uses_filename_stem() {
+        assert_eq!(
+            title_from_candidate_path("notes/Note B.markdown"),
+            "Note B"
+        );
+        assert_eq!(title_from_candidate_path("recent.md"), "recent");
     }
 }

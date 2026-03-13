@@ -1117,6 +1117,7 @@ mod tests {
 
         assert!(pack.items.iter().any(|item| {
             item.path.ends_with("/b.md")
+                && item.title == "b"
                 && item.reason_label == "Direct link"
                 && item
                     .reason_labels
@@ -1126,7 +1127,7 @@ mod tests {
         assert!(pack
             .items
             .iter()
-            .any(|item| item.path.ends_with("/c.md") && item.reason_label == "Backlink"));
+            .any(|item| item.path.ends_with("/c.md") && item.title == "c" && item.reason_label == "Backlink"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");
@@ -1158,7 +1159,43 @@ mod tests {
             .items
             .iter()
             .any(|item| item.path.ends_with("/notes/recent.md")
+                && item.title == "recent"
                 && item.reason_label == "Recently active"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn compute_echoes_pack_uses_filename_title_without_heading() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-echoes-filename-title");
+        let root = workspace.to_string_lossy().to_string();
+        fs::write(workspace.join("anchor.md"), "[[notes/plain target]]").expect("write anchor");
+        fs::create_dir_all(workspace.join("notes")).expect("create notes dir");
+        fs::write(workspace.join("notes/plain target.md"), "body without heading").expect("write target");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let conn = open_db().expect("open db");
+        conn.execute(
+            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
+            params!["anchor.md", "notes/plain target"],
+        )
+        .expect("insert direct link");
+
+        let pack = echoes::compute_echoes_pack(echoes::ComputeEchoesPackPayload {
+            anchor_path: workspace.join("anchor.md").to_string_lossy().to_string(),
+            limit: Some(5),
+            include_recent_activity: Some(false),
+        })
+        .expect("compute echoes");
+
+        assert!(pack
+            .items
+            .iter()
+            .any(|item| item.path.ends_with("/notes/plain target.md") && item.title == "plain target"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");
