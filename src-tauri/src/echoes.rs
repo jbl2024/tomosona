@@ -49,6 +49,10 @@ fn log_echoes_perf(command: &str, started_at: Instant, extra_fields: &[(&str, St
     eprintln!("[echoes-perf] {}", fields.join(" "));
 }
 
+fn stage_elapsed_ms(started_at: Instant) -> u128 {
+    started_at.elapsed().as_millis()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ComputeEchoesPackPayload {
     pub anchor_path: String,
@@ -125,7 +129,6 @@ struct CandidateSignal {
 #[derive(Debug, Clone)]
 struct EchoCandidate {
     path: String,
-    title: String,
     signals: Vec<CandidateSignal>,
     score: f64,
     primary_source: EchoSource,
@@ -140,31 +143,69 @@ struct PathResolver {
 /// Computes a compact Echoes pack for a single markdown anchor note.
 pub fn compute_echoes_pack(payload: ComputeEchoesPackPayload) -> Result<EchoesPackDto> {
     let started_at = Instant::now();
+    let root_started_at = Instant::now();
     let root = active_workspace_root()?;
+    let root_ms = stage_elapsed_ms(root_started_at);
+
+    let db_started_at = Instant::now();
     let conn = open_db()?;
+    let db_ms = stage_elapsed_ms(db_started_at);
+
+    let anchor_started_at = Instant::now();
     let anchor_relative = normalize_anchor_path(&root, &payload.anchor_path)?;
+    let anchor_ms = stage_elapsed_ms(anchor_started_at);
+
     let scan_started_at = Instant::now();
     let markdown_paths = list_workspace_markdown_paths(&root)?;
-    let scan_ms = scan_started_at.elapsed().as_millis();
+    let scan_ms = stage_elapsed_ms(scan_started_at);
+
+    let resolver_started_at = Instant::now();
     let resolver = build_path_resolver(&root, &markdown_paths);
+    let resolver_ms = stage_elapsed_ms(resolver_started_at);
+
     let limit = payload
         .limit
         .unwrap_or(DEFAULT_LIMIT)
         .clamp(1, HARD_MAX_LIMIT);
     let include_recent = payload.include_recent_activity.unwrap_or(true);
 
+    let direct_started_at = Instant::now();
     let direct = collect_direct_candidates(&conn, &resolver, &anchor_relative)?;
+    let direct_ms = stage_elapsed_ms(direct_started_at);
+    let direct_count = direct.len();
+
+    let backlinks_started_at = Instant::now();
     let backlinks = collect_backlink_candidates(&conn, &resolver, &anchor_relative)?;
+    let backlinks_ms = stage_elapsed_ms(backlinks_started_at);
+    let backlinks_count = backlinks.len();
+
+    let semantic_started_at = Instant::now();
     let semantic = collect_semantic_candidates(&conn, &anchor_relative)?;
+    let semantic_ms = stage_elapsed_ms(semantic_started_at);
+    let semantic_count = semantic.len();
+
+    let recent_started_at = Instant::now();
     let recent = if include_recent {
         collect_recent_candidates(&root, &anchor_relative, &markdown_paths)?
     } else {
         Vec::new()
     };
+    let recent_ms = stage_elapsed_ms(recent_started_at);
+    let recent_count = recent.len();
 
+    let merge_started_at = Instant::now();
     let merged = merge_candidates_by_path(direct, backlinks, semantic, recent);
+    let merge_ms = stage_elapsed_ms(merge_started_at);
+    let merged_count = merged.len();
+
+    let select_started_at = Instant::now();
     let selected = select_diverse_pack(merged, limit);
+    let select_ms = stage_elapsed_ms(select_started_at);
+
+    let dto_started_at = Instant::now();
     let pack = build_echoes_pack_dto(&root, &anchor_relative, selected);
+    let dto_ms = stage_elapsed_ms(dto_started_at);
+
     log_echoes_perf(
         "compute_echoes_pack",
         started_at,
@@ -173,6 +214,22 @@ pub fn compute_echoes_pack(payload: ComputeEchoesPackPayload) -> Result<EchoesPa
             ("limit", limit.to_string()),
             ("markdown_paths", markdown_paths.len().to_string()),
             ("scan_ms", scan_ms.to_string()),
+            ("root_ms", root_ms.to_string()),
+            ("db_ms", db_ms.to_string()),
+            ("anchor_ms", anchor_ms.to_string()),
+            ("resolver_ms", resolver_ms.to_string()),
+            ("direct_ms", direct_ms.to_string()),
+            ("direct_count", direct_count.to_string()),
+            ("backlinks_ms", backlinks_ms.to_string()),
+            ("backlinks_count", backlinks_count.to_string()),
+            ("semantic_ms", semantic_ms.to_string()),
+            ("semantic_count", semantic_count.to_string()),
+            ("recent_ms", recent_ms.to_string()),
+            ("recent_count", recent_count.to_string()),
+            ("merge_ms", merge_ms.to_string()),
+            ("merged_count", merged_count.to_string()),
+            ("select_ms", select_ms.to_string()),
+            ("dto_ms", dto_ms.to_string()),
             ("items", pack.items.len().to_string()),
         ],
     );
@@ -429,7 +486,6 @@ fn merge_candidates_by_path(
     semantic: Vec<(String, CandidateSignal)>,
     recent: Vec<(String, CandidateSignal)>,
 ) -> Vec<EchoCandidate> {
-    let root = active_workspace_root().ok();
     let mut merged: HashMap<String, Vec<CandidateSignal>> = HashMap::new();
 
     for (path, signal) in direct
@@ -462,13 +518,8 @@ fn merge_candidates_by_path(
                 score += EXPLICIT_SEMANTIC_BOOST;
             }
             let primary_source = assign_primary_reason(&signals);
-            let title = root
-                .as_ref()
-                .map(|root_path| read_title_for_path(root_path, &path))
-                .unwrap_or_else(|| path.clone());
             EchoCandidate {
                 path,
-                title,
                 signals,
                 score,
                 primary_source,
@@ -630,7 +681,7 @@ fn build_echoes_pack_dto(
                 .collect::<Vec<_>>();
             EchoesItemDto {
                 path: workspace_absolute_path(root, &candidate.path),
-                title: candidate.title,
+                title: read_title_for_path(root, &candidate.path),
                 reason_label,
                 reason_labels,
                 score: candidate.score,
@@ -681,7 +732,6 @@ mod tests {
         let candidates = vec![
             EchoCandidate {
                 path: "a.md".to_string(),
-                title: "A".to_string(),
                 signals: vec![CandidateSignal {
                     source: EchoSource::Direct,
                     score: 1.0,
@@ -691,7 +741,6 @@ mod tests {
             },
             EchoCandidate {
                 path: "b.md".to_string(),
-                title: "B".to_string(),
                 signals: vec![CandidateSignal {
                     source: EchoSource::Backlink,
                     score: 0.9,
@@ -701,7 +750,6 @@ mod tests {
             },
             EchoCandidate {
                 path: "c.md".to_string(),
-                title: "C".to_string(),
                 signals: vec![CandidateSignal {
                     source: EchoSource::Semantic,
                     score: 0.8,
@@ -711,7 +759,6 @@ mod tests {
             },
             EchoCandidate {
                 path: "d.md".to_string(),
-                title: "D".to_string(),
                 signals: vec![CandidateSignal {
                     source: EchoSource::Recent,
                     score: 0.46,
