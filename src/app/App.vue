@@ -61,10 +61,12 @@ import {
   findOpenTrace,
   finishOpenTraceSpan,
   finishOpenTrace,
+  hasActiveOpenTrace,
   installOpenDebugLongTaskObserver,
   runWithOpenTraceSpan,
   startOpenTraceSpan,
   startOpenTrace,
+  subscribeOpenTraceActivity,
   traceOpenStep
 } from '../shared/lib/openTrace'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
@@ -306,6 +308,7 @@ const paneCount = computed(() => Object.keys(multiPane.layout.value.panesById).l
 const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
 const activeStatus = computed(() => editorState.getStatus(activeFilePath.value))
 const activeNoteTitle = computed(() => activeFilePath.value ? noteTitleFromPath(activeFilePath.value) : 'No active note')
+const echoesEnabled = ref(!hasActiveOpenTrace())
 const activeStateLabel = computed(() => (
   activeStatus.value.saving
     ? 'saving'
@@ -315,7 +318,10 @@ const activeStateLabel = computed(() => (
         ? 'editing'
         : 'saved'
 ))
-const noteEchoes = useEchoesPack(activeFilePath, { limit: 5 })
+const noteEchoes = useEchoesPack(activeFilePath, {
+  limit: 5,
+  enabled: echoesEnabled
+})
 const noteEchoesDiscoverability = useEchoesDiscoverability()
 const constitutedContext = useConstitutedContext({
   resolveItem: (path) => ({
@@ -1130,6 +1136,7 @@ const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
 const mediaQuery = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-color-scheme: dark)')
   : null
+let disposeOpenTraceActivitySubscription: (() => void) | null = null
 
 const backShortcutLabel = computed(() => (isMacOs ? 'Cmd+[' : 'Alt+Left'))
 const forwardShortcutLabel = computed(() => (isMacOs ? 'Cmd+]' : 'Alt+Right'))
@@ -3110,6 +3117,9 @@ onMounted(() => {
   applyTheme()
   editorZoom.value = readStoredEditorZoom()
   installOpenDebugLongTaskObserver()
+  disposeOpenTraceActivitySubscription = subscribeOpenTraceActivity((active) => {
+    echoesEnabled.value = !active
+  })
   mediaQuery?.addEventListener('change', onSystemThemeChanged)
   window.addEventListener('mousedown', onGlobalPointerDown, true)
   window.addEventListener('resize', onWindowResize)
@@ -3127,6 +3137,8 @@ onBeforeUnmount(() => {
   disposeHistoryUi()
   workspaceLifecycle.dispose()
   keyboard.dispose()
+  disposeOpenTraceActivitySubscription?.()
+  disposeOpenTraceActivitySubscription = null
   mediaQuery?.removeEventListener('change', onSystemThemeChanged)
   window.removeEventListener('mousedown', onGlobalPointerDown, true)
   window.removeEventListener('resize', onWindowResize)

@@ -51,6 +51,8 @@ type OpenDebugGlobal = {
   recent: Array<Record<string, unknown>>
 }
 
+type OpenTraceActivityListener = (active: boolean) => void
+
 type OpenTraceSpanOptions = {
   parentSpanId?: string | null
   bucket?: OpenTraceSummaryBucket
@@ -70,6 +72,14 @@ const activeTraceIdByPath = new Map<string, string>()
 let traceCounter = 0
 let spanCounter = 0
 let longTaskObserverInstalled = false
+const openTraceActivityListeners = new Set<OpenTraceActivityListener>()
+
+function notifyOpenTraceActivityListeners() {
+  const active = activeTraceIds.size > 0
+  for (const listener of openTraceActivityListeners) {
+    listener(active)
+  }
+}
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined'
@@ -257,6 +267,7 @@ export function startOpenTrace(path: string, source: string): string | null {
   activeTraceIds.add(id)
   activeTraceIdByPath.set(normalizedPath, id)
   tracesById.set(id, record)
+  notifyOpenTraceActivityListeners()
   emitTrace('log', 'open started', {
     trace_id: id,
     source,
@@ -268,6 +279,15 @@ export function startOpenTrace(path: string, source: string): string | null {
 /** Returns whether at least one document-open flow is still in flight. */
 export function hasActiveOpenTrace(): boolean {
   return activeTraceIds.size > 0
+}
+
+/** Subscribes to whether at least one document-open flow is still in flight. */
+export function subscribeOpenTraceActivity(listener: OpenTraceActivityListener): () => void {
+  openTraceActivityListeners.add(listener)
+  listener(activeTraceIds.size > 0)
+  return () => {
+    openTraceActivityListeners.delete(listener)
+  }
 }
 
 /** Associates a pending open trace with a document path until the editor starts loading it. */
@@ -402,6 +422,7 @@ export function finishOpenTrace(
 ) {
   if (!traceId) return
   activeTraceIds.delete(traceId)
+  notifyOpenTraceActivityListeners()
   const trace = tracesById.get(traceId)
   if (!trace) return
   tracesById.delete(traceId)

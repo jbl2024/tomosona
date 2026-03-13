@@ -97,6 +97,31 @@ describe('useEchoesPack', () => {
     scope.stop()
   })
 
+  it('waits for enabled state before loading a pack', async () => {
+    api.computeEchoesPack.mockResolvedValue({
+      anchorPath: '/vault/a.md',
+      generatedAtMs: 1,
+      items: [{ path: '/vault/b.md', title: 'B', reasonLabel: 'Direct link', reasonLabels: ['Direct link'], score: 1, signalSources: ['direct'] }]
+    })
+
+    const scope = effectScope()
+    const anchor = ref('/vault/a.md')
+    const enabled = ref(false)
+    const state = scope.run(() => useEchoesPack(anchor, { enabled }))
+    await Promise.resolve()
+
+    expect(api.computeEchoesPack).not.toHaveBeenCalled()
+    expect(state?.items.value).toEqual([])
+
+    enabled.value = true
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(api.computeEchoesPack).toHaveBeenCalledWith('/vault/a.md', { limit: undefined })
+    expect(state?.items.value).toHaveLength(1)
+    scope.stop()
+  })
+
   it('exposes error and recovers after a later success', async () => {
     api.computeEchoesPack
       .mockRejectedValueOnce(new Error('boom'))

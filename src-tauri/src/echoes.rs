@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     path::Path,
-    time::SystemTime,
+    time::{Instant, SystemTime},
 };
 
 use rusqlite::{params, Connection};
@@ -28,6 +28,26 @@ const BACKLINK_WEIGHT: f64 = 0.9;
 const RECENT_WEIGHT: f64 = 0.45;
 const MULTI_SIGNAL_BOOST: f64 = 0.20;
 const EXPLICIT_SEMANTIC_BOOST: f64 = 0.10;
+
+fn should_log_echoes_perf(elapsed_ms: u128) -> bool {
+    std::env::var("TOMOSONA_DEBUG_OPEN")
+        .map(|value| value == "1")
+        .unwrap_or(false)
+        || elapsed_ms >= 75
+}
+
+fn log_echoes_perf(command: &str, started_at: Instant, extra_fields: &[(&str, String)]) {
+    let elapsed_ms = started_at.elapsed().as_millis();
+    if !should_log_echoes_perf(elapsed_ms) {
+        return;
+    }
+
+    let mut fields = vec![format!("cmd={command}"), format!("total_ms={elapsed_ms}")];
+    for (key, value) in extra_fields {
+        fields.push(format!("{key}={value}"));
+    }
+    eprintln!("[echoes-perf] {}", fields.join(" "));
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ComputeEchoesPackPayload {
@@ -120,10 +140,13 @@ struct PathResolver {
 #[tauri::command]
 /// Computes a compact Echoes pack for a single markdown anchor note.
 pub fn compute_echoes_pack(payload: ComputeEchoesPackPayload) -> Result<EchoesPackDto> {
+    let started_at = Instant::now();
     let root = active_workspace_root()?;
     let conn = open_db()?;
     let anchor_relative = normalize_anchor_path(&root, &payload.anchor_path)?;
+    let scan_started_at = Instant::now();
     let markdown_paths = list_workspace_markdown_paths(&root)?;
+    let scan_ms = scan_started_at.elapsed().as_millis();
     let resolver = build_path_resolver(&root, &markdown_paths);
     let limit = payload
         .limit
@@ -142,8 +165,19 @@ pub fn compute_echoes_pack(payload: ComputeEchoesPackPayload) -> Result<EchoesPa
 
     let merged = merge_candidates_by_path(direct, backlinks, semantic, recent);
     let selected = select_diverse_pack(merged, limit);
-
-    Ok(build_echoes_pack_dto(&root, &anchor_relative, selected))
+    let pack = build_echoes_pack_dto(&root, &anchor_relative, selected);
+    log_echoes_perf(
+        "compute_echoes_pack",
+        started_at,
+        &[
+            ("anchor_path", anchor_relative.clone()),
+            ("limit", limit.to_string()),
+            ("markdown_paths", markdown_paths.len().to_string()),
+            ("scan_ms", scan_ms.to_string()),
+            ("items", pack.items.len().to_string()),
+        ],
+    );
+    Ok(pack)
 }
 
 /// Validates anchor input and returns a workspace-relative markdown path.
