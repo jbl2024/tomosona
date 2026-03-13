@@ -86,6 +86,10 @@ export function formatDurationMs(value: number | null): string {
   return `${minutes} min`
 }
 
+function replaceUnderscores(value: string): string {
+  return value.replace(/_/g, ' ')
+}
+
 /**
  * Builds recent indexing activity rows for the modal list.
  *
@@ -255,7 +259,7 @@ export function buildIndexActivityRows(
         : phase === 'clear_cache'
           ? 'Clearing previous semantic links'
           : phase
-            ? phase.replaceAll('_', ' ')
+            ? replaceUnderscores(phase)
             : ''
       upsertActive(key, {
         ...prior,
@@ -325,11 +329,11 @@ export function buildIndexActivityRows(
           group: 'engine',
           title: 'Semantic link refresh failed',
           detail: detailParts([
-            fields.phase ? `phase ${fields.phase.replaceAll('_', ' ')}` : null,
+            fields.phase ? `phase ${replaceUnderscores(fields.phase)}` : null,
             fields.source_path ? toRelativePath(fields.source_path) : null,
             fields.target_path ? `target ${toRelativePath(fields.target_path)}` : null,
             fields.sqlite_code ? `sqlite ${fields.sqlite_code}` : null,
-            fields.sqlite_msg ? fields.sqlite_msg.replaceAll('_', ' ') : fields.err?.replaceAll('_', ' ')
+            fields.sqlite_msg ? replaceUnderscores(fields.sqlite_msg) : fields.err ? replaceUnderscores(fields.err) : null
           ]),
           ...base
         })

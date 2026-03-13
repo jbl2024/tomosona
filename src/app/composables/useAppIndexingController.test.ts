@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { IndexLogEntry } from '../../shared/api/apiTypes'
 import { useAppIndexingController } from './useAppIndexingController'
 
 async function flushMicrotasks(times = 3) {
@@ -24,7 +25,7 @@ function createController() {
   const indexingState = ref<'idle' | 'indexing' | 'indexed' | 'out_of_sync'>('indexed')
   const refreshBacklinks = vi.fn(async () => {})
   const refreshCosmosGraph = vi.fn(async () => {})
-  const readIndexLogs = vi.fn(async () => [])
+  const readIndexLogs = vi.fn(async (): Promise<IndexLogEntry[]> => [])
   const readIndexRuntimeStatus = vi.fn(async () => ({
     model_name: 'bge',
     model_state: 'ready',
