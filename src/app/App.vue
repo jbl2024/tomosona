@@ -1076,7 +1076,8 @@ const activeNoteInContext = computed(() => {
   const path = activeFilePath.value.trim()
   return path ? constitutedContext.contains(path) : false
 })
-const contextItems = computed(() => constitutedContext.items.value)
+const localContextItems = computed(() => constitutedContext.localItems.value)
+const pinnedContextItems = computed(() => constitutedContext.pinnedItems.value)
 const noteEchoesForPanel = computed(() =>
   noteEchoes.items.value.map((item) => ({
     ...item,
@@ -1898,6 +1899,14 @@ function addPathToConstitutedContext(path: string) {
 
 function removePathFromConstitutedContext(path: string) {
   constitutedContext.remove(path)
+}
+
+function removeLocalPathFromConstitutedContext(path: string) {
+  constitutedContext.removeLocal(path)
+}
+
+function removePinnedPathFromConstitutedContext(path: string) {
+  constitutedContext.removePinned(path)
 }
 
 function toggleActiveNoteInConstitutedContext() {
@@ -3303,8 +3312,8 @@ onBeforeUnmount(() => {
             :echoes-loading="noteEchoes.loading.value"
             :echoes-error="noteEchoes.error.value"
             :echoes-hint-visible="noteEchoesDiscoverability.hintVisible.value"
-            :context-mode="constitutedContext.mode.value"
-            :context-items="contextItems"
+            :local-context-items="localContextItems"
+            :pinned-context-items="pinnedContextItems"
             :can-reason-on-context="!constitutedContext.isEmpty.value"
             :is-launching-context-action="contextActionLoading"
             :outline="editorState.activeOutline.value"
@@ -3326,9 +3335,11 @@ onBeforeUnmount(() => {
             @outline-click="void onOutlineHeadingClick($event)"
             @backlink-open="void onBacklinkOpen($event)"
             @context-open="void onBacklinkOpen($event)"
-            @context-remove="removePathFromConstitutedContext($event)"
-            @context-preserve="constitutedContext.preserve()"
-            @context-clear="constitutedContext.clear()"
+            @context-remove-local="removeLocalPathFromConstitutedContext($event)"
+            @context-remove-pinned="removePinnedPathFromConstitutedContext($event)"
+            @context-pin="constitutedContext.pin()"
+            @context-clear-local="constitutedContext.clearLocal()"
+            @context-clear-pinned="constitutedContext.clearPinned()"
             @context-open-second-brain="void openConstitutedContextInSecondBrain()"
             @context-open-cosmos="void openConstitutedContextInCosmos()"
             @context-open-pulse="void openConstitutedContextInPulse()"

@@ -17,7 +17,7 @@ import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
 import EditorEchoesPanel from './editor/EditorEchoesPanel.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
-import type { ConstitutedContextItem, ConstitutedContextMode } from '../composables/useConstitutedContext'
+import type { ConstitutedContextItem } from '../composables/useConstitutedContext'
 import type { EchoesItem } from '../../echoes/lib/echoes'
 
 type HeadingNode = { level: 1 | 2 | 3; text: string }
@@ -40,8 +40,8 @@ const props = defineProps<{
   echoesLoading: boolean
   echoesError: string
   echoesHintVisible: boolean
-  contextMode: ConstitutedContextMode
-  contextItems: ConstitutedContextItem[]
+  localContextItems: ConstitutedContextItem[]
+  pinnedContextItems: ConstitutedContextItem[]
   contextError?: string
   canReasonOnContext: boolean
   isLaunchingContextAction: boolean
@@ -67,9 +67,11 @@ const emit = defineEmits<{
   'outline-click': [payload: { index: number; heading: HeadingNode }]
   'backlink-open': [path: string]
   'context-open': [path: string]
-  'context-remove': [path: string]
-  'context-preserve': []
-  'context-clear': []
+  'context-remove-local': [path: string]
+  'context-remove-pinned': [path: string]
+  'context-pin': []
+  'context-clear-local': []
+  'context-clear-pinned': []
   'context-open-second-brain': []
   'context-open-cosmos': []
   'context-open-pulse': []
@@ -81,11 +83,8 @@ const backlinksExpanded = ref(false)
 const metadataExpanded = ref(false)
 const propertiesExpanded = ref(false)
 const hasEchoesContent = computed(() => props.echoesItems.length > 0 && !props.echoesLoading && !props.echoesError)
-const contextTitle = computed(() => props.contextMode === 'preserved' ? 'Preserved Context' : 'Context for This Note')
-const contextEmptyCopy = computed(() => {
-  if (props.contextMode === 'preserved') return 'No notes added.'
-  return 'Add notes from Echoes or the active note.'
-})
+const hasLocalContext = computed(() => props.localContextItems.length > 0)
+const hasPinnedContext = computed(() => props.pinnedContextItems.length > 0)
 
 watch(
   hasEchoesContent,
@@ -163,29 +162,28 @@ watch(
     <section class="pane-card pane-section context-card">
       <div class="context-head">
         <div class="context-head-copy">
-          <h3 class="section-title">{{ contextTitle }}</h3>
-          <p v-if="props.contextItems.length" class="context-count">
-            {{ props.contextItems.length }} note{{ props.contextItems.length > 1 ? 's' : '' }}
+          <h3 class="section-title">Context for This Note</h3>
+          <p v-if="hasLocalContext" class="context-count">
+            {{ props.localContextItems.length }} note{{ props.localContextItems.length > 1 ? 's' : '' }}
           </p>
         </div>
-        <div class="context-actions" v-if="props.contextItems.length">
+        <div class="context-actions" v-if="hasLocalContext">
           <UiButton
-            v-if="props.contextMode === 'local'"
             variant="ghost"
             size="sm"
             class-name="context-chip-btn"
-            @click="emit('context-preserve')"
+            @click="emit('context-pin')"
           >
-            Preserve
+            Pin Context
           </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear')">Clear</UiButton>
+          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear-local')">Clear</UiButton>
         </div>
       </div>
 
       <div v-if="props.contextError" class="empty-state">{{ props.contextError }}</div>
-      <div v-else-if="!props.contextItems.length" class="empty-state">{{ contextEmptyCopy }}</div>
+      <div v-else-if="!hasLocalContext" class="empty-state">Add notes from Echoes or the active note.</div>
       <div v-else class="context-list">
-        <div v-for="item in props.contextItems" :key="item.path" class="context-row">
+        <div v-for="item in props.localContextItems" :key="item.path" class="context-row">
           <UiButton
             variant="ghost"
             size="sm"
@@ -195,7 +193,37 @@ watch(
           >
             <span class="context-row-title">{{ item.title }}</span>
           </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove', item.path)">×</UiButton>
+          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove-local', item.path)">×</UiButton>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="hasPinnedContext" class="pane-card pane-section context-card">
+      <div class="context-head">
+        <div class="context-head-copy">
+          <h3 class="section-title">Pinned Context</h3>
+          <p v-if="hasPinnedContext" class="context-count">
+            {{ props.pinnedContextItems.length }} note{{ props.pinnedContextItems.length > 1 ? 's' : '' }}
+          </p>
+        </div>
+        <div class="context-actions" v-if="hasPinnedContext">
+          <UiButton variant="ghost" size="sm" class-name="context-chip-btn" @click="emit('context-clear-pinned')">Clear</UiButton>
+        </div>
+      </div>
+
+      <div v-if="props.contextError" class="empty-state">{{ props.contextError }}</div>
+      <div v-else class="context-list">
+        <div v-for="item in props.pinnedContextItems" :key="item.path" class="context-row">
+          <UiButton
+            variant="ghost"
+            size="sm"
+            class-name="context-open-btn !justify-start !text-left"
+            :title="props.toRelativePath(item.path)"
+            @click="emit('context-open', item.path)"
+          >
+            <span class="context-row-title">{{ item.title }}</span>
+          </UiButton>
+          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove-pinned', item.path)">×</UiButton>
         </div>
       </div>
     </section>

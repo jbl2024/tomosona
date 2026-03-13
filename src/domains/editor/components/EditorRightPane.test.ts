@@ -14,9 +14,11 @@ describe('EditorRightPane', () => {
     const onActiveNoteOpenCosmos = vi.fn()
     const onEchoesAddToContext = vi.fn()
     const onContextOpen = vi.fn()
-    const onContextRemove = vi.fn()
-    const onContextPreserve = vi.fn()
-    const onContextClear = vi.fn()
+    const onContextRemoveLocal = vi.fn()
+    const onContextRemovePinned = vi.fn()
+    const onContextPin = vi.fn()
+    const onContextClearLocal = vi.fn()
+    const onContextClearPinned = vi.fn()
     const onContextOpenSecondBrain = vi.fn()
     const onContextOpenCosmos = vi.fn()
     const onContextOpenPulse = vi.fn()
@@ -45,8 +47,8 @@ describe('EditorRightPane', () => {
           echoesLoading: false,
           echoesError: '',
           echoesHintVisible: true,
-          contextMode: 'local',
-          contextItems: [{ path: '/wk/notes/c.md', title: 'Context' }],
+          localContextItems: [{ path: '/wk/notes/c.md', title: 'Context' }],
+          pinnedContextItems: [{ path: '/wk/notes/p.md', title: 'Pinned' }],
           canReasonOnContext: true,
           isLaunchingContextAction: false,
           outline: [{ level: 2, text: 'Roadmap' }],
@@ -66,9 +68,11 @@ describe('EditorRightPane', () => {
           onActiveNoteOpenCosmos,
           onEchoesAddToContext,
           onContextOpen,
-          onContextRemove,
-          onContextPreserve,
-          onContextClear,
+          onContextRemoveLocal,
+          onContextRemovePinned,
+          onContextPin,
+          onContextClearLocal,
+          onContextClearPinned,
           onContextOpenSecondBrain,
           onContextOpenCosmos,
           onContextOpenPulse
@@ -78,10 +82,11 @@ describe('EditorRightPane', () => {
 
     app.mount(root)
     const sectionTitles = Array.from(root.querySelectorAll('.section-title')).map((el) => el.textContent?.trim())
-    expect(sectionTitles.slice(0, 5)).toEqual([
+    expect(sectionTitles.slice(0, 6)).toEqual([
       'Active Note',
       'Echoes',
       'Context for This Note',
+      'Pinned Context',
       'Outline',
       'Semantic Links'
     ])
@@ -106,14 +111,19 @@ describe('EditorRightPane', () => {
     ;(root.querySelector('.context-open-btn') as HTMLButtonElement).click()
     expect(onContextOpen).toHaveBeenCalledWith('/wk/notes/c.md')
 
-    ;(root.querySelector('.context-remove-btn') as HTMLButtonElement).click()
-    expect(onContextRemove).toHaveBeenCalledWith('/wk/notes/c.md')
+    const removeButtons = Array.from(root.querySelectorAll('.context-remove-btn')) as HTMLButtonElement[]
+    removeButtons[0].click()
+    removeButtons[1].click()
+    expect(onContextRemoveLocal).toHaveBeenCalledWith('/wk/notes/c.md')
+    expect(onContextRemovePinned).toHaveBeenCalledWith('/wk/notes/p.md')
 
     const chipButtons = Array.from(root.querySelectorAll('.context-chip-btn')) as HTMLButtonElement[]
     chipButtons[0].click()
     chipButtons[1].click()
-    expect(onContextPreserve).toHaveBeenCalledTimes(1)
-    expect(onContextClear).toHaveBeenCalledTimes(1)
+    chipButtons[2].click()
+    expect(onContextPin).toHaveBeenCalledTimes(1)
+    expect(onContextClearLocal).toHaveBeenCalledTimes(1)
+    expect(onContextClearPinned).toHaveBeenCalledTimes(1)
 
     const ctaButtons = Array.from(root.querySelectorAll('.context-primary-cta, .context-link-btn')) as HTMLButtonElement[]
     ctaButtons[0].click()
@@ -148,7 +158,7 @@ describe('EditorRightPane', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders an empty disabled context state', () => {
+  it('hides pinned context when no notes are pinned and keeps actions disabled', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
 
@@ -168,8 +178,8 @@ describe('EditorRightPane', () => {
           echoesLoading: false,
           echoesError: '',
           echoesHintVisible: false,
-          contextMode: 'preserved',
-          contextItems: [],
+          localContextItems: [],
+          pinnedContextItems: [],
           canReasonOnContext: false,
           isLaunchingContextAction: false,
           outline: [],
@@ -186,8 +196,7 @@ describe('EditorRightPane', () => {
     }))
 
     app.mount(root)
-    expect(root.textContent).toContain('Preserved Context')
-    expect(root.textContent).toContain('No notes added.')
+    expect(root.textContent).not.toContain('Pinned Context')
     expect((root.querySelector('.context-primary-cta') as HTMLButtonElement).disabled).toBe(true)
     app.unmount()
   })

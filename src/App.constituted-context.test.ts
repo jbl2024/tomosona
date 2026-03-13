@@ -161,28 +161,32 @@ vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({
     name: 'EditorRightPaneStub',
     props: {
       activeNoteTitle: { type: String, required: true },
-      contextMode: { type: String, required: true },
-      contextItems: { type: Array, required: true },
+      localContextItems: { type: Array, required: true },
+      pinnedContextItems: { type: Array, required: true },
       canReasonOnContext: { type: Boolean, required: true }
     },
     emits: [
       'active-note-add-to-context',
       'active-note-open-cosmos',
       'echoes-add-to-context',
-      'context-preserve',
+      'context-pin',
+      'context-clear-pinned',
       'context-open-second-brain',
       'context-open-pulse'
     ],
     setup(props, { emit }) {
       return () => h('div', { 'data-right-pane-stub': 'true' }, [
         h('div', { 'data-active-note-title': 'true' }, props.activeNoteTitle),
-        h('div', { 'data-context-mode': 'true' }, props.contextMode),
-        h('div', { 'data-context-count': 'true' }, String((props.contextItems as Array<unknown>).length)),
+        h('div', { 'data-context-mode': 'true' }, (props.pinnedContextItems as Array<unknown>).length ? 'pinned' : 'local'),
+        h('div', { 'data-context-count': 'true' }, String((props.localContextItems as Array<unknown>).length + (props.pinnedContextItems as Array<unknown>).length)),
+        h('div', { 'data-local-context-count': 'true' }, String((props.localContextItems as Array<unknown>).length)),
+        h('div', { 'data-pinned-context-count': 'true' }, String((props.pinnedContextItems as Array<unknown>).length)),
         h('div', { 'data-context-can-reason': 'true' }, String(props.canReasonOnContext)),
         h('button', { type: 'button', 'data-add-active-context': 'true', onClick: () => emit('active-note-add-to-context') }, 'add-active'),
         h('button', { type: 'button', 'data-open-note-cosmos': 'true', onClick: () => emit('active-note-open-cosmos') }, 'open-note-cosmos'),
         h('button', { type: 'button', 'data-add-echoes-context': 'true', onClick: () => emit('echoes-add-to-context', '/vault/b.md') }, 'add-echo'),
-        h('button', { type: 'button', 'data-preserve-context': 'true', onClick: () => emit('context-preserve') }, 'preserve'),
+        h('button', { type: 'button', 'data-pin-context': 'true', onClick: () => emit('context-pin') }, 'pin'),
+        h('button', { type: 'button', 'data-clear-pinned-context': 'true', onClick: () => emit('context-clear-pinned') }, 'clear-pinned'),
         h('button', { type: 'button', 'data-open-context-second-brain': 'true', onClick: () => emit('context-open-second-brain') }, 'open-sb'),
         h('button', { type: 'button', 'data-open-context-pulse': 'true', onClick: () => emit('context-open-pulse') }, 'open-pulse')
       ])
@@ -266,7 +270,7 @@ describe('App constituted context', () => {
     mounted.app.unmount()
   })
 
-  it('keeps preserved constituted context across note changes', async () => {
+  it('keeps pinned constituted context across note changes while local context resets', async () => {
     const mounted = mountApp()
     await flushUi()
     await showRightPane()
@@ -275,13 +279,22 @@ describe('App constituted context', () => {
     await flushUi()
     mounted.root.querySelector<HTMLButtonElement>('[data-add-echoes-context="true"]')?.click()
     await flushUi()
-    mounted.root.querySelector<HTMLButtonElement>('[data-preserve-context="true"]')?.click()
+    mounted.root.querySelector<HTMLButtonElement>('[data-pin-context="true"]')?.click()
     await flushUi()
+    expect(mounted.root.querySelector('[data-local-context-count="true"]')?.textContent).toBe('1')
+    expect(mounted.root.querySelector('[data-pinned-context-count="true"]')?.textContent).toBe('1')
 
     mounted.root.querySelector<HTMLButtonElement>('[data-open-b="true"]')?.click()
     await flushUi()
-    expect(mounted.root.querySelector('[data-context-mode="true"]')?.textContent).toBe('preserved')
+    expect(mounted.root.querySelector('[data-context-mode="true"]')?.textContent).toBe('pinned')
     expect(mounted.root.querySelector('[data-context-count="true"]')?.textContent).toBe('1')
+    expect(mounted.root.querySelector('[data-local-context-count="true"]')?.textContent).toBe('0')
+    expect(mounted.root.querySelector('[data-pinned-context-count="true"]')?.textContent).toBe('1')
+
+    mounted.root.querySelector<HTMLButtonElement>('[data-clear-pinned-context="true"]')?.click()
+    await flushUi()
+    expect(mounted.root.querySelector('[data-context-mode="true"]')?.textContent).toBe('local')
+    expect(mounted.root.querySelector('[data-context-count="true"]')?.textContent).toBe('0')
 
     mounted.app.unmount()
   })

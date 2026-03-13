@@ -8,12 +8,12 @@ import { computed, ref, type ComputedRef } from 'vue'
  *
  * Boundaries:
  * - Tracks only explicit note selections retained by the user.
- * - Keeps context local to the active note until explicitly preserved.
+ * - Keeps note-local context separate from explicitly pinned session context.
  * - Does not persist to disk or localStorage in V1.
  */
 
-/** Distinguishes note-local context from the explicitly preserved session context. */
-export type ConstitutedContextMode = 'local' | 'preserved'
+/** Distinguishes note-local context from the explicitly pinned session context. */
+export type ConstitutedContextMode = 'local' | 'pinned'
 
 /** Minimal note record rendered by the right-pane context list. */
 export type ConstitutedContextItem = {
@@ -23,18 +23,28 @@ export type ConstitutedContextItem = {
 
 /** Public surface for the constituted-context controller. */
 export type ConstitutedContextController = {
-  mode: ComputedRef<ConstitutedContextMode>
   anchorPath: ComputedRef<string>
+  localItems: ComputedRef<ConstitutedContextItem[]>
+  localPaths: ComputedRef<string[]>
+  pinnedItems: ComputedRef<ConstitutedContextItem[]>
+  pinnedPaths: ComputedRef<string[]>
+  mode: ComputedRef<ConstitutedContextMode>
   paths: ComputedRef<string[]>
   items: ComputedRef<ConstitutedContextItem[]>
   isEmpty: ComputedRef<boolean>
   count: ComputedRef<number>
   contains: (path: string) => boolean
+  containsLocal: (path: string) => boolean
+  containsPinned: (path: string) => boolean
   resetForAnchor: (path: string) => void
   add: (path: string, anchorPath: string, resolver?: (path: string) => ConstitutedContextItem) => void
+  removeLocal: (path: string) => void
+  removePinned: (path: string) => void
   remove: (path: string) => void
   toggle: (path: string, anchorPath: string, resolver?: (path: string) => ConstitutedContextItem) => void
-  preserve: () => void
+  pin: () => void
+  clearLocal: () => void
+  clearPinned: () => void
   clear: () => void
   replace: (
     paths: string[],
@@ -61,7 +71,7 @@ function defaultResolveItem(path: string): ConstitutedContextItem {
  * Creates the right-pane constituted-context state machine.
  *
  * Important behavior:
- * - `resetForAnchor` only clears items when the context is still local.
+ * - `resetForAnchor` clears only note-local items and keeps pinned items intact.
  * - `replace` keeps first-seen order and drops empty / duplicate paths.
  * - callers may provide a resolver to keep rendered titles in sync with shell naming.
  */
@@ -69,9 +79,9 @@ export function useConstitutedContext(
   options: UseConstitutedContextOptions = {}
 ): ConstitutedContextController {
   const resolveItem = options.resolveItem ?? defaultResolveItem
-  const modeState = ref<ConstitutedContextMode>('local')
   const anchorPathState = ref('')
-  const itemsState = ref<ConstitutedContextItem[]>([])
+  const localItemsState = ref<ConstitutedContextItem[]>([])
+  const pinnedItemsState = ref<ConstitutedContextItem[]>([])
 
   function normalizePath(path: string): string {
     return String(path ?? '').trim()
@@ -89,16 +99,39 @@ export function useConstitutedContext(
     return out
   }
 
-  function contains(path: string): boolean {
+  function dedupeExistingItems(items: ConstitutedContextItem[]): ConstitutedContextItem[] {
+    const seen = new Set<string>()
+    const out: ConstitutedContextItem[] = []
+    for (const item of items) {
+      const path = normalizePath(item.path)
+      if (!path || seen.has(path)) continue
+      seen.add(path)
+      out.push({ ...item, path })
+    }
+    return out
+  }
+
+  function containsIn(items: ConstitutedContextItem[], path: string): boolean {
     const normalized = normalizePath(path)
-    return normalized.length > 0 && itemsState.value.some((item) => item.path === normalized)
+    return normalized.length > 0 && items.some((item) => item.path === normalized)
+  }
+
+  function containsLocal(path: string): boolean {
+    return containsIn(localItemsState.value, path)
+  }
+
+  function containsPinned(path: string): boolean {
+    return containsIn(pinnedItemsState.value, path)
+  }
+
+  function contains(path: string): boolean {
+    return containsLocal(path) || containsPinned(path)
   }
 
   function resetForAnchor(path: string) {
     const normalizedAnchor = normalizePath(path)
     anchorPathState.value = normalizedAnchor
-    if (modeState.value === 'preserved') return
-    itemsState.value = []
+    localItemsState.value = []
   }
 
   function add(path: string, anchorPath: string, resolver: (path: string) => ConstitutedContextItem = resolveItem) {
@@ -107,14 +140,25 @@ export function useConstitutedContext(
       anchorPathState.value = normalizedAnchor
     }
     const normalized = normalizePath(path)
-    if (!normalized || contains(normalized)) return
-    itemsState.value = [...itemsState.value, resolver(normalized)]
+    if (!normalized || containsLocal(normalized)) return
+    localItemsState.value = [...localItemsState.value, resolver(normalized)]
+  }
+
+  function removeLocal(path: string) {
+    const normalized = normalizePath(path)
+    if (!normalized) return
+    localItemsState.value = localItemsState.value.filter((item) => item.path !== normalized)
+  }
+
+  function removePinned(path: string) {
+    const normalized = normalizePath(path)
+    if (!normalized) return
+    pinnedItemsState.value = pinnedItemsState.value.filter((item) => item.path !== normalized)
   }
 
   function remove(path: string) {
-    const normalized = normalizePath(path)
-    if (!normalized) return
-    itemsState.value = itemsState.value.filter((item) => item.path !== normalized)
+    removeLocal(path)
+    removePinned(path)
   }
 
   function toggle(path: string, anchorPath: string, resolver: (path: string) => ConstitutedContextItem = resolveItem) {
@@ -125,39 +169,67 @@ export function useConstitutedContext(
     add(path, anchorPath, resolver)
   }
 
-  function preserve() {
-    if (!itemsState.value.length) return
-    modeState.value = 'preserved'
+  function pin() {
+    if (!localItemsState.value.length) return
+    pinnedItemsState.value = dedupeItems(
+      [...pinnedItemsState.value.map((item) => item.path), ...localItemsState.value.map((item) => item.path)],
+      resolveItem
+    )
+  }
+
+  function clearLocal() {
+    localItemsState.value = []
+  }
+
+  function clearPinned() {
+    pinnedItemsState.value = []
   }
 
   function clear() {
-    itemsState.value = []
+    clearLocal()
+    clearPinned()
   }
 
   function replace(
     paths: string[],
     anchorPath: string,
-    mode: ConstitutedContextMode = modeState.value,
+    mode: ConstitutedContextMode = pinnedItemsState.value.length > 0 ? 'pinned' : 'local',
     resolver: (path: string) => ConstitutedContextItem = resolveItem
   ) {
     anchorPathState.value = normalizePath(anchorPath)
-    modeState.value = mode
-    itemsState.value = dedupeItems(paths, resolver)
+    if (mode === 'pinned') {
+      pinnedItemsState.value = dedupeItems(paths, resolver)
+      return
+    }
+    localItemsState.value = dedupeItems(paths, resolver)
   }
 
+  const mode = computed<ConstitutedContextMode>(() => pinnedItemsState.value.length > 0 ? 'pinned' : 'local')
+  const items = computed(() => dedupeExistingItems([...localItemsState.value, ...pinnedItemsState.value]))
+
   return {
-    mode: computed(() => modeState.value),
     anchorPath: computed(() => anchorPathState.value),
-    paths: computed(() => itemsState.value.map((item) => item.path)),
-    items: computed(() => itemsState.value),
-    isEmpty: computed(() => itemsState.value.length === 0),
-    count: computed(() => itemsState.value.length),
+    localItems: computed(() => localItemsState.value),
+    localPaths: computed(() => localItemsState.value.map((item) => item.path)),
+    pinnedItems: computed(() => pinnedItemsState.value),
+    pinnedPaths: computed(() => pinnedItemsState.value.map((item) => item.path)),
+    mode,
+    paths: computed(() => items.value.map((item) => item.path)),
+    items,
+    isEmpty: computed(() => items.value.length === 0),
+    count: computed(() => items.value.length),
     contains,
+    containsLocal,
+    containsPinned,
     resetForAnchor,
     add,
+    removeLocal,
+    removePinned,
     remove,
     toggle,
-    preserve,
+    pin,
+    clearLocal,
+    clearPinned,
     clear,
     replace
   }
