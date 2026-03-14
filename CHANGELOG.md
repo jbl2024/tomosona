@@ -18,6 +18,19 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.19.5] - 2026-03-14
+
+### Added
+- feat(explorer): add debounced fuzzy tree filter (4b58b93)
+
+### Changed
+- refactor(editor): move property inputs out of explorer domain (2127c0b)
+- refactor(explorer): split tree workflows into focused composables (0926648)
+
+### Fixed
+- fix(scroll): prevent workspace overscroll from shifting content (54ce6a9)
+- fix(explorer): preserve file target on row context menu (42e1485)
+
 ## [0.19.4] - 2026-03-13
 
 ### Changed
