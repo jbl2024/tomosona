@@ -5,8 +5,8 @@ import confirmDialogSource from './ExplorerConfirmDialog.vue?raw'
 import conflictDialogSource from './ExplorerConflictDialog.vue?raw'
 import itemSource from './ExplorerItem.vue?raw'
 import propertiesSource from '../../editor/components/editor/EditorPropertiesPanel.vue?raw'
-import propertyTokenSource from './PropertyTokenInput.vue?raw'
-import propertyAddSource from './PropertyAddDropdown.vue?raw'
+import propertyTokenSource from '../../editor/components/properties/PropertyTokenInput.vue?raw'
+import propertyAddSource from '../../editor/components/properties/PropertyAddDropdown.vue?raw'
 
 describe('Explorer and properties theme contracts', () => {
   it('routes explorer surfaces and states through semantic tokens', () => {

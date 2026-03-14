@@ -8,8 +8,8 @@ import UiSelect from '../../../../shared/components/ui/UiSelect.vue'
 import UiTextarea from '../../../../shared/components/ui/UiTextarea.vue'
 import type { FrontmatterField } from '../../lib/frontmatter'
 import type { PropertyType } from '../../lib/propertyTypes'
-import PropertyAddDropdown from '../../../explorer/components/PropertyAddDropdown.vue'
-import PropertyTokenInput from '../../../explorer/components/PropertyTokenInput.vue'
+import PropertyAddDropdown from '../properties/PropertyAddDropdown.vue'
+import PropertyTokenInput from '../properties/PropertyTokenInput.vue'
 
 type CorePropertyOption = {
   key: string
