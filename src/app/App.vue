@@ -52,10 +52,11 @@ import {
   reindexMarkdownFileLexical,
   reindexMarkdownFileSemantic,
   semanticLinksForPath,
+  updateWikilinksForPathMoves,
   updateWikilinksForRename,
   writePropertyTypeSchema
 } from '../shared/api/indexApi'
-import type { SemanticLink } from '../shared/api/apiTypes'
+import type { PathMove, SemanticLink } from '../shared/api/apiTypes'
 import {
   bindPendingOpenTrace,
   findOpenTrace,
@@ -126,6 +127,7 @@ import {
   type WorkspaceSetupUseCase
 } from './lib/workspaceSetupWizard'
 import { useAppIndexingController } from './composables/useAppIndexingController'
+import { useWorkspaceMutationEffects } from './composables/useWorkspaceMutationEffects'
 import {
   useAppNavigationController,
   type CosmosHistorySnapshot,
@@ -163,6 +165,7 @@ import { useCosmosController } from '../domains/cosmos/composables/useCosmosCont
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
 import { useFavoritesController } from '../domains/favorites/composables/useFavoritesController'
+import { rewritePathWithMoves, sortPathMoves } from './lib/pathMoves'
 import type {
   AppShellCosmosViewModel,
   AppShellLaunchpadViewModel,
@@ -258,6 +261,7 @@ const virtualDocs = ref<Record<string, VirtualDoc>>({})
 const overflowMenuOpen = ref(false)
 const editorZoom = ref(1)
 const wikilinkRewritePrompt = ref<{ fromPath: string; toPath: string } | null>(null)
+const workspaceMutationEchoesToken = ref(0)
 const newFileModalVisible = ref(false)
 const newFilePathInput = ref('')
 const newFileModalError = ref('')
@@ -320,7 +324,8 @@ const activeStateLabel = computed(() => (
 ))
 const noteEchoes = useEchoesPack(activeFilePath, {
   limit: 5,
-  enabled: echoesEnabled
+  enabled: echoesEnabled,
+  refreshKey: workspaceMutationEchoesToken
 })
 const noteEchoesDiscoverability = useEchoesDiscoverability()
 const constitutedContext = useConstitutedContext({
@@ -491,16 +496,7 @@ const indexing = useAppIndexingController({
   indexingUiEffectsPort: indexingControllerUiEffectsPort
 })
 const {
-  semanticIndexState,
-  indexRunKind,
-  indexRunPhase,
   indexRunCurrentPath,
-  indexRunCompleted,
-  indexRunTotal,
-  indexFinalizeCompleted,
-  indexFinalizeTotal,
-  indexRunMessage,
-  indexRunLastFinishedAt,
   indexStatusBusy,
   indexRuntimeStatus,
   indexLogFilter,
@@ -533,8 +529,24 @@ const {
   onIndexPrimaryAction: onIndexPrimaryActionInternal,
   enqueueMarkdownReindex,
   rebuildIndex: rebuildIndexInternal,
+  runWorkspaceMutation,
   dispose: disposeIndexingController
 } = indexing
+const workspaceMutationEffects = useWorkspaceMutationEffects({
+  workingFolderPath: filesystem.workingFolderPath,
+  allWorkspaceFiles,
+  favoriteItems: favorites.items,
+  filesystemErrorMessage: filesystem.errorMessage,
+  applyLocalPathMoves: applyPathMovesLocally,
+  renameFavorite: (fromPath, toPath) => favorites.renameFavorite(fromPath, toPath),
+  promptWikilinkRewritePermission,
+  updateWikilinksForRename,
+  updateWikilinksForPathMoves,
+  runWorkspaceMutation,
+  bumpEchoesRefreshToken: () => {
+    workspaceMutationEchoesToken.value += 1
+  }
+})
 const modalController = useAppModalController({
   quickOpenVisible,
   themePickerVisible,
@@ -1127,7 +1139,8 @@ const secondBrainPaneViewModel = computed<AppShellSecondBrainViewModel>(() => ({
   requestedSessionNonce: secondBrainRequestedSessionNonce.value,
   requestedPrompt: secondBrainRequestedPrompt.value,
   requestedPromptNonce: secondBrainRequestedPromptNonce.value,
-  activeNotePath: activeFilePath.value
+  activeNotePath: activeFilePath.value,
+  echoesRefreshToken: workspaceMutationEchoesToken.value
 }))
 const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
   workspaceLabel: filesystem.workingFolderPath.value ? basenameLabel(filesystem.workingFolderPath.value) : '',
@@ -2159,26 +2172,29 @@ async function openFile(path: string) {
   return await readTextFile(path)
 }
 
-function applyPathRenameLocally(payload: { from: string; to: string }) {
-  const fromPath = payload.from
-  const toPath = payload.to
-  if (!fromPath || !toPath || fromPath === toPath) return
+function applyPathMovesLocally(moves: PathMove[], expandedMarkdownMoves: PathMove[]) {
+  const normalizedMoves = sortPathMoves(moves)
+  if (!normalizedMoves.length) return
 
-  multiPane.replacePath(fromPath, toPath)
-  documentHistory.replacePath(fromPath, toPath)
-  editorState.movePath(fromPath, toPath)
-
-  if (virtualDocs.value[fromPath]) {
-    const nextVirtual = { ...virtualDocs.value }
-    nextVirtual[toPath] = nextVirtual[fromPath]
-    delete nextVirtual[fromPath]
-    virtualDocs.value = nextVirtual
+  for (const move of normalizedMoves) {
+    replaceWorkspaceFilePath(move.from, move.to)
   }
 
-  replaceWorkspaceFilePath(fromPath, toPath)
-  renameLaunchpadRecentNote(fromPath, toPath)
+  for (const move of expandedMarkdownMoves) {
+    multiPane.replacePath(move.from, move.to)
+    documentHistory.replacePath(move.from, move.to)
+    editorState.movePath(move.from, move.to)
+    renameLaunchpadRecentNote(move.from, move.to)
 
-  backlinks.value = backlinks.value.map((path) => (path === fromPath ? toPath : path))
+    if (virtualDocs.value[move.from]) {
+      const nextVirtual = { ...virtualDocs.value }
+      nextVirtual[move.to] = nextVirtual[move.from]
+      delete nextVirtual[move.from]
+      virtualDocs.value = nextVirtual
+    }
+  }
+
+  backlinks.value = backlinks.value.map((path) => rewritePathWithMoves(path, normalizedMoves))
 }
 
 function openNextWikilinkRewritePrompt() {
@@ -2229,57 +2245,22 @@ function clearWikilinkRewritePromptQueue() {
   }
 }
 
-async function maybeRewriteWikilinksForRename(fromPath: string, toPath: string) {
-  const root = filesystem.workingFolderPath.value
-  if (!root || fromPath === toPath) return
-  const shouldRewrite = await promptWikilinkRewritePermission(fromPath, toPath)
-  if (!shouldRewrite) return
-  filesystem.indexingState.value = 'indexing'
-  semanticIndexState.value = 'running'
-  indexRunKind.value = 'rename'
-  indexRunPhase.value = 'indexing_files'
-  indexRunCurrentPath.value = ''
-  indexRunCompleted.value = 0
-  indexRunTotal.value = 0
-  indexFinalizeCompleted.value = 0
-  indexFinalizeTotal.value = 0
-  indexRunMessage.value = ''
-  try {
-    const result = await updateWikilinksForRename(fromPath, toPath)
-    indexRunTotal.value = result.updated_files
-    indexRunCompleted.value = result.updated_files
-    indexRunPhase.value = 'refreshing_views'
-    indexFinalizeCompleted.value = 0
-    indexFinalizeTotal.value = 1
-    await refreshBacklinks()
-    indexFinalizeCompleted.value = 1
-    filesystem.indexingState.value = 'indexed'
-    semanticIndexState.value = 'idle'
-    indexRunPhase.value = 'done'
-    indexRunLastFinishedAt.value = Date.now()
-  } catch (err) {
-    filesystem.indexingState.value = 'out_of_sync'
-    semanticIndexState.value = 'error'
-    indexRunPhase.value = 'error'
-    indexRunMessage.value = err instanceof Error ? err.message : 'Could not update wikilinks.'
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update wikilinks.'
-  }
-}
-
 function onEditorPathRenamed(payload: { from: string; to: string; manual: boolean }) {
-  applyPathRenameLocally(payload)
-  void favorites.renameFavorite(payload.from, payload.to).catch((err) => {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update favorite.'
+  void workspaceMutationEffects.handlePathRenamed(payload).catch((err) => {
+    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update wikilinks.'
   })
-  void maybeRewriteWikilinksForRename(payload.from, payload.to)
 }
 
 function onExplorerPathRenamed(payload: { from: string; to: string }) {
-  applyPathRenameLocally(payload)
-  void favorites.renameFavorite(payload.from, payload.to).catch((err) => {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update favorite.'
+  void workspaceMutationEffects.handlePathRenamed(payload).catch((err) => {
+    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update wikilinks.'
   })
-  void maybeRewriteWikilinksForRename(payload.from, payload.to)
+}
+
+function onExplorerPathsMoved(moves: PathMove[]) {
+  void workspaceMutationEffects.handlePathsMoved(moves).catch((err) => {
+    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not update wikilinks.'
+  })
 }
 
 async function renameFileFromTitle(path: string, rawTitle: string): Promise<RenameFromTitleResult> {
@@ -3230,6 +3211,7 @@ onBeforeUnmount(() => {
         @set-sidebar-mode="setSidebarMode"
         @explorer-open="onExplorerOpen"
         @explorer-path-renamed="onExplorerPathRenamed"
+        @explorer-paths-moved="onExplorerPathsMoved"
         @explorer-paths-deleted="onExplorerPathsDeleted"
         @explorer-request-create="onExplorerRequestCreate"
         @explorer-selection="onExplorerSelection"

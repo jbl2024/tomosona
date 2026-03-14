@@ -17,7 +17,7 @@ import { hasActiveOpenTrace } from '../../shared/lib/openTrace'
  */
 
 /** Identifies which indexing workflow currently owns the shell progress state. */
-export type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'rename'
+export type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'mutation'
 /** Describes the current step within the active indexing workflow. */
 export type IndexRunPhase = 'idle' | 'indexing_files' | 'refreshing_views' | 'done' | 'error'
 /** Tracks the delayed semantic indexing pipeline independently from lexical indexing. */
@@ -76,6 +76,11 @@ export type UseAppIndexingControllerOptions = {
   indexingDocumentPort: AppIndexingDocumentPort
   indexingSurfacePort: AppIndexingSurfacePort
   indexingUiEffectsPort?: AppIndexingUiEffectsPort
+}
+
+export type WorkspaceMutationResult = {
+  updatedFiles: number
+  reindexedFiles: number
 }
 
 /**
@@ -198,13 +203,13 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       }
       return 'rebuilding lexical and semantic index'
     }
-    if (indexRunKind.value === 'rename') {
+    if (indexRunKind.value === 'mutation') {
       if (indexRunPhase.value === 'refreshing_views') {
         const total = Math.max(1, indexFinalizeTotal.value)
         const completed = Math.min(indexFinalizeCompleted.value, total)
         return `refreshing views ${completed}/${total}`
       }
-      return 'rewriting wikilinks'
+      return 'updating note links'
     }
     return 'indexing'
   })
@@ -748,6 +753,45 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /**
+   * Runs a foreground path-mutation workflow and refreshes derived shell views
+   * exactly once after the caller's rewrite/reindex task completes.
+   */
+  async function runWorkspaceMutation(task: () => Promise<WorkspaceMutationResult>) {
+    const root = indexingShellPort.workingFolderPath.value
+    if (!root) return
+
+    indexRunKind.value = 'mutation'
+    indexRunPhase.value = 'indexing_files'
+    indexRunCurrentPath.value = ''
+    indexRunCompleted.value = 0
+    indexRunTotal.value = 0
+    indexFinalizeCompleted.value = 0
+    indexFinalizeTotal.value = 0
+    indexRunMessage.value = ''
+    indexingShellPort.indexingState.value = 'indexing'
+    semanticIndexState.value = 'running'
+
+    try {
+      const result = await task()
+      const completed = Math.max(result.reindexedFiles, result.updatedFiles)
+      indexRunTotal.value = completed
+      indexRunCompleted.value = completed
+      indexRunPhase.value = 'refreshing_views'
+      await refreshIndexedViewsDeferred()
+      indexingShellPort.indexingState.value = 'indexed'
+      semanticIndexState.value = 'idle'
+      indexRunPhase.value = 'done'
+      indexRunLastFinishedAt.value = Date.now()
+    } catch (err) {
+      indexingShellPort.indexingState.value = 'out_of_sync'
+      semanticIndexState.value = 'error'
+      indexRunPhase.value = 'error'
+      indexRunMessage.value = err instanceof Error ? err.message : 'Could not update workspace links.'
+      throw err
+    }
+  }
+
   /** Stops the current run using either local queue cancellation or backend cancellation. */
   async function stopCurrentIndexOperation() {
     if (!indexRunning.value) return
@@ -854,6 +898,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     enqueueMarkdownReindex,
     removeMarkdownFromIndexInBackground,
     rebuildIndex,
+    runWorkspaceMutation,
     resetIndexingState,
     dispose
   }

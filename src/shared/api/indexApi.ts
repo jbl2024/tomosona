@@ -3,6 +3,8 @@ import { toEchoesPack, type EchoesPack } from '../../domains/echoes/lib/echoes'
 import type {
   IndexLogEntry,
   IndexRuntimeStatus,
+  PathMove,
+  PathMoveRewriteResult,
   SemanticLink,
   WikilinkGraph
 } from './apiTypes'
@@ -68,6 +70,18 @@ export async function updateWikilinksForRename(
   newPath: string
 ): Promise<{ updated_files: number }> {
   return await invoke('update_wikilinks_for_rename', { oldPath, newPath })
+}
+
+/** Updates workspace wikilinks after one or more successful path moves. */
+export async function updateWikilinksForPathMoves(
+  moves: PathMove[]
+): Promise<PathMoveRewriteResult> {
+  return await invoke('update_wikilinks_for_path_moves', {
+    moves: moves.map((move) => ({
+      fromPath: move.from,
+      toPath: move.to
+    }))
+  })
 }
 
 /** Rebuilds the full workspace index. */

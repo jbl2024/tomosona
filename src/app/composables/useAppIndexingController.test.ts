@@ -142,6 +142,34 @@ describe('useAppIndexingController', () => {
     expect(refreshBacklinks).toHaveBeenCalled()
   })
 
+  it('runs a workspace mutation and refreshes derived views once', async () => {
+    const { controller, indexingState, refreshBacklinks } = createController()
+
+    await controller.runWorkspaceMutation(async () => ({
+      updatedFiles: 2,
+      reindexedFiles: 3
+    }))
+
+    expect(indexingState.value).toBe('indexed')
+    expect(controller.indexRunKind.value).toBe('mutation')
+    expect(controller.indexRunCompleted.value).toBe(3)
+    expect(controller.indexRunPhase.value).toBe('done')
+    expect(refreshBacklinks).toHaveBeenCalledOnce()
+  })
+
+  it('marks the index out of sync when a workspace mutation fails', async () => {
+    const { controller, indexingState } = createController()
+
+    await expect(controller.runWorkspaceMutation(async () => {
+      throw new Error('rewrite failed')
+    })).rejects.toThrow('rewrite failed')
+
+    expect(indexingState.value).toBe('out_of_sync')
+    expect(controller.semanticIndexState.value).toBe('error')
+    expect(controller.indexRunPhase.value).toBe('error')
+    expect(controller.indexRunMessage.value).toBe('rewrite failed')
+  })
+
   it('ignores non-markdown paths when queueing reindex work', async () => {
     const { controller, indexingState, reindexMarkdownFileLexical } = createController()
 

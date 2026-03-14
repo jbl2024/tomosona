@@ -12,6 +12,7 @@ import type { EchoesItem } from '../lib/echoes'
 type UseEchoesPackOptions = {
   limit?: number
   enabled?: MaybeRefOrGetter<boolean>
+  refreshKey?: MaybeRefOrGetter<unknown>
 }
 
 /**
@@ -66,7 +67,11 @@ export function useEchoesPack(
   }
 
   watch(
-    () => [toValue(anchorPath)?.trim() || '', toValue(options.enabled ?? true)] as const,
+    () => [
+      toValue(anchorPath)?.trim() || '',
+      toValue(options.enabled ?? true),
+      toValue(options.refreshKey)
+    ] as const,
     () => {
       void refresh()
     },

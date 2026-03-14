@@ -3,6 +3,7 @@ import { DnDProvider } from '@vue-dnd-kit/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { EntryKind, TreeNode } from '../../../shared/api/apiTypes'
+import type { PathMove } from '../../../shared/api/apiTypes'
 import { listenWorkspaceFsChanged, openPathExternal } from '../../../shared/api/workspaceApi'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
 import ExplorerConfirmDialog from './ExplorerConfirmDialog.vue'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   select: [paths: string[]]
   error: [message: string]
   'path-renamed': [payload: { from: string; to: string }]
+  'paths-moved': [moves: PathMove[]]
   'paths-deleted': [paths: string[]]
   'request-create': [payload: { parentPath: string; entryKind: EntryKind }]
   'toggle-context': [path: string]
@@ -103,6 +105,7 @@ const operations = useExplorerOperations({
   emitError: (message) => emit('error', message),
   emitOpen: (path) => emit('open', path),
   emitPathRenamed: (payload) => emit('path-renamed', payload),
+  emitPathsMoved: (moves) => emit('paths-moved', moves),
   emitPathsDeleted: (paths) => emit('paths-deleted', paths),
   emitRequestCreate: (payload) => emit('request-create', payload),
   loadChildren: treeState.loadChildren,

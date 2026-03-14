@@ -5,7 +5,7 @@ import SearchSidebarPanel from './SearchSidebarPanel.vue'
 import ExplorerTree from '../../../domains/explorer/components/ExplorerTree.vue'
 import FavoritesListPanel from '../../../domains/favorites/components/FavoritesListPanel.vue'
 import type { SearchMode } from '../../../shared/lib/searchMode'
-import type { FavoriteEntry } from '../../../shared/api/apiTypes'
+import type { FavoriteEntry, PathMove } from '../../../shared/api/apiTypes'
 
 /**
  * Module: SidebarSurface
@@ -45,6 +45,7 @@ const emit = defineEmits<{
   setSidebarMode: [mode: 'explorer' | 'favorites' | 'search']
   explorerOpen: [path: string]
   explorerPathRenamed: [payload: { from: string; to: string }]
+  explorerPathsMoved: [moves: PathMove[]]
   explorerPathsDeleted: [paths: string[]]
   explorerRequestCreate: [payload: { parentPath: string; entryKind: 'file' | 'folder' }]
   explorerSelection: [paths: string[]]
@@ -126,6 +127,7 @@ defineExpose({
           :active-path="activeFilePath"
           @open="emit('explorerOpen', $event)"
           @path-renamed="emit('explorerPathRenamed', $event)"
+          @paths-moved="emit('explorerPathsMoved', $event)"
           @paths-deleted="emit('explorerPathsDeleted', $event)"
           @request-create="emit('explorerRequestCreate', $event)"
           @select="emit('explorerSelection', $event)"

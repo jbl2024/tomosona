@@ -203,6 +203,7 @@ defineExpose<EditorSurfaceExposed>({
     :requested-prompt="secondBrain.requestedPrompt"
     :requested-prompt-nonce="secondBrain.requestedPromptNonce"
     :active-note-path="secondBrain.activeNotePath"
+    :echoes-refresh-token="secondBrain.echoesRefreshToken"
     @open-note="emit('open-note', $event)"
     @context-changed="emit('second-brain-context-changed', $event)"
     @session-changed="emit('second-brain-session-changed', $event)"

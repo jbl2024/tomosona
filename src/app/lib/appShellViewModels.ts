@@ -46,6 +46,7 @@ export type AppShellSecondBrainViewModel = {
   requestedPrompt: string
   requestedPromptNonce: number
   activeNotePath: string
+  echoesRefreshToken: number
 }
 
 /** View-model consumed by Home/Launchpad pane surfaces. */

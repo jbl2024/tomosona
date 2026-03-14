@@ -143,4 +143,33 @@ describe('useEchoesPack', () => {
     expect(state?.empty.value).toBe(true)
     scope.stop()
   })
+
+  it('refreshes when the refresh key changes without changing anchor', async () => {
+    api.computeEchoesPack
+      .mockResolvedValueOnce({
+        anchorPath: '/vault/a.md',
+        generatedAtMs: 1,
+        items: []
+      })
+      .mockResolvedValueOnce({
+        anchorPath: '/vault/a.md',
+        generatedAtMs: 2,
+        items: []
+      })
+
+    const scope = effectScope()
+    const anchor = ref('/vault/a.md')
+    const refreshKey = ref(0)
+    scope.run(() => useEchoesPack(anchor, { refreshKey }))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    refreshKey.value = 1
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(api.computeEchoesPack).toHaveBeenCalledTimes(2)
+    expect(api.computeEchoesPack).toHaveBeenNthCalledWith(2, '/vault/a.md', { limit: undefined })
+    scope.stop()
+  })
 })

@@ -76,6 +76,17 @@ export type SemanticLink = {
   direction: 'incoming' | 'outgoing'
 }
 
+export type PathMove = {
+  from: string
+  to: string
+}
+
+export type PathMoveRewriteResult = {
+  updated_files: number
+  reindexed_files: number
+  moved_markdown_files: number
+}
+
 export type SecondBrainConfigStatus = {
   configured: boolean
   provider: string | null

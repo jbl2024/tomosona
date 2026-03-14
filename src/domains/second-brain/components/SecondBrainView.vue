@@ -36,6 +36,7 @@ const props = defineProps<{
   requestedPrompt: string
   requestedPromptNonce: number
   activeNotePath?: string
+  echoesRefreshToken?: number
 }>()
 
 const emit = defineEmits<{
@@ -137,7 +138,10 @@ const echoesAnchorPath = computed(() => {
   return ''
 })
 const showEchoesPanel = computed(() => echoesAnchorPath.value.trim().length > 0)
-const echoes = useEchoesPack(echoesAnchorPath, { limit: 5 })
+const echoes = useEchoesPack(echoesAnchorPath, {
+  limit: 5,
+  refreshKey: () => props.echoesRefreshToken ?? 0
+})
 const pulseActions = computed(() => PULSE_ACTIONS_BY_SOURCE.second_brain_context)
 const pulseDropdownItems = computed(() => getPulseDropdownItems('second_brain_context', { grouped: true }))
 const activePulseAction = computed(

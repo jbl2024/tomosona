@@ -14,6 +14,7 @@ import {
   getParentPath,
   isConflictError
 } from '../lib/explorerTreeUtils'
+import type { PathMove } from '../../../shared/api/apiTypes'
 
 /** Explorer clipboard state shared across menu, keyboard, and row actions. */
 export type ExplorerClipboard = {
@@ -50,6 +51,7 @@ export type UseExplorerOperationsOptions = {
   emitError: (message: string) => void
   emitOpen: (path: string) => void
   emitPathRenamed: (payload: { from: string; to: string }) => void
+  emitPathsMoved: (moves: PathMove[]) => void
   emitPathsDeleted: (paths: string[]) => void
   emitRequestCreate: (payload: { parentPath: string; entryKind: EntryKind }) => void
   loadChildren: (dirPath: string) => Promise<void>
@@ -257,18 +259,25 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
     if (!options.folderPath.value || !targetDir || !sourcePaths.length) return
 
     const movedPaths: string[] = []
+    const movedPairs: PathMove[] = []
 
     await runWithConflictModal(
       async (strategy) => {
         for (const source of sourcePaths) {
           const moved = await moveEntry(source, targetDir, strategy)
           movedPaths.push(moved)
+          if (moved && moved !== source) {
+            movedPairs.push({ from: source, to: moved })
+          }
         }
 
         await options.refreshLoadedDirs()
         options.setSelection(movedPaths)
         options.focusedPath.value = movedPaths[0] ?? ''
         options.emitSelection(movedPaths)
+        if (movedPairs.length) {
+          options.emitPathsMoved(movedPairs)
+        }
       },
       'Name conflict while moving',
       'Choose how to handle conflicts.'

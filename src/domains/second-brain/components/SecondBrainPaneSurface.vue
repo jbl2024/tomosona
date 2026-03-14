@@ -9,6 +9,7 @@ defineProps<{
   requestedPrompt: string
   requestedPromptNonce: number
   activeNotePath: string
+  echoesRefreshToken: number
 }>()
 
 const emit = defineEmits<{
@@ -28,6 +29,7 @@ const emit = defineEmits<{
       :requested-prompt="requestedPrompt"
       :requested-prompt-nonce="requestedPromptNonce"
       :active-note-path="activeNotePath"
+      :echoes-refresh-token="echoesRefreshToken"
       @open-note="emit('open-note', $event)"
       @context-changed="emit('context-changed', $event)"
       @session-changed="emit('session-changed', $event)"

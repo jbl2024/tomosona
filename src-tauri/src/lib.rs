@@ -68,8 +68,9 @@ use search_index::{
 use wikilink_graph::{
     backlinks_for_path as backlinks_for_path_impl, get_wikilink_graph as get_wikilink_graph_impl,
     semantic_links_for_path as semantic_links_for_path_impl,
-    update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, SemanticLink,
-    WikilinkGraphDto, WikilinkRewriteResult,
+    update_wikilinks_for_path_moves as update_wikilinks_for_path_moves_impl,
+    update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, PathMoveInput,
+    PathMoveRewriteResult, SemanticLink, WikilinkGraphDto, WikilinkRewriteResult,
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
@@ -330,6 +331,11 @@ fn update_wikilinks_for_rename(
 }
 
 #[tauri::command]
+fn update_wikilinks_for_path_moves(moves: Vec<PathMoveInput>) -> Result<PathMoveRewriteResult> {
+    update_wikilinks_for_path_moves_impl(moves)
+}
+
+#[tauri::command]
 async fn compute_echoes_pack(payload: echoes::ComputeEchoesPackPayload) -> Result<echoes::EchoesPackDto> {
     tauri::async_runtime::spawn_blocking(move || echoes::compute_echoes_pack(payload))
         .await
@@ -380,6 +386,7 @@ pub fn run() {
             backlinks_for_path,
             semantic_links_for_path,
             update_wikilinks_for_rename,
+            update_wikilinks_for_path_moves,
             get_wikilink_graph,
             read_property_type_schema,
             write_property_type_schema,
@@ -764,6 +771,78 @@ mod tests {
             .edges
             .iter()
             .any(|edge| edge.source == "a.md" && edge.target == "notes/nested.md"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn update_wikilinks_for_path_moves_rewrites_links_for_a_moved_note() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-path-move-note-test");
+        let root = workspace.to_string_lossy().to_string();
+
+        fs::create_dir_all(workspace.join("journal")).expect("create journal dir");
+        fs::create_dir_all(workspace.join("archive")).expect("create archive dir");
+        fs::write(workspace.join("journal/foo.md"), "# Foo").expect("write moved note");
+        fs::write(workspace.join("index.md"), "[[journal/foo]]").expect("write inbound link");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        fs::rename(workspace.join("journal/foo.md"), workspace.join("archive/foo.md")).expect("move note");
+        reindex_markdown_file_lexical_sync(workspace.join("archive/foo.md").to_string_lossy().to_string())
+            .expect("reindex moved note");
+
+        let result = update_wikilinks_for_path_moves_impl(vec![PathMoveInput {
+            from_path: format!("{root}/journal/foo.md"),
+            to_path: format!("{root}/archive/foo.md"),
+        }])
+        .expect("rewrite wikilinks");
+
+        assert_eq!(result.updated_files, 1);
+        assert_eq!(result.moved_markdown_files, 1);
+        assert!(result.reindexed_files >= 2);
+        let updated = fs::read_to_string(workspace.join("index.md")).expect("read updated note");
+        assert!(updated.contains("[[archive/foo]]"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn update_wikilinks_for_path_moves_expands_folder_moves_for_descendants() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-path-move-folder-test");
+        let root = workspace.to_string_lossy().to_string();
+
+        fs::create_dir_all(workspace.join("journal/sub")).expect("create journal dir");
+        fs::create_dir_all(workspace.join("archive")).expect("create archive dir");
+        fs::write(workspace.join("journal/a.md"), "# A").expect("write a");
+        fs::write(workspace.join("journal/sub/b.md"), "# B").expect("write b");
+        fs::write(
+            workspace.join("index.md"),
+            "[[journal/a]] and [[journal/sub/b]] and [[other/note]]",
+        )
+        .expect("write inbound links");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        fs::rename(workspace.join("journal"), workspace.join("archive/journal")).expect("move folder");
+
+        let result = update_wikilinks_for_path_moves_impl(vec![PathMoveInput {
+            from_path: format!("{root}/journal"),
+            to_path: format!("{root}/archive/journal"),
+        }])
+        .expect("rewrite folder move");
+
+        assert_eq!(result.updated_files, 1);
+        assert_eq!(result.moved_markdown_files, 2);
+        let updated = fs::read_to_string(workspace.join("index.md")).expect("read updated note");
+        assert!(updated.contains("[[archive/journal/a]]"));
+        assert!(updated.contains("[[archive/journal/sub/b]]"));
+        assert!(updated.contains("[[other/note]]"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

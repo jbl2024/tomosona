@@ -109,7 +109,8 @@ describe('PaneSurfaceHost', () => {
             requestedSessionNonce: 0,
             requestedPrompt: '',
             requestedPromptNonce: 0,
-            activeNotePath: '/vault/a.md'
+            activeNotePath: '/vault/a.md',
+            echoesRefreshToken: 0
           },
           launchpad: {
             showExperience: true,
@@ -197,7 +198,8 @@ describe('PaneSurfaceHost', () => {
             requestedSessionNonce: 0,
             requestedPrompt: '',
             requestedPromptNonce: 0,
-            activeNotePath: ''
+            activeNotePath: '',
+            echoesRefreshToken: 0
           },
           launchpad: {
             showExperience: true,

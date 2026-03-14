@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExplorerOperations } from './useExplorerOperations'
-import type { TreeNode } from '../../../shared/api/apiTypes'
+import type { PathMove, TreeNode } from '../../../shared/api/apiTypes'
 
 const copyEntry = vi.fn<(sourcePath: string, targetDirPath: string, strategy: string) => Promise<string>>()
 const duplicateEntry = vi.fn<(path: string, strategy: string) => Promise<string>>()
@@ -50,6 +50,7 @@ function createOperations() {
   const emittedSelection = vi.fn((paths: string[]) => {
     selected.value = paths
   })
+  const emittedMoves = vi.fn((moves: PathMove[]) => moves)
 
   const ops = useExplorerOperations({
     folderPath: ref('/vault'),
@@ -70,13 +71,14 @@ function createOperations() {
     emitError: vi.fn(),
     emitOpen: vi.fn(),
     emitPathRenamed: vi.fn(),
+    emitPathsMoved: emittedMoves,
     emitPathsDeleted: vi.fn(),
     emitRequestCreate: vi.fn(),
     loadChildren: vi.fn(async () => {}),
     refreshLoadedDirs: vi.fn(async () => {})
   })
 
-  return { ops, focusedPath, selected, emittedSelection }
+  return { ops, focusedPath, selected, emittedSelection, emittedMoves }
 }
 
 describe('useExplorerOperations', () => {
@@ -130,13 +132,14 @@ describe('useExplorerOperations', () => {
 
   it('moves paths directly and updates selection to moved targets', async () => {
     moveEntry.mockResolvedValueOnce('/vault/folder/a.md')
-    const { ops, selected, focusedPath } = createOperations()
+    const { ops, selected, focusedPath, emittedMoves } = createOperations()
 
     await ops.movePaths('/vault/folder', ['/vault/a.md'])
 
     expect(moveEntry).toHaveBeenCalledWith('/vault/a.md', '/vault/folder', 'fail')
     expect(selected.value).toEqual(['/vault/folder/a.md'])
     expect(focusedPath.value).toBe('/vault/folder/a.md')
+    expect(emittedMoves).toHaveBeenCalledWith([{ from: '/vault/a.md', to: '/vault/folder/a.md' }])
   })
 
   it('prompts before moving folders directly', async () => {
