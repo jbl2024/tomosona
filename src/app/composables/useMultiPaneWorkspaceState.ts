@@ -658,9 +658,12 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     if (!from || !to || from === to) return
 
     const targetPaneWithTo = findPaneContainingDocument(to)
+    const renamedTabId = documentTabId(to)
 
     const nextPanes: Record<PaneId, PaneState> = {}
     for (const [paneId, pane] of Object.entries(layout.value.panesById)) {
+      const activeTab = pane.openTabs.find((tab) => tab.id === pane.activeTabId) ?? null
+      const shouldRemapActiveTab = activeTab?.type === 'document' && activeTab.path === from
       const nextTabs: PaneTab[] = []
       for (const tab of pane.openTabs) {
         if (tab.type !== 'document') {
@@ -677,8 +680,9 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
         nextTabs.push(tab)
       }
 
-      const hasActive = nextTabs.some((tab) => tab.id === pane.activeTabId)
-      const resolvedActiveTabId = hasActive ? pane.activeTabId : (nextTabs[0]?.id ?? '')
+      const resolvedActiveTabId = shouldRemapActiveTab
+        ? renamedTabId
+        : (nextTabs.some((tab) => tab.id === pane.activeTabId) ? pane.activeTabId : (nextTabs[0]?.id ?? ''))
       nextPanes[paneId] = {
         ...pane,
         openTabs: nextTabs,

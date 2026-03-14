@@ -22,7 +22,6 @@ export type UseWorkspaceMutationEffectsOptions = {
   filesystemErrorMessage: Ref<string>
   applyLocalPathMoves: (moves: PathMove[], expandedMarkdownMoves: PathMove[]) => void
   renameFavorite: (fromPath: string, toPath: string) => Promise<void>
-  promptWikilinkRewritePermission: (fromPath: string, toPath: string) => Promise<boolean>
   updateWikilinksForRename: (fromPath: string, toPath: string) => Promise<{ updated_files: number }>
   updateWikilinksForPathMoves: (moves: PathMove[]) => Promise<PathMoveRewriteResult>
   runWorkspaceMutation: (task: () => Promise<WorkspaceMutationResult>) => Promise<void>
@@ -71,9 +70,6 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     } catch (err) {
       options.filesystemErrorMessage.value = err instanceof Error ? err.message : 'Could not update favorite.'
     }
-
-    const shouldRewrite = await options.promptWikilinkRewritePermission(payload.from, payload.to)
-    if (!shouldRewrite) return
 
     await options.runWorkspaceMutation(async () => {
       const result = await options.updateWikilinksForRename(payload.from, payload.to)

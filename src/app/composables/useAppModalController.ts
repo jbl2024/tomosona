@@ -21,7 +21,6 @@ export type UseAppModalControllerOptions = {
   shortcutsModalVisible: Readonly<Ref<boolean>>
   aboutModalVisible: Readonly<Ref<boolean>>
   workspaceSetupWizardVisible: Readonly<Ref<boolean>>
-  wikilinkRewriteVisible: Readonly<Ref<boolean>>
   focusEditor: () => void
 }
 
@@ -47,7 +46,6 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
 
   /** Returns the selector for the top-most blocking modal currently visible. */
   function activeModalSelector(): string | null {
-    if (options.wikilinkRewriteVisible.value) return '[data-modal="wikilink-rewrite"]'
     if (options.cosmosCommandLoadingVisible.value) return '[data-modal="cosmos-command-loading"]'
     if (options.indexStatusModalVisible.value) return '[data-modal="index-status"]'
     if (options.shortcutsModalVisible.value) return '[data-modal="shortcuts"]'

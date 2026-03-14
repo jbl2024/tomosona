@@ -20,7 +20,6 @@ function createController() {
     shortcutsModalVisible: ref(false),
     aboutModalVisible: ref(false),
     workspaceSetupWizardVisible: ref(false),
-    wikilinkRewriteVisible: ref(false),
     focusEditor
   })
 

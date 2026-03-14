@@ -8,7 +8,6 @@ function createKeyboard() {
     themePickerVisible: ref(false),
     historyMenuOpen: ref<null | 'back' | 'forward'>(null),
     overflowMenuOpen: ref(false),
-    wikilinkRewriteVisible: ref(false),
     newFileModalVisible: ref(false),
     newFolderModalVisible: ref(false),
     openDateModalVisible: ref(false),
@@ -27,7 +26,6 @@ function createKeyboard() {
     hasActiveTextSelectionInEditor: vi.fn(() => false)
   }
   const actions = {
-    resolveWikilinkRewritePrompt: vi.fn(),
     closeNewFileModal: vi.fn(),
     closeNewFolderModal: vi.fn(),
     closeOpenDateModal: vi.fn(),

@@ -9,7 +9,6 @@ export type AppShellKeyboardStatePort = {
   themePickerVisible: Readonly<Ref<boolean>>
   historyMenuOpen: Readonly<Ref<AppShellKeyboardHistoryMenuSide | null>>
   overflowMenuOpen: Readonly<Ref<boolean>>
-  wikilinkRewriteVisible: Readonly<Ref<boolean>>
   newFileModalVisible: Readonly<Ref<boolean>>
   newFolderModalVisible: Readonly<Ref<boolean>>
   openDateModalVisible: Readonly<Ref<boolean>>
@@ -32,7 +31,6 @@ export type AppShellKeyboardGuardsPort = {
 
 /** Groups the intent callbacks used by the global keyboard controller. */
 export type AppShellKeyboardActionsPort = {
-  resolveWikilinkRewritePrompt: (approved: boolean) => void
   closeNewFileModal: () => void
   closeNewFolderModal: () => void
   closeOpenDateModal: () => void
@@ -99,12 +97,6 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
 
   function handleEscape(event: KeyboardEvent): boolean {
     if (!isEscapeKey(event)) return false
-
-    if (options.statePort.wikilinkRewriteVisible.value) {
-      consume(event)
-      options.actionsPort.resolveWikilinkRewritePrompt(false)
-      return true
-    }
     if (options.statePort.newFileModalVisible.value) {
       consume(event)
       options.actionsPort.closeNewFileModal()

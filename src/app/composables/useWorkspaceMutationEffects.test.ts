@@ -36,7 +36,6 @@ function createEffects() {
     return expandedMarkdownMoves
   })
   const renameFavorite = vi.fn(async () => {})
-  const promptWikilinkRewritePermission = vi.fn(async () => true)
   const updateWikilinksForRename = vi.fn(async () => ({ updated_files: 2 }))
   const updateWikilinksForPathMoves = vi.fn(async () => ({
     updated_files: 3,
@@ -55,7 +54,6 @@ function createEffects() {
     filesystemErrorMessage,
     applyLocalPathMoves,
     renameFavorite,
-    promptWikilinkRewritePermission,
     updateWikilinksForRename,
     updateWikilinksForPathMoves,
     runWorkspaceMutation,
@@ -67,7 +65,6 @@ function createEffects() {
       filesystemErrorMessage,
       applyLocalPathMoves,
       renameFavorite,
-      promptWikilinkRewritePermission,
       updateWikilinksForRename,
       updateWikilinksForPathMoves,
       runWorkspaceMutation,
@@ -86,7 +83,6 @@ describe('useWorkspaceMutationEffects', () => {
       [{ from: '/vault/notes/a.md', to: '/vault/notes/b.md' }],
       [{ from: '/vault/notes/a.md', to: '/vault/notes/b.md' }]
     )
-    expect(ctx.promptWikilinkRewritePermission).toHaveBeenCalledWith('/vault/notes/a.md', '/vault/notes/b.md')
     expect(ctx.runWorkspaceMutation).toHaveBeenCalledOnce()
     expect(ctx.updateWikilinksForRename).toHaveBeenCalledWith('/vault/notes/a.md', '/vault/notes/b.md')
     expect(ctx.bumpEchoesRefreshToken).toHaveBeenCalledOnce()

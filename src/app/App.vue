@@ -10,7 +10,6 @@ import ShortcutsModal from './components/app/ShortcutsModal.vue'
 import AboutModal from './components/app/AboutModal.vue'
 import TopbarNavigationControls from './components/app/TopbarNavigationControls.vue'
 import WorkspaceSetupWizardModal from './components/app/WorkspaceSetupWizardModal.vue'
-import WikilinkRewriteModal from './components/app/WikilinkRewriteModal.vue'
 import WorkspaceEntryModals from './components/app/WorkspaceEntryModals.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import SettingsModal from './components/settings/SettingsModal.vue'
@@ -260,7 +259,6 @@ const propertyParseErrorCount = ref(0)
 const virtualDocs = ref<Record<string, VirtualDoc>>({})
 const overflowMenuOpen = ref(false)
 const editorZoom = ref(1)
-const wikilinkRewritePrompt = ref<{ fromPath: string; toPath: string } | null>(null)
 const workspaceMutationEchoesToken = ref(0)
 const newFileModalVisible = ref(false)
 const newFilePathInput = ref('')
@@ -293,12 +291,6 @@ const hydratedMultiPane = hydrateLayout(
   })()
 )
 const multiPane = useMultiPaneWorkspaceState(hydratedMultiPane ?? createInitialLayout())
-const wikilinkRewriteQueue: Array<{
-  fromPath: string
-  toPath: string
-  resolve: (approved: boolean) => void
-}> = []
-let wikilinkRewriteResolver: ((approved: boolean) => void) | null = null
 const showDebugTools = import.meta.env.DEV
 const appVersion = packageJson.version
 
@@ -539,7 +531,6 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
   filesystemErrorMessage: filesystem.errorMessage,
   applyLocalPathMoves: applyPathMovesLocally,
   renameFavorite: (fromPath, toPath) => favorites.renameFavorite(fromPath, toPath),
-  promptWikilinkRewritePermission,
   updateWikilinksForRename,
   updateWikilinksForPathMoves,
   runWorkspaceMutation,
@@ -559,7 +550,6 @@ const modalController = useAppModalController({
   shortcutsModalVisible,
   aboutModalVisible,
   workspaceSetupWizardVisible,
-  wikilinkRewriteVisible: computed(() => Boolean(wikilinkRewritePrompt.value)),
   focusEditor: () => {
     editorRef.value?.focusEditor()
   }
@@ -1719,7 +1709,6 @@ const keyboard = useAppShellKeyboard({
     themePickerVisible,
     historyMenuOpen,
     overflowMenuOpen,
-    wikilinkRewriteVisible: computed(() => Boolean(wikilinkRewritePrompt.value)),
     newFileModalVisible,
     newFolderModalVisible,
     openDateModalVisible,
@@ -1738,7 +1727,6 @@ const keyboard = useAppShellKeyboard({
     hasActiveTextSelectionInEditor
   },
   actionsPort: {
-    resolveWikilinkRewritePrompt,
     closeNewFileModal,
     closeNewFolderModal,
     closeOpenDateModal,
@@ -2195,54 +2183,6 @@ function applyPathMovesLocally(moves: PathMove[], expandedMarkdownMoves: PathMov
   }
 
   backlinks.value = backlinks.value.map((path) => rewritePathWithMoves(path, normalizedMoves))
-}
-
-function openNextWikilinkRewritePrompt() {
-  if (wikilinkRewritePrompt.value || wikilinkRewriteQueue.length === 0) return
-  const next = wikilinkRewriteQueue.shift()
-  if (!next) return
-  // Renames can enqueue multiple prompts; serialize them to avoid stacked
-  // blocking modals and inconsistent approval order.
-  rememberFocusBeforeModalOpen()
-  wikilinkRewritePrompt.value = {
-    fromPath: next.fromPath,
-    toPath: next.toPath
-  }
-  wikilinkRewriteResolver = next.resolve
-}
-
-function promptWikilinkRewritePermission(fromPath: string, toPath: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    wikilinkRewriteQueue.push({
-      fromPath,
-      toPath,
-      resolve
-    })
-    openNextWikilinkRewritePrompt()
-  })
-}
-
-function resolveWikilinkRewritePrompt(approved: boolean) {
-  const resolve = wikilinkRewriteResolver
-  wikilinkRewriteResolver = null
-  wikilinkRewritePrompt.value = null
-  resolve?.(approved)
-  void nextTick(() => {
-    restoreFocusAfterModalClose()
-  })
-  openNextWikilinkRewritePrompt()
-}
-
-function clearWikilinkRewritePromptQueue() {
-  if (wikilinkRewriteResolver) {
-    wikilinkRewriteResolver(false)
-    wikilinkRewriteResolver = null
-  }
-  wikilinkRewritePrompt.value = null
-  while (wikilinkRewriteQueue.length) {
-    const pending = wikilinkRewriteQueue.shift()
-    pending?.resolve(false)
-  }
 }
 
 function onEditorPathRenamed(payload: { from: string; to: string; manual: boolean }) {
@@ -3114,7 +3054,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  clearWikilinkRewritePromptQueue()
   disposeIndexingController()
   disposeNavigationController()
   disposeShellSearch()
@@ -3506,12 +3445,6 @@ onBeforeUnmount(() => {
       @close="closeAboutModal"
     />
 
-    <WikilinkRewriteModal
-      :prompt="wikilinkRewritePrompt"
-      :from-label="wikilinkRewritePrompt ? toRelativePath(wikilinkRewritePrompt.fromPath) : ''"
-      :to-label="wikilinkRewritePrompt ? toRelativePath(wikilinkRewritePrompt.toPath) : ''"
-      @resolve="resolveWikilinkRewritePrompt"
-    />
   </div>
 </template>
 

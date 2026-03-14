@@ -160,6 +160,23 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(initial.activePaneId).toBe('pane-1')
   })
 
+  it('keeps the renamed document active when the active tab path changes', () => {
+    const store = useMultiPaneWorkspaceState()
+    store.openDocumentInPane('/vault/a.md')
+    store.openDocumentInPane('/vault/b.md')
+
+    expect(store.getActiveDocumentPath()).toBe('/vault/b.md')
+
+    store.replacePath('/vault/b.md', '/vault/b-renamed.md')
+
+    expect(store.getActiveDocumentPath()).toBe('/vault/b-renamed.md')
+    expect(store.layout.value.panesById['pane-1'].activeTabId).toBe('doc:/vault/b-renamed.md')
+    expect(store.layout.value.panesById['pane-1'].openTabs.map((tab) => tab.id)).toEqual([
+      'doc:/vault/a.md',
+      'doc:/vault/b-renamed.md'
+    ])
+  })
+
   it('closes all tabs globally and resets to a single pane', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')
