@@ -18,6 +18,31 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.21.0] - 2026-03-15
+
+### Added
+- feat(second-brain): add table support to markdown renderer (efdb3cb)
+- feat(alters): add starter library dropdown to quick start prompt (1741a96)
+- feat(alters): add workspace alters domain and second brain integration (611d57b)
+
+### Changed
+- style(alter): decrease font size for alter cards (98c4da9)
+- refactor(alters): remove unused color field from alter wizard (7458fdd)
+- refactor(alters): split hero into identity-actions row and full-width metadata row (adfd0df)
+- refactor(alters): remove global badge visibility from manager header (9d9532e)
+- refactor(alters): rebuild manager as compact semantic master-detail view (f309f6d)
+- refactor(alters): move compiled prompt into dedicated modal (880bb1f)
+- refactor(alters): move compiled prompt into full-width inspector panel (8dfbc17)
+- style(alters): reduce typography scale and enable pane scrolling (4e1f3b9)
+- style(alters): compact manager layout and action density (1cf3929)
+- ci: add pull request validation workflow (94f98c9)
+- test(theme): align style contract tests with current token sources (664023f)
+- chore(deps): absorb rust dependabot updates (05f0ecc)
+- chore(deps): absorb tiptap dependabot updates (0fcc807)
+
+### Fixed
+- fix(ui): make modal shell consistently close on escape (dd61356)
+
 ## [0.20.0] - 2026-03-15
 
 ### Added
