@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.21.1] - 2026-03-15
+
+### Fixed
+- fix(editor): ignore delayed duplicate watcher versions while dirty (163125a)
+
 ## [0.21.0] - 2026-03-15
 
 ### Added
