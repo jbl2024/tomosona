@@ -126,7 +126,7 @@ const activeAlterSummary = computed(() => {
 })
 const canSaveDraft = computed(() => Boolean(draft.value.name.trim()) && Boolean(draft.value.mission.trim()))
 const wizardProgressLabel = computed(() => `Step ${wizardStep.value + 1} of ${stepDefinitions.length}`)
-const showCompiledPrompt = ref(false)
+const compiledPromptOpen = ref(false)
 
 function splitMultiline(value: string): string[] {
   return value
@@ -301,8 +301,8 @@ onMounted(() => {
             </div>
             <p class="alter-card__copy">{{ activeAlter.mission }}</p>
             <div class="alter-card-actions">
-              <UiButton size="sm" variant="secondary" @click="showCompiledPrompt = !showCompiledPrompt">
-                {{ showCompiledPrompt ? 'Hide compiled prompt' : 'View compiled prompt' }}
+              <UiButton size="sm" variant="secondary" @click="compiledPromptOpen = true">
+                View compiled prompt
               </UiButton>
             </div>
           </UiPanel>
@@ -360,18 +360,6 @@ onMounted(() => {
           </UiPanel>
         </section>
 
-        <UiPanel v-if="showCompiledPrompt" tone="default" class-name="alter-prompt-panel">
-          <div class="alter-section-head">
-            <div>
-              <p class="alter-section-kicker">Invocation layer</p>
-              <h3>Compiled prompt</h3>
-            </div>
-            <UiButton size="sm" variant="ghost" @click="showCompiledPrompt = false">Close</UiButton>
-          </div>
-          <div class="alter-prompt-panel__body">
-            <pre class="alter-pre alter-pre--scrollable">{{ activeAlter.invocation_prompt }}</pre>
-          </div>
-        </UiPanel>
       </template>
 
       <UiPanel v-else tone="raised" class-name="alter-empty-main">
@@ -391,6 +379,21 @@ onMounted(() => {
         </div>
       </UiPanel>
     </main>
+
+    <UiModalShell
+      :model-value="compiledPromptOpen"
+      title="Compiled prompt"
+      description="Internal invocation layer generated from this Alter's structured fields."
+      width="xl"
+      panel-class="alter-compiled-prompt-modal"
+      @update:modelValue="compiledPromptOpen = $event"
+    >
+      <pre v-if="activeAlter" class="alter-pre alter-pre--modal">{{ activeAlter.invocation_prompt }}</pre>
+
+      <template #footer>
+        <UiButton size="sm" variant="secondary" @click="compiledPromptOpen = false">Close</UiButton>
+      </template>
+    </UiModalShell>
 
     <UiModalShell
       :model-value="quickStartOpen"
@@ -1042,14 +1045,13 @@ onMounted(() => {
   gap: 0.45rem;
 }
 
-.alter-prompt-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+:deep(.alter-compiled-prompt-modal) {
+  max-width: min(72rem, calc(100vw - 2rem));
 }
 
-.alter-prompt-panel__body {
-  min-width: 0;
+.alter-pre--modal {
+  max-height: min(70vh, 42rem);
+  overflow: auto;
 }
 
 .alter-empty,
