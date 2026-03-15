@@ -119,8 +119,10 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     if (typeof window === 'undefined') return
 
     const tryFocus = () => {
-      const selected = editor.view.dom.querySelector('.ProseMirror-selectednode .tomosona-quote-source') as HTMLTextAreaElement | null
-      const fallbacks = Array.from(editor.view.dom.querySelectorAll('.tomosona-quote-source')) as HTMLTextAreaElement[]
+      const editorDom = editor.view?.dom
+      if (!(editorDom instanceof HTMLElement)) return
+      const selected = editorDom.querySelector('.ProseMirror-selectednode .tomosona-quote-source') as HTMLTextAreaElement | null
+      const fallbacks = Array.from(editorDom.querySelectorAll('.tomosona-quote-source')) as HTMLTextAreaElement[]
       const target = selected ?? fallbacks[fallbacks.length - 1] ?? null
       if (!target) return
       target.focus()
@@ -145,8 +147,10 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     if (typeof window === 'undefined') return
 
     const tryFocus = (remainingAttempts: number) => {
-      const selected = editor.view.dom.querySelector('.ProseMirror-selectednode .tomosona-html-textarea') as HTMLTextAreaElement | null
-      const fallbacks = Array.from(editor.view.dom.querySelectorAll('.tomosona-html-textarea')) as HTMLTextAreaElement[]
+      const editorDom = editor.view?.dom
+      if (!(editorDom instanceof HTMLElement)) return
+      const selected = editorDom.querySelector('.ProseMirror-selectednode .tomosona-html-textarea') as HTMLTextAreaElement | null
+      const fallbacks = Array.from(editorDom.querySelectorAll('.tomosona-html-textarea')) as HTMLTextAreaElement[]
       const target = selected ?? fallbacks[fallbacks.length - 1] ?? null
       if (target) {
         const active = document.activeElement

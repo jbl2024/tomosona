@@ -183,4 +183,28 @@ describe('HtmlNodeView', () => {
 
     harness.app.unmount()
   })
+
+  it('leaves source mode when focus moves outside the html editor', async () => {
+    const harness = mountHarness({ initialHtml: '<div>Hello</div>' })
+    await flush()
+
+    const toggle = harness.root.querySelector('.tomosona-html-toggle-btn') as HTMLButtonElement
+    toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-html-textarea') as HTMLTextAreaElement
+    expect(document.activeElement).toBe(textarea)
+
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    outside.focus()
+    await flush()
+
+    const wrapper = harness.root.querySelector('.tomosona-html-node') as HTMLElement
+    expect(document.activeElement).toBe(outside)
+    expect(wrapper.classList.contains('is-editing')).toBe(false)
+    expect(harness.root.querySelector('.tomosona-html-textarea')).toBeNull()
+
+    harness.app.unmount()
+  })
 })

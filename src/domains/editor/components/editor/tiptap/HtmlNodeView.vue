@@ -30,6 +30,7 @@ const props = defineProps<{
 
 const sourceTextarea = ref<HTMLTextAreaElement | null>(null)
 const sourcePre = ref<HTMLElement | null>(null)
+const sourceShell = ref<HTMLElement | null>(null)
 const showSource = ref(false)
 const sourceEditorHeight = ref('0px')
 let pendingSourceFocusOptions: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean } | null = null
@@ -285,6 +286,15 @@ function onPreviewModifierClick(event: MouseEvent) {
   openSourceEditor({ placeCaretAtEnd: true })
 }
 
+function onSourceBlur() {
+  window.setTimeout(() => {
+    if (!showSource.value) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement && sourceShell.value?.contains(active)) return
+    showSource.value = false
+  }, 0)
+}
+
 function syncHighlightedScroll() {
   if (!sourceTextarea.value || !sourcePre.value) return
   sourcePre.value.scrollTop = sourceTextarea.value.scrollTop
@@ -429,7 +439,7 @@ watch(html, () => {
           @click="onPreviewModifierClick"
         ></div>
 
-        <div v-else class="tomosona-html-source-shell">
+        <div v-else ref="sourceShell" class="tomosona-html-source-shell">
           <pre ref="sourcePre" class="tomosona-html-source" :style="{ height: sourceEditorHeight }" aria-hidden="true"><code class="hljs language-xml" v-html="highlightedSource"></code></pre>
           <textarea
             ref="sourceTextarea"
@@ -437,6 +447,7 @@ watch(html, () => {
             :value="html"
             :style="{ height: sourceEditorHeight }"
             spellcheck="false"
+            @blur="onSourceBlur"
             @input="onInput"
             @scroll="syncHighlightedScroll"
             @keydown="onEditorKeydown"
