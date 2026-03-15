@@ -31,6 +31,7 @@ const languageQuery = ref('')
 const activeLanguageIndex = ref(0)
 
 const currentLanguage = computed(() => props.node.attrs.language ?? '')
+const controlsVisible = computed(() => showLangMenu.value)
 const codeClass = computed(() => ({
   hljs: true,
   [`language-${currentLanguage.value}`]: Boolean(currentLanguage.value)
@@ -108,61 +109,102 @@ onBeforeUnmount(() => {
 
 <template>
   <NodeViewWrapper class="tomosona-code-node">
-    <div class="tomosona-code-node-actions" contenteditable="false">
-      <UiFilterableDropdown
-        class="tomosona-code-lang-select"
-        :items="languageItems"
-        :model-value="showLangMenu"
-        :query="languageQuery"
-        :active-index="activeLanguageIndex"
-        :matcher="languageMatcher"
-        filter-placeholder="Filter language..."
-        :show-filter="true"
-        :max-height="260"
-        @open-change="showLangMenu = $event"
-        @query-change="languageQuery = $event"
-        @active-index-change="activeLanguageIndex = $event"
-        @select="onLanguageSelect($event)"
-      >
-        <template #trigger="{ toggleMenu }">
-          <button
-            type="button"
-            class="tomosona-code-lang-btn"
-            @click.stop="toggleMenu"
-            @mousedown.prevent
-          >
-            {{ currentLanguage || 'plain text' }}
-          </button>
-        </template>
-        <template #item="{ item, active }">
-          <span :class="{ 'tomosona-code-lang-active': active, 'tomosona-code-lang-selected': currentLanguage === item.value }">
-            {{ item.label }}
-          </span>
-        </template>
-      </UiFilterableDropdown>
-      <button
-        type="button"
-        class="tomosona-code-wrap-btn"
-        @mousedown.prevent
-        @click="setWrapEnabled(!wrapEnabled)"
-      >
-        {{ wrapEnabled ? 'Unwrap' : 'Wrap' }}
-      </button>
-      <button
-        type="button"
-        class="tomosona-code-copy-btn"
-        @mousedown.prevent
-        @click="void copyCode()"
-      >
-        Copy
-      </button>
-    </div>
+    <div
+      class="tomosona-code-node-surface"
+      :class="{ 'is-controls-open': controlsVisible }"
+      :data-controls-open="controlsVisible ? 'true' : 'false'"
+    >
+      <div class="tomosona-code-node-actions" contenteditable="false">
+        <UiFilterableDropdown
+          class="tomosona-code-lang-select"
+          :items="languageItems"
+          :model-value="showLangMenu"
+          :query="languageQuery"
+          :active-index="activeLanguageIndex"
+          :matcher="languageMatcher"
+          filter-placeholder="Filter language..."
+          :show-filter="true"
+          :max-height="260"
+          @open-change="showLangMenu = $event"
+          @query-change="languageQuery = $event"
+          @active-index-change="activeLanguageIndex = $event"
+          @select="onLanguageSelect($event)"
+        >
+          <template #trigger="{ toggleMenu }">
+            <button
+              type="button"
+              class="tomosona-code-lang-btn"
+              @click.stop="toggleMenu"
+              @mousedown.prevent
+            >
+              {{ currentLanguage || 'plain text' }}
+            </button>
+          </template>
+          <template #item="{ item, active }">
+            <span :class="{ 'tomosona-code-lang-active': active, 'tomosona-code-lang-selected': currentLanguage === item.value }">
+              {{ item.label }}
+            </span>
+          </template>
+        </UiFilterableDropdown>
+        <button
+          type="button"
+          class="tomosona-code-node-wrap-btn"
+          @mousedown.prevent
+          @click="setWrapEnabled(!wrapEnabled)"
+        >
+          {{ wrapEnabled ? 'Unwrap' : 'Wrap' }}
+        </button>
+        <button
+          type="button"
+          class="tomosona-code-node-copy-btn"
+          @mousedown.prevent
+          @click="void copyCode()"
+        >
+          Copy
+        </button>
+      </div>
 
-    <pre :class="preClass"><NodeViewContent as="code" :class="codeClass" /></pre>
+      <pre :class="preClass"><NodeViewContent as="code" :class="codeClass" /></pre>
+    </div>
   </NodeViewWrapper>
 </template>
 
 <style scoped>
+.tomosona-code-node {
+  margin: 0.5rem 0;
+}
+
+.tomosona-code-node-surface {
+  position: relative;
+}
+
+.tomosona-code-node pre {
+  margin: 0;
+  padding-top: 2.65rem;
+}
+
+.tomosona-code-node-actions {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.tomosona-code-node:hover .tomosona-code-node-actions,
+.tomosona-code-node:focus-within .tomosona-code-node-actions,
+.tomosona-code-node-surface.is-controls-open .tomosona-code-node-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .tomosona-code-node pre,
 .tomosona-code-node code {
   font-family: var(--font-code);
@@ -201,22 +243,42 @@ onBeforeUnmount(() => {
   color: var(--editor-code-function);
 }
 
-.tomosona-code-lang-select {
-  position: relative;
-}
-
 .tomosona-code-lang-btn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  color: var(--color-text);
+  border: 1px solid var(--editor-block-control-border);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--editor-block-control-bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--editor-block-control-text);
   cursor: pointer;
-  font-size: 12px;
-  padding: 4px 8px;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.28rem 0.45rem;
 }
 
 .tomosona-code-lang-btn:hover {
-  background: var(--color-bg-hover);
+  background: var(--editor-block-control-hover);
+}
+
+.tomosona-code-node-wrap-btn,
+.tomosona-code-node-copy-btn {
+  border: 1px solid var(--editor-block-control-border);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--editor-block-control-bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--editor-block-control-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.28rem 0.45rem;
+}
+
+.tomosona-code-node-wrap-btn:hover,
+.tomosona-code-node-copy-btn:hover {
+  background: var(--editor-block-control-hover);
+}
+
+.tomosona-code-lang-select {
+  position: relative;
 }
 
 .tomosona-code-lang-select :deep(.ui-filterable-dropdown-menu) {
