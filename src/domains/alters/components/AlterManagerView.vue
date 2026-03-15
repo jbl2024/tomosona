@@ -24,7 +24,6 @@ import UiInput from '../../../shared/components/ui/UiInput.vue'
 import UiModalShell from '../../../shared/components/ui/UiModalShell.vue'
 import UiPanel from '../../../shared/components/ui/UiPanel.vue'
 import UiSelect from '../../../shared/components/ui/UiSelect.vue'
-import UiSeparator from '../../../shared/components/ui/UiSeparator.vue'
 import UiTextarea from '../../../shared/components/ui/UiTextarea.vue'
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import { createAlterDraft, useAlterManager } from '../composables/useAlterManager'
@@ -102,6 +101,7 @@ const quickStartPrompt = ref('')
 const quickStartLibraryOpen = ref(false)
 const quickStartLibraryQuery = ref('')
 const quickStartLibraryActiveIndex = ref(0)
+const searchQuery = ref('')
 const {
   list,
   activeAlter,
@@ -117,6 +117,17 @@ const {
   wizardMode,
   draft
 } = manager
+
+const filteredList = computed(() => {
+  if (!searchQuery.value.trim()) return list.value
+  const query = searchQuery.value.toLowerCase()
+  return list.value.filter(item =>
+    item.name.toLowerCase().includes(query) ||
+    (item.description?.toLowerCase().includes(query) ?? false) ||
+    (item.mission?.toLowerCase().includes(query) ?? false) ||
+    (item.category?.toLowerCase().includes(query) ?? false)
+  )
+})
 
 const activeRevisionLabel = computed(() => {
   const revision = previewRevision.value
@@ -343,6 +354,12 @@ function joinMultiline(values: string[]): string {
   return values.join('\n')
 }
 
+function formatInspirationMeta(sourceType: string, weight: number | null): string {
+  const label = sourceType.replace(/_/g, ' ')
+  if (weight == null) return label
+  return `${label} · ${weight}`
+}
+
 function resetDraft() {
   draft.value = createAlterDraft()
 }
@@ -417,181 +434,269 @@ onMounted(() => {
 
 <template>
   <section class="alter-manager">
-    <aside class="alter-sidebar">
-      <UiPanel tone="raised" class-name="alter-sidebar__panel">
-        <div class="alter-sidebar__head">
-          <div>
-            <p class="alter-kicker">Workspace entity</p>
-            <h2 class="alter-sidebar__title">Alters</h2>
-            <p class="alter-sidebar__copy">
-              Configurable lenses for this workspace. They stay local, versioned, and invocable from Second Brain.
-            </p>
-          </div>
-          <div class="alter-card-actions">
-            <UiButton size="sm" variant="secondary" @click="openQuickStart()">
-              <template #leading>
-                <SparklesIcon class="alter-step-button__icon" />
-              </template>
-              Quick Start
-            </UiButton>
-            <UiButton size="sm" variant="primary" @click="manager.openCreateWizard()">Create Alter</UiButton>
-          </div>
-        </div>
-
-        <div class="alter-sidebar__meta">
+    <!-- Top Header -->
+    <header class="alter-header">
+      <div class="alter-header__left">
+        <h1 class="alter-header__title">Alters</h1>
+        <p class="alter-header__description">
+          Configurable lenses for this workspace. They stay local, versioned, and invocable from Second Brain.
+        </p>
+        <div class="alter-header__badges">
           <UiBadge tone="accent">Default: {{ props.settings.default_mode }}</UiBadge>
           <UiBadge tone="neutral">Badge: {{ props.settings.show_badge_in_chat ? 'visible' : 'hidden' }}</UiBadge>
         </div>
-      </UiPanel>
+      </div>
+      <div class="alter-header__actions">
+        <UiButton size="sm" variant="secondary" @click="openQuickStart()">
+          <template #leading>
+            <SparklesIcon class="alter-step-button__icon" />
+          </template>
+          Quick Start
+        </UiButton>
+        <UiButton size="sm" variant="primary" @click="manager.openCreateWizard()">Create Alter</UiButton>
+      </div>
+    </header>
 
-      <UiPanel tone="subtle" class-name="alter-sidebar__list-panel">
-        <div class="alter-section-head">
-          <div>
-            <p class="alter-section-kicker">Collection</p>
-            <h3>Workspace Alters</h3>
+    <!-- Two Column Layout -->
+    <div class="alter-layout">
+      <!-- Master Column (Left) -->
+      <aside class="alter-master">
+        <div class="alter-master__search">
+          <UiInput
+            v-model="searchQuery"
+            placeholder="Search alters..."
+            size="sm"
+          />
+        </div>
+
+        <div class="alter-master__list">
+          <div v-if="loading" class="alter-empty">Loading Alters...</div>
+          <div v-else-if="!filteredList.length" class="alter-empty">
+            No alters found matching your search.
           </div>
-          <span class="alter-section-count">{{ list.length }}</span>
-        </div>
-
-        <div v-if="loading" class="alter-empty">Loading Alters...</div>
-        <div v-else-if="!list.length" class="alter-empty">
-          Create the first Alter to make this workspace opinionated and reusable.
-        </div>
-        <div v-else class="alter-list">
-          <button
-            v-for="item in list"
-            :key="item.id"
-            type="button"
-            class="alter-list-item"
-            :class="{ 'alter-list-item--active': activeAlter?.id === item.id }"
-            @click="void manager.selectAlter(item.id)"
-          >
-            <div class="alter-list-item__head">
-              <strong>{{ item.name }}</strong>
-              <UiBadge :tone="item.is_favorite ? 'accent' : 'neutral'">
-                {{ item.is_favorite ? 'Favorite' : item.category || 'Alter' }}
-              </UiBadge>
-            </div>
-            <p>{{ item.description || item.mission }}</p>
-          </button>
-        </div>
-      </UiPanel>
-    </aside>
-
-    <main class="alter-main">
-      <div v-if="error" class="alter-error">{{ error }}</div>
-
-      <template v-if="activeAlter">
-        <UiPanel tone="raised" class-name="alter-hero">
-          <div class="alter-hero__body">
-            <div>
-              <p class="alter-kicker">First-class workspace entity</p>
-              <h1>{{ activeAlter.name }}</h1>
-              <p class="alter-hero__copy">{{ activeAlter.description || activeAlter.mission }}</p>
-            </div>
-
-            <div class="alter-hero__meta">
-              <UiBadge v-for="item in activeAlterSummary" :key="item" tone="neutral">{{ item }}</UiBadge>
-            </div>
+          <div v-else class="alter-list">
+            <button
+              v-for="item in filteredList"
+              :key="item.id"
+              type="button"
+              class="alter-list-item"
+              :class="{ 'alter-list-item--active': activeAlter?.id === item.id }"
+              @click="void manager.selectAlter(item.id)"
+            >
+              <div class="alter-list-item__head">
+                <strong>{{ item.name }}</strong>
+                <UiBadge :tone="item.is_favorite ? 'accent' : 'neutral'" size="xs">
+                  {{ item.is_favorite ? 'Favorite' : item.category || 'Alter' }}
+                </UiBadge>
+              </div>
+              <p>{{ item.description || item.mission }}</p>
+            </button>
           </div>
+        </div>
+      </aside>
 
-          <div class="alter-hero__actions">
-            <UiButton size="sm" variant="primary" @click="emit('open-second-brain', activeAlter.id)">Invoke In Second Brain</UiButton>
-            <UiButton size="sm" variant="secondary" @click="manager.openEditWizard()">Edit</UiButton>
-            <UiButton size="sm" variant="ghost" @click="void manager.duplicateActiveAlter()">Duplicate</UiButton>
-            <UiButton size="sm" variant="danger" @click="void manager.deleteActiveAlter()">Delete</UiButton>
+      <!-- Detail Column (Right) -->
+      <main class="alter-detail">
+        <div v-if="error" class="alter-error">{{ error }}</div>
+
+        <template v-if="activeAlter">
+          <header class="alter-detail__hero">
+            <div class="alter-detail__identity">
+              <h2 class="alter-detail__title">{{ activeAlter.name }}</h2>
+              <p class="alter-detail__description">{{ activeAlter.description || activeAlter.mission }}</p>
+              <div class="alter-detail__tags">
+                <UiBadge v-for="item in activeAlterSummary" :key="item" tone="neutral" size="sm">{{ item }}</UiBadge>
+                <UiBadge v-if="activeAlter.category" tone="accent" size="sm">{{ activeAlter.category }}</UiBadge>
+              </div>
+            </div>
+
+            <div class="alter-detail__header-actions">
+              <UiButton size="sm" variant="primary" @click="emit('open-second-brain', activeAlter.id)">
+                Invoke In Second Brain
+              </UiButton>
+              <UiButton size="sm" variant="secondary" @click="manager.openEditWizard()">Edit</UiButton>
+              <UiButton size="sm" variant="ghost" @click="void manager.duplicateActiveAlter()">Duplicate</UiButton>
+              <UiButton size="sm" variant="danger" @click="void manager.deleteActiveAlter()">Delete</UiButton>
+            </div>
+          </header>
+
+          <section class="alter-detail__body">
+            <UiPanel tone="default" class-name="alter-detail__mission-panel">
+              <div class="alter-detail__panel-header">
+                <span class="alter-detail__label">Mission</span>
+                <UiBadge tone="accent" size="sm">{{ activeAlter.style.influence_intensity }}</UiBadge>
+              </div>
+              <p class="alter-detail__mission-text">{{ activeAlter.mission }}</p>
+              <div class="alter-detail__mission-actions">
+                <UiButton size="sm" variant="secondary" @click="compiledPromptOpen = true">
+                  View compiled prompt
+                </UiButton>
+              </div>
+            </UiPanel>
+
+            <div class="alter-detail__cards">
+              <UiPanel
+                v-if="activeAlter.principles.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Principles</span>
+                </div>
+                <ul class="alter-detail__logic-list">
+                  <li v-for="item in activeAlter.principles" :key="`principle-${item}`">
+                    {{ item }}
+                  </li>
+                </ul>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.reflexes.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Reflexes</span>
+                </div>
+                <ul class="alter-detail__logic-list">
+                  <li v-for="item in activeAlter.reflexes" :key="`reflex-${item}`">
+                    {{ item }}
+                  </li>
+                </ul>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.values.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Values</span>
+                </div>
+                <div class="alter-detail__chip-list">
+                  <UiBadge v-for="item in activeAlter.values" :key="`value-${item}`" tone="neutral" size="sm">
+                    {{ item }}
+                  </UiBadge>
+                </div>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.critiques.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Critiques</span>
+                </div>
+                <ul class="alter-detail__logic-list">
+                  <li v-for="item in activeAlter.critiques" :key="`critique-${item}`">
+                    {{ item }}
+                  </li>
+                </ul>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.blind_spots.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Blind Spots</span>
+                </div>
+                <ul class="alter-detail__logic-list">
+                  <li v-for="item in activeAlter.blind_spots" :key="`blind-${item}`">
+                    {{ item }}
+                  </li>
+                </ul>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.inspirations.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">Inspirations</span>
+                </div>
+                <div class="alter-detail__source-list">
+                  <div
+                    v-for="item in activeAlter.inspirations"
+                    :key="item.id || `${item.label}-${item.reference_id}`"
+                    class="alter-detail__source-row"
+                  >
+                    <strong>{{ item.label || 'Untitled source' }}</strong>
+                    <UiBadge tone="neutral" size="sm">
+                      {{ formatInspirationMeta(item.source_type, item.weight) }}
+                    </UiBadge>
+                  </div>
+                </div>
+              </UiPanel>
+
+              <UiPanel
+                v-if="activeAlter.system_hints.length"
+                tone="default"
+                class-name="alter-detail__panel alter-detail__card"
+              >
+                <div class="alter-detail__panel-header">
+                  <span class="alter-detail__label">System Hints</span>
+                </div>
+                <ul class="alter-detail__logic-list">
+                  <li v-for="item in activeAlter.system_hints" :key="`hint-${item}`">
+                    {{ item }}
+                  </li>
+                </ul>
+              </UiPanel>
+            </div>
+
+            <UiPanel tone="default" class-name="alter-detail__panel alter-detail__revision-panel">
+              <div class="alter-detail__panel-header">
+                <div class="alter-detail__stack">
+                  <span class="alter-detail__label">Revision History</span>
+                  <p class="alter-detail__hint">A snapshot is created each time you save the Alter.</p>
+                </div>
+              </div>
+              <div class="alter-revision-table">
+                <div
+                  v-for="item in revisions"
+                  :key="item.revision_id"
+                  class="alter-revision-row"
+                  :class="{ 'alter-revision-row--active': previewRevision?.revision_id === item.revision_id }"
+                  @click="void manager.openRevision(item.revision_id)"
+                >
+                  <span class="alter-revision-date">{{ new Date(item.created_at_ms).toLocaleString() }}</span>
+                  <span class="alter-revision-reason">{{ item.reason || 'saved snapshot' }}</span>
+                </div>
+              </div>
+              <div v-if="previewRevision" class="alter-revision-preview">
+                <span class="alter-detail__label">Snapshot: {{ activeRevisionLabel }}</span>
+                <pre v-if="previewRevisionPrompt" class="alter-pre">{{ previewRevisionPrompt }}</pre>
+                <p v-else class="alter-empty">Revision snapshot unavailable.</p>
+              </div>
+            </UiPanel>
+          </section>
+        </template>
+
+        <!-- Empty State -->
+        <UiPanel v-else tone="raised" class-name="alter-empty-main">
+          <div class="alter-empty-main__content">
+            <p class="alter-detail__label">No active Alter</p>
+            <h2 class="alter-empty-main__title">Select or create one</h2>
+            <p class="alter-empty-main__copy">
+              Alters belong to the workspace and stay visible here instead of hiding in Settings.
+            </p>
+            <div class="alter-empty-main__actions">
+              <UiButton size="sm" variant="secondary" @click="openQuickStart()">
+                <template #leading>
+                  <SparklesIcon class="alter-step-button__icon" />
+                </template>
+                Quick Start
+              </UiButton>
+              <UiButton size="sm" variant="primary" @click="manager.openCreateWizard()">Create Alter</UiButton>
+            </div>
           </div>
         </UiPanel>
-
-        <section class="alter-grid">
-          <UiPanel tone="default" class-name="alter-card">
-            <div class="alter-section-head">
-              <div>
-                <p class="alter-section-kicker">Role</p>
-                <h3>Mission</h3>
-              </div>
-              <UiBadge tone="accent">{{ activeAlter.style.influence_intensity }}</UiBadge>
-            </div>
-            <p class="alter-card__copy">{{ activeAlter.mission }}</p>
-            <div class="alter-card-actions">
-              <UiButton size="sm" variant="secondary" @click="compiledPromptOpen = true">
-                View compiled prompt
-              </UiButton>
-            </div>
-          </UiPanel>
-
-          <UiPanel tone="default" class-name="alter-card">
-            <div class="alter-section-head">
-              <div>
-                <p class="alter-section-kicker">Operating logic</p>
-                <h3>Principles and reflexes</h3>
-              </div>
-            </div>
-
-            <div class="alter-chip-list">
-              <UiBadge v-for="item in activeAlter.principles" :key="`principle-${item}`" tone="neutral">
-                {{ item }}
-              </UiBadge>
-            </div>
-
-            <UiSeparator />
-
-            <div class="alter-chip-list">
-              <UiBadge v-for="item in activeAlter.reflexes" :key="`reflex-${item}`" tone="accent">
-                {{ item }}
-              </UiBadge>
-            </div>
-          </UiPanel>
-
-          <UiPanel tone="default" class-name="alter-card">
-            <div class="alter-section-head">
-              <div>
-                <p class="alter-section-kicker">Versioning</p>
-                <h3>Revision history</h3>
-              </div>
-            </div>
-
-            <div class="alter-revision-list">
-              <button
-                v-for="item in revisions"
-                :key="item.revision_id"
-                type="button"
-                class="alter-revision-item"
-                @click="void manager.openRevision(item.revision_id)"
-              >
-                <strong>{{ new Date(item.created_at_ms).toLocaleString() }}</strong>
-                <span>{{ item.reason || 'saved snapshot' }}</span>
-              </button>
-            </div>
-
-            <div v-if="previewRevision" class="alter-revision-preview">
-              <p class="alter-section-kicker">Snapshot</p>
-              <strong>{{ activeRevisionLabel }}</strong>
-              <pre v-if="previewRevisionPrompt" class="alter-pre">{{ previewRevisionPrompt }}</pre>
-              <p v-else class="alter-empty">Revision snapshot unavailable.</p>
-            </div>
-          </UiPanel>
-        </section>
-
-      </template>
-
-      <UiPanel v-else tone="raised" class-name="alter-empty-main">
-        <p class="alter-kicker">No active Alter</p>
-        <h2>Select or create one</h2>
-        <p class="alter-empty-main__copy">
-          Alters belong to the workspace and stay visible here instead of hiding in Settings.
-        </p>
-        <div class="alter-card-actions">
-          <UiButton size="sm" variant="secondary" @click="openQuickStart()">
-            <template #leading>
-              <SparklesIcon class="alter-step-button__icon" />
-            </template>
-            Quick Start
-          </UiButton>
-          <UiButton size="sm" variant="primary" @click="manager.openCreateWizard()">Create Alter</UiButton>
-        </div>
-      </UiPanel>
-    </main>
+      </main>
+    </div>
 
     <UiModalShell
       :model-value="compiledPromptOpen"
@@ -1085,107 +1190,95 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* ===== Layout Architecture ===== */
 .alter-manager {
-  display: grid;
-  grid-template-columns: 20rem minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  overflow: auto;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--accent-soft) 24%, transparent), transparent 34%),
     linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 40%, var(--surface-bg)), var(--surface-bg));
 }
 
-.alter-sidebar,
-.alter-main {
-  min-width: 0;
-  min-height: 0;
-}
-
-.alter-sidebar {
+/* ===== Top Header ===== */
+.alter-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  overflow: auto;
-  padding-right: 0.15rem;
-}
-
-.alter-sidebar__panel,
-.alter-sidebar__list-panel,
-.alter-hero,
-.alter-card,
-.alter-empty-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.alter-sidebar__head,
-.alter-section-head,
-.alter-hero,
-.alter-hero__actions,
-.alter-card-actions,
-.alter-revision-item,
-.alter-wizard__footer {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.alter-sidebar__head,
-.alter-section-head,
-.alter-hero,
-.alter-wizard__footer {
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 80%, transparent);
+  flex-shrink: 0;
 }
 
-.alter-sidebar__title,
-.alter-hero h1,
-.alter-empty-main h2,
-.alter-wizard__intro h3 {
+.alter-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.alter-header__title {
   margin: 0;
-}
-
-.alter-sidebar__title {
-  font-size: 0.92rem;
-  line-height: 1.15;
+  font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-base);
 }
 
-.alter-kicker,
-.alter-section-kicker {
-  margin: 0 0 0.2rem;
-  font-size: 0.64rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.alter-sidebar__copy,
-.alter-hero__copy,
-.alter-card__copy,
-.alter-empty-main__copy,
-.alter-wizard__intro p {
+.alter-header__description {
   margin: 0;
+  font-size: 0.875rem;
   color: var(--text-muted);
-  line-height: 1.3;
-  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
-.alter-sidebar__meta,
-.alter-hero__meta,
-.alter-chip-list,
-.alter-checkbox-grid {
+.alter-header__badges {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  margin-top: 0.25rem;
 }
 
-.alter-section-count {
-  color: var(--text-dim);
-  font-size: 0.76rem;
+.alter-header__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ===== Two Column Layout ===== */
+.alter-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ===== Master Column (Left) ===== */
+.alter-master {
+  width: 32%;
+  min-width: 280px;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 60%, transparent);
+  overflow: hidden;
+}
+
+.alter-master__search {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.alter-master__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
 }
 
 .alter-list {
@@ -1198,9 +1291,10 @@ onMounted(() => {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
-  padding: 0.7rem 0.8rem;
+  padding: 0.75rem 1rem;
   text-align: left;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  cursor: pointer;
 }
 
 .alter-list-item:hover {
@@ -1212,6 +1306,7 @@ onMounted(() => {
 .alter-list-item--active {
   border-color: color-mix(in srgb, var(--accent) 60%, var(--panel-border));
   background: color-mix(in srgb, var(--accent-soft) 34%, var(--panel-bg));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .alter-list-item__head {
@@ -1219,111 +1314,322 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
 .alter-list-item p {
   margin: 0;
   color: var(--text-muted);
-  line-height: 1.35;
-  font-size: 0.84rem;
+  line-height: 1.4;
+  font-size: 0.8125rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.alter-main {
+/* ===== Detail Column (Right) ===== */
+.alter-detail {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  overflow: auto;
-  padding-right: 0.15rem;
+  overflow: hidden;
+  min-width: 0;
 }
 
-.alter-hero__body {
+/* Detail Header */
+.alter-detail__hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 40%, transparent);
+  flex-shrink: 0;
+}
+
+.alter-detail__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.alter-detail__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-base);
+}
+
+.alter-detail__description {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+.alter-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.alter-detail__header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Detail Body */
+.alter-detail__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.alter-detail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.alter-detail__panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alter-detail__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.alter-detail__mission-text {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text-base);
+}
+
+.alter-detail__mission-panel {
+  gap: 0.65rem;
+}
+
+.alter-detail__mission-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.alter-detail__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.alter-detail__card {
+  min-width: 0;
+}
+
+.alter-detail__chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.alter-detail__source-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.alter-hero h1 {
-  font-size: 1.15rem;
-  line-height: 1.1;
-}
-
-.alter-hero__actions,
-.alter-card-actions {
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.alter-dropdown-item {
+.alter-detail__source-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  width: 100%;
+  padding: 0.5rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--panel-border) 68%, transparent);
 }
 
-.alter-dropdown-item strong {
-  font-size: 0.88rem;
+.alter-detail__source-row:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
-.alter-dropdown-item span {
+.alter-detail__source-row strong {
+  font-size: 0.84rem;
+  line-height: 1.3;
+}
+
+.alter-detail__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.alter-detail__hint {
+  margin: 0;
+  font-size: 0.76rem;
   color: var(--text-muted);
+}
+
+.alter-detail__logic-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.alter-detail__logic-label {
   font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.alter-quickstart-library-trigger {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.alter-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.alter-pre {
+.alter-detail__logic-list {
   margin: 0;
-  padding: 0.7rem 0.8rem;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-muted) 84%, var(--panel-bg));
-  color: var(--text-base);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
-  font-size: 0.8rem;
-}
-
-.alter-pre--scrollable {
-  max-height: 16rem;
-  overflow: auto;
-}
-
-.alter-revision-list {
+  padding-left: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.32rem;
 }
 
-.alter-revision-item {
-  justify-content: space-between;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-muted) 55%, var(--panel-bg));
-  padding: 0.65rem 0.75rem;
-  text-align: left;
+.alter-detail__logic-list li {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-base);
 }
 
-.alter-revision-item span {
+.alter-detail__revision-panel {
+  min-width: 0;
+}
+
+.alter-revision-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.alter-revision-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.48rem 0.65rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  align-items: baseline;
+}
+
+.alter-revision-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+}
+
+.alter-revision-row--active {
+  background: color-mix(in srgb, var(--accent-soft) 30%, transparent);
+}
+
+.alter-revision-date {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-base);
+  min-width: 8.5rem;
+}
+
+.alter-revision-reason {
+  font-size: 0.78rem;
   color: var(--text-muted);
 }
 
 .alter-revision-preview {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
+}
+
+/* ===== Empty States ===== */
+.alter-empty-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.alter-empty-main__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  max-width: 400px;
+}
+
+.alter-empty-main__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.alter-empty-main__copy {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.alter-empty-main__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.alter-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.alter-error {
+  margin: 1rem 1.5rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--badge-danger-bg);
+  background: color-mix(in srgb, var(--badge-danger-bg) 15%, transparent);
+  color: var(--badge-danger-text);
+  font-size: 0.875rem;
+}
+
+/* ===== Utility Components ===== */
+.alter-pre {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-muted) 90%, var(--panel-bg));
+  color: var(--text-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  font-size: 0.8125rem;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 :deep(.alter-compiled-prompt-modal) {
@@ -1335,29 +1641,7 @@ onMounted(() => {
   overflow: auto;
 }
 
-.alter-empty,
-.alter-error {
-  border-radius: var(--radius-lg);
-  padding: 0.8rem;
-}
-
-.alter-empty {
-  background: color-mix(in srgb, var(--surface-muted) 60%, transparent);
-  color: var(--text-muted);
-}
-
-.alter-error {
-  border: 1px solid var(--badge-danger-bg);
-  background: color-mix(in srgb, var(--badge-danger-bg) 20%, transparent);
-  color: var(--badge-danger-text);
-}
-
-.alter-empty-main {
-  align-items: flex-start;
-  justify-content: center;
-  min-height: 18rem;
-}
-
+/* ===== Wizard Styles ===== */
 :deep(.alter-wizard-modal) {
   max-width: min(74rem, calc(100vw - 2rem));
 }
@@ -1442,30 +1726,87 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.alter-sidebar :deep(.ui-panel),
-.alter-main :deep(.ui-panel) {
-  padding: 0.85rem;
+.alter-wizard__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.alter-sidebar strong,
-.alter-main strong,
-.alter-main h3,
-.alter-sidebar h3 {
-  line-height: 1.2;
+/* ===== Dropdown & Misc ===== */
+.alter-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.alter-dropdown-item strong {
   font-size: 0.88rem;
 }
 
+.alter-dropdown-item span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.alter-quickstart-library-trigger {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* ===== Responsive ===== */
 @media (max-width: 1180px) {
-  .alter-manager,
-  .alter-wizard,
-  .alter-grid {
+  .alter-wizard {
+    grid-template-columns: 1fr;
+  }
+
+  .alter-detail__hero,
+  .alter-detail__cards {
     grid-template-columns: 1fr;
   }
 }
 
+@media (max-width: 960px) {
+  .alter-master {
+    width: 260px;
+    min-width: 260px;
+  }
+
+  .alter-detail__hero {
+    flex-direction: column;
+  }
+
+  .alter-detail__header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 760px) {
-  .alter-manager {
-    padding: 0.75rem;
+  .alter-layout {
+    flex-direction: column;
+  }
+
+  .alter-master {
+    width: 100%;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    max-height: 40vh;
+  }
+
+  .alter-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .alter-header__actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .alter-form-grid,
