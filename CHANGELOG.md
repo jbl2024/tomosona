@@ -18,6 +18,29 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.20.0] - 2026-03-15
+
+### Added
+- feat(editor): add versioned filesystem sync and conflict handling (c762bd6)
+- feat(workspace): handle post-move link and echoes refresh effects (1e51026)
+- feat(explorer): add native drag and drop moves (d5b2287)
+
+### Changed
+- test(editor): harden filesystem sync edge case coverage (37e0996)
+- perf(workspace): split immediate path updates from deferred mutation sync (4afacac)
+- refactor(workspace): make renames update links automatically (ebe467e)
+
+### Fixed
+- fix(editor): move code block controls into hover overlay (bb50702)
+- fix(editor): support Linux Shift+Tab for heading promotion (e88757a)
+- fix(editor): close html source mode when focus leaves it (cc8849e)
+- fix(editor): stabilize html block autofocus after insertion (df217f7)
+- fix(editor): place html caret inside template and shrink initial editor height (c46987a)
+- fix(editor): open html source on modifier click (89c26bd)
+- fix(editor): auto-open html blocks for editing on insert (79585cb)
+- fix(editor): keep empty html blocks large enough to edit (8d577c9)
+- fix(editor): keep renamed title sessions visible during path transitions (82bb728)
+
 ## [0.19.5] - 2026-03-14
 
 ### Added
