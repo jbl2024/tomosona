@@ -441,10 +441,6 @@ onMounted(() => {
         <p class="alter-header__description">
           Configurable lenses for this workspace. They stay local, versioned, and invocable from Second Brain.
         </p>
-        <div class="alter-header__badges">
-          <UiBadge tone="accent">Default: {{ props.settings.default_mode }}</UiBadge>
-          <UiBadge tone="neutral">Badge: {{ props.settings.show_badge_in_chat ? 'visible' : 'hidden' }}</UiBadge>
-        </div>
       </div>
       <div class="alter-header__actions">
         <UiButton size="sm" variant="secondary" @click="openQuickStart()">
