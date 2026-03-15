@@ -422,6 +422,8 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
   let inCode = false
   let codeLang = ''
   let codeLines: string[] = []
+  let inTable = false
+  let tableLines: string[] = []
 
   const flushParagraph = () => {
     if (!paragraph.length) return
@@ -451,6 +453,54 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
     codeLines = []
   }
 
+  const flushTable = () => {
+    if (!inTable || tableLines.length < 2) {
+      inTable = false
+      tableLines = []
+      return
+    }
+    const separatorIndex = tableLines.findIndex(line => /^\|[\s\-:|]+\|$/.test(line.trim()))
+    if (separatorIndex < 1) {
+      inTable = false
+      tableLines = []
+      return
+    }
+    const headerLine = tableLines[0]
+    const bodyLines = tableLines.slice(separatorIndex + 1)
+    const parseRow = (line: string) => {
+      const cells = line.split('|').slice(1, -1).map(cell => cell.trim())
+      return cells
+    }
+    const headerCells = parseRow(headerLine)
+    const alignments = parseRow(tableLines[separatorIndex]).map(cell => {
+      const trimmed = cell.trim()
+      if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center'
+      if (trimmed.endsWith(':')) return 'right'
+      return 'left'
+    })
+    let tableHtml = '<table><thead><tr>'
+    headerCells.forEach((cell, i) => {
+      const align = alignments[i] || 'left'
+      const alignAttr = align === 'left' ? '' : ` align="${align}"`
+      tableHtml += `<th${alignAttr}>${inlineTextToHtml(cell)}</th>`
+    })
+    tableHtml += '</tr></thead><tbody>'
+    for (const rowLine of bodyLines) {
+      const cells = parseRow(rowLine)
+      tableHtml += '<tr>'
+      cells.forEach((cell, i) => {
+        const align = alignments[i] || 'left'
+        const alignAttr = align === 'left' ? '' : ` align="${align}"`
+        tableHtml += `<td${alignAttr}>${inlineTextToHtml(cell)}</td>`
+      })
+      tableHtml += '</tr>'
+    }
+    tableHtml += '</tbody></table>'
+    htmlParts.push(tableHtml)
+    inTable = false
+    tableLines = []
+  }
+
   for (const line of lines) {
     const fence = line.match(/^```([A-Za-z0-9_-]*)\s*$/)
     if (fence) {
@@ -475,7 +525,25 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
       flushParagraph()
       flushList()
       flushBlockquote()
+      flushTable()
       continue
+    }
+
+    const isTableRow = line.trim().startsWith('|') && line.trim().endsWith('|')
+    if (isTableRow) {
+      if (!inTable) {
+        flushParagraph()
+        flushList()
+        flushBlockquote()
+        inTable = true
+        tableLines = []
+      }
+      tableLines.push(line.trim())
+      continue
+    }
+
+    if (inTable) {
+      flushTable()
     }
 
     const heading = line.match(/^(#{1,6})\s+(.+)$/)
@@ -529,6 +597,7 @@ function renderAssistantMarkdown(message: SecondBrainMessage): string {
   flushList()
   flushBlockquote()
   flushCode()
+  flushTable()
 
   const html = htmlParts.join('')
   return sanitizeHtmlForPreview(html || `<p>${inlineTextToHtml(source)}</p>`)
@@ -1488,6 +1557,23 @@ watch(contextPaths, (paths) => {
 .assistant-markdown a {
   color: var(--sb-active-text);
   text-decoration: underline;
+}
+
+.assistant-markdown table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+  border: 1px solid var(--sb-input-border);
+  padding: 4px 8px;
+}
+
+.assistant-markdown th {
+  background: var(--sb-code-bg);
+  font-weight: 600;
 }
 
 .insert {
