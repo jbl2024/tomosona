@@ -126,6 +126,7 @@ const activeAlterSummary = computed(() => {
 })
 const canSaveDraft = computed(() => Boolean(draft.value.name.trim()) && Boolean(draft.value.mission.trim()))
 const wizardProgressLabel = computed(() => `Step ${wizardStep.value + 1} of ${stepDefinitions.length}`)
+const showCompiledPrompt = ref(false)
 
 function splitMultiline(value: string): string[] {
   return value
@@ -294,13 +295,16 @@ onMounted(() => {
             <div class="alter-section-head">
               <div>
                 <p class="alter-section-kicker">Role</p>
-                <h3>Mission and compiled prompt</h3>
+                <h3>Mission</h3>
               </div>
               <UiBadge tone="accent">{{ activeAlter.style.influence_intensity }}</UiBadge>
             </div>
             <p class="alter-card__copy">{{ activeAlter.mission }}</p>
-            <UiSeparator />
-            <pre class="alter-pre">{{ activeAlter.invocation_prompt }}</pre>
+            <div class="alter-card-actions">
+              <UiButton size="sm" variant="secondary" @click="showCompiledPrompt = !showCompiledPrompt">
+                {{ showCompiledPrompt ? 'Hide compiled prompt' : 'View compiled prompt' }}
+              </UiButton>
+            </div>
           </UiPanel>
 
           <UiPanel tone="default" class-name="alter-card">
@@ -355,6 +359,19 @@ onMounted(() => {
             </div>
           </UiPanel>
         </section>
+
+        <UiPanel v-if="showCompiledPrompt" tone="default" class-name="alter-prompt-panel">
+          <div class="alter-section-head">
+            <div>
+              <p class="alter-section-kicker">Invocation layer</p>
+              <h3>Compiled prompt</h3>
+            </div>
+            <UiButton size="sm" variant="ghost" @click="showCompiledPrompt = false">Close</UiButton>
+          </div>
+          <div class="alter-prompt-panel__body">
+            <pre class="alter-pre alter-pre--scrollable">{{ activeAlter.invocation_prompt }}</pre>
+          </div>
+        </UiPanel>
       </template>
 
       <UiPanel v-else tone="raised" class-name="alter-empty-main">
@@ -995,6 +1012,11 @@ onMounted(() => {
   font-size: 0.8rem;
 }
 
+.alter-pre--scrollable {
+  max-height: 16rem;
+  overflow: auto;
+}
+
 .alter-revision-list {
   display: flex;
   flex-direction: column;
@@ -1018,6 +1040,16 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.alter-prompt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alter-prompt-panel__body {
+  min-width: 0;
 }
 
 .alter-empty,
