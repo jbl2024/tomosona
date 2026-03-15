@@ -17,8 +17,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::{
     editor_sync::{
-        clear_recent_internal_write, recent_internal_write_for, same_version, version_from_path,
-        FileVersion,
+        recent_internal_write_for, same_version, version_from_path, FileVersion,
     },
     AppError, Result,
 };
@@ -273,7 +272,6 @@ fn should_filter_internal_write(path: &Path, normalized: &str, version: Option<&
             "suppress version_match path={} source={:?} request_id={} version={:?}",
             record.path, record.source, record.request_id, version
         ));
-        clear_recent_internal_write(normalized);
         return true;
     }
 
@@ -286,7 +284,6 @@ fn should_filter_internal_write(path: &Path, normalized: &str, version: Option<&
             "suppress hash_match path={} source={:?} request_id={}",
             record.path, record.source, record.request_id
         ));
-        clear_recent_internal_write(normalized);
         return true;
     }
 
@@ -294,6 +291,23 @@ fn should_filter_internal_write(path: &Path, normalized: &str, version: Option<&
         "keep path={} source={:?} request_id={} version={:?}",
         record.path, record.source, record.request_id, version
     ));
+    false
+}
+
+fn should_filter_internal_remove(normalized: &str) -> bool {
+    let Some(record) = recent_internal_write_for(normalized) else {
+        return false;
+    };
+
+    let path = PathBuf::from(normalized);
+    if path.exists() {
+        log_editor_sync_watch(&format!(
+            "suppress remove_existing_path path={} source={:?} request_id={}",
+            record.path, record.source, record.request_id
+        ));
+        return true;
+    }
+
     false
 }
 
@@ -317,6 +331,14 @@ fn enrich_change_versions_and_filter_internal_writes(changes: Vec<WorkspaceFsCha
         }
 
         let path_buf = PathBuf::from(path);
+        if matches!(change.kind, WorkspaceFsChangeKind::Removed) {
+            if should_filter_internal_remove(path) {
+                continue;
+            }
+            filtered.push(change);
+            continue;
+        }
+
         if !path_buf.exists() {
             filtered.push(change);
             continue;
@@ -955,6 +977,54 @@ mod tests {
             &root_norm,
             None,
             test_event(EventKind::Modify(ModifyKind::Any), vec![file.clone()]),
+        );
+        let filtered = enrich_change_versions_and_filter_internal_writes(mapped);
+
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn filters_repeated_modify_events_for_the_same_internal_write() {
+        let (root, root_norm) = mk_root();
+        let file = root.join("notes/repeated.md");
+        fs::create_dir_all(file.parent().expect("parent")).expect("create parent");
+        fs::write(&file, "saved").expect("write file");
+
+        record_workspace_mutation_write(&file, "saved");
+
+        let mapped_first = map_notify_event_to_changes(
+            &root,
+            &root_norm,
+            None,
+            test_event(EventKind::Modify(ModifyKind::Any), vec![file.clone()]),
+        );
+        let filtered_first = enrich_change_versions_and_filter_internal_writes(mapped_first);
+        assert!(filtered_first.is_empty());
+
+        let mapped_second = map_notify_event_to_changes(
+            &root,
+            &root_norm,
+            None,
+            test_event(EventKind::Modify(ModifyKind::Any), vec![file.clone()]),
+        );
+        let filtered_second = enrich_change_versions_and_filter_internal_writes(mapped_second);
+        assert!(filtered_second.is_empty());
+    }
+
+    #[test]
+    fn filters_remove_event_when_atomic_replace_has_already_recreated_the_file() {
+        let (root, root_norm) = mk_root();
+        let file = root.join("notes/atomic.md");
+        fs::create_dir_all(file.parent().expect("parent")).expect("create parent");
+        fs::write(&file, "saved").expect("write file");
+
+        record_workspace_mutation_write(&file, "saved");
+
+        let mapped = map_notify_event_to_changes(
+            &root,
+            &root_norm,
+            None,
+            test_event(EventKind::Remove(RemoveKind::Any), vec![file.clone()]),
         );
         let filtered = enrich_change_versions_and_filter_internal_writes(mapped);
 

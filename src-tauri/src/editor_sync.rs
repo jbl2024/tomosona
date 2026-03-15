@@ -228,12 +228,6 @@ pub(crate) fn recent_internal_write_for(path: &str) -> Option<InternalWriteRecor
     writes.get(path).cloned()
 }
 
-pub(crate) fn clear_recent_internal_write(path: &str) {
-    if let Ok(mut writes) = internal_write_slot().lock() {
-        writes.remove(path);
-    }
-}
-
 pub(crate) fn same_version(left: Option<&FileVersion>, right: Option<&FileVersion>) -> bool {
     matches!((left, right), (Some(left), Some(right)) if left == right)
 }

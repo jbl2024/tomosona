@@ -220,6 +220,33 @@ describe('useEditorFilesystemSync', () => {
     })
   })
 
+  it('ignores a delayed duplicate watcher version even when the note is dirty', async () => {
+    const session = createSession('a.md', {
+      dirty: true,
+      baseVersion: { mtimeMs: 12, size: 20 },
+      currentDiskVersion: { mtimeMs: 12, size: 20 }
+    })
+
+    const sync = useEditorFilesystemSync({
+      getSession: () => session,
+      listPaths: () => ['a.md'],
+      currentPath: () => 'a.md',
+      renameSessionPath: vi.fn(),
+      moveLifecyclePathState: vi.fn(),
+      moveFrontmatterPathState: vi.fn(),
+      moveTitlePathState: vi.fn(),
+      setActiveSession: vi.fn(),
+      nextRequestId: vi.fn(() => 12),
+      loadCurrentFile: vi.fn(async () => {}),
+      emitExternalReload: vi.fn()
+    })
+
+    await sync.applyWorkspaceFsChanges([{ kind: 'modified', path: 'a.md', is_dir: false, version: { mtimeMs: 12, size: 20 } }])
+
+    expect(session.currentDiskVersion).toEqual({ mtimeMs: 12, size: 20 })
+    expect(session.conflict).toBeNull()
+  })
+
   it('marks a clean note deleted and reloads once when it is recreated externally', async () => {
     const session = createSession('a.md')
     const loadCurrentFile = vi.fn(async () => {

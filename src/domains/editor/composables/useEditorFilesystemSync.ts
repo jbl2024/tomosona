@@ -117,10 +117,12 @@ export function useEditorFilesystemSync(options: UseEditorFilesystemSyncOptions)
       }
 
       if (change.kind === 'created' || change.kind === 'modified') {
-        if (!session.dirty && !session.saving && sameVersion(session.currentDiskVersion, change.version)) {
+        if (sameVersion(session.currentDiskVersion, change.version)) {
           logEditorSync('fs:skip_duplicate_version', {
             path,
-            version: change.version
+            version: change.version,
+            dirty: session.dirty,
+            saving: session.saving
           })
           continue
         }
