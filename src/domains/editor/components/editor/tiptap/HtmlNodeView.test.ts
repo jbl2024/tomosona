@@ -6,6 +6,20 @@ async function flush() {
   await nextTick()
   await Promise.resolve()
   await nextTick()
+  await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  await new Promise<void>((resolve) => {
+    let remainingFrames = 8
+    const step = () => {
+      remainingFrames -= 1
+      if (remainingFrames <= 0) {
+        resolve()
+        return
+      }
+      requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  })
+  await nextTick()
 }
 
 function mountHarness(options?: { editable?: boolean; initialHtml?: string; initialAutoEdit?: boolean }) {

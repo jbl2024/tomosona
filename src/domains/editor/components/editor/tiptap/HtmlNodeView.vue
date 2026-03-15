@@ -32,6 +32,7 @@ const sourceTextarea = ref<HTMLTextAreaElement | null>(null)
 const sourcePre = ref<HTMLElement | null>(null)
 const showSource = ref(false)
 const sourceEditorHeight = ref('0px')
+let pendingSourceFocusOptions: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean } | null = null
 
 const html = computed(() => String(props.node.attrs.html ?? ''))
 const sanitizedPreview = computed(() => toPreviewHtml(html.value))
@@ -83,27 +84,51 @@ function applyCaretPosition(options?: { placeCaretAtEnd?: boolean; placeCaretIns
   }
 }
 
+function requestAnimationFrameLike(callback: FrameRequestCallback) {
+  if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(callback)
+  return window.setTimeout(() => callback(performance.now()), 16)
+}
+
+function focusSourceTextarea(options?: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean }, remainingAttempts = 8) {
+  if (!showSource.value) {
+    pendingSourceFocusOptions = null
+    return
+  }
+  const textarea = sourceTextarea.value
+  if (textarea) {
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== textarea) {
+      active.blur()
+    }
+    textarea.focus({ preventScroll: true })
+    syncSourceEditorHeight()
+    applyCaretPosition(options)
+    if (document.activeElement === textarea) {
+      pendingSourceFocusOptions = null
+      return
+    }
+  }
+  if (remainingAttempts <= 0) {
+    pendingSourceFocusOptions = null
+    return
+  }
+  requestAnimationFrameLike(() => focusSourceTextarea(options, remainingAttempts - 1))
+}
+
+function scheduleSourceFocus(options?: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean }) {
+  pendingSourceFocusOptions = options ?? {}
+  void nextTick().then(() => {
+    window.setTimeout(() => {
+      focusSourceTextarea(pendingSourceFocusOptions ?? undefined)
+    }, 0)
+  })
+}
+
 function openSourceEditor(options?: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean }) {
   if (!props.editor.isEditable) return
   focusHtmlNodeSelection()
   showSource.value = true
-  void nextTick().then(() => {
-    focusHtmlNodeSelection()
-    props.editor.view?.focus?.({ preventScroll: true })
-    sourceTextarea.value?.focus({ preventScroll: true })
-    syncSourceEditorHeight()
-    applyCaretPosition(options)
-  }).then(() => nextTick()).then(() => {
-    syncSourceEditorHeight()
-    if (document.activeElement === sourceTextarea.value) {
-      applyCaretPosition(options)
-      return
-    }
-    focusHtmlNodeSelection()
-    props.editor.view?.focus?.({ preventScroll: true })
-    sourceTextarea.value?.focus({ preventScroll: true })
-    applyCaretPosition(options)
-  })
+  scheduleSourceFocus(options)
 }
 
 function focusHtmlNodeSelection() {

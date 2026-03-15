@@ -133,6 +133,42 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     })
   }
 
+  function findHtmlTemplateCaret(value: string): number {
+    const match = value.match(/^<([A-Za-z][^\s/>]*)(?:[^>]*)>\n([ \t]*)\n<\/\1>\s*$/)
+    if (!match) return value.length
+    const lineBreakIndex = value.indexOf('\n')
+    if (lineBreakIndex < 0) return value.length
+    return lineBreakIndex + 1 + match[2].length
+  }
+
+  function focusInsertedHtml(editor: Editor) {
+    if (typeof window === 'undefined') return
+
+    const tryFocus = (remainingAttempts: number) => {
+      const selected = editor.view.dom.querySelector('.ProseMirror-selectednode .tomosona-html-textarea') as HTMLTextAreaElement | null
+      const fallbacks = Array.from(editor.view.dom.querySelectorAll('.tomosona-html-textarea')) as HTMLTextAreaElement[]
+      const target = selected ?? fallbacks[fallbacks.length - 1] ?? null
+      if (target) {
+        const active = document.activeElement
+        if (active instanceof HTMLElement && active !== target) {
+          active.blur()
+        }
+        target.focus()
+        const caret = findHtmlTemplateCaret(target.value)
+        target.setSelectionRange(caret, caret)
+        if (document.activeElement === target) return
+      }
+      if (remainingAttempts <= 0) return
+      window.requestAnimationFrame(() => tryFocus(remainingAttempts - 1))
+    }
+
+    window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => tryFocus(6))
+      })
+    }, 0)
+  }
+
   /**
    * Inserts/toggles content based on command descriptor.
    *
@@ -214,6 +250,9 @@ export function useEditorSlashInsertion(options: UseEditorSlashInsertionOptions)
     }
     if (type === 'quote') {
       focusInsertedQuote(editor)
+    }
+    if (type === 'html') {
+      focusInsertedHtml(editor)
     }
     return true
   }
