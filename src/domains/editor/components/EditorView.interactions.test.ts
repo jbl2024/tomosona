@@ -443,4 +443,61 @@ describe('EditorView interactions contract', () => {
     document.body.innerHTML = ''
   })
 
+  it('reloads a clean note only once for duplicate external watcher versions', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const externalReloads = vi.fn()
+    let snapshotCallCount = 0
+    const readNoteSnapshot = vi.fn(async (path: string) => ({
+      path,
+      content: '# Title\n\nBody',
+      version: snapshotCallCount++ === 0
+        ? { mtimeMs: 1, size: 8 }
+        : { mtimeMs: 9, size: 12 }
+    }))
+    const editorRef = ref<any>(null)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(EditorView, {
+            ref: editorRef,
+            path: 'a.md',
+            openPaths: ['a.md'],
+            readNoteSnapshot,
+            saveNoteBuffer: async () => ({ ok: true, version: { mtimeMs: 1, size: 1 } } satisfies SaveNoteResult),
+            renameFileFromTitle: async (valuePath: string, title: string) => ({ path: valuePath, title }),
+            loadLinkTargets: async () => ['a.md'],
+            loadLinkHeadings: async () => ['H1'],
+            loadPropertyTypeSchema: async () => ({}),
+            savePropertyTypeSchema: async () => {},
+            openLinkTarget: async () => true,
+            onStatus: () => {},
+            onOutline: () => {},
+            onProperties: () => {},
+            onPathRenamed: () => {},
+            onExternalReload: externalReloads
+          })
+      }
+    }))
+
+    app.mount(root)
+    await flushUi()
+    readNoteSnapshot.mockClear()
+    snapshotCallCount = 1
+
+    const duplicateChange = [{ kind: 'modified' as const, path: 'a.md', is_dir: false, version: { mtimeMs: 9, size: 12 } }]
+    await editorRef.value.applyWorkspaceFsChanges(duplicateChange)
+    await flushUi()
+    await editorRef.value.applyWorkspaceFsChanges(duplicateChange)
+    await flushUi()
+
+    expect(readNoteSnapshot).toHaveBeenCalledTimes(1)
+    expect(externalReloads).toHaveBeenCalledTimes(1)
+
+    app.unmount()
+    document.body.innerHTML = ''
+  })
+
 })

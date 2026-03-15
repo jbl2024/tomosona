@@ -6,8 +6,8 @@ function logEditorSync(event: string, detail: Record<string, unknown>) {
 }
 
 function sameVersion(
-  left: DocumentSession['baseVersion'] | DocumentSession['currentDiskVersion'],
-  right: WorkspaceFsChange['version']
+  left: DocumentSession['baseVersion'] | DocumentSession['currentDiskVersion'] | undefined,
+  right: WorkspaceFsChange['version'] | undefined | null
 ) {
   return Boolean(left && right && left.mtimeMs === right.mtimeMs && left.size === right.size)
 }
@@ -32,6 +32,14 @@ export type UseEditorFilesystemSyncOptions = {
  */
 export function useEditorFilesystemSync(options: UseEditorFilesystemSyncOptions) {
   function noteConflict(session: DocumentSession, kind: 'modified' | 'deleted', payload?: { diskContent?: string }) {
+    const existing = session.conflict
+    if (
+      existing?.kind === kind &&
+      sameVersion(existing.diskVersion ?? null, session.currentDiskVersion) &&
+      existing.diskContent === payload?.diskContent
+    ) {
+      return
+    }
     session.conflict = {
       kind,
       diskVersion: session.currentDiskVersion ?? undefined,
