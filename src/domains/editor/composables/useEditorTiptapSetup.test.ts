@@ -317,6 +317,46 @@ describe('useEditorTiptapSetup', () => {
     expect(event.preventDefault).toHaveBeenCalledTimes(1)
   })
 
+  it('promotes a heading when Linux reports Shift+Tab as ISO_Left_Tab', () => {
+    const { setup } = createSetup()
+    const editorOptions = setup.createEditorOptions('a.md') as any
+
+    const setNodeMarkup = vi.fn(() => ({ step: 'setNodeMarkup' }))
+    const dispatch = vi.fn()
+    const event = {
+      key: 'ISO_Left_Tab',
+      shiftKey: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    } as unknown as KeyboardEvent
+
+    const handled = editorOptions.editorProps.handleKeyDown({
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            parent: {
+              type: { name: 'heading' },
+              attrs: { level: 3 }
+            },
+            parentOffset: 0,
+            depth: 1,
+            before: vi.fn(() => 20)
+          }
+        },
+        tr: {
+          setNodeMarkup
+        }
+      },
+      dispatch
+    }, event)
+
+    expect(handled).toBe(true)
+    expect(setNodeMarkup).toHaveBeenCalledWith(20, undefined, { level: 2 })
+    expect(dispatch).toHaveBeenCalledWith({ step: 'setNodeMarkup' })
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+  })
+
   it('leaves Tab alone when the caret is not at the start of a heading', () => {
     const { setup } = createSetup()
     const editorOptions = setup.createEditorOptions('a.md') as any

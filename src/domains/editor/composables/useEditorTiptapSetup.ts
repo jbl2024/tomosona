@@ -71,6 +71,7 @@ export type UseEditorTiptapSetupOptions = {
  */
 export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
   const ISO_DATE_TOKEN_REGEX = /^\d{4}-\d{2}-\d{2}$/
+  const TAB_KEYS = new Set(['Tab', 'ISO_Left_Tab'])
 
   function closestAnchorFromEventTarget(target: EventTarget | null): HTMLAnchorElement | null {
     const element = target instanceof Element
@@ -220,7 +221,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
   }
 
   function adjustHeadingLevelFromTab(view: ProseMirrorEditorView, event: KeyboardEvent): boolean {
-    if (event.key !== 'Tab') return false
+    if (!TAB_KEYS.has(event.key) && event.code !== 'Tab') return false
 
     const { selection } = view.state
     if (!selection.empty) return false
