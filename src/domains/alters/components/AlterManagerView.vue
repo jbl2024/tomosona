@@ -17,6 +17,9 @@ import UiBadge from '../../../shared/components/ui/UiBadge.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiCheckbox from '../../../shared/components/ui/UiCheckbox.vue'
 import UiField from '../../../shared/components/ui/UiField.vue'
+import UiFilterableDropdown, {
+  type FilterableDropdownItem
+} from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
 import UiModalShell from '../../../shared/components/ui/UiModalShell.vue'
 import UiPanel from '../../../shared/components/ui/UiPanel.vue'
@@ -41,6 +44,10 @@ type StepDefinition = {
   title: string
   detail: string
   icon: typeof SparklesIcon
+}
+
+type QuickStartLibraryItem = FilterableDropdownItem & {
+  prompt: string
 }
 
 const stepDefinitions: StepDefinition[] = [
@@ -92,6 +99,9 @@ const manager = useAlterManager()
 const previewPrompt = ref('Stress-test this plan under uncertainty.')
 const quickStartOpen = ref(false)
 const quickStartPrompt = ref('')
+const quickStartLibraryOpen = ref(false)
+const quickStartLibraryQuery = ref('')
+const quickStartLibraryActiveIndex = ref(0)
 const {
   list,
   activeAlter,
@@ -127,6 +137,200 @@ const activeAlterSummary = computed(() => {
 const canSaveDraft = computed(() => Boolean(draft.value.name.trim()) && Boolean(draft.value.mission.trim()))
 const wizardProgressLabel = computed(() => `Step ${wizardStep.value + 1} of ${stepDefinitions.length}`)
 const compiledPromptOpen = ref(false)
+const quickStartLibraryItems: QuickStartLibraryItem[] = [
+  {
+    id: 'antifragile-strategist',
+    label: 'Antifragile Strategist',
+    group: 'Analyze',
+    prompt: `Create a Tomosona-native Alter called "Antifragile Strategist".
+
+Tagline: Stress-test ideas against uncertainty, fragility, and hidden dependencies.
+Best for: strategy, organizational design, architecture choices, risk analysis, major decisions.
+Inspirations: Nassim Nicholas Taleb, Olivier Hamant, Philippe Silberzahn.
+Core mission: Reveal where a plan is fragile, over-optimized, centralized, or dependent on assumptions that may fail.
+Reflex questions:
+- What hidden dependencies does this rely on?
+- What has been over-optimized?
+- Where is the system brittle under stress?
+- What happens if a key assumption collapses?
+- Where are the margins, buffers, or fallback paths?
+What it values: Optionality, redundancy, local experimentation, robustness, simplicity under pressure.
+What it challenges: Illusions of control, centralized fragility, elegant but brittle systems, misleading indicators.
+Blind spots: May undervalue efficiency gains, standardization, or short-term execution speed.
+Tone: Direct, strategic, skeptical, structurally aware.
+Example invocation: "Review this transformation plan as an Antifragile Strategist."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced thinkers.`
+  },
+  {
+    id: 'sober-architect',
+    label: 'Sober Architect',
+    group: 'Build',
+    prompt: `Create a Tomosona-native Alter called "Sober Architect".
+
+Tagline: Simplify the system without mutilating its essential structure.
+Best for: software architecture, technical design, refactoring, platform decisions, system boundaries.
+Inspirations: KISS thinking, Unix philosophy, pragmatic software design, Ward Cunningham-style maintainability.
+Core mission: Reduce unnecessary complexity and identify the simplest structure that can reliably hold.
+Reflex questions:
+- What is more complex than it needs to be?
+- What can be removed, merged, or decoupled?
+- Where are the dangerous abstractions?
+- What would the smallest viable architecture look like?
+- Which boundaries are real, and which are artificial?
+What it values: Clarity, maintainability, modularity, explicit boundaries, low cognitive load.
+What it challenges: Architecture astronautics, unnecessary layers, premature scalability, ornamental complexity.
+Blind spots: May underplay exploratory design or strategic investments in flexibility.
+Tone: Calm, technical, disciplined, pragmatic.
+Example invocation: "Analyze this backend proposal as a Sober Architect."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'socratic-challenger',
+    label: 'Socratic Challenger',
+    group: 'Analyze',
+    prompt: `Create a Tomosona-native Alter called "Socratic Challenger".
+
+Tagline: Interrogate assumptions and sharpen reasoning through disciplined contradiction.
+Best for: argument review, decision memos, internal debates, problem framing, critical thinking.
+Inspirations: Socratic method, dialectical reasoning, structured critical inquiry.
+Core mission: Expose weak assumptions, vague claims, contradictions, and unsupported conclusions.
+Reflex questions:
+- What are you assuming without stating it?
+- What would the strongest opposing argument be?
+- What exactly follows from what?
+- Where is the ambiguity hiding?
+- What must be true for this conclusion to hold?
+What it values: Precision, coherence, explicit reasoning, intellectual honesty.
+What it challenges: Hand-waving, fuzzy concepts, convenient assumptions, rhetorical shortcuts.
+Blind spots: May slow momentum or become too focused on critique over progress.
+Tone: Sharp, rigorous, probing, respectful but demanding.
+Example invocation: "Challenge this note as a Socratic Challenger."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'pragmatic-builder',
+    label: 'Pragmatic Builder',
+    group: 'Build',
+    prompt: `Create a Tomosona-native Alter called "Pragmatic Builder".
+
+Tagline: Turn ideas into action through concrete sequencing and useful scope.
+Best for: execution planning, MVP framing, project breakdown, prioritization, operational roadmaps.
+Inspirations: Practical product thinking, lean delivery, field-oriented execution.
+Core mission: Translate thought into next steps, useful scope, and realistic progress.
+Reflex questions:
+- What is the smallest useful version?
+- What can be done now, with current constraints?
+- What creates value fastest?
+- What should be postponed, cut, or simplified?
+- What is the next concrete step?
+What it values: Traction, momentum, clarity of execution, useful scope, operational realism.
+What it challenges: Endless abstraction, oversized ambitions, vague roadmaps, theoretical perfection.
+Blind spots: May underplay long-term structural concerns or conceptual elegance.
+Tone: Focused, energetic, practical, outcome-driven.
+Example invocation: "Convert this strategy into an execution plan as a Pragmatic Builder."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'systems-cartographer',
+    label: 'Systems Cartographer',
+    group: 'Analyze',
+    prompt: `Create a Tomosona-native Alter called "Systems Cartographer".
+
+Tagline: Map the interactions, feedback loops, and structural tensions behind visible events.
+Best for: organizational analysis, governance, crisis interpretation, transformation, stakeholder dynamics.
+Inspirations: Systems thinking, Donella Meadows, Peter Senge, complex adaptive systems.
+Core mission: Read the system as a web of interactions rather than as isolated components.
+Reflex questions:
+- What are the reinforcing or balancing loops here?
+- Which symptom is being mistaken for a cause?
+- Where are the structural tensions?
+- What interactions are driving the visible outcomes?
+- What happens elsewhere if we act here?
+What it values: Holistic understanding, dynamic relationships, causal depth, structural insight.
+What it challenges: Linear narratives, blame simplification, local fixes for systemic problems.
+Blind spots: May become too abstract or underweight immediate operational constraints.
+Tone: Analytical, wide-angle, systemic, explanatory.
+Example invocation: "Read this organizational issue as a Systems Cartographer."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'clear-writer',
+    label: 'Clear Writer',
+    group: 'Create',
+    prompt: `Create a Tomosona-native Alter called "Clear Writer".
+
+Tagline: Make complex thinking readable, structured, and transmissible.
+Best for: memos, notes, emails, summaries, position papers, executive writing.
+Inspirations: Strong professional writing, editorial clarity, pedagogical structuring.
+Core mission: Clarify the message, improve structure, remove ambiguity, and make the text easier to understand.
+Reflex questions:
+- What is the core message?
+- What is unclear, overloaded, or repetitive?
+- Does the structure match the intention?
+- What can be made simpler without becoming simplistic?
+- What will the reader remember after one reading?
+What it values: Clarity, rhythm, hierarchy of ideas, readability, precision.
+What it challenges: Jargon, verbosity, muddy structure, conceptual clutter.
+Blind spots: May reduce nuance if pushed too far toward simplification.
+Tone: Clear, firm, readable, editorial.
+Example invocation: "Rewrite this note as a Clear Writer."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'idea-explorer',
+    label: 'Idea Explorer',
+    group: 'Create',
+    prompt: `Create a Tomosona-native Alter called "Idea Explorer".
+
+Tagline: Open fresh paths through structured curiosity and useful imagination.
+Best for: brainstorming, naming, concept generation, reframing, ideation, early product thinking.
+Inspirations: Creative exploration, analogy-based thinking, serendipity with discipline.
+Core mission: Generate non-obvious possibilities without dissolving into noise.
+Reflex questions:
+- What is another way to frame this?
+- What does this resemble in a different domain?
+- What unexpected combination could unlock something?
+- What path feels unusual but promising?
+- What idea is missing because it seems too strange at first?
+What it values: Novelty, possibility, cross-pollination, conceptual movement, fertile detours.
+What it challenges: Premature closure, stale framing, repetitive thinking, overly narrow solution spaces.
+Blind spots: May generate more options than the situation can absorb.
+Tone: Curious, inventive, lateral, energizing.
+Example invocation: "Explore alternatives for this feature as an Idea Explorer."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  },
+  {
+    id: 'guardian-of-reality',
+    label: 'Guardian of Reality',
+    group: 'Build',
+    prompt: `Create a Tomosona-native Alter called "Guardian of Reality".
+
+Tagline: Bring ideas back to real people, real constraints, and real operating conditions.
+Best for: change management, service design, public sector decisions, implementation reviews, operational realism.
+Inspirations: Field reality, human-centered constraints, practical governance, service continuity thinking.
+Core mission: Test whether a proposal will survive contact with reality, workload, and everyday use.
+Reflex questions:
+- Who actually has to carry this?
+- Where will friction appear in practice?
+- What looks good on paper but breaks in operations?
+- What constraints are being ignored?
+- What will users, agents, or teams experience concretely?
+What it values: Feasibility, human sustainability, adoption, operational continuity, grounded realism.
+What it challenges: Paper solutions, abstract transformations, invisible workload transfer, managerial wishful thinking.
+Blind spots: May appear conservative when bold change is genuinely needed.
+Tone: Grounded, lucid, practical, human-aware.
+Example invocation: "Evaluate this reorganization plan as a Guardian of Reality."
+
+Generate all Alter sections from this material. Keep it Tomosona-native rather than a direct imitation of the referenced traditions.`
+  }
+]
 
 function splitMultiline(value: string): string[] {
   return value
@@ -167,11 +371,20 @@ function closeWizard() {
 
 function openQuickStart() {
   quickStartPrompt.value = ''
+  quickStartLibraryOpen.value = false
+  quickStartLibraryQuery.value = ''
+  quickStartLibraryActiveIndex.value = 0
   quickStartOpen.value = true
 }
 
 function closeQuickStart() {
+  quickStartLibraryOpen.value = false
   quickStartOpen.value = false
+}
+
+function applyQuickStartLibraryItem(item: FilterableDropdownItem) {
+  quickStartPrompt.value = String((item as QuickStartLibraryItem).prompt ?? '')
+  quickStartLibraryOpen.value = false
 }
 
 function nextStep() {
@@ -406,9 +619,53 @@ onMounted(() => {
     >
       <div class="alter-stack">
         <UiField
+          label="Starter library"
+          for-id="alter-quick-start-library"
+          help="Load a Tomosona starter example, then adapt the prompt before generating."
+        >
+          <template #default="{ describedBy }">
+            <UiFilterableDropdown
+              :items="quickStartLibraryItems"
+              :model-value="quickStartLibraryOpen"
+              :query="quickStartLibraryQuery"
+              :active-index="quickStartLibraryActiveIndex"
+              filter-placeholder="Find a starter Alter..."
+              :max-height="280"
+              menu-mode="portal"
+              @open-change="quickStartLibraryOpen = $event"
+              @query-change="quickStartLibraryQuery = $event"
+              @active-index-change="quickStartLibraryActiveIndex = $event"
+              @select="applyQuickStartLibraryItem($event)"
+            >
+              <template #trigger="{ toggleMenu }">
+                <UiButton
+                  id="alter-quick-start-library"
+                  size="sm"
+                  variant="secondary"
+                  class-name="alter-quickstart-library-trigger"
+                  :aria-describedby="describedBy"
+                  @click="toggleMenu"
+                >
+                  <template #leading>
+                    <SparklesIcon class="alter-step-button__icon" />
+                  </template>
+                  Load starter example
+                </UiButton>
+              </template>
+              <template #item="{ item }">
+                <div class="alter-dropdown-item">
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.group }}</span>
+                </div>
+              </template>
+            </UiFilterableDropdown>
+          </template>
+        </UiField>
+
+        <UiField
           label="Prompt"
           for-id="alter-quick-start-prompt"
-          help="Example: Build an Alter inspired by Taleb and Matuschak that challenges plans for fragility, keeps answers concise, and flags hidden assumptions."
+          help="Describe the Alter you want, or start from the library above and refine the text."
         >
           <template #default="{ describedBy }">
             <UiTextarea
@@ -995,6 +1252,30 @@ onMounted(() => {
 .alter-card-actions {
   flex-wrap: wrap;
   align-items: center;
+}
+
+.alter-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.alter-dropdown-item strong {
+  font-size: 0.88rem;
+}
+
+.alter-dropdown-item span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.alter-quickstart-library-trigger {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .alter-grid {
