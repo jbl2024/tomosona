@@ -141,9 +141,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
       DROP TABLE IF EXISTS second_brain_messages;
       DROP TABLE IF EXISTS second_brain_context_items;
       DROP TABLE IF EXISTS second_brain_sessions;
-      DROP TABLE IF EXISTS alter_revisions;
-      DROP TABLE IF EXISTS alter_inspirations;
-      DROP TABLE IF EXISTS alters;
       DELETE FROM internal_meta WHERE key = 'index_schema_version';
     "#,
         )?;
@@ -279,53 +276,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
       updated_at_ms INTEGER NOT NULL DEFAULT 0
     );
 
-    CREATE TABLE IF NOT EXISTS alters (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      icon TEXT NOT NULL DEFAULT '',
-      color TEXT NOT NULL DEFAULT '',
-      category TEXT NOT NULL DEFAULT '',
-      mission TEXT NOT NULL DEFAULT '',
-      principles_json TEXT NOT NULL DEFAULT '[]',
-      reflexes_json TEXT NOT NULL DEFAULT '[]',
-      values_json TEXT NOT NULL DEFAULT '[]',
-      critiques_json TEXT NOT NULL DEFAULT '[]',
-      blind_spots_json TEXT NOT NULL DEFAULT '[]',
-      system_hints_json TEXT NOT NULL DEFAULT '[]',
-      style_json TEXT NOT NULL DEFAULT '{}',
-      invocation_prompt TEXT NOT NULL DEFAULT '',
-      is_favorite INTEGER NOT NULL DEFAULT 0,
-      is_built_in INTEGER NOT NULL DEFAULT 0,
-      created_at_ms INTEGER NOT NULL DEFAULT 0,
-      updated_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_alters_slug ON alters(slug);
-    CREATE INDEX IF NOT EXISTS idx_alters_updated ON alters(updated_at_ms DESC);
-
-    CREATE TABLE IF NOT EXISTS alter_inspirations (
-      alter_id TEXT NOT NULL,
-      inspiration_id TEXT NOT NULL,
-      label TEXT NOT NULL,
-      source_type TEXT NOT NULL,
-      weight REAL,
-      reference_id TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(alter_id, inspiration_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_alter_inspirations_order
-      ON alter_inspirations(alter_id, sort_order ASC);
-
-    CREATE TABLE IF NOT EXISTS alter_revisions (
-      revision_id TEXT PRIMARY KEY,
-      alter_id TEXT NOT NULL,
-      snapshot_json TEXT NOT NULL,
-      reason TEXT NOT NULL DEFAULT '',
-      created_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_alter_revisions_alter_created
-      ON alter_revisions(alter_id, created_at_ms DESC);
   "#,
     )?;
 
