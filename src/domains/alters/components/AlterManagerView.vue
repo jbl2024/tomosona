@@ -3,7 +3,7 @@
  * Alters manager surface.
  *
  * Owns the full-width workspace UI for browsing, editing, previewing, and
- * revision-tracking Alters. Invocation into Second Brain is emitted upward.
+ * file-backed Alters. Invocation into Second Brain is emitted upward.
  */
 import {
   AdjustmentsHorizontalIcon,
@@ -454,10 +454,10 @@ onMounted(() => {
               <div class="alter-detail__panel-header">
                 <div class="alter-detail__stack">
                   <span class="alter-detail__label">Revision History</span>
-                  <p class="alter-detail__hint">A snapshot is created each time you save the Alter.</p>
+                  <p class="alter-detail__hint">File-backed Alters do not keep local revisions yet.</p>
                 </div>
               </div>
-              <div class="alter-revision-table">
+              <div v-if="revisions.length" class="alter-revision-table">
                 <div
                   v-for="item in revisions"
                   :key="item.revision_id"
@@ -469,6 +469,7 @@ onMounted(() => {
                   <span class="alter-revision-reason">{{ item.reason || 'saved snapshot' }}</span>
                 </div>
               </div>
+              <p v-else class="alter-empty">No revision snapshots are stored for this Alter.</p>
               <div v-if="previewRevision" class="alter-revision-preview">
                 <span class="alter-detail__label">Snapshot: {{ activeRevisionLabel }}</span>
                 <pre v-if="previewRevisionPrompt" class="alter-pre">{{ previewRevisionPrompt }}</pre>

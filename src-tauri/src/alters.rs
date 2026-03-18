@@ -1,18 +1,24 @@
-//! Workspace-scoped Alters persistence and prompt compilation.
+//! Workspace-scoped Alters file persistence and prompt compilation.
 
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
+
+use atomicwrites::{AllowOverwrite, AtomicFile, DisallowOverwrite};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ensure_index_schema, next_index_run_id, now_ms, normalize_workspace_relative_from_input, open_db,
-    workspace_runtime::active_workspace_root, AppError, Result,
+    next_index_run_id, now_ms, normalize_workspace_relative_from_input,
+    open_db, ensure_index_schema, workspace_runtime::active_workspace_root, AppError, Result,
 };
 use crate::second_brain::config::active_profile;
 use crate::second_brain::llm::run_llm;
 use crate::settings;
 
 const ALTER_PREFIX: &str = "alter";
-const ALTER_REVISION_PREFIX: &str = "alter-rev";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -553,192 +559,141 @@ fn normalize_create_payload(payload: CreateAlterPayload, existing_id: Option<Str
     Ok(record)
 }
 
-fn write_inspirations(conn: &Connection, alter_id: &str, inspirations: &[AlterInspiration]) -> Result<()> {
-    conn.execute("DELETE FROM alter_inspirations WHERE alter_id = ?1", params![alter_id])?;
-    for (index, item) in inspirations.iter().enumerate() {
-        conn.execute(
-            "INSERT INTO alter_inspirations (alter_id, inspiration_id, label, source_type, weight, reference_id, sort_order)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                alter_id,
-                item.id,
-                item.label,
-                serde_json::to_string(&item.source_type).unwrap_or_else(|_| "\"manual\"".to_string()).replace('\"', ""),
-                item.weight,
-                item.reference_id,
-                index as i64
-            ],
-        )?;
+fn normalize_alter_id(alter_id: &str) -> Result<String> {
+    let trimmed = alter_id.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidOperation("Alter id is required.".to_string()));
     }
-    Ok(())
-}
-
-fn insert_revision(conn: &Connection, alter: &AlterRecord, reason: Option<&str>) -> Result<()> {
-    let revision_id = next_id(ALTER_REVISION_PREFIX);
-    let snapshot = serde_json::to_string(alter).map_err(|_| AppError::OperationFailed)?;
-    conn.execute(
-        "INSERT INTO alter_revisions (revision_id, alter_id, snapshot_json, reason, created_at_ms)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![revision_id, alter.id, snapshot, reason.unwrap_or(""), now_ms() as i64],
-    )?;
-    Ok(())
-}
-
-fn upsert_alter(conn: &Connection, alter: &AlterRecord, reason: Option<&str>) -> Result<()> {
-    conn.execute(
-        "INSERT INTO alters (
-            id, name, slug, description, icon, color, category, mission,
-            principles_json, reflexes_json, values_json, critiques_json, blind_spots_json,
-            system_hints_json, style_json, invocation_prompt, is_favorite, is_built_in,
-            created_at_ms, updated_at_ms
-         ) VALUES (
-            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-            ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20
-         )
-         ON CONFLICT(id) DO UPDATE SET
-           name = excluded.name,
-           slug = excluded.slug,
-           description = excluded.description,
-           icon = excluded.icon,
-           color = excluded.color,
-           category = excluded.category,
-           mission = excluded.mission,
-           principles_json = excluded.principles_json,
-           reflexes_json = excluded.reflexes_json,
-           values_json = excluded.values_json,
-           critiques_json = excluded.critiques_json,
-           blind_spots_json = excluded.blind_spots_json,
-           system_hints_json = excluded.system_hints_json,
-           style_json = excluded.style_json,
-           invocation_prompt = excluded.invocation_prompt,
-           is_favorite = excluded.is_favorite,
-           is_built_in = excluded.is_built_in,
-           updated_at_ms = excluded.updated_at_ms",
-        params![
-            alter.id,
-            alter.name,
-            alter.slug,
-            alter.description,
-            alter.icon.clone().unwrap_or_default(),
-            alter.color.clone().unwrap_or_default(),
-            alter.category.clone().unwrap_or_default(),
-            alter.mission,
-            serde_json::to_string(&alter.principles).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.reflexes).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.values).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.critiques).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.blind_spots).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.system_hints).map_err(|_| AppError::OperationFailed)?,
-            serde_json::to_string(&alter.style).map_err(|_| AppError::OperationFailed)?,
-            alter.invocation_prompt,
-            if alter.is_favorite { 1 } else { 0 },
-            if alter.is_built_in { 1 } else { 0 },
-            alter.created_at_ms as i64,
-            alter.updated_at_ms as i64
-        ],
-    )?;
-    write_inspirations(conn, &alter.id, &alter.inspirations)?;
-    insert_revision(conn, alter, reason)?;
-    Ok(())
-}
-
-fn parse_json_vec(raw: String) -> Vec<String> {
-    serde_json::from_str(&raw).unwrap_or_default()
-}
-
-fn load_inspirations(conn: &Connection, alter_id: &str) -> Result<Vec<AlterInspiration>> {
-    let mut stmt = conn.prepare(
-        "SELECT inspiration_id, label, source_type, weight, reference_id
-         FROM alter_inspirations WHERE alter_id = ?1 ORDER BY sort_order ASC"
-    )?;
-    let rows = stmt.query_map(params![alter_id], |row| {
-        let source_type_raw = row.get::<_, String>(2)?;
-        let source_type = match source_type_raw.as_str() {
-            "manual" => AlterInspirationSourceType::Manual,
-            "template" => AlterInspirationSourceType::Template,
-            "reference_figure" => AlterInspirationSourceType::ReferenceFigure,
-            "note" => AlterInspirationSourceType::Note,
-            _ => AlterInspirationSourceType::Manual,
-        };
-        Ok(AlterInspiration {
-            id: row.get(0)?,
-            label: row.get(1)?,
-            source_type,
-            weight: row.get(3)?,
-            reference_id: row.get(4)?,
-        })
-    })?;
-    let mut out = Vec::new();
-    for row in rows {
-        out.push(row?);
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+    {
+        return Err(AppError::InvalidOperation("Alter id is invalid.".to_string()));
     }
-    Ok(out)
+    Ok(trimmed.to_string())
 }
 
-fn load_alter_record(conn: &Connection, alter_id: &str) -> Result<AlterRecord> {
-    let row = conn.query_row(
-        "SELECT id, name, slug, description, icon, color, category, mission,
-                principles_json, reflexes_json, values_json, critiques_json, blind_spots_json,
-                system_hints_json, style_json, invocation_prompt, is_favorite, is_built_in,
-                created_at_ms, updated_at_ms
-         FROM alters WHERE id = ?1",
-        params![alter_id],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, String>(5)?,
-                row.get::<_, String>(6)?,
-                row.get::<_, String>(7)?,
-                row.get::<_, String>(8)?,
-                row.get::<_, String>(9)?,
-                row.get::<_, String>(10)?,
-                row.get::<_, String>(11)?,
-                row.get::<_, String>(12)?,
-                row.get::<_, String>(13)?,
-                row.get::<_, String>(14)?,
-                row.get::<_, String>(15)?,
-                row.get::<_, i64>(16)?,
-                row.get::<_, i64>(17)?,
-                row.get::<_, i64>(18)? as u64,
-                row.get::<_, i64>(19)? as u64,
-            ))
+fn alters_dir() -> Result<PathBuf> {
+    let root = active_workspace_root()?;
+    Ok(root.join(".tomosona").join("alters"))
+}
+
+fn alter_path(alter_id: &str) -> Result<PathBuf> {
+    let normalized = normalize_alter_id(alter_id)?;
+    Ok(alters_dir()?.join(format!("{normalized}.json")))
+}
+
+fn alter_summary(alter: &AlterRecord) -> AlterSummary {
+    AlterSummary {
+        id: alter.id.clone(),
+        name: alter.name.clone(),
+        slug: alter.slug.clone(),
+        description: alter.description.clone(),
+        icon: alter.icon.clone(),
+        color: alter.color.clone(),
+        category: alter.category.clone(),
+        mission: alter.mission.clone(),
+        is_favorite: alter.is_favorite,
+        is_built_in: alter.is_built_in,
+        revision_count: 0,
+        updated_at_ms: alter.updated_at_ms,
+    }
+}
+
+fn read_alter_file(path: &Path) -> Result<AlterRecord> {
+    let raw = fs::read_to_string(path)?;
+    serde_json::from_str(&raw).map_err(|_| AppError::OperationFailed)
+}
+
+fn list_alter_records() -> Result<Vec<AlterRecord>> {
+    let dir = alters_dir()?;
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut records = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        match read_alter_file(&path) {
+            Ok(record) => records.push(record),
+            Err(_) => continue,
+        }
+    }
+
+    records.sort_by(|left, right| {
+        right
+            .is_favorite
+            .cmp(&left.is_favorite)
+            .then_with(|| right.updated_at_ms.cmp(&left.updated_at_ms))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    Ok(records)
+}
+
+fn load_alter_record(alter_id: &str) -> Result<AlterRecord> {
+    let path = alter_path(alter_id)?;
+    if !path.is_file() {
+        return Err(AppError::InvalidOperation("Alter not found.".to_string()));
+    }
+    read_alter_file(&path)
+}
+
+fn write_alter_record(alter: &AlterRecord, overwrite: bool) -> Result<()> {
+    let path = alter_path(&alter.id)?;
+    let parent = path.parent().ok_or(AppError::OperationFailed)?;
+    fs::create_dir_all(parent)?;
+
+    if !overwrite && path.exists() {
+        return Err(AppError::InvalidOperation("Alter already exists.".to_string()));
+    }
+
+    let json = serde_json::to_string_pretty(alter).map_err(|_| AppError::OperationFailed)?;
+    let atomic = AtomicFile::new(
+        &path,
+        if overwrite {
+            AllowOverwrite
+        } else {
+            DisallowOverwrite
         },
-    ).map_err(|_| AppError::InvalidOperation("Alter not found.".to_string()))?;
-    let style: AlterStyle = serde_json::from_str(&row.14).map_err(|_| AppError::OperationFailed)?;
-    Ok(AlterRecord {
-        id: row.0,
-        name: row.1,
-        slug: row.2,
-        description: row.3,
-        icon: empty_to_none(Some(row.4)),
-        color: empty_to_none(Some(row.5)),
-        category: empty_to_none(Some(row.6)),
-        mission: row.7,
-        inspirations: load_inspirations(conn, alter_id)?,
-        principles: parse_json_vec(row.8),
-        reflexes: parse_json_vec(row.9),
-        values: parse_json_vec(row.10),
-        critiques: parse_json_vec(row.11),
-        blind_spots: parse_json_vec(row.12),
-        system_hints: parse_json_vec(row.13),
-        style,
-        invocation_prompt: row.15,
-        is_favorite: row.16 != 0,
-        is_built_in: row.17 != 0,
-        created_at_ms: row.18,
-        updated_at_ms: row.19,
-    })
+    );
+    atomic
+        .write(|file| {
+            file.write_all(json.as_bytes())?;
+            file.write_all(b"\n")?;
+            file.flush()?;
+            file.sync_all()?;
+            Ok(())
+        })
+        .map_err(|err| match err {
+            atomicwrites::Error::Internal(error) => {
+                if !overwrite && error.kind() == std::io::ErrorKind::AlreadyExists {
+                    AppError::InvalidOperation("Alter already exists.".to_string())
+                } else {
+                    AppError::Io(error)
+                }
+            }
+            atomicwrites::Error::User(error) => AppError::Io(error),
+        })
 }
 
-pub fn resolve_invocation_prompt(conn: &Connection, alter_id: Option<&str>) -> Result<Option<String>> {
+fn remove_alter_record(alter_id: &str) -> Result<()> {
+    let path = alter_path(alter_id)?;
+    if !path.exists() {
+        return Err(AppError::InvalidOperation("Alter not found.".to_string()));
+    }
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+pub fn resolve_invocation_prompt(_conn: &Connection, alter_id: Option<&str>) -> Result<Option<String>> {
     let Some(alter_id) = alter_id.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(None);
     };
-    let alter = load_alter_record(conn, alter_id)?;
+    let alter = load_alter_record(alter_id)?;
     Ok(Some(alter.invocation_prompt))
 }
 
@@ -832,59 +787,24 @@ pub async fn generate_alter_draft(payload: GenerateAlterDraftPayload) -> Result<
 
 #[tauri::command]
 pub fn list_alters() -> Result<Vec<AlterSummary>> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    let mut stmt = conn.prepare(
-        "SELECT a.id, a.name, a.slug, a.description, a.icon, a.color, a.category, a.mission,
-                a.is_favorite, a.is_built_in, a.updated_at_ms,
-                (SELECT COUNT(*) FROM alter_revisions r WHERE r.alter_id = a.id)
-         FROM alters a
-         ORDER BY a.is_favorite DESC, a.updated_at_ms DESC, a.name ASC"
-    )?;
-    let rows = stmt.query_map([], |row| {
-        Ok(AlterSummary {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            slug: row.get(2)?,
-            description: row.get(3)?,
-            icon: empty_to_none(Some(row.get::<_, String>(4)?)),
-            color: empty_to_none(Some(row.get::<_, String>(5)?)),
-            category: empty_to_none(Some(row.get::<_, String>(6)?)),
-            mission: row.get(7)?,
-            is_favorite: row.get::<_, i64>(8)? != 0,
-            is_built_in: row.get::<_, i64>(9)? != 0,
-            updated_at_ms: row.get::<_, i64>(10)? as u64,
-            revision_count: row.get::<_, i64>(11)? as usize,
-        })
-    })?;
-    let mut out = Vec::new();
-    for row in rows {
-        out.push(row?);
-    }
-    Ok(out)
+    Ok(list_alter_records()?.iter().map(alter_summary).collect())
 }
 
 #[tauri::command]
 pub fn create_alter(payload: CreateAlterPayload) -> Result<AlterRecord> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
     let alter = normalize_create_payload(payload, None, None)?;
-    upsert_alter(&conn, &alter, Some("created"))?;
+    write_alter_record(&alter, false)?;
     Ok(alter)
 }
 
 #[tauri::command]
 pub fn load_alter(alter_id: String) -> Result<AlterRecord> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    load_alter_record(&conn, &alter_id)
+    load_alter_record(&alter_id)
 }
 
 #[tauri::command]
 pub fn update_alter(payload: UpdateAlterPayload) -> Result<AlterRecord> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    let current = load_alter_record(&conn, &payload.id)?;
+    let current = load_alter_record(&payload.id)?;
     let alter = normalize_create_payload(
         CreateAlterPayload {
             name: payload.name,
@@ -906,7 +826,8 @@ pub fn update_alter(payload: UpdateAlterPayload) -> Result<AlterRecord> {
         Some(current.id.clone()),
         Some(current.created_at_ms),
     )?;
-    upsert_alter(&conn, &alter, payload.revision_reason.as_deref())?;
+    let _ = payload.revision_reason;
+    write_alter_record(&alter, true)?;
     Ok(alter)
 }
 
@@ -914,18 +835,16 @@ pub fn update_alter(payload: UpdateAlterPayload) -> Result<AlterRecord> {
 pub fn delete_alter(alter_id: String) -> Result<()> {
     let conn = open_db()?;
     ensure_index_schema(&conn)?;
-    conn.execute("UPDATE second_brain_sessions SET alter_id = '' WHERE alter_id = ?1", params![alter_id.clone()])?;
-    conn.execute("DELETE FROM alter_inspirations WHERE alter_id = ?1", params![alter_id.clone()])?;
-    conn.execute("DELETE FROM alter_revisions WHERE alter_id = ?1", params![alter_id.clone()])?;
-    conn.execute("DELETE FROM alters WHERE id = ?1", params![alter_id])?;
-    Ok(())
+    conn.execute(
+        "UPDATE second_brain_sessions SET alter_id = '' WHERE alter_id = ?1",
+        params![alter_id.clone()],
+    )?;
+    remove_alter_record(&alter_id)
 }
 
 #[tauri::command]
 pub fn duplicate_alter(alter_id: String) -> Result<AlterRecord> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    let current = load_alter_record(&conn, &alter_id)?;
+    let current = load_alter_record(&alter_id)?;
     let mut clone = current.clone();
     clone.id = next_id(ALTER_PREFIX);
     clone.name = format!("{} Copy", current.name);
@@ -934,59 +853,22 @@ pub fn duplicate_alter(alter_id: String) -> Result<AlterRecord> {
     clone.created_at_ms = now_ms();
     clone.updated_at_ms = clone.created_at_ms;
     clone.invocation_prompt = compile_invocation_prompt(&clone);
-    upsert_alter(&conn, &clone, Some("duplicated"))?;
+    write_alter_record(&clone, false)?;
     Ok(clone)
 }
 
 #[tauri::command]
 pub fn list_alter_revisions(alter_id: String) -> Result<Vec<AlterRevisionSummary>> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    let mut stmt = conn.prepare(
-        "SELECT revision_id, alter_id, created_at_ms, reason
-         FROM alter_revisions WHERE alter_id = ?1 ORDER BY created_at_ms DESC"
-    )?;
-    let rows = stmt.query_map(params![alter_id], |row| {
-        Ok(AlterRevisionSummary {
-            revision_id: row.get(0)?,
-            alter_id: row.get(1)?,
-            created_at_ms: row.get::<_, i64>(2)? as u64,
-            reason: empty_to_none(Some(row.get::<_, String>(3)?)),
-        })
-    })?;
-    let mut out = Vec::new();
-    for row in rows {
-        out.push(row?);
-    }
-    Ok(out)
+    let _ = alter_id;
+    Ok(Vec::new())
 }
 
 #[tauri::command]
 pub fn load_alter_revision(revision_id: String) -> Result<AlterRevisionPayload> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    let row = conn.query_row(
-        "SELECT revision_id, alter_id, snapshot_json, reason, created_at_ms
-         FROM alter_revisions WHERE revision_id = ?1",
-        params![revision_id],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i64>(4)? as u64,
-            ))
-        },
-    ).map_err(|_| AppError::InvalidOperation("Alter revision not found.".to_string()))?;
-    let alter: AlterRecord = serde_json::from_str(&row.2).map_err(|_| AppError::OperationFailed)?;
-    Ok(AlterRevisionPayload {
-        revision_id: row.0,
-        alter_id: row.1,
-        created_at_ms: row.4,
-        reason: empty_to_none(Some(row.3)),
-        alter,
-    })
+    let _ = revision_id;
+    Err(AppError::InvalidOperation(
+        "Alter revisions are not available in file-backed storage.".to_string(),
+    ))
 }
 
 #[tauri::command]
@@ -1006,6 +888,58 @@ pub fn preview_alter(payload: PreviewAlterPayload) -> Result<PreviewAlterResult>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+
+    struct TestWorkspace {
+        root: PathBuf,
+    }
+
+    impl Drop for TestWorkspace {
+        fn drop(&mut self) {
+            let _ = crate::clear_active_workspace();
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn use_test_workspace<R>(run: impl FnOnce() -> Result<R>) -> Result<R> {
+        let _guard = crate::workspace_test_guard();
+        let root = std::env::temp_dir().join(format!(
+            "tomosona-alters-test-{}-{}",
+            now_ms(),
+            next_index_run_id()
+        ));
+        fs::create_dir_all(&root)?;
+        let root_str = root.to_string_lossy().to_string();
+        crate::set_active_workspace(&root_str)?;
+        let _cleanup = TestWorkspace { root };
+        run()
+    }
+
+    fn sample_create_payload(name: &str) -> CreateAlterPayload {
+        CreateAlterPayload {
+            name: name.to_string(),
+            description: "Workspace alter used for tests.".to_string(),
+            icon: Some("sparkles".to_string()),
+            color: Some("#8d6e63".to_string()),
+            category: Some("Testing".to_string()),
+            mission: "Support a predictable testing workflow.".to_string(),
+            inspirations: vec![AlterInspiration {
+                id: String::new(),
+                label: "Test reference".to_string(),
+                source_type: AlterInspirationSourceType::Manual,
+                weight: Some(1.0),
+                reference_id: None,
+            }],
+            principles: vec!["Prefer explicit behavior".to_string()],
+            reflexes: vec!["Ask for the concrete failure mode".to_string()],
+            values: vec!["Reliability".to_string()],
+            critiques: vec!["Avoid hidden state".to_string()],
+            blind_spots: vec!["May overfit to tests".to_string()],
+            system_hints: vec!["Keep the JSON stable".to_string()],
+            style: default_style(),
+            is_favorite: true,
+        }
+    }
 
     #[test]
     fn extract_json_object_accepts_fenced_or_prefixed_output() {
@@ -1040,5 +974,190 @@ mod tests {
         assert!(draft.mission.contains("Build an alter for strategy under uncertainty"));
         assert_eq!(draft.style.influence_intensity, "balanced");
         assert_eq!(draft.color.as_deref(), Some("#8d6e63"));
+    }
+
+    #[test]
+    fn file_backed_alters_round_trip_duplicate_and_delete() {
+        use_test_workspace(|| {
+            let created = create_alter(sample_create_payload("Test Alter"))?;
+            assert_eq!(created.slug, "test-alter");
+            assert!(alter_path(&created.id)?.is_file());
+
+            let listed = list_alters()?;
+            assert_eq!(listed.len(), 1);
+            assert_eq!(listed[0].id, created.id);
+
+            let loaded = load_alter(created.id.clone())?;
+            assert_eq!(loaded.id, created.id);
+            assert_eq!(loaded.name, created.name);
+            assert_eq!(loaded.slug, created.slug);
+            assert_eq!(loaded.description, created.description);
+            assert_eq!(loaded.icon, created.icon);
+            assert_eq!(loaded.color, created.color);
+            assert_eq!(loaded.category, created.category);
+            assert_eq!(loaded.mission, created.mission);
+            assert_eq!(loaded.inspirations.len(), created.inspirations.len());
+            assert_eq!(loaded.principles, created.principles);
+            assert_eq!(loaded.reflexes, created.reflexes);
+            assert_eq!(loaded.values, created.values);
+            assert_eq!(loaded.critiques, created.critiques);
+            assert_eq!(loaded.blind_spots, created.blind_spots);
+            assert_eq!(loaded.system_hints, created.system_hints);
+            assert_eq!(loaded.style.tone, created.style.tone);
+            assert_eq!(loaded.style.verbosity, created.style.verbosity);
+            assert_eq!(loaded.style.contradiction_level, created.style.contradiction_level);
+            assert_eq!(loaded.style.exploration_level, created.style.exploration_level);
+            assert_eq!(loaded.style.influence_intensity, created.style.influence_intensity);
+            assert_eq!(loaded.style.response_style, created.style.response_style);
+            assert_eq!(loaded.style.cite_hypotheses, created.style.cite_hypotheses);
+            assert_eq!(loaded.style.signal_biases, created.style.signal_biases);
+            assert_eq!(loaded.invocation_prompt, created.invocation_prompt);
+            assert_eq!(loaded.is_favorite, created.is_favorite);
+            assert_eq!(loaded.is_built_in, created.is_built_in);
+            assert_eq!(loaded.created_at_ms, created.created_at_ms);
+            assert_eq!(loaded.updated_at_ms, created.updated_at_ms);
+
+            let updated = update_alter(UpdateAlterPayload {
+                id: created.id.clone(),
+                name: "Updated Alter".to_string(),
+                description: "Updated description".to_string(),
+                icon: None,
+                color: Some("#123456".to_string()),
+                category: Some("Testing".to_string()),
+                mission: "Support an updated workflow.".to_string(),
+                inspirations: created.inspirations.clone(),
+                principles: vec!["Prefer explicit behavior".to_string()],
+                reflexes: vec!["Prefer deterministic results".to_string()],
+                values: vec!["Reliability".to_string()],
+                critiques: vec!["Avoid hidden state".to_string()],
+                blind_spots: vec!["May overfit to tests".to_string()],
+                system_hints: vec!["Keep the JSON stable".to_string()],
+                style: created.style.clone(),
+                is_favorite: false,
+                revision_reason: Some("manual_save".to_string()),
+            })?;
+            assert_eq!(updated.id, created.id);
+            assert_eq!(updated.created_at_ms, created.created_at_ms);
+            assert_eq!(updated.name, "Updated Alter");
+            assert!(alter_path(&created.id)?.is_file());
+
+            let duplicated = duplicate_alter(created.id.clone())?;
+            assert_ne!(duplicated.id, created.id);
+            assert_eq!(duplicated.name, "Updated Alter Copy");
+            assert!(alter_path(&duplicated.id)?.is_file());
+
+            let after_duplicate = list_alters()?;
+            assert_eq!(after_duplicate.len(), 2);
+
+            delete_alter(created.id.clone())?;
+            assert!(!alter_path(&created.id)?.exists());
+
+            let remaining = list_alters()?;
+            assert_eq!(remaining.len(), 1);
+            assert_eq!(remaining[0].id, duplicated.id);
+
+            Ok(())
+        })
+        .expect("file-backed alters workflow")
+    }
+
+    #[test]
+    fn file_backed_alters_allow_slug_collisions() {
+        use_test_workspace(|| {
+            let first = create_alter(sample_create_payload("Same Name"))?;
+            let second = create_alter(sample_create_payload("Same Name"))?;
+
+            assert_ne!(first.id, second.id);
+            assert_eq!(first.slug, second.slug);
+
+            let listed = list_alters()?;
+            assert_eq!(listed.len(), 2);
+
+            Ok(())
+        })
+        .expect("slug collisions should not block storage")
+    }
+
+    #[test]
+    fn file_backed_alters_reject_duplicate_file_ids_on_write() {
+        use_test_workspace(|| {
+            let created = create_alter(sample_create_payload("Duplicate Guard"))?;
+
+            assert!(matches!(
+                write_alter_record(&created, false),
+                Err(AppError::InvalidOperation(message)) if message == "Alter already exists."
+            ));
+
+            Ok(())
+        })
+        .expect("duplicate alter ids should not be overwritten during create")
+    }
+
+    #[test]
+    fn file_backed_alters_delete_detaches_second_brain_sessions() {
+        use_test_workspace(|| {
+            let created = create_alter(sample_create_payload("Session Guard"))?;
+            let conn = open_db()?;
+            ensure_index_schema(&conn)?;
+            conn.execute(
+                "INSERT INTO second_brain_sessions (id, title, provider, model, alter_id, created_at_ms, updated_at_ms)
+                 VALUES (?1, 'Session', 'openai', 'gpt-4o-mini', ?2, ?3, ?3)",
+                params!["sb-session-1", created.id.clone(), now_ms() as i64],
+            )?;
+
+            delete_alter(created.id.clone())?;
+
+            let alter_id: String = conn.query_row(
+                "SELECT alter_id FROM second_brain_sessions WHERE id = ?1",
+                params!["sb-session-1"],
+                |row| row.get(0),
+            )?;
+            assert_eq!(alter_id, "");
+
+            Ok(())
+        })
+        .expect("delete should detach session alter references")
+    }
+
+    #[test]
+    fn file_backed_alters_reject_loads_without_active_workspace() {
+        let _guard = crate::workspace_test_guard();
+        let _ = crate::clear_active_workspace();
+
+        assert!(matches!(
+            load_alter("missing".to_string()),
+            Err(AppError::InvalidOperation(message)) if message == "No workspace is selected."
+        ));
+    }
+
+    #[test]
+    fn file_backed_alters_skip_invalid_list_entries_and_reject_invalid_json_loads() {
+        use_test_workspace(|| {
+            let valid = create_alter(sample_create_payload("Valid Alter"))?;
+            let invalid_path = alters_dir()?.join("broken.json");
+            fs::write(&invalid_path, "{ not valid json")?;
+
+            let listed = list_alters()?;
+            assert_eq!(listed.len(), 1);
+            assert_eq!(listed[0].id, valid.id);
+
+            assert!(matches!(
+                load_alter("broken".to_string()),
+                Err(AppError::OperationFailed) | Err(AppError::InvalidOperation(_))
+            ));
+
+            assert!(matches!(
+                list_alter_revisions(valid.id.clone()),
+                Ok(revisions) if revisions.is_empty()
+            ));
+
+            assert!(matches!(
+                load_alter_revision("rev-1".to_string()),
+                Err(AppError::InvalidOperation(_))
+            ));
+
+            Ok(())
+        })
+        .expect("invalid files should not break valid alters")
     }
 }
