@@ -2404,8 +2404,17 @@ async function saveNoteBuffer(path: string, txt: string, options: SaveFileOption
     virtualDocs.value = nextVirtual
   }
 
+  const normalizedPathKey = normalizePathKey(path)
+  const isNewWorkspacePath = !allWorkspaceFiles.value.some((item) => normalizePathKey(item) === normalizedPathKey)
+
   upsertWorkspaceFilePath(path)
   enqueueMarkdownReindex(path)
+
+  const shouldRefreshWorkspaceFiles = virtual || isNewWorkspacePath
+  if (shouldRefreshWorkspaceFiles) {
+    await loadAllFiles()
+    workspaceMutationEchoesToken.value += 1
+  }
   return result
 }
 

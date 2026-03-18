@@ -73,6 +73,18 @@ vi.mock('./shared/api/workspaceApi', () => ({
   listenWorkspaceFsChanged: hoisted.listenWorkspaceFsChanged
 }))
 
+vi.mock('./shared/api/editorSyncApi', () => ({
+  readNoteSnapshot: vi.fn(async (path: string) => ({
+    path,
+    content: hoisted.fileContents.get(path) ?? '',
+    version: null
+  })),
+  saveNoteBuffer: vi.fn(async (payload: { path: string; content: string }) => ({
+    ok: true,
+    version: { mtimeMs: Date.now(), size: payload.content.length }
+  }))
+}))
+
 vi.mock('./shared/api/indexApi', () => ({
   initDb: vi.fn(async () => {}),
   reindexMarkdownFileLexical: vi.fn(async () => {}),
@@ -122,7 +134,17 @@ vi.mock('./shared/api/favoritesApi', () => ({
 
 vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
   default: defineComponent({
-    setup(_, { expose }) {
+    props: {
+      activeDocumentPath: {
+        type: String,
+        default: ''
+      },
+      saveNoteBuffer: {
+        type: Function,
+        required: false
+      }
+    },
+    setup(props, { expose }) {
       expose({
         saveNow: async () => {},
         reloadCurrent: async () => {},
@@ -136,7 +158,22 @@ vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
         resetZoom: () => 1,
         getZoom: () => 1
       })
-      return () => h('div', 'editor')
+      return () => h('div', [
+        h('button', {
+          type: 'button',
+          'data-save-test-note': 'true',
+          onClick: () => {
+            void props.saveNoteBuffer?.(
+              '/vault/new-note.md',
+              '# A\n\nUpdated body',
+              {
+                explicit: false,
+                expectedBaseVersion: null
+              }
+            )
+          }
+        }, 'save test note')
+      ])
     }
   })
 }))
@@ -247,6 +284,22 @@ describe('App shell flows', () => {
     expect(workspaceApi.createEntry).toHaveBeenCalledWith('/vault', 'test-note.md', 'file', 'fail')
     expect(mounted.root.querySelector('[data-new-file-input="true"]')).toBeNull()
     expect(mounted.root.textContent).toContain('test-note.md')
+
+    mounted.app.unmount()
+  })
+
+  it('refreshes the workspace file cache after a successful save', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    const initialListChildrenCalls = hoisted.listChildren.mock.calls.length
+    const saveButton = mounted.root.querySelector<HTMLButtonElement>('[data-save-test-note="true"]')
+    expect(saveButton).toBeTruthy()
+    saveButton?.click()
+    await flushUi()
+    await flushUi()
+
+    expect(hoisted.listChildren.mock.calls.length).toBeGreaterThan(initialListChildrenCalls)
 
     mounted.app.unmount()
   })
