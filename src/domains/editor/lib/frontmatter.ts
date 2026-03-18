@@ -1,4 +1,18 @@
+/**
+ * Editor frontmatter parsing and serialization.
+ *
+ * Does:
+ * - parse markdown frontmatter into typed editor fields
+ * - validate field shapes, ordering, and duplicates
+ * - serialize editor fields back to YAML / markdown
+ *
+ * Does not:
+ * - extract the raw markdown envelope structure itself
+ * - serve as a generic YAML parser for other domains
+ * - encode alter-specific metadata rules
+ */
 import { resolvePropertyType, type PropertyType, type PropertyTypeSchema } from './propertyTypes'
+import { parseFrontmatterEnvelope } from '../../../shared/lib/markdownFrontmatter'
 
 export type FrontmatterStyleHint = 'inline-list' | 'block-list' | 'literal-block' | 'plain'
 
@@ -30,15 +44,15 @@ const KEY_VALUE_RE = /^([A-Za-z0-9_-][A-Za-z0-9_\- ]*?):\s*(.*)$/
 // Detects ISO date-only strings, e.g. "2026-02-25".
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
 
-function normalizeNewlines(input: string): string {
-  return input.replace(/\r\n?/g, '\n')
-}
-
 function unquote(value: string): string {
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
     return value.slice(1, -1)
   }
   return value
+}
+
+function normalizeNewlines(input: string): string {
+  return input.replace(/\r\n?/g, '\n')
 }
 
 function parseInlineList(input: string): string[] | null {
@@ -59,22 +73,6 @@ function parseScalar(raw: string): string | number | boolean {
   // Detects integer/float scalar values, e.g. "-2", "3.14".
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed)
   return unquote(trimmed)
-}
-
-function splitFrontmatter(markdown: string): { hasFrontmatter: boolean; rawYaml: string; body: string } {
-  const normalized = normalizeNewlines(markdown)
-  if (!normalized.startsWith('---\n')) {
-    return { hasFrontmatter: false, rawYaml: '', body: normalized }
-  }
-
-  const closingIndex = normalized.indexOf('\n---\n', 4)
-  if (closingIndex < 0) {
-    return { hasFrontmatter: false, rawYaml: '', body: normalized }
-  }
-
-  const rawYaml = normalized.slice(4, closingIndex)
-  const body = normalized.slice(closingIndex + 5)
-  return { hasFrontmatter: true, rawYaml, body }
 }
 
 function ensureUniqueKeys(fields: FrontmatterField[]): FrontmatterError[] {
@@ -244,7 +242,7 @@ function serializeField(field: FrontmatterField): string {
 }
 
 export function parseFrontmatter(markdown: string, schema: PropertyTypeSchema): FrontmatterEnvelope {
-  const parts = splitFrontmatter(markdown)
+  const parts = parseFrontmatterEnvelope(markdown)
   if (!parts.hasFrontmatter) {
     return {
       hasFrontmatter: false,
