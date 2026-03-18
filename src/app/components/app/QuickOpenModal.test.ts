@@ -18,7 +18,22 @@ function mountHarness(options?: { query?: string; isActionMode?: boolean; hasTex
           query: query.value,
           isActionMode: options?.isActionMode ?? true,
           hasTextQuery: options?.hasTextQuery ?? false,
-          actionResults: [{ id: 'open-settings', label: 'Open Settings', run: () => true }],
+          actionGroups: [
+            {
+              family: 'navigation',
+              label: 'Navigation',
+              items: [
+                { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: () => true }
+              ]
+            },
+            {
+              family: 'utilities',
+              label: 'Utilities',
+              items: [
+                { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: () => true }
+              ]
+            }
+          ],
           recentResults: [
             { kind: 'recent', path: '/vault/notes/alpha.md', label: 'notes/alpha.md', recencyLabel: '2m ago' }
           ],
@@ -46,6 +61,9 @@ describe('QuickOpenModal', () => {
 
   it('emits query updates and action selections', async () => {
     const mounted = mountHarness({ isActionMode: true })
+    const sectionTitles = Array.from(mounted.root.querySelectorAll('.modal-section-title')).map((node) => node.textContent?.trim())
+    expect(sectionTitles).toEqual(['Navigation', 'Utilities'])
+
     const input = mounted.root.querySelector<HTMLInputElement>('[data-quick-open-input="true"]')
     input?.dispatchEvent(new Event('input', { bubbles: true }))
     if (input) {
@@ -55,9 +73,10 @@ describe('QuickOpenModal', () => {
     await nextTick()
 
     mounted.root.querySelector<HTMLButtonElement>('.modal-item')?.click()
+    mounted.root.querySelectorAll<HTMLButtonElement>('.modal-item')[1]?.click()
 
     expect(mounted.query.value).toBe('>open settings')
-    expect(mounted.actionSelections).toEqual(['open-settings'])
+    expect(mounted.actionSelections).toEqual(['open-home-view', 'open-settings'])
     expect(mounted.resultSelections).toEqual([])
 
     mounted.app.unmount()

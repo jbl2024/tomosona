@@ -149,6 +149,7 @@ import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import {
   useAppQuickOpen,
   type PaletteAction,
+  type PaletteActionFamily,
   type QuickOpenResult
 } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
@@ -735,107 +736,124 @@ const paletteActionPriority: Record<string, number> = {
   'close-workspace': 43
 }
 
+function createPaletteAction(
+  family: PaletteActionFamily,
+  action: Omit<PaletteAction, 'family'>
+): PaletteAction {
+  return { family, ...action }
+}
+
 const paletteActions = computed<PaletteAction[]>(() => [
-  {
+  createPaletteAction('navigation', {
     id: 'open-home-view',
     label: 'Open Home',
     run: () => openHomeViewFromPalette(),
     closeBeforeRun: true
-  },
-  {
+  }),
+  createPaletteAction('navigation', {
     id: 'open-favorites',
     label: 'Open Favorites',
     run: () => openFavoritesPanelFromPalette(),
     closeBeforeRun: true
-  },
-  {
+  }),
+  createPaletteAction('navigation', {
     id: 'open-cosmos-view',
     label: 'Open Cosmos View',
     run: () => openCosmosViewFromPalette(),
     closeBeforeRun: true,
     loadingLabel: 'Loading graph...'
-  },
-  {
+  }),
+  createPaletteAction('navigation', {
     id: 'open-second-brain-view',
     label: 'Open Second Brain View',
     run: () => openSecondBrainViewFromPalette(),
     closeBeforeRun: true
-  },
-  {
+  }),
+  createPaletteAction('navigation', {
     id: 'open-alters-view',
     label: 'Open Alters View',
     run: () => openAltersViewFromPalette(),
     closeBeforeRun: true
-  },
-  {
+  }),
+  createPaletteAction('notes', {
     id: 'add-active-note-to-second-brain',
     label: 'Add Active Note to Second Brain',
     run: () => addActiveNoteToSecondBrainFromPalette()
-  },
+  }),
   ...(
     activeFilePath.value && isMarkdownPath(activeFilePath.value) && !favorites.isFavorite(activeFilePath.value)
-      ? [{
+      ? [createPaletteAction('notes', {
           id: 'add-active-note-to-favorites',
           label: 'Add Active Note to Favorites',
           run: () => addActiveNoteToFavoritesFromPalette()
-        } satisfies PaletteAction]
+        })]
       : []
   ),
   ...(
     activeFilePath.value && isMarkdownPath(activeFilePath.value) && favorites.isFavorite(activeFilePath.value)
-      ? [{
+      ? [createPaletteAction('notes', {
           id: 'remove-active-note-from-favorites',
           label: 'Remove Active Note from Favorites',
           run: () => removeActiveNoteFromFavoritesFromPalette()
-        } satisfies PaletteAction]
+        })]
       : []
   ),
-  {
+  createPaletteAction('utilities', {
     id: 'open-settings',
     label: 'Open Settings',
     run: () => openSettingsFromPalette(),
     closeBeforeRun: true
-  },
-  {
+  }),
+  createPaletteAction('navigation', {
     id: 'open-note-in-cosmos',
     label: 'Open Note in Cosmos',
     run: () => openNoteInCosmosFromPalette(),
     closeBeforeRun: true,
     loadingLabel: 'Loading graph and locating active note...'
-  },
-  { id: 'open-workspace', label: 'Open Workspace', run: () => openWorkspaceFromPalette() },
-  { id: 'close-workspace', label: 'Close Workspace', run: () => closeWorkspaceFromPalette() },
-  { id: 'show-shortcuts', label: 'Show Keyboard Shortcuts', run: () => openShortcutsFromPalette() },
-  { id: 'zoom-in', label: 'Zoom In (Editor)', run: () => zoomInFromPalette() },
-  { id: 'zoom-out', label: 'Zoom Out (Editor)', run: () => zoomOutFromPalette() },
-  { id: 'zoom-reset', label: 'Reset Zoom (Editor)', run: () => resetZoomFromPalette() },
-  { id: 'theme-select', label: 'Theme: Select Theme…', run: () => openThemePickerFromPalette() },
-  { id: 'theme-system', label: 'Theme: System', run: () => setThemeFromPalette('system') },
-  ...availableThemes.map((theme) => ({
-    id: `theme-${theme.id}`,
-    label: `Theme: ${theme.label}`,
-    run: () => setThemeFromPalette(theme.id)
-  })),
-  { id: 'open-today', label: 'Open Today', run: () => openTodayNote() },
-  { id: 'open-yesterday', label: 'Open Yesterday', run: () => openYesterdayNote() },
-  { id: 'open-specific-date', label: 'Open Specific Date', run: () => openSpecificDateNote() },
-  { id: 'create-new-file', label: 'New Note', run: () => createNewFileFromPalette() },
-  { id: 'close-all-tabs', label: 'Close All Tabs (All Panes)', run: () => closeAllTabsFromPalette() },
-  { id: 'close-all-tabs-current-pane', label: 'Close All Tabs on Current Pane', run: () => closeAllTabsOnCurrentPaneFromPalette() },
-  { id: 'close-other-tabs', label: 'Close Other Tabs', run: () => closeOtherTabsFromPalette() },
-  { id: 'split-pane-right', label: 'Split Pane Right', run: () => splitPaneFromPalette('row') },
-  { id: 'split-pane-down', label: 'Split Pane Down', run: () => splitPaneFromPalette('column') },
-  { id: 'focus-pane-1', label: 'Focus Pane 1', run: () => focusPaneFromPalette(1) },
-  { id: 'focus-pane-2', label: 'Focus Pane 2', run: () => focusPaneFromPalette(2) },
-  { id: 'focus-pane-3', label: 'Focus Pane 3', run: () => focusPaneFromPalette(3) },
-  { id: 'focus-pane-4', label: 'Focus Pane 4', run: () => focusPaneFromPalette(4) },
-  { id: 'focus-next-pane', label: 'Focus Next Pane', run: () => focusNextPaneFromPalette() },
-  { id: 'move-tab-next-pane', label: 'Move Active Tab to Next Pane', run: () => moveTabToNextPaneFromPalette() },
-  { id: 'close-active-pane', label: 'Close Active Pane', run: () => closeActivePaneFromPalette() },
-  { id: 'join-panes', label: 'Join Panes', run: () => joinPanesFromPalette() },
-  { id: 'reset-pane-layout', label: 'Reset Pane Layout', run: () => resetPaneLayoutFromPalette() },
-  { id: 'open-file', label: 'Open File', run: () => (quickOpenQuery.value = '', false) },
-  { id: 'reveal-in-explorer', label: 'Reveal in Explorer', run: () => revealActiveInExplorer() }
+  }),
+  createPaletteAction('workspace', { id: 'open-workspace', label: 'Open Workspace', run: () => openWorkspaceFromPalette() }),
+  createPaletteAction('workspace', { id: 'close-workspace', label: 'Close Workspace', run: () => closeWorkspaceFromPalette() }),
+  createPaletteAction('utilities', { id: 'show-shortcuts', label: 'Show Keyboard Shortcuts', run: () => openShortcutsFromPalette() }),
+  createPaletteAction('view', { id: 'zoom-in', label: 'Zoom In (Editor)', run: () => zoomInFromPalette() }),
+  createPaletteAction('view', { id: 'zoom-out', label: 'Zoom Out (Editor)', run: () => zoomOutFromPalette() }),
+  createPaletteAction('view', { id: 'zoom-reset', label: 'Reset Zoom (Editor)', run: () => resetZoomFromPalette() }),
+  createPaletteAction('theme', { id: 'theme-select', label: 'Theme: Select Theme…', run: () => openThemePickerFromPalette() }),
+  createPaletteAction('theme', { id: 'theme-system', label: 'Theme: System', run: () => setThemeFromPalette('system') }),
+  ...availableThemes.map((theme) =>
+    createPaletteAction('theme', {
+      id: `theme-${theme.id}`,
+      label: `Theme: ${theme.label}`,
+      run: () => setThemeFromPalette(theme.id)
+    })
+  ),
+  createPaletteAction('notes', { id: 'open-today', label: 'Open Today', run: () => openTodayNote() }),
+  createPaletteAction('notes', { id: 'open-yesterday', label: 'Open Yesterday', run: () => openYesterdayNote() }),
+  createPaletteAction('notes', { id: 'open-specific-date', label: 'Open Specific Date', run: () => openSpecificDateNote() }),
+  createPaletteAction('notes', { id: 'create-new-file', label: 'New Note', run: () => createNewFileFromPalette() }),
+  createPaletteAction('layout', { id: 'close-all-tabs', label: 'Close All Tabs (All Panes)', run: () => closeAllTabsFromPalette() }),
+  createPaletteAction('layout', {
+    id: 'close-all-tabs-current-pane',
+    label: 'Close All Tabs on Current Pane',
+    run: () => closeAllTabsOnCurrentPaneFromPalette()
+  }),
+  createPaletteAction('layout', { id: 'close-other-tabs', label: 'Close Other Tabs', run: () => closeOtherTabsFromPalette() }),
+  createPaletteAction('layout', { id: 'split-pane-right', label: 'Split Pane Right', run: () => splitPaneFromPalette('row') }),
+  createPaletteAction('layout', { id: 'split-pane-down', label: 'Split Pane Down', run: () => splitPaneFromPalette('column') }),
+  createPaletteAction('layout', { id: 'focus-pane-1', label: 'Focus Pane 1', run: () => focusPaneFromPalette(1) }),
+  createPaletteAction('layout', { id: 'focus-pane-2', label: 'Focus Pane 2', run: () => focusPaneFromPalette(2) }),
+  createPaletteAction('layout', { id: 'focus-pane-3', label: 'Focus Pane 3', run: () => focusPaneFromPalette(3) }),
+  createPaletteAction('layout', { id: 'focus-pane-4', label: 'Focus Pane 4', run: () => focusPaneFromPalette(4) }),
+  createPaletteAction('layout', { id: 'focus-next-pane', label: 'Focus Next Pane', run: () => focusNextPaneFromPalette() }),
+  createPaletteAction('layout', {
+    id: 'move-tab-next-pane',
+    label: 'Move Active Tab to Next Pane',
+    run: () => moveTabToNextPaneFromPalette()
+  }),
+  createPaletteAction('layout', { id: 'close-active-pane', label: 'Close Active Pane', run: () => closeActivePaneFromPalette() }),
+  createPaletteAction('layout', { id: 'join-panes', label: 'Join Panes', run: () => joinPanesFromPalette() }),
+  createPaletteAction('layout', { id: 'reset-pane-layout', label: 'Reset Pane Layout', run: () => resetPaneLayoutFromPalette() }),
+  createPaletteAction('search', { id: 'open-file', label: 'Open File', run: () => (quickOpenQuery.value = '', false) }),
+  createPaletteAction('utilities', { id: 'reveal-in-explorer', label: 'Reveal in Explorer', run: () => revealActiveInExplorer() })
 ])
 
 const quickOpenDataPort = {
@@ -858,6 +876,7 @@ const quickOpenPalettePort = {
 const {
   quickOpenIsActionMode,
   quickOpenActionResults,
+  quickOpenActionGroups,
   quickOpenResults,
   quickOpenBrowseRecentResults,
   quickOpenBrowseActionResults,
@@ -3454,7 +3473,7 @@ onBeforeUnmount(() => {
       :query="quickOpenQuery"
       :is-action-mode="quickOpenIsActionMode"
       :has-text-query="quickOpenHasTextQuery"
-      :action-results="quickOpenActionResults"
+      :action-groups="quickOpenActionGroups"
       :recent-results="quickOpenBrowseRecentResults"
       :browse-action-results="quickOpenBrowseActionResults"
       :file-results="quickOpenResults"

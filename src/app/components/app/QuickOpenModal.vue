@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { PaletteAction, QuickOpenBrowseAction, QuickOpenResult } from '../../composables/useAppQuickOpen'
+import { computed } from 'vue'
+import type {
+  QuickOpenActionGroup,
+  QuickOpenBrowseAction,
+  QuickOpenResult
+} from '../../composables/useAppQuickOpen'
 
 /**
  * QuickOpenModal
@@ -12,12 +17,12 @@ import type { PaletteAction, QuickOpenBrowseAction, QuickOpenResult } from '../.
  * - Parent owns query state, keyboard handling, and command execution.
  */
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
   query: string
   isActionMode: boolean
   hasTextQuery: boolean
-  actionResults: PaletteAction[]
+  actionGroups: QuickOpenActionGroup[]
   recentResults: QuickOpenResult[]
   browseActionResults: QuickOpenBrowseAction[]
   fileResults: QuickOpenResult[]
@@ -38,6 +43,18 @@ function quickOpenItemKey(item: QuickOpenResult): string {
   if (item.kind === 'recent') return `recent-${item.path}`
   return item.path
 }
+
+const actionSections = computed(() => {
+  let startIndex = 0
+  return props.actionGroups.map((group) => {
+    const nextGroup = {
+      ...group,
+      startIndex
+    }
+    startIndex += group.items.length
+    return nextGroup
+  })
+})
 </script>
 
 <template>
@@ -63,17 +80,20 @@ function quickOpenItemKey(item: QuickOpenResult): string {
       />
       <div class="modal-list">
         <template v-if="isActionMode">
-          <button
-            v-for="(item, index) in actionResults"
-            :key="item.id"
-            type="button"
-            class="modal-item"
-            :class="{ active: activeIndex === index }"
-            @click="emit('select-action', item.id)"
-            @mousemove="emit('set-active-index', index)"
-          >
-            {{ item.label }}
-          </button>
+          <section v-for="group in actionSections" :key="group.family" class="modal-section">
+            <p class="modal-section-title">{{ group.label }}</p>
+            <button
+              v-for="(item, index) in group.items"
+              :key="item.id"
+              type="button"
+              class="modal-item"
+              :class="{ active: activeIndex === group.startIndex + index }"
+              @click="emit('select-action', item.id)"
+              @mousemove="emit('set-active-index', group.startIndex + index)"
+            >
+              {{ item.label }}
+            </button>
+          </section>
         </template>
         <template v-else-if="hasTextQuery">
           <button
@@ -119,7 +139,7 @@ function quickOpenItemKey(item: QuickOpenResult): string {
             </button>
           </section>
         </template>
-        <div v-if="isActionMode && !actionResults.length" class="placeholder">No matching actions</div>
+        <div v-if="isActionMode && !actionSections.length" class="placeholder">No matching actions</div>
         <div v-else-if="hasTextQuery && !fileResults.length" class="placeholder">No matching files</div>
         <div v-else-if="!isActionMode && !hasTextQuery && !recentResults.length && !browseActionResults.length" class="placeholder">
           No recent notes yet

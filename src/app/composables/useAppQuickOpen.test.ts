@@ -5,10 +5,10 @@ import type { LaunchpadRecentNote } from '../lib/appShellViewModels'
 
 function createActions(): PaletteAction[] {
   return [
-    { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) },
-    { id: 'split-pane-right', label: 'Split Pane Right', run: vi.fn(() => true) },
-    { id: 'split-pane-down', label: 'Split Pane Down', run: vi.fn(() => true) },
-    { id: 'reveal-in-explorer', label: 'Reveal in Explorer', run: vi.fn(() => true) }
+    { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: vi.fn(() => true) },
+    { id: 'split-pane-right', label: 'Split Pane Right', family: 'layout', run: vi.fn(() => true) },
+    { id: 'split-pane-down', label: 'Split Pane Down', family: 'layout', run: vi.fn(() => true) },
+    { id: 'reveal-in-explorer', label: 'Reveal in Explorer', family: 'utilities', run: vi.fn(() => true) }
   ]
 }
 
@@ -52,9 +52,9 @@ describe('useAppQuickOpen', () => {
   it('returns recent notes then quick actions when the query is empty', () => {
     const api = createQuickOpenHarness({
       paletteActions: [
-        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
-        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
-        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+        { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: vi.fn(() => true) }
       ],
       recentViewedNotes: [
         {
@@ -85,11 +85,11 @@ describe('useAppQuickOpen', () => {
   it('returns only browse actions when there are no recent notes', () => {
     const api = createQuickOpenHarness({
       paletteActions: [
-        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
-        { id: 'open-today', label: 'Open Today', run: vi.fn(() => true) },
-        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
-        { id: 'open-favorites', label: 'Open Favorites', run: vi.fn(() => true) },
-        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+        { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: vi.fn(() => true) },
+        { id: 'open-today', label: 'Open Today', family: 'notes', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) },
+        { id: 'open-favorites', label: 'Open Favorites', family: 'navigation', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: vi.fn(() => true) }
       ]
     })
 
@@ -226,9 +226,9 @@ describe('useAppQuickOpen', () => {
   it('sorts empty action queries by priority then label', () => {
     const api = createQuickOpenHarness({
       paletteActions: [
-        { id: 'b', label: 'Bravo', run: vi.fn(() => true) },
-        { id: 'a', label: 'Alpha', run: vi.fn(() => true) },
-        { id: 'c', label: 'Charlie', run: vi.fn(() => true) }
+        { id: 'b', label: 'Bravo', family: 'layout', run: vi.fn(() => true) },
+        { id: 'a', label: 'Alpha', family: 'layout', run: vi.fn(() => true) },
+        { id: 'c', label: 'Charlie', family: 'utilities', run: vi.fn(() => true) }
       ],
       paletteActionPriority: { b: 1, a: 1, c: 2 }
     })
@@ -241,9 +241,9 @@ describe('useAppQuickOpen', () => {
   it('sorts action matches by exact match, startsWith, then includes', () => {
     const api = createQuickOpenHarness({
       paletteActions: [
-        { id: 'exact', label: 'Split', run: vi.fn(() => true) },
-        { id: 'starts-with', label: 'Split Pane Right', run: vi.fn(() => true) },
-        { id: 'includes', label: 'Focus Split View', run: vi.fn(() => true) }
+        { id: 'exact', label: 'Split', family: 'layout', run: vi.fn(() => true) },
+        { id: 'starts-with', label: 'Split Pane Right', family: 'layout', run: vi.fn(() => true) },
+        { id: 'includes', label: 'Focus Split View', family: 'layout', run: vi.fn(() => true) }
       ]
     })
 
@@ -274,9 +274,9 @@ describe('useAppQuickOpen', () => {
   it('wraps selection movement based on visible item count', () => {
     const api = createQuickOpenHarness({
       paletteActions: [
-        { id: 'open-home-view', label: 'Open Home', run: vi.fn(() => true) },
-        { id: 'create-new-file', label: 'New Note', run: vi.fn(() => true) },
-        { id: 'open-settings', label: 'Open Settings', run: vi.fn(() => true) }
+        { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: vi.fn(() => true) },
+        { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) },
+        { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: vi.fn(() => true) }
       ],
       allWorkspaceFiles: ['/vault/a.md', '/vault/b.md'],
       recentViewedNotes: [
@@ -337,5 +337,40 @@ describe('useAppQuickOpen', () => {
 
     expect(api.quickOpenQuery.value).toBe('next')
     expect(api.quickOpenActiveIndex.value).toBe(0)
+  })
+
+  it('groups action results by family while preserving rank order within each family', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: [
+        { id: 'open-settings', label: 'Open Settings', family: 'utilities', run: vi.fn(() => true) },
+        { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: vi.fn(() => true) },
+        { id: 'split-pane-right', label: 'Split Pane Right', family: 'layout', run: vi.fn(() => true) },
+        { id: 'split-pane-down', label: 'Split Pane Down', family: 'layout', run: vi.fn(() => true) }
+      ],
+      paletteActionPriority: {
+        'open-home-view': 0,
+        'split-pane-right': 1,
+        'split-pane-down': 2,
+        'open-settings': 3
+      }
+    })
+
+    api.quickOpenQuery.value = '>'
+
+    expect(api.quickOpenActionResults.value.map((item) => item.id)).toEqual([
+      'open-home-view',
+      'split-pane-right',
+      'split-pane-down',
+      'open-settings'
+    ])
+    expect(api.quickOpenActionGroups.value.map((group) => group.label)).toEqual([
+      'Navigation',
+      'Layout',
+      'Utilities'
+    ])
+    expect(api.quickOpenActionGroups.value[1].items.map((item) => item.id)).toEqual([
+      'split-pane-right',
+      'split-pane-down'
+    ])
   })
 })

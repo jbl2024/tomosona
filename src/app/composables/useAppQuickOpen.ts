@@ -23,13 +23,32 @@ export type QuickOpenBrowseAction = {
 
 export type QuickOpenBrowseItem = QuickOpenResult | QuickOpenBrowseAction
 
+/** Palette families keep command palette sections stable and scannable. */
+export type PaletteActionFamily =
+  | 'navigation'
+  | 'notes'
+  | 'search'
+  | 'workspace'
+  | 'view'
+  | 'layout'
+  | 'theme'
+  | 'utilities'
+
 /** Describes a command-palette action shown in quick-open action mode. */
 export type PaletteAction = {
   id: string
   label: string
+  family: PaletteActionFamily
   run: () => boolean | Promise<boolean>
   closeBeforeRun?: boolean
   loadingLabel?: string
+}
+
+/** Represents a grouped command-palette section in action mode. */
+export type QuickOpenActionGroup = {
+  family: PaletteActionFamily
+  label: string
+  items: PaletteAction[]
 }
 
 /** Groups the workspace-backed inputs required to derive file quick-open results. */
@@ -81,6 +100,17 @@ const QUICK_OPEN_BROWSE_ACTION_IDS = [
   'open-favorites',
   'open-settings'
 ] as const
+
+const PALETTE_ACTION_FAMILY_META: Record<PaletteActionFamily, { label: string; order: number }> = {
+  navigation: { label: 'Navigation', order: 0 },
+  notes: { label: 'Notes', order: 1 },
+  search: { label: 'Search', order: 2 },
+  workspace: { label: 'Workspace', order: 3 },
+  view: { label: 'View', order: 4 },
+  layout: { label: 'Layout', order: 5 },
+  theme: { label: 'Theme', order: 6 },
+  utilities: { label: 'Utilities', order: 7 }
+}
 
 /**
  * Derives quick-open search results, action matches, and list navigation state.
@@ -185,6 +215,29 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     return withRank.map((entry) => entry.item)
   })
 
+  const quickOpenActionGroups = computed<QuickOpenActionGroup[]>(() => {
+    if (!quickOpenIsActionMode.value) return []
+    const groups = new Map<PaletteActionFamily, PaletteAction[]>()
+    for (const item of quickOpenActionResults.value) {
+      const items = groups.get(item.family)
+      if (items) {
+        items.push(item)
+        continue
+      }
+      groups.set(item.family, [item])
+    }
+
+    return (Object.entries(PALETTE_ACTION_FAMILY_META) as Array<
+      [PaletteActionFamily, (typeof PALETTE_ACTION_FAMILY_META)[PaletteActionFamily]]
+    >)
+      .sort((left, right) => left[1].order - right[1].order)
+      .flatMap(([family, meta]) => {
+        const items = groups.get(family)
+        if (!items?.length) return []
+        return [{ family, label: meta.label, items }]
+      })
+  })
+
   const quickOpenItemCount = computed(() =>
     quickOpenIsActionMode.value
       ? quickOpenActionResults.value.length
@@ -235,6 +288,7 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenBrowseActionResults,
     quickOpenBrowseItems,
     quickOpenActionResults,
+    quickOpenActionGroups,
     quickOpenHasTextQuery,
     quickOpenItemCount,
     moveQuickOpenSelection,
