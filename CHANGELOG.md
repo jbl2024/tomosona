@@ -18,6 +18,20 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.21.4] - 2026-03-19
+
+### Added
+- feat(palette): group actions by family (#45) (eb0beea)
+- feat(alters): store workspace alters as JSON files (#30) (#43) (c069760)
+
+### Changed
+- refactor(frontmatter): share envelope parsing across domains (7705f21)
+- docs(github): add issue templates for bugs and feature requests (40e53cc)
+- refactor(alter): replace json alter presets with markdown files (92755c2)
+
+### Fixed
+- fix(workspace): refresh caches after saving new notes (#44) (1a408de)
+
 ## [0.21.3] - 2026-03-16
 
 ### Fixed
