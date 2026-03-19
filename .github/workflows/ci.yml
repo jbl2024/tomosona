@@ -7,8 +7,8 @@ on:
       - main
 
 jobs:
-  validate:
-    name: Validate
+  frontend:
+    name: Frontend
     runs-on: ubuntu-24.04
 
     steps:
@@ -19,7 +19,28 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install deps
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v6
+
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
 
       - name: Install Linux dependencies
         run: |
@@ -31,15 +52,6 @@ jobs:
             librsvg2-dev \
             pkg-config \
             patchelf
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Run frontend tests
-        run: npm test
-
-      - name: Build frontend
-        run: npm run build
 
       - name: Check Rust backend
         run: cargo check --manifest-path src-tauri/Cargo.toml
