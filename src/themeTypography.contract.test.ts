@@ -35,4 +35,14 @@ describe('Theme typography contracts', () => {
     expect(shortcutsSource).toContain('font-family: var(--font-code);')
     expect(searchSource).toContain('font-family: var(--font-code);')
   })
+
+  it('keeps the shortcuts modal compact while widening the panel', () => {
+    expect(shortcutsSource).toContain('panel-class="shortcuts-modal"')
+    expect(shortcutsSource).toContain(':deep(.ui-modal-shell__title)')
+    expect(shortcutsSource).toContain(':global(.ui-modal-shell__panel--xl.shortcuts-modal)')
+    expect(shortcutsSource).toContain('max-width: 88rem')
+    expect(shortcutsSource).toContain('font-size: 0.68rem')
+    expect(shortcutsSource).toContain('font-size: 0.72rem')
+    expect(shortcutsSource).toContain('font-size: 0.78rem')
+  })
 })

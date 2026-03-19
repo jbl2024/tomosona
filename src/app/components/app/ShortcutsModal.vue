@@ -74,11 +74,37 @@ function handleVisibilityChange(value: boolean) {
 
 <style scoped>
 .shortcuts-modal {
-  max-height: min(740px, calc(100vh - 120px));
+  max-height: min(680px, calc(100vh - 96px));
+}
+
+:global(.ui-modal-shell__panel--xl.shortcuts-modal) {
+  max-width: 75rem;
+}
+
+.shortcuts-modal :deep(.ui-modal-shell__header),
+.shortcuts-modal :deep(.ui-modal-shell__body),
+.shortcuts-modal :deep(.ui-modal-shell__footer) {
+  padding: 0.75rem 0.875rem;
+}
+
+.shortcuts-modal :deep(.ui-modal-shell__header) {
+  gap: 0.75rem;
+}
+
+.shortcuts-modal :deep(.ui-modal-shell__body) {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
+  gap: 0.625rem;
+}
+
+.shortcuts-modal :deep(.ui-modal-shell__title) {
+  font-size: 0.94rem;
+  line-height: 1.2;
+}
+
+.shortcuts-modal :deep(.ui-modal-shell__description) {
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .shortcuts-filter-input {
@@ -87,55 +113,55 @@ function handleVisibilityChange(value: boolean) {
 
 .shortcuts-sections {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 12px;
-  margin-top: 2px;
+  grid-template-columns: repeat(auto-fit, minmax(275px, 1fr));
+  gap: 10px;
+  margin-top: 0;
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
-  padding-right: 4px;
+  padding-right: 2px;
 }
 
 .shortcuts-section {
   border: 1px solid var(--shortcuts-section-border);
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 7px;
+  padding: 8px;
   min-width: 0;
 }
 
 .shortcuts-title {
-  margin: 0 0 8px;
-  font-size: var(--font-size-sm);
+  margin: 0 0 6px;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--shortcuts-title);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.045em;
 }
 
 .shortcuts-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 12px;
+  gap: 6px 10px;
   align-items: center;
 }
 
 .shortcut-keys {
   font-family: var(--font-code);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: var(--shortcuts-keys-text);
   background: var(--shortcuts-keys-bg);
   border: 1px solid var(--shortcuts-keys-border);
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 5px;
+  padding: 3px 7px;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  min-height: 2.25rem;
+  min-height: 1.9rem;
 }
 
 .shortcut-action {
-  font-size: 0.87rem;
-  line-height: 1.3;
+  font-size: 0.78rem;
+  line-height: 1.2;
   font-weight: 500;
   color: var(--shortcuts-action);
   align-self: center;
