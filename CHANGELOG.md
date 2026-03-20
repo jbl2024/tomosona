@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.21.7] - 2026-03-20
+
+### Changed
+- test(app): align shortcuts modal width contract (3a0f358)
+
+### Fixed
+- fix(app): compact the shortcuts modal layout (0a9285a)
+
 ## [0.21.6] - 2026-03-19
 
 ### Fixed

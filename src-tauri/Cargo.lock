@@ -6144,7 +6144,7 @@ checksum = "ab16f14aed21ee8bfd8ec22513f7287cd4a91aa92e44edfe2c17ddd004e92607"
 
 [[package]]
 name = "tomosona"
-version = "0.21.6"
+version = "0.21.7"
 dependencies = [
  "atomicwrites",
  "base64 0.22.1",
