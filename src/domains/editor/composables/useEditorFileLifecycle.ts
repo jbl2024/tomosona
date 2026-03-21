@@ -372,6 +372,12 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
           ? options.captureHeavyRenderEpoch()
           : 0
 
+        traceOpenStep(traceId, 'editor content ready for apply', {
+          chars: body.length,
+          block_count: parsed.blocks.length,
+          heavy_render: shouldWaitForHeavyRender,
+          heavy_render_epoch: heavyRenderEpoch
+        })
         if (uiPort.ui.isLoadingLargeDocument.value) {
           uiPort.ui.loadStageLabel.value = 'Rendering blocks in editor...'
           uiPort.ui.loadProgressPercent.value = 70
@@ -380,8 +386,21 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
 
         sessionPort.setSuppressOnChange(true)
         const renderStartedAt = performance.now()
+        const renderSpanId = startOpenTraceSpan(traceId, 'open.editor_content_apply', {
+          parentSpanId: editorLoadSpanId,
+          payload: {
+            path,
+            block_count: parsed.blocks.length,
+            heavy_render: shouldWaitForHeavyRender
+          }
+        })
         session.editor.commands.setContent(toTiptapDoc(parsed.blocks as EditorBlock[]), { emitUpdate: false })
         sessionPort.setSuppressOnChange(false)
+        finishOpenTraceSpan(traceId, renderSpanId, 'done', {
+          path,
+          duration_ms: Math.round(performance.now() - renderStartedAt),
+          block_count: parsed.blocks.length
+        })
         traceOpenStep(traceId, 'editor content set', {
           duration_ms: Math.round(performance.now() - renderStartedAt)
         })
@@ -408,6 +427,13 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         }
 
         if (shouldWaitForHeavyRender) {
+          const heavyRenderWaitSpanId = startOpenTraceSpan(traceId, 'open.editor_heavy_render_idle', {
+            parentSpanId: editorLoadSpanId,
+            payload: {
+              path,
+              since_seq: heavyRenderEpoch
+            }
+          })
           // Why/invariant: Mermaid/table node views may resolve asynchronously after setContent.
           // Waiting for heavy render idle avoids first-load reveal flicker on complex documents.
           if (uiPort.ui.isLoadingLargeDocument.value) {
@@ -416,20 +442,33 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
             uiPort.ui.loadProgressIndeterminate.value = true
           }
           const heavyRenderStartedAt = performance.now()
-          await options.waitForHeavyRenderIdle?.({
+          const heavyRenderSettled = await options.waitForHeavyRenderIdle?.({
             timeoutMs: heavyRenderIdleTimeoutMs,
             settleMs: heavyRenderIdleSettleMs,
             sinceSeq: heavyRenderEpoch
+          }) ?? true
+          finishOpenTraceSpan(traceId, heavyRenderWaitSpanId, heavyRenderSettled ? 'done' : 'blocked', {
+            path,
+            settled: heavyRenderSettled,
+            timeout_ms: heavyRenderIdleTimeoutMs,
+            settle_ms: heavyRenderIdleSettleMs,
+            duration_ms: Math.round(performance.now() - heavyRenderStartedAt)
           })
           traceOpenStep(traceId, 'heavy render settled', {
-            duration_ms: Math.round(performance.now() - heavyRenderStartedAt)
+            duration_ms: Math.round(performance.now() - heavyRenderStartedAt),
+            settled: heavyRenderSettled
           })
           if (typeof loadOptions?.requestId === 'number' && !requestPort.isCurrentRequest(loadOptions.requestId)) {
             finishOpenTraceSpan(traceId, editorLoadSpanId, 'blocked', { stage: 'stale_request_after_heavy_render' })
             finishOpenTrace(traceId, 'blocked', { stage: 'stale_request_after_heavy_render' })
             return
           }
+          const paintBarrierSpanId = startOpenTraceSpan(traceId, 'open.editor_paint_barrier', {
+            parentSpanId: editorLoadSpanId,
+            payload: { path }
+          })
           await flushPaintBarrier()
+          finishOpenTraceSpan(traceId, paintBarrierSpanId, 'done', { path })
           if (uiPort.ui.isLoadingLargeDocument.value) {
             uiPort.ui.loadProgressIndeterminate.value = false
           }

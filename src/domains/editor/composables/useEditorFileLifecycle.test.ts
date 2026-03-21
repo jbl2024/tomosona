@@ -1,5 +1,5 @@
 import { nextTick, ref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import type { DocumentSession } from './useDocumentEditorSessions'
 import {
@@ -14,6 +14,7 @@ import {
   type WaitForHeavyRenderIdle,
   type UseEditorFileLifecycleOptions
 } from './useEditorFileLifecycle'
+import { clearOpenTraceDebugState, readRecentOpenTraceEntries } from '../../../shared/lib/openTrace'
 
 type Deferred<T> = {
   promise: Promise<T>
@@ -181,6 +182,10 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
 }
 
 describe('useEditorFileLifecycle', () => {
+  afterEach(() => {
+    clearOpenTraceDebugState()
+  })
+
   it('drops stale load completion when request token changes before content apply', async () => {
     const openFileDeferred = deferred<string>()
     const isCurrentRequest = vi.fn((requestId: number) => requestId === 1)
@@ -398,6 +403,12 @@ describe('useEditorFileLifecycle', () => {
     await vi.runAllTimersAsync()
     await loadPromise
     expect(options.uiPort.ui.isLoadingLargeDocument.value).toBe(false)
+    const entries = readRecentOpenTraceEntries()
+    expect(entries.some((entry) => entry.message === 'editor content ready for apply')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open.editor_content_apply done')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open.editor_heavy_render_idle started')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open.editor_heavy_render_idle done' && entry.settled === true)).toBe(true)
+    expect(entries.some((entry) => entry.message === 'open.editor_paint_barrier done')).toBe(true)
     vi.useRealTimers()
   })
 

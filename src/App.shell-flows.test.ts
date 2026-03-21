@@ -345,6 +345,8 @@ describe('App shell flows', () => {
 
     const entries = readRecentOpenTraceEntries()
     expect(entries.some((entry) => entry.message === 'open.active_note_effects started')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'active note metadata refresh started')).toBe(true)
+    expect(entries.some((entry) => entry.message === 'active note backlinks refresh finished')).toBe(true)
     expect(entries.some((entry) => entry.message === 'open summary')).toBe(true)
     expect(entries.some((entry) => entry.message === 'open done' && entry.stage === 'open.complete')).toBe(true)
 

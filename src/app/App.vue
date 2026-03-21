@@ -2631,11 +2631,19 @@ async function showExplorerForActiveFile(options: { focusTree?: boolean; traceId
 async function runActiveNoteEffects(path: string) {
   const traceId = findOpenTrace(path)
   const requestToken = ++activeNoteEffectsRequestToken
+  traceOpenStep(traceId, 'active note effects started', {
+    path,
+    request_token: requestToken
+  })
 
   if (!path) {
     editorState.setActiveOutline([])
     backlinks.value = []
     semanticLinks.value = []
+    traceOpenStep(traceId, 'active note effects cleared', {
+      path,
+      request_token: requestToken
+    })
     await refreshActiveFileMetadata(path)
     return
   }
@@ -2657,9 +2665,17 @@ async function runActiveNoteEffects(path: string) {
   }
 
   try {
+    traceOpenStep(traceId, 'active note metadata refresh started', {
+      path,
+      request_token: requestToken
+    })
     await refreshActiveFileMetadata(path, {
       traceId,
       parentSpanId: activeEffectsSpanId
+    })
+    traceOpenStep(traceId, 'active note metadata refresh finished', {
+      path,
+      request_token: requestToken
     })
     if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
       finishBlocked('stale_after_metadata')
@@ -2667,6 +2683,11 @@ async function runActiveNoteEffects(path: string) {
     }
 
     const snippet = editorState.consumeRevealSnippet(path)
+    traceOpenStep(traceId, 'active note reveal snippet check', {
+      path,
+      request_token: requestToken,
+      has_snippet: Boolean(snippet)
+    })
     if (snippet) {
       await runWithOpenTraceSpan(traceId, 'open.reveal_snippet', async () => {
         await nextTick()
@@ -2675,16 +2696,31 @@ async function runActiveNoteEffects(path: string) {
         parentSpanId: activeEffectsSpanId,
         payload: { path, chars: snippet.length }
       })
+      traceOpenStep(traceId, 'active note reveal snippet finished', {
+        path,
+        chars: snippet.length,
+        request_token: requestToken
+      })
     }
     if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
       finishBlocked('stale_after_reveal_snippet')
       return
     }
 
+    traceOpenStep(traceId, 'active note backlinks refresh started', {
+      path,
+      request_token: requestToken
+    })
     await refreshBacklinks({
       path,
       traceId,
       parentSpanId: rightPaneSpanId
+    })
+    traceOpenStep(traceId, 'active note backlinks refresh finished', {
+      path,
+      backlink_count: backlinks.value.length,
+      semantic_count: semanticLinks.value.length,
+      request_token: requestToken
     })
     if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
       finishBlocked('stale_after_right_pane')
