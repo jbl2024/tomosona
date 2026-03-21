@@ -15,4 +15,9 @@ describe('App shell contract', () => {
     expect(appSource).not.toContain('async function ensureRelativeFolder')
     expect(appSource).toContain('useAppShellWorkspaceSetup')
   })
+
+  it('keeps workspace filesystem watcher wiring out of App.vue', () => {
+    expect(appSource).not.toContain('listenWorkspaceFsChanged')
+    expect(appSource).toContain('useAppShellWorkspaceLifecycle')
+  })
 })

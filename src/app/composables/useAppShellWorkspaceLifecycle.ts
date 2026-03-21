@@ -1,5 +1,6 @@
 import { watch, type Ref } from 'vue'
 import type { WorkspaceFsChange } from '../../shared/api/apiTypes'
+import { useAppShellWorkspaceFsSync } from './useAppShellWorkspaceFsSync'
 
 /** Groups workspace identity and persistence refs consumed by lifecycle orchestration. */
 export type AppShellWorkspaceLifecycleShellPort = {
@@ -40,7 +41,7 @@ export type AppShellWorkspaceLifecycleUiPort = {
   closeOverflowMenu: () => void
 }
 
-/** Groups favorites-domain integrations required by the shell lifecycle. */
+/** Groups favorites-domain integrations required by workspace lifecycle boot and restore. */
 export type AppShellWorkspaceLifecycleFavoritesPort = {
   loadFavorites: () => Promise<void>
   reset: () => void
@@ -48,7 +49,7 @@ export type AppShellWorkspaceLifecycleFavoritesPort = {
   renameFavorite: (fromPath: string, toPath: string) => Promise<void>
 }
 
-/** Groups Cosmos-domain integrations required by the shell lifecycle. */
+/** Groups Cosmos-domain integrations required by workspace lifecycle boot and restore. */
 export type AppShellWorkspaceLifecycleCosmosPort = {
   clearState: () => void
   refreshGraph: () => Promise<void>
@@ -57,9 +58,6 @@ export type AppShellWorkspaceLifecycleCosmosPort = {
 /** Filesystem entry points used only by the shell lifecycle. */
 export type AppShellWorkspaceLifecycleFsPort = {
   selectWorkingFolder: () => Promise<string | null>
-  listenWorkspaceFsChanged: (
-    handler: (payload: { root: string; changes: WorkspaceFsChange[] }) => void
-  ) => Promise<() => void>
 }
 
 /** Declares the dependencies required by the shell workspace lifecycle controller. */
@@ -73,12 +71,31 @@ export type UseAppShellWorkspaceLifecycleOptions = {
 }
 
 /**
- * Owns shell-level workspace boot, close, persisted restore, and global
- * workspace filesystem event handling.
+ * Owns shell-level workspace boot, close, persisted restore, and delegates
+ * workspace filesystem event handling to a focused watcher helper.
  */
 export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifecycleOptions) {
-  let unlistenWorkspaceFsChanged: (() => void) | null = null
   let started = false
+  const workspaceFsSync = useAppShellWorkspaceFsSync({
+    shellPort: {
+      workingFolderPath: options.shellPort.workingFolderPath,
+      normalizePath: options.shellPort.normalizePath,
+      notifyError: options.shellPort.notifyError
+    },
+    controllerPort: {
+      applyWorkspaceFsChanges: (changes) => options.controllerPort.applyWorkspaceFsChanges(changes),
+      relayEditorFsChanges: (changes) => options.controllerPort.relayEditorFsChanges(changes)
+    },
+    favoritesPort: {
+      applyWorkspaceFsChanges: (changes) => options.favoritesPort.applyWorkspaceFsChanges(changes),
+      renameFavorite: (fromPath, toPath) => options.favoritesPort.renameFavorite(fromPath, toPath)
+    },
+    uiPort: {
+      invalidateRecentNotes: () => options.uiPort.invalidateRecentNotes(),
+      removeLaunchpadRecentNote: (path) => options.uiPort.removeLaunchpadRecentNote(path),
+      renameLaunchpadRecentNote: (fromPath, toPath) => options.uiPort.renameLaunchpadRecentNote(fromPath, toPath)
+    }
+  })
 
   function resetWorkspaceShellState() {
     options.uiPort.resetDocumentHistory()
@@ -122,11 +139,13 @@ export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifec
     options.uiPort.recordRecentWorkspace(canonical)
     options.uiPort.resetSearchState()
     options.uiPort.invalidateRecentNotes()
+
     try {
       await options.favoritesPort.loadFavorites()
     } catch (err) {
       options.shellPort.notifyError(err instanceof Error ? err.message : 'Could not load favorites.')
     }
+
     if (options.uiPort.findPaneContainingSurface('cosmos') !== null) {
       await options.cosmosPort.refreshGraph()
     }
@@ -164,51 +183,10 @@ export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifec
     }
   }
 
-  function syncFavoritesForWorkspaceChanges(changes: WorkspaceFsChange[]) {
-    for (const change of changes) {
-      if (change.kind !== 'renamed' || !change.old_path || !change.new_path) continue
-      void options.favoritesPort.renameFavorite(change.old_path, change.new_path).catch((err) => {
-        options.shellPort.notifyError(err instanceof Error ? err.message : 'Could not update favorite.')
-      })
-    }
-  }
-
-  function syncViewedNotesForWorkspaceChanges(changes: WorkspaceFsChange[]) {
-    for (const change of changes) {
-      if (change.kind === 'removed' && change.path) {
-        options.uiPort.removeLaunchpadRecentNote(change.path)
-        continue
-      }
-      if (change.kind === 'renamed' && change.old_path && change.new_path) {
-        options.uiPort.renameLaunchpadRecentNote(change.old_path, change.new_path)
-      }
-    }
-  }
-
   async function start() {
     if (started) return
     started = true
-    try {
-      unlistenWorkspaceFsChanged = await options.fsPort.listenWorkspaceFsChanged((payload) => {
-        const root = options.shellPort.workingFolderPath.value
-        if (!root) return
-        if (options.shellPort.normalizePath(payload.root).toLowerCase() !== options.shellPort.normalizePath(root).toLowerCase()) {
-          return
-        }
-        options.controllerPort.applyWorkspaceFsChanges(payload.changes)
-        void options.controllerPort.relayEditorFsChanges(payload.changes)
-        options.favoritesPort.applyWorkspaceFsChanges(payload.changes)
-        syncFavoritesForWorkspaceChanges(payload.changes)
-        syncViewedNotesForWorkspaceChanges(payload.changes)
-        if (payload.changes.some((change) =>
-          change.kind === 'modified' || change.kind === 'created' || change.kind === 'removed' || change.kind === 'renamed'
-        )) {
-          options.uiPort.invalidateRecentNotes()
-        }
-      })
-    } catch {
-      unlistenWorkspaceFsChanged = null
-    }
+    await workspaceFsSync.start()
 
     if (typeof window === 'undefined') return
     const savedFolder = window.localStorage.getItem(options.shellPort.storageKey)
@@ -219,10 +197,7 @@ export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifec
 
   function dispose() {
     started = false
-    if (unlistenWorkspaceFsChanged) {
-      unlistenWorkspaceFsChanged()
-      unlistenWorkspaceFsChanged = null
-    }
+    workspaceFsSync.dispose()
   }
 
   return {

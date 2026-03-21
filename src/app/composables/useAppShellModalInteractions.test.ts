@@ -10,7 +10,6 @@ function createHarness() {
   const quickOpenIsActionMode = ref(false)
   const quickOpenHasTextQuery = ref(true)
   const quickOpenActiveIndex = ref(0)
-  const quickOpenActionResults = ref<PaletteAction[]>([])
   const quickOpenActionGroups = ref<QuickOpenActionGroup[]>([])
   const quickOpenResults = ref<QuickOpenResult[]>([])
   const quickOpenBrowseItems = ref<QuickOpenResult[]>([])
@@ -65,7 +64,6 @@ function createHarness() {
         quickOpenIsActionMode,
         quickOpenHasTextQuery,
         quickOpenActiveIndex,
-        quickOpenActionResults,
         quickOpenActionGroups,
         quickOpenResults,
         quickOpenBrowseItems,
@@ -121,7 +119,6 @@ function createHarness() {
     quickOpenIsActionMode,
     quickOpenHasTextQuery,
     quickOpenActiveIndex,
-    quickOpenActionResults,
     quickOpenActionGroups,
     quickOpenResults,
     quickOpenBrowseItems,
@@ -168,23 +165,9 @@ describe('useAppShellModalInteractions', () => {
   })
 
   it('runs the first visible action on Enter in grouped action mode', async () => {
-    const { api, scope, quickOpenIsActionMode, quickOpenActionResults, quickOpenActionGroups, quickOpenActiveIndex, closeWorkspaceRun } = createHarness()
+    const { api, scope, quickOpenIsActionMode, quickOpenActionGroups, quickOpenActiveIndex, closeWorkspaceRun } = createHarness()
 
     quickOpenIsActionMode.value = true
-    quickOpenActionResults.value = [
-      {
-        id: 'close-other-tabs',
-        label: 'Close Other Tabs',
-        family: 'layout',
-        run: vi.fn(async () => true)
-      },
-      {
-        id: 'close-workspace',
-        label: 'Close Workspace',
-        family: 'workspace',
-        run: closeWorkspaceRun
-      }
-    ]
     quickOpenActionGroups.value = [
       {
         family: 'workspace',
@@ -218,7 +201,6 @@ describe('useAppShellModalInteractions', () => {
     await Promise.resolve()
 
     expect(closeWorkspaceRun).toHaveBeenCalledTimes(1)
-    expect(quickOpenActionResults.value[0].id).toBe('close-other-tabs')
     scope.stop()
   })
 

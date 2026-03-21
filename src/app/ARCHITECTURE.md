@@ -40,8 +40,9 @@
 - `useAppShellModalInteractions`: quick-open action routing and theme picker keyboard/selection handling.
 - `useAppShellWorkspaceEntries`: shell form workflows for new file, new folder, and open-date actions.
 - `useAppShellWorkspaceSetup`: workspace starter-structure wizard workflow and filesystem mutation orchestration.
+- `useAppShellWorkspaceFsSync`: workspace filesystem watcher subscription, root filtering, and shell fan-out.
 - `useAppShellHistoryUi`: back/forward menu long press, click routing, outside click, resize positioning.
-- `useAppShellWorkspaceLifecycle`: workspace restore, workspace close/reset, and global filesystem event orchestration.
+- `useAppShellWorkspaceLifecycle`: workspace restore, workspace close/reset, and saved-workspace bootstrap.
 - `appNavigationHistory`: pure codecs and labels for pane-native history snapshots.
 - Existing higher-level controllers remain domain or shell orchestrators:
   - `useAppWorkspaceController`

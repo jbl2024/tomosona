@@ -28,7 +28,6 @@ import {
   setWorkingFolder,
   selectWorkingFolder,
   writeTextFile,
-  listenWorkspaceFsChanged
 } from '../shared/api/workspaceApi'
 import { readAppSettings } from '../shared/api/settingsApi'
 import { readNoteSnapshot as readNoteSnapshotIpc, saveNoteBuffer as saveNoteBufferIpc } from '../shared/api/editorSyncApi'
@@ -829,7 +828,6 @@ const quickOpenPalettePort = {
 
 const {
   quickOpenIsActionMode,
-  quickOpenActionResults,
   quickOpenActionGroups,
   quickOpenResults,
   quickOpenBrowseRecentResults,
@@ -975,7 +973,6 @@ const workspaceEntries = useAppShellWorkspaceEntries({
 const {
   createNewFileFromPalette,
   openSpecificDateNote,
-  ensureParentDirectoriesForRelativePath,
   onExplorerRequestCreate,
   submitNewFileFromModal,
   submitNewFolderFromModal,
@@ -1255,7 +1252,6 @@ const {
 
 const shellViewModels = useAppShellViewModels({
   theme: {
-    themePreference,
     activeColorScheme,
     availableThemes
   },
@@ -1321,7 +1317,7 @@ const shellViewModels = useAppShellViewModels({
     echoesRefreshToken: workspaceMutationEchoesToken
   },
   labels: {
-    formatTimestamp
+    formatTimestamp: (value) => formatTimestamp(value ?? null)
   },
   isMacOs,
   libs: {
@@ -1339,7 +1335,6 @@ const shellViewModels = useAppShellViewModels({
 const {
   systemThemeLabel,
   themePickerItems,
-  shortcutSections,
   filteredShortcutSections,
   metadataRows,
   backlinkCount,
@@ -1348,7 +1343,6 @@ const {
   localContextItems,
   pinnedContextItems,
   noteEchoesForPanel,
-  cosmosSelectedNodeForPanel,
   cosmosPaneViewModel,
   secondBrainPaneViewModel,
   altersPaneViewModel,
@@ -1358,7 +1352,6 @@ const {
   homeShortcutLabel,
   commandPaletteShortcutLabel,
   zoomPercentLabel,
-  primaryModLabel,
   backHistoryItems,
   forwardHistoryItems
 } = shellViewModels
@@ -1619,8 +1612,7 @@ const workspaceLifecycle = useAppShellWorkspaceLifecycle({
     refreshGraph: () => cosmos.refreshGraph()
   },
   fsPort: {
-    selectWorkingFolder,
-    listenWorkspaceFsChanged
+    selectWorkingFolder
   }
 })
 const {

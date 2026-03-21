@@ -1,8 +1,13 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { FileMetadata, SemanticLink } from '../../shared/api/apiTypes'
+import type { AppSettingsAlters } from '../../shared/api/apiTypes'
+import type { EchoesItem } from '../../domains/echoes/lib/echoes'
+import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
+import type { CosmosGraph, CosmosGraphNode } from '../../domains/cosmos/lib/graphIndex'
+import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
-import type { AppShellCosmosViewModel, AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, AppShellAltersViewModel } from '../lib/appShellViewModels'
-import { basenameLabel, buildMetadataRows, buildShortcutSections, buildSystemThemeLabel, buildThemePickerItems } from '../lib/appShellPresentation'
+import type { AppShellCosmosViewModel, AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, AppShellAltersViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
+import { basenameLabel, buildMetadataRows, buildShortcutSections, buildSystemThemeLabel, buildThemePickerItems, type ShellSurfaceType, type ThemePickerItem } from '../lib/appShellPresentation'
 
 type ShortcutSection = {
   title: string
@@ -10,23 +15,23 @@ type ShortcutSection = {
 }
 
 type ViewModelCosmosState = {
-  graph: Ref<{ nodes: Array<{ id: string; path: string; displayLabel?: string; label?: string }> }>
+  graph: Ref<CosmosGraph>
   loading: Ref<boolean>
   error: Ref<string>
   selectedNodeId: Ref<string>
   focusMode: Ref<boolean>
   focusDepth: Ref<number>
-  summary: Ref<string>
+  summary: Ref<{ nodes: number; edges: number }>
   query: Ref<string>
-  queryMatches: Ref<number>
+  queryMatches: Ref<CosmosGraphNode[]>
   showSemanticEdges: Ref<boolean>
-  selectedNode: Ref<{ id: string; path: string; displayLabel?: string; label?: string } | null>
+  selectedNode: Ref<CosmosGraphNode | null>
   selectedLinkCount: Ref<number>
-  preview: Ref<unknown>
+  preview: Ref<string>
   previewLoading: Ref<boolean>
   previewError: Ref<string>
-  outgoingNodes: Ref<unknown[]>
-  incomingNodes: Ref<unknown[]>
+  outgoingNodes: Ref<CosmosGraphNode[]>
+  incomingNodes: Ref<CosmosGraphNode[]>
 }
 
 type ViewModelOptions = {
@@ -44,32 +49,32 @@ type ViewModelOptions = {
     activeFileMetadata: Ref<FileMetadata | null>
     virtualDocs: Ref<Record<string, { content: string; titleLine: string }>>
     editorZoom: Ref<number>
-    getActiveTab: () => { type: string } | null
+    getActiveTab: () => { type: ShellSurfaceType } | null
     toRelativePath: (path: string) => string
   }
   history: {
-    backTargets: Ref<Array<{ index: number; entry: { stateKey: string } }>>
-    forwardTargets: Ref<Array<{ index: number; entry: { stateKey: string } }>>
+    backTargets: Ref<Array<{ index: number; entry: DocumentHistoryEntry }>>
+    forwardTargets: Ref<Array<{ index: number; entry: DocumentHistoryEntry }>>
   }
   notes: {
-    noteEchoes: Ref<Array<{ path: string }>>
+    noteEchoes: Ref<EchoesItem[]>
     semanticLinks: Ref<SemanticLink[]>
   }
   context: {
     constitutedContext: {
       contains: (path: string) => boolean
-      localItems: Ref<Array<{ path: string }>>
-      pinnedItems: Ref<Array<{ path: string }>>
+      localItems: Ref<ConstitutedContextItem[]>
+      pinnedItems: Ref<ConstitutedContextItem[]>
     }
   }
   cosmos: ViewModelCosmosState
   launchpad: {
-    recentWorkspaces: Ref<Array<{ path: string }>>
-    recentViewedNotes: Ref<Array<{ path: string }>>
-    recentUpdatedNotes: Ref<Array<{ path: string }>>
+    recentWorkspaces: Ref<LaunchpadRecentWorkspace[]>
+    recentViewedNotes: Ref<LaunchpadRecentNote[]>
+    recentUpdatedNotes: Ref<LaunchpadRecentNote[]>
     showWizardAction: Ref<boolean>
   }
-  altersSettings: Ref<{ default_mode: string; show_badge_in_chat: boolean; default_influence_intensity: string }>
+  altersSettings: Ref<AppSettingsAlters>
   secondBrain: {
     workspacePath: Ref<string>
     allWorkspaceFiles: Ref<string[]>
@@ -93,23 +98,23 @@ type ViewModelOptions = {
     basenameLabel: typeof basenameLabel
   }
   historyLabels: {
-    historyTargetLabel: (entry: { stateKey: string }) => string
+    historyTargetLabel: (entry: DocumentHistoryEntry) => string
   }
 }
 
 export type AppShellViewModels = {
   systemThemeLabel: ComputedRef<string>
-  themePickerItems: ComputedRef<Array<{ id: string; label: string; meta: string }>>
+  themePickerItems: ComputedRef<ThemePickerItem[]>
   shortcutSections: ComputedRef<ShortcutSection[]>
   filteredShortcutSections: ComputedRef<ShortcutSection[]>
   metadataRows: ComputedRef<ReturnType<typeof buildMetadataRows>>
   backlinkCount: ComputedRef<number>
   semanticLinkCount: ComputedRef<number>
   activeNoteInContext: ComputedRef<boolean>
-  localContextItems: ComputedRef<Array<{ path: string }>>
-  pinnedContextItems: ComputedRef<Array<{ path: string }>>
-  noteEchoesForPanel: ComputedRef<Array<{ path: string; isInContext: boolean }>>
-  cosmosSelectedNodeForPanel: ComputedRef<{ id: string; path: string; displayLabel?: string; label?: string } | null>
+  localContextItems: ComputedRef<ConstitutedContextItem[]>
+  pinnedContextItems: ComputedRef<ConstitutedContextItem[]>
+  noteEchoesForPanel: ComputedRef<Array<EchoesItem & { isInContext: boolean }>>
+  cosmosSelectedNodeForPanel: ComputedRef<CosmosGraphNode | null>
   cosmosPaneViewModel: ComputedRef<AppShellCosmosViewModel>
   secondBrainPaneViewModel: ComputedRef<AppShellSecondBrainViewModel>
   altersPaneViewModel: ComputedRef<AppShellAltersViewModel>

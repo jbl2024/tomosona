@@ -1,6 +1,9 @@
 import { computed, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
+import type { AppSettingsAlters } from '../../shared/api/apiTypes'
+import type { EchoesItem } from '../../domains/echoes/lib/echoes'
+import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import {
   buildMetadataRows,
   buildShortcutSections,
@@ -8,6 +11,8 @@ import {
   buildThemePickerItems
 } from '../lib/appShellPresentation'
 import { useAppShellViewModels } from './useAppShellViewModels'
+import type { CosmosGraph, CosmosGraphNode } from '../../domains/cosmos/lib/graphIndex'
+import type { LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
 
 describe('useAppShellViewModels', () => {
   it('derives shell view models from the provided shell state', () => {
@@ -22,32 +27,71 @@ describe('useAppShellViewModels', () => {
     const activeFileMetadata = ref({ created_at_ms: 10, updated_at_ms: 20 })
     const virtualDocs = ref<Record<string, { content: string; titleLine: string }>>({})
     const editorZoom = ref(1.25)
-    const backTargets = ref([{ index: 0, entry: { stateKey: 'back-0' } }])
-    const forwardTargets = ref([{ index: 0, entry: { stateKey: 'forward-0' } }])
-    const noteEchoes = ref([{ path: '/vault/notes/alpha.md' }, { path: '/vault/notes/beta.md' }])
+    const backTargets = ref<Array<{ index: number; entry: DocumentHistoryEntry }>>([
+      { index: 0, entry: { kind: 'note', path: '/vault/back.md', label: 'Back', stateKey: 'back-0' } }
+    ])
+    const forwardTargets = ref<Array<{ index: number; entry: DocumentHistoryEntry }>>([
+      { index: 0, entry: { kind: 'note', path: '/vault/forward.md', label: 'Forward', stateKey: 'forward-0' } }
+    ])
+    const noteEchoes = ref([
+      {
+        path: '/vault/notes/alpha.md',
+        title: 'Alpha',
+        reasonLabel: 'Backlink',
+        reasonLabels: ['Backlink'],
+        score: 0.8,
+        signalSources: ['backlink']
+      },
+      {
+        path: '/vault/notes/beta.md',
+        title: 'Beta',
+        reasonLabel: 'Semantic',
+        reasonLabels: ['Semantic'],
+        score: 0.5,
+        signalSources: ['semantic']
+      }
+    ] satisfies EchoesItem[])
     const semanticLinks = ref([
       { path: '/vault/notes/alpha.md', score: 0.8, direction: 'outgoing' as const }
     ])
     const constitutedContext = {
       contains: (path: string) => path === '/vault/notes/alpha.md',
-      localItems: ref([{ path: '/vault/notes/alpha.md' }]),
-      pinnedItems: ref([{ path: '/vault/notes/pinned.md' }])
+      localItems: ref([{ path: '/vault/notes/alpha.md', title: 'Alpha' }]),
+      pinnedItems: ref([{ path: '/vault/notes/pinned.md', title: 'Pinned' }])
     }
-    const cosmosSelectedNode = ref({ id: 'n1', path: '/vault/notes/alpha.md', label: 'Alpha' })
+    const cosmosSelectedNode = ref<CosmosGraphNode>({
+      id: 'n1',
+      path: '/vault/notes/alpha.md',
+      label: 'Alpha',
+      degree: 1,
+      tags: [],
+      cluster: 0,
+      importance: 1,
+      opacityHint: 1,
+      showLabelByDefault: false,
+      displayLabel: 'Alpha',
+      folderKey: 'vault',
+      fullLabel: 'Alpha'
+    })
+    const cosmosGraph = ref<CosmosGraph>({
+      nodes: [cosmosSelectedNode.value],
+      edges: [],
+      generated_at_ms: 0
+    })
     const cosmos = {
-      graph: ref({ nodes: [] as Array<{ id: string; path: string }> }),
+      graph: cosmosGraph,
       loading: ref(false),
       error: ref(''),
       selectedNodeId: ref('n1'),
       focusMode: ref(false),
       focusDepth: ref(0),
-      summary: ref(''),
+      summary: ref({ nodes: 0, edges: 0 }),
       query: ref(''),
-      queryMatches: ref(0),
+      queryMatches: ref<CosmosGraphNode[]>([]),
       showSemanticEdges: ref(false),
       selectedNode: cosmosSelectedNode,
       selectedLinkCount: ref(0),
-      preview: ref(null),
+      preview: ref(''),
       previewLoading: ref(false),
       previewError: ref(''),
       outgoingNodes: ref([]),
@@ -85,16 +129,16 @@ describe('useAppShellViewModels', () => {
       },
       cosmos,
       launchpad: {
-        recentWorkspaces: ref([]),
-        recentViewedNotes: ref([]),
-        recentUpdatedNotes: ref([]),
+        recentWorkspaces: ref<LaunchpadRecentWorkspace[]>([]),
+        recentViewedNotes: ref<LaunchpadRecentNote[]>([]),
+        recentUpdatedNotes: ref<LaunchpadRecentNote[]>([]),
         showWizardAction: ref(false)
       },
       altersSettings: ref({
-        default_mode: 'chat',
+        default_mode: 'neutral',
         show_badge_in_chat: true,
-        default_influence_intensity: 'medium'
-      }),
+        default_influence_intensity: 'balanced'
+      } satisfies AppSettingsAlters),
       secondBrain: {
         workspacePath: ref('/vault'),
         allWorkspaceFiles: ref([]),
@@ -130,11 +174,12 @@ describe('useAppShellViewModels', () => {
     expect(viewModels.backlinkCount.value).toBe(2)
     expect(viewModels.semanticLinkCount.value).toBe(1)
     expect(viewModels.activeNoteInContext.value).toBe(true)
-    expect(viewModels.cosmosSelectedNodeForPanel.value).toEqual({
-      id: 'n1',
-      path: 'notes/alpha.md',
-      label: 'Alpha'
-    })
+    const selectedNode = viewModels.cosmosSelectedNodeForPanel.value
+    expect(selectedNode).toBeTruthy()
+    if (!selectedNode) throw new Error('Expected selected Cosmos node')
+    expect(selectedNode.id).toBe('n1')
+    expect(selectedNode.path).toBe('notes/alpha.md')
+    expect(selectedNode.label).toBe('Alpha')
     expect(viewModels.backShortcutLabel.value).toBe('Alt+Left')
     expect(viewModels.primaryModLabel.value).toBe('Ctrl')
     expect(viewModels.zoomPercentLabel.value).toBe('125%')

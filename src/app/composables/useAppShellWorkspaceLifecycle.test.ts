@@ -4,13 +4,6 @@ import { useAppShellWorkspaceLifecycle } from './useAppShellWorkspaceLifecycle'
 
 function createLifecycle() {
   const activePaneId = ref('pane-1')
-  let fsChangedHandler: ((payload: { root: string; changes: Array<{
-    kind: 'created' | 'removed' | 'renamed' | 'modified'
-    path?: string
-    old_path?: string
-    new_path?: string
-    is_dir?: boolean
-  }> }) => void) | null = null
 
   const shellPort = {
     storageKey: 'tomosona.working-folder.path',
@@ -63,13 +56,7 @@ function createLifecycle() {
     refreshGraph: vi.fn(async () => {})
   }
   const fsPort = {
-    selectWorkingFolder: vi.fn(async () => '/vault'),
-    listenWorkspaceFsChanged: vi.fn(async (handler) => {
-      fsChangedHandler = handler
-      return () => {
-        fsChangedHandler = null
-      }
-    })
+    selectWorkingFolder: vi.fn(async () => '/vault')
   }
 
   const scope = effectScope()
@@ -91,8 +78,7 @@ function createLifecycle() {
     uiPort,
     favoritesPort,
     cosmosPort,
-    fsPort,
-    emitFsChanged: (payload: Parameters<NonNullable<typeof fsChangedHandler>>[0]) => fsChangedHandler?.(payload)
+    fsPort
   }
 }
 
@@ -101,13 +87,12 @@ describe('useAppShellWorkspaceLifecycle', () => {
     window.localStorage.clear()
   })
 
-  it('boots the saved workspace and subscribes to workspace fs changes', async () => {
+  it('boots the saved workspace and restores persisted shell state', async () => {
     window.localStorage.setItem('tomosona.working-folder.path', '/vault')
-    const { api, scope, controllerPort, fsPort } = createLifecycle()
+    const { api, scope, controllerPort } = createLifecycle()
 
     await api.start()
 
-    expect(fsPort.listenWorkspaceFsChanged).toHaveBeenCalledTimes(1)
     expect(controllerPort.loadWorkingFolderInternal).toHaveBeenCalledWith('/vault')
     scope.stop()
   })
@@ -139,28 +124,6 @@ describe('useAppShellWorkspaceLifecycle', () => {
 
     expect(uiPort.removeRecentWorkspaceEntry).toHaveBeenCalledWith('/missing')
     expect(shellPort.notifyError).toHaveBeenCalledWith('Could not reopen that workspace.')
-    scope.stop()
-  })
-
-  it('syncs favorites and recent notes from workspace fs rename/remove events', async () => {
-    const { api, scope, shellPort, controllerPort, favoritesPort, uiPort, emitFsChanged } = createLifecycle()
-    shellPort.workingFolderPath.value = '/vault'
-
-    await api.start()
-    emitFsChanged({
-      root: '/vault',
-      changes: [
-        { kind: 'renamed', old_path: '/vault/a.md', new_path: '/vault/b.md' },
-        { kind: 'removed', path: '/vault/c.md' }
-      ]
-    })
-
-    expect(controllerPort.applyWorkspaceFsChanges).toHaveBeenCalled()
-    expect(favoritesPort.applyWorkspaceFsChanges).toHaveBeenCalled()
-    expect(favoritesPort.renameFavorite).toHaveBeenCalledWith('/vault/a.md', '/vault/b.md')
-    expect(uiPort.renameLaunchpadRecentNote).toHaveBeenCalledWith('/vault/a.md', '/vault/b.md')
-    expect(uiPort.removeLaunchpadRecentNote).toHaveBeenCalledWith('/vault/c.md')
-    expect(uiPort.invalidateRecentNotes).toHaveBeenCalled()
     scope.stop()
   })
 
