@@ -51,6 +51,7 @@ Use this as a quick routing table when you need to make a change.
 | Change Type | Start Here | Main Follow-Ups |
 | --- | --- | --- |
 | Workspace boot / restore | `src/app/App.vue` | `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellPersistence.ts`, `src/app/composables/useAppWorkspaceController.ts` |
+| Workspace setup wizard | `src/app/components/app/WorkspaceSetupWizardModal.vue` | `src/app/composables/useAppShellWorkspaceSetup.ts`, `src/app/lib/workspaceSetupWizard.ts`, `src/app/ARCHITECTURE.md` |
 | Open note | `src/app/composables/useAppShellOpenFlow.ts` | `src/app/composables/useAppNavigationController.ts`, `src/domains/editor/composables/*`, `src-tauri/src/fs_ops.rs` |
 | Save note | `src/domains/editor/components/EditorView.vue` | `src/domains/editor/composables/useEditorFileLifecycle.ts`, `src/domains/editor/composables/useEditorDocumentRuntime.ts`, `src-tauri/src/editor_sync.rs` |
 | Shell keyboard / command routing | `src/app/composables/useAppShellKeyboard.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellModalInteractions.ts` |

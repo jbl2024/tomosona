@@ -122,11 +122,6 @@ import {
   upsertRecentNote,
   writeRecentNotes
 } from './lib/recentNotes'
-import {
-  buildWorkspaceSetupPlan,
-  type WorkspaceSetupOption,
-  type WorkspaceSetupUseCase
-} from './lib/workspaceSetupWizard'
 import { useAppIndexingController } from './composables/useAppIndexingController'
 import { useWorkspaceMutationEffects } from './composables/useWorkspaceMutationEffects'
 import {
@@ -160,6 +155,7 @@ import { useAppShellPersistence } from './composables/useAppShellPersistence'
 import { useAppShellSearch } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
+import { useAppShellWorkspaceSetup } from './composables/useAppShellWorkspaceSetup'
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
@@ -1633,6 +1629,35 @@ const {
   onSelectWorkingFolder,
   openRecentWorkspace
 } = workspaceLifecycle
+const workspaceSetup = useAppShellWorkspaceSetup({
+  statePort: {
+    workingFolderPath: filesystem.workingFolderPath,
+    hasWorkspace: filesystem.hasWorkspace,
+    busy: workspaceSetupWizardBusy
+  },
+  workspacePort: {
+    selectWorkingFolder,
+    loadWorkingFolder,
+    loadAllFiles,
+    invalidateRecentNotes
+  },
+  fsPort: {
+    pathExists,
+    createEntry,
+    ensureParentFolders,
+    enqueueMarkdownReindex
+  },
+  uiPort: {
+    notifySuccess: (message) => filesystem.notifySuccess(message),
+    notifyError: (message) => filesystem.notifyError(message),
+    closeWorkspaceSetupWizard,
+    upsertWorkspaceFilePath
+  },
+  pathPort: {
+    sanitizeRelativePath
+  }
+})
+const { applyWorkspaceSetupWizard } = workspaceSetup
 const keyboard = useAppShellKeyboard({
   isMacOs,
   statePort: {
@@ -1901,62 +1926,6 @@ async function syncAlterSettingsFromDisk() {
       show_badge_in_chat: true,
       default_influence_intensity: 'balanced'
     }
-  }
-}
-
-async function ensureRelativeFolder(relativePath: string) {
-  const root = filesystem.workingFolderPath.value
-  if (!root) throw new Error('Working folder is not set.')
-  const normalized = sanitizeRelativePath(relativePath)
-  if (!normalized) return
-  const parentPath = await ensureParentDirectoriesForRelativePath(normalized)
-  const targetPath = `${parentPath}/${normalized.split('/').filter(Boolean).pop() ?? ''}`
-  if (await pathExists(targetPath)) return
-  await createEntry(parentPath, normalized.split('/').filter(Boolean).pop() ?? normalized, 'folder', 'fail')
-}
-
-async function applyWorkspaceSetupWizard(payload: {
-  useCase: WorkspaceSetupUseCase
-  options: WorkspaceSetupOption[]
-}) {
-  workspaceSetupWizardBusy.value = true
-  try {
-    if (!filesystem.hasWorkspace.value) {
-      const selectedPath = await selectWorkingFolder()
-      if (!selectedPath) {
-        workspaceSetupWizardBusy.value = false
-        return
-      }
-      await loadWorkingFolder(selectedPath)
-      if (!filesystem.hasWorkspace.value) {
-        workspaceSetupWizardBusy.value = false
-        return
-      }
-    }
-
-    const plan = buildWorkspaceSetupPlan(payload.useCase, payload.options)
-    for (const entry of plan) {
-      if (entry.kind === 'folder') {
-        await ensureRelativeFolder(entry.path)
-        continue
-      }
-      const root = filesystem.workingFolderPath.value
-      if (!root) throw new Error('Working folder is not set.')
-      const fullPath = `${root}/${entry.path}`
-      if (await pathExists(fullPath)) continue
-      await ensureParentFolders(fullPath)
-      await writeTextFile(fullPath, '')
-      upsertWorkspaceFilePath(fullPath)
-      enqueueMarkdownReindex(fullPath)
-    }
-
-    await loadAllFiles()
-    invalidateRecentNotes()
-    filesystem.notifySuccess('Workspace starter structure created.')
-    closeWorkspaceSetupWizard()
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not create starter structure.'
-    workspaceSetupWizardBusy.value = false
   }
 }
 

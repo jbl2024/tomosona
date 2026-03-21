@@ -9,4 +9,10 @@ describe('App shell contract', () => {
     expect(appSource).not.toContain('const backHistoryItems = computed(()')
     expect(appSource).toContain('useAppShellViewModels')
   })
+
+  it('keeps the workspace setup wizard workflow in a dedicated composable', () => {
+    expect(appSource).not.toContain('async function applyWorkspaceSetupWizard')
+    expect(appSource).not.toContain('async function ensureRelativeFolder')
+    expect(appSource).toContain('useAppShellWorkspaceSetup')
+  })
 })
