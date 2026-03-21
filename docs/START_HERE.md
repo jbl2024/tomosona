@@ -31,6 +31,37 @@ If you keep that boundary intact, the code stays manageable.
 
 That order goes from product shape to the main implementation seams.
 
+## First 30 Minutes
+
+If you are new to the codebase, do this in order:
+
+1. Run `npm test` once to confirm the frontend test suite is healthy.
+2. Run `cargo check` in `src-tauri` to confirm the backend still compiles.
+3. Open `src/app/App.vue` and skim the imports only. That shows the shell surface area.
+4. Open `src/domains/editor/components/editor/ARCHITECTURE.md` and `src/domains/second-brain/components/ARCHITECTURE.md` to see how the two densest UI surfaces are split.
+5. Open `src-tauri/src/BACKEND_INDEX_ARCHITECTURE.md` and `src-tauri/src/second_brain/SECOND_BRAIN_ARCHITECTURE.md` to see where backend responsibilities live.
+6. Pick one feature you care about and trace it through the smallest number of files possible.
+
+If the code path is unclear, start from the tests for that feature. The tests are often a better map than the implementation files.
+
+## Change Map
+
+Use this as a quick routing table when you need to make a change.
+
+| Change Type | Start Here | Main Follow-Ups |
+| --- | --- | --- |
+| Workspace boot / restore | `src/app/App.vue` | `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellPersistence.ts`, `src/app/composables/useAppWorkspaceController.ts` |
+| Open note | `src/app/composables/useAppShellOpenFlow.ts` | `src/app/composables/useAppNavigationController.ts`, `src/domains/editor/composables/*`, `src-tauri/src/fs_ops.rs` |
+| Save note | `src/domains/editor/components/EditorView.vue` | `src/domains/editor/composables/useEditorFileLifecycle.ts`, `src/domains/editor/composables/useEditorDocumentRuntime.ts`, `src-tauri/src/editor_sync.rs` |
+| Shell keyboard / command routing | `src/app/composables/useAppShellKeyboard.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellModalInteractions.ts` |
+| Explorer rename / move | `src/domains/explorer/components/ExplorerTree.vue` | `src/domains/explorer/composables/useExplorerOperations.ts`, `src/domains/explorer/lib/explorerDndRules.ts`, `src-tauri/src/fs_ops.rs` |
+| Search / indexing | `src-tauri/src/markdown_index.rs` | `src-tauri/src/search_index.rs`, `src-tauri/src/index_schema.rs`, `src/app/composables/useAppIndexingController.ts` |
+| Cosmos graph behavior | `src/domains/cosmos/components/CosmosView.vue` | `src/domains/cosmos/composables/useCosmosController.ts`, `src-tauri/src/wikilink_graph.rs` |
+| Second Brain chat flow | `src/domains/second-brain/components/SecondBrainView.vue` | `src/domains/second-brain/composables/useSecondBrainSessions.ts`, `src/domains/second-brain/composables/useSecondBrainDeliberation.ts`, `src-tauri/src/second_brain/*` |
+| Second Brain config / models | `src/app/components/settings/SettingsModal.vue` | `src/shared/api/settingsApi.ts`, `src-tauri/src/second_brain/config.rs`, `src-tauri/src/second_brain/openai_codex.rs` |
+| Alter manager | `src/domains/alters/components/AlterManagerView.vue` | `src/domains/alters/composables/useAlterManager.ts`, `src-tauri/src/alters.rs` |
+| UI primitives / shared shells | `src/shared/components/ui/ARCHITECTURE.md` | `src/shared/components/ui/*`, `src/assets/tailwind.css` |
+
 ## Where To Start For A New Change
 
 Use the smallest surface that actually owns the behavior.
