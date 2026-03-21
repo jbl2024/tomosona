@@ -1,5 +1,5 @@
 import { nextTick, watch, type Ref } from 'vue'
-import type { PaletteAction, QuickOpenBrowseItem, QuickOpenResult } from './useAppQuickOpen'
+import type { PaletteAction, QuickOpenActionGroup, QuickOpenBrowseItem, QuickOpenResult } from './useAppQuickOpen'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 import type { ThemePreference } from './useAppTheme'
 
@@ -20,7 +20,7 @@ export type AppShellQuickOpenInteractionPort = {
   quickOpenIsActionMode: Readonly<Ref<boolean>>
   quickOpenHasTextQuery: Readonly<Ref<boolean>>
   quickOpenActiveIndex: Ref<number>
-  quickOpenActionResults: Readonly<Ref<PaletteAction[]>>
+  quickOpenActionGroups: Readonly<Ref<QuickOpenActionGroup[]>>
   quickOpenResults: Readonly<Ref<QuickOpenResult[]>>
   quickOpenBrowseItems: Readonly<Ref<QuickOpenBrowseItem[]>>
   paletteActions: Readonly<Ref<PaletteAction[]>>
@@ -63,6 +63,11 @@ export type UseAppShellModalInteractionsOptions = {
  * picker so `App.vue` stays focused on wiring and rendering.
  */
 export function useAppShellModalInteractions(options: UseAppShellModalInteractionsOptions) {
+  function pickVisibleItem<T>(items: readonly T[], index: number) {
+    if (!items.length) return undefined
+    return items[index] ?? items[0]
+  }
+
   function runQuickOpenAction(id: string) {
     const action = options.quickOpenPort.paletteActions.value.find((item) => item.id === id)
     if (!action) return
@@ -101,7 +106,8 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
 
   function onQuickOpenEnter() {
     if (options.quickOpenPort.quickOpenIsActionMode.value) {
-      const action = options.quickOpenPort.quickOpenActionResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
+      const visibleActionItems = options.quickOpenPort.quickOpenActionGroups.value.flatMap((group) => group.items)
+      const action = pickVisibleItem(visibleActionItems, options.quickOpenPort.quickOpenActiveIndex.value)
       if (action) {
         runQuickOpenAction(action.id)
       }

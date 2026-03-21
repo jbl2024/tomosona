@@ -1,7 +1,7 @@
 import { effectScope, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAppShellModalInteractions } from './useAppShellModalInteractions'
-import type { PaletteAction, QuickOpenResult } from './useAppQuickOpen'
+import type { PaletteAction, QuickOpenActionGroup, QuickOpenResult } from './useAppQuickOpen'
 import type { ThemePreference } from './useAppTheme'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 
@@ -11,8 +11,10 @@ function createHarness() {
   const quickOpenHasTextQuery = ref(true)
   const quickOpenActiveIndex = ref(0)
   const quickOpenActionResults = ref<PaletteAction[]>([])
+  const quickOpenActionGroups = ref<QuickOpenActionGroup[]>([])
   const quickOpenResults = ref<QuickOpenResult[]>([])
   const quickOpenBrowseItems = ref<QuickOpenResult[]>([])
+  const closeWorkspaceRun = vi.fn(async () => true)
   const paletteActions = ref<PaletteAction[]>([
     {
       id: 'open-settings',
@@ -21,6 +23,12 @@ function createHarness() {
       closeBeforeRun: true,
       loadingLabel: 'Loading settings...',
       run: vi.fn(async () => true)
+    },
+    {
+      id: 'close-workspace',
+      label: 'Close Workspace',
+      family: 'workspace',
+      run: closeWorkspaceRun
     }
   ])
 
@@ -58,6 +66,7 @@ function createHarness() {
         quickOpenHasTextQuery,
         quickOpenActiveIndex,
         quickOpenActionResults,
+        quickOpenActionGroups,
         quickOpenResults,
         quickOpenBrowseItems,
         paletteActions,
@@ -107,11 +116,13 @@ function createHarness() {
     applyThemePreview,
     openQuickResult,
     moveQuickOpenSelection,
+    closeWorkspaceRun,
     quickOpenVisible,
     quickOpenIsActionMode,
     quickOpenHasTextQuery,
     quickOpenActiveIndex,
     quickOpenActionResults,
+    quickOpenActionGroups,
     quickOpenResults,
     quickOpenBrowseItems,
     themePickerVisible,
@@ -139,6 +150,75 @@ describe('useAppShellModalInteractions', () => {
     expect(showLoadingState).toHaveBeenCalledWith('Loading settings...')
     expect(hideLoadingState).toHaveBeenCalled()
     expect(focusEditor).toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('restores focus after a workspace-close action resolves', async () => {
+    const { api, scope, closeQuickOpen, focusEditor, closeWorkspaceRun } = createHarness()
+
+    api.runQuickOpenAction('close-workspace')
+    await Promise.resolve()
+    await Promise.resolve()
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+    expect(closeQuickOpen).toHaveBeenCalled()
+    expect(closeWorkspaceRun).toHaveBeenCalled()
+    expect(focusEditor).toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('runs the first visible action on Enter in grouped action mode', async () => {
+    const { api, scope, quickOpenIsActionMode, quickOpenActionResults, quickOpenActionGroups, quickOpenActiveIndex, closeWorkspaceRun } = createHarness()
+
+    quickOpenIsActionMode.value = true
+    quickOpenActionResults.value = [
+      {
+        id: 'close-other-tabs',
+        label: 'Close Other Tabs',
+        family: 'layout',
+        run: vi.fn(async () => true)
+      },
+      {
+        id: 'close-workspace',
+        label: 'Close Workspace',
+        family: 'workspace',
+        run: closeWorkspaceRun
+      }
+    ]
+    quickOpenActionGroups.value = [
+      {
+        family: 'workspace',
+        label: 'Workspace',
+        items: [
+          {
+            id: 'close-workspace',
+            label: 'Close Workspace',
+            family: 'workspace',
+            run: closeWorkspaceRun
+          }
+        ]
+      },
+      {
+        family: 'layout',
+        label: 'Layout',
+        items: [
+          {
+            id: 'close-other-tabs',
+            label: 'Close Other Tabs',
+            family: 'layout',
+            run: vi.fn(async () => true)
+          }
+        ]
+      }
+    ]
+    quickOpenActiveIndex.value = 0
+
+    api.onQuickOpenEnter()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(closeWorkspaceRun).toHaveBeenCalledTimes(1)
+    expect(quickOpenActionResults.value[0].id).toBe('close-other-tabs')
     scope.stop()
   })
 

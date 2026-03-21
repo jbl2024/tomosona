@@ -866,6 +866,7 @@ const {
   quickOpenQuery,
   quickOpenActiveIndex
 })
+
 const shellModals = useAppShellModals({
   statePort: {
     quickOpenVisible,
@@ -1398,7 +1399,7 @@ shellModalInteractions = useAppShellModalInteractions({
     quickOpenIsActionMode,
     quickOpenHasTextQuery,
     quickOpenActiveIndex,
-    quickOpenActionResults,
+    quickOpenActionGroups,
     quickOpenResults,
     quickOpenBrowseItems,
     paletteActions,

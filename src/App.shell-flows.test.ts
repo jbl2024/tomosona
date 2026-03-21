@@ -159,6 +159,10 @@ vi.mock('./app/components/panes/EditorPaneGrid.vue', () => ({
         getZoom: () => 1
       })
       return () => h('div', [
+        h('textarea', {
+          'data-editor-input': 'true',
+          placeholder: 'editor'
+        }),
         h('button', {
           type: 'button',
           'data-save-test-note': 'true',
@@ -459,6 +463,93 @@ describe('App shell flows', () => {
     expect(mounted.root.textContent).toContain('workspace: /vault')
 
     await runPaletteCommand(mounted.root, '>close workspace')
+
+    expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('workspace: none')
+
+    mounted.app.unmount()
+  })
+
+  it('closes the current workspace from the command palette while the editor is focused', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    const editorInput = mounted.root.querySelector<HTMLTextAreaElement>('[data-editor-input="true"]')
+    expect(editorInput).toBeTruthy()
+    if (!editorInput) throw new Error('Expected editor input')
+
+    editorInput.focus()
+    editorInput.value = 'edited content'
+    editorInput.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    await runPaletteCommand(mounted.root, '>close workspace')
+
+    expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('workspace: none')
+
+    mounted.app.unmount()
+  })
+
+  it('closes the current workspace when Enter validates the visible Close Workspace action', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    await openCommandPalette(mounted.root, '>close')
+
+    const input = mounted.root.querySelector<HTMLInputElement>('[data-quick-open-input="true"]')
+    expect(input).toBeTruthy()
+    if (!input) throw new Error('Expected command palette input')
+
+    expect(mounted.root.querySelector('.modal-item.active')?.textContent).toContain('Close Workspace')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await flushUi()
+
+    expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('workspace: none')
+
+    mounted.app.unmount()
+  })
+
+  it('focuses the command palette input after opening from the editor and closes workspace on Enter', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    const editorInput = mounted.root.querySelector<HTMLTextAreaElement>('[data-editor-input="true"]')
+    expect(editorInput).toBeTruthy()
+    if (!editorInput) throw new Error('Expected editor input')
+
+    editorInput.focus()
+    await flushUi()
+
+    await openCommandPalette(mounted.root, '>close workspace')
+
+    const paletteInput = mounted.root.querySelector<HTMLInputElement>('[data-quick-open-input="true"]')
+    expect(paletteInput).toBeTruthy()
+    expect(document.activeElement).toBe(paletteInput)
+
+    paletteInput?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await flushUi()
+
+    expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
+    expect(mounted.root.textContent).toContain('workspace: none')
+
+    mounted.app.unmount()
+  })
+
+  it('closes workspace when Enter follows the query input immediately', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    await openCommandPalette(mounted.root, '>')
+    const input = mounted.root.querySelector<HTMLInputElement>('[data-quick-open-input="true"]')
+    expect(input).toBeTruthy()
+    if (!input) throw new Error('Expected command palette input')
+
+    input.value = '>close workspace'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await flushUi()
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
     expect(mounted.root.textContent).toContain('workspace: none')

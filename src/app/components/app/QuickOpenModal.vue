@@ -55,6 +55,15 @@ const actionSections = computed(() => {
     return nextGroup
   })
 })
+
+function onQuickOpenInput(event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  emit('update:query', value)
+}
+
+function onQuickOpenKeydown(event: KeyboardEvent) {
+  emit('keydown', event)
+}
 </script>
 
 <template>
@@ -75,8 +84,8 @@ const actionSections = computed(() => {
         data-quick-open-input="true"
         class="tool-input"
         placeholder="Type file name, or start with > for actions"
-        @input="emit('update:query', ($event.target as HTMLInputElement).value)"
-        @keydown="emit('keydown', $event)"
+        @input="onQuickOpenInput"
+        @keydown="onQuickOpenKeydown"
       />
       <div class="modal-list">
         <template v-if="isActionMode">
