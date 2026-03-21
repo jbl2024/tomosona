@@ -2,6 +2,7 @@
   "files.exclude": {
     "**/.DS_Store": true,
     "**/dist": true,
+    "**/node_modules": true,
     "**/src-tauri/target": true
   },
 
