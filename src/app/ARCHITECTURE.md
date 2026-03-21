@@ -34,6 +34,7 @@
 - `useAppShellOpenFlow`: note opening, wikilink resolution, active-note refresh, backlinks, and explorer/search entry points.
 - `useAppShellCommands`: cross-domain command routing for palette, pane chrome, and shell menus.
 - `useAppShellPaletteActions`: command-palette catalog assembly, ordering, and conditional inclusion for quick-open.
+- `useAppShellEntryActions`: shell-root bridge for launchpad and palette entrypoint adapter binding.
 - `useAppShellKeyboard`: global shortcut priority, `Escape` routing, pane/navigation shortcut dispatch.
 - `useAppShellSearch`: global search state, debounce, grouping, mode switching.
 - `useAppShellLaunchpad`: recent workspaces, recent notes, launchpad row derivation, and launchpad quick-start routing.

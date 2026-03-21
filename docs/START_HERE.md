@@ -56,6 +56,7 @@ Use this as a quick routing table when you need to make a change.
 | Save note | `src/domains/editor/components/EditorView.vue` | `src/domains/editor/composables/useEditorFileLifecycle.ts`, `src/domains/editor/composables/useEditorDocumentRuntime.ts`, `src-tauri/src/editor_sync.rs` |
 | Shell keyboard / command routing | `src/app/composables/useAppShellKeyboard.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellPaletteActions.ts`, `src/app/composables/useAppShellModalInteractions.ts` |
 | Command palette catalog | `src/app/composables/useAppShellPaletteActions.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellModalInteractions.ts`, `src/app/ARCHITECTURE.md` |
+| Shell entrypoint bridge | `src/app/composables/useAppShellEntryActions.ts` | `src/app/composables/useAppShellLaunchpad.ts`, `src/app/composables/useAppShellPaletteActions.ts`, `src/app/ARCHITECTURE.md` |
 | Launchpad quick-start routing | `src/app/components/panes/WorkspaceLaunchpad.vue` | `src/app/composables/useAppShellLaunchpad.ts`, `src/app/composables/useAppShellCommands.ts`, `src/app/ARCHITECTURE.md` |
 | Explorer rename / move | `src/domains/explorer/components/ExplorerTree.vue` | `src/domains/explorer/composables/useExplorerOperations.ts`, `src/domains/explorer/lib/explorerDndRules.ts`, `src-tauri/src/fs_ops.rs` |
 | Search / indexing | `src-tauri/src/markdown_index.rs` | `src-tauri/src/search_index.rs`, `src-tauri/src/index_schema.rs`, `src/app/composables/useAppIndexingController.ts` |
