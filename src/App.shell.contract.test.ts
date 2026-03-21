@@ -34,4 +34,14 @@ describe('App shell contract', () => {
     expect(appSource).not.toContain('shellPaletteActionPort.openThemePickerFromPalette =')
     expect(appSource).toContain('useAppShellEntryActions')
   })
+
+  it('keeps workspace entrypoint routing out of App.vue', () => {
+    expect(appSource).not.toContain('@select-working-folder="void onSelectWorkingFolder()"')
+    expect(appSource).not.toContain('@launchpad-open-workspace="void onSelectWorkingFolder()"')
+    expect(appSource).not.toContain('@launchpad-open-wizard="void openWorkspaceSetupWizard()"')
+    expect(appSource).not.toContain('@launchpad-open-recent-workspace="void openRecentWorkspace($event)"')
+    expect(appSource).not.toContain('@cancel="closeWorkspaceSetupWizard"')
+    expect(appSource).not.toContain('@submit="void applyWorkspaceSetupWizard($event)"')
+    expect(appSource).toContain('useAppShellWorkspaceRouting')
+  })
 })

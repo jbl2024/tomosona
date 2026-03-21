@@ -157,6 +157,7 @@ import { useAppShellSearch } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
 import { useAppShellWorkspaceSetup } from './composables/useAppShellWorkspaceSetup'
+import { useAppShellWorkspaceRouting } from './composables/useAppShellWorkspaceRouting'
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
@@ -1542,6 +1543,19 @@ const workspaceSetup = useAppShellWorkspaceSetup({
   }
 })
 const { applyWorkspaceSetupWizard } = workspaceSetup
+const workspaceRouting = useAppShellWorkspaceRouting({
+  lifecyclePort: {
+    openWorkspacePicker: () => onSelectWorkingFolder(),
+    openRecentWorkspace: (path) => openRecentWorkspace(path)
+  },
+  modalPort: {
+    openWorkspaceSetupWizard: () => openWorkspaceSetupWizard(),
+    closeWorkspaceSetupWizard: () => closeWorkspaceSetupWizard()
+  },
+  setupPort: {
+    applyWorkspaceSetupWizard: (payload) => applyWorkspaceSetupWizard(payload)
+  }
+})
 const keyboard = useAppShellKeyboard({
   isMacOs,
   statePort: {
@@ -2399,7 +2413,7 @@ onBeforeUnmount(() => {
         @explorer-error="onExplorerError"
         @favorites-open="openFavoriteFromSidebar"
         @favorites-remove="removeFavoriteFromList"
-        @select-working-folder="void onSelectWorkingFolder()"
+        @select-working-folder="void workspaceRouting.openWorkspacePicker()"
         @update-search-query="searchQuery = $event"
         @run-global-search="runGlobalSearch"
         @select-global-search-mode="onGlobalSearchModeSelect"
@@ -2460,11 +2474,11 @@ onBeforeUnmount(() => {
               @path-renamed="onEditorPathRenamed"
               @outline="onEditorOutline"
               @properties="onEditorProperties"
-              @launchpad-open-workspace="void onSelectWorkingFolder()"
-              @launchpad-open-wizard="void openWorkspaceSetupWizard()"
+              @launchpad-open-workspace="void workspaceRouting.openWorkspacePicker()"
+              @launchpad-open-wizard="void workspaceRouting.openWorkspaceSetupWizard()"
               @launchpad-open-command-palette="void launchpad.openCommandPaletteFromLaunchpad()"
               @launchpad-open-shortcuts="openShortcutsModal"
-              @launchpad-open-recent-workspace="void openRecentWorkspace($event)"
+              @launchpad-open-recent-workspace="void workspaceRouting.openRecentWorkspace($event)"
               @launchpad-open-today="void openTodayNote()"
               @launchpad-open-quick-open="void launchpad.openQuickOpenFromLaunchpad()"
               @launchpad-create-note="void createNewFileFromPalette()"
@@ -2661,8 +2675,8 @@ onBeforeUnmount(() => {
     <WorkspaceSetupWizardModal
       :visible="workspaceSetupWizardVisible"
       :busy="workspaceSetupWizardBusy"
-      @cancel="closeWorkspaceSetupWizard"
-      @submit="void applyWorkspaceSetupWizard($event)"
+      @cancel="workspaceRouting.closeWorkspaceSetupWizard()"
+      @submit="void workspaceRouting.applyWorkspaceSetupWizard($event)"
     />
 
     <SettingsModal

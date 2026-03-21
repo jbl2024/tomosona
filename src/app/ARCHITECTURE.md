@@ -35,6 +35,7 @@
 - `useAppShellCommands`: cross-domain command routing for palette, pane chrome, and shell menus.
 - `useAppShellPaletteActions`: command-palette catalog assembly, ordering, and conditional inclusion for quick-open.
 - `useAppShellEntryActions`: shell-root bridge for launchpad and palette entrypoint adapter binding.
+- `useAppShellWorkspaceRouting`: shell-root bridge for workspace picker, recent-workspace, and setup-wizard entrypoint routing.
 - `useAppShellKeyboard`: global shortcut priority, `Escape` routing, pane/navigation shortcut dispatch.
 - `useAppShellSearch`: global search state, debounce, grouping, mode switching.
 - `useAppShellLaunchpad`: recent workspaces, recent notes, launchpad row derivation, and launchpad quick-start routing.
@@ -62,6 +63,7 @@
 - Put the domain behavior in the owning domain/controller.
 - Put shell routing and UI wiring in `useAppShellCommands` when the action is reused by multiple shell entry points.
 - Put palette catalog membership, ordering, and conditional inclusion in `useAppShellPaletteActions`.
+- Put workspace entrypoint routing in `useAppShellWorkspaceRouting` when the template or launchpad needs to forward to lifecycle/setup owners.
 - Reuse existing shell command helpers before adding a new inline handler in `App.vue`.
 
 ### Add a new shell modal
