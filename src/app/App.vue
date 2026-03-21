@@ -135,6 +135,20 @@ import {
   type HomeHistorySnapshot,
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
+import {
+  buildCosmosHistorySnapshot,
+  buildHomeHistorySnapshot,
+  buildSecondBrainHistorySnapshot,
+  cosmosHistoryLabel,
+  cosmosSnapshotStateKey,
+  homeHistoryLabel,
+  homeSnapshotStateKey,
+  readCosmosHistorySnapshot,
+  readHomeHistorySnapshot,
+  readSecondBrainHistorySnapshot,
+  secondBrainHistoryLabel,
+  secondBrainSnapshotStateKey
+} from './lib/appNavigationHistory'
 import { useAppShellHistoryUi } from './composables/useAppShellHistoryUi'
 import { useAppShellCommands } from './composables/useAppShellCommands'
 import { useAppShellKeyboard } from './composables/useAppShellKeyboard'
@@ -1200,85 +1214,6 @@ function resetZoomFromPalette() {
   return false
 }
 
-function readCosmosHistorySnapshot(payload: unknown): CosmosHistorySnapshot | null {
-  if (!payload || typeof payload !== 'object') return null
-  const value = payload as Partial<CosmosHistorySnapshot>
-  if (
-    typeof value.query !== 'string' ||
-    typeof value.selectedNodeId !== 'string' ||
-    typeof value.focusMode !== 'boolean' ||
-    typeof value.focusDepth !== 'number'
-  ) {
-    return null
-  }
-  return {
-    query: value.query,
-    selectedNodeId: value.selectedNodeId,
-    focusMode: value.focusMode,
-    focusDepth: Math.max(1, Math.min(8, Math.round(value.focusDepth)))
-  }
-}
-
-function currentCosmosHistorySnapshot(): CosmosHistorySnapshot {
-  return {
-    query: cosmos.query.value.trim(),
-    selectedNodeId: cosmos.selectedNodeId.value,
-    focusMode: cosmos.focusMode.value,
-    focusDepth: cosmos.focusDepth.value
-  }
-}
-
-function cosmosSnapshotStateKey(snapshot: CosmosHistorySnapshot): string {
-  return JSON.stringify(snapshot)
-}
-
-function cosmosHistoryLabel(snapshot: CosmosHistorySnapshot): string {
-  if (snapshot.query) return `Cosmos: ${snapshot.query}`
-  if (snapshot.selectedNodeId) {
-    const node = cosmos.graph.value.nodes.find((item) => item.id === snapshot.selectedNodeId)
-    if (node) return `Cosmos: ${node.displayLabel || node.label}`
-  }
-  return 'Cosmos'
-}
-
-function readSecondBrainHistorySnapshot(payload: unknown): SecondBrainHistorySnapshot | null {
-  if (!payload || typeof payload !== 'object') return null
-  const value = payload as { surface?: string }
-  if (value.surface !== 'chat' && value.surface !== 'sessions') return null
-  return { surface: 'chat' }
-}
-
-function currentSecondBrainHistorySnapshot(): SecondBrainHistorySnapshot {
-  return { surface: 'chat' }
-}
-
-function secondBrainSnapshotStateKey(snapshot: SecondBrainHistorySnapshot): string {
-  return snapshot.surface
-}
-
-function secondBrainHistoryLabel(_snapshot: SecondBrainHistorySnapshot): string {
-  return 'Second Brain'
-}
-
-function readHomeHistorySnapshot(payload: unknown): HomeHistorySnapshot | null {
-  if (!payload || typeof payload !== 'object') return null
-  const value = payload as { surface?: string }
-  if (value.surface !== 'hub') return null
-  return { surface: 'hub' }
-}
-
-function currentHomeHistorySnapshot(): HomeHistorySnapshot {
-  return { surface: 'hub' }
-}
-
-function homeSnapshotStateKey(snapshot: HomeHistorySnapshot): string {
-  return snapshot.surface
-}
-
-function homeHistoryLabel(_snapshot: HomeHistorySnapshot): string {
-  return 'Home'
-}
-
 async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Promise<boolean> {
   if (!filesystem.hasWorkspace.value) return false
 
@@ -1350,21 +1285,31 @@ const navigationHistoryPort = {
   documentHistory,
   cosmos: {
     read: readCosmosHistorySnapshot,
-    current: currentCosmosHistorySnapshot,
+    current: () =>
+      buildCosmosHistorySnapshot({
+        query: cosmos.query.value.trim(),
+        selectedNodeId: cosmos.selectedNodeId.value,
+        focusMode: cosmos.focusMode.value,
+        focusDepth: cosmos.focusDepth.value
+      }),
     stateKey: cosmosSnapshotStateKey,
-    label: cosmosHistoryLabel,
+    label: (snapshot: CosmosHistorySnapshot) =>
+      cosmosHistoryLabel(snapshot, (nodeId) => {
+        const node = cosmos.graph.value.nodes.find((item) => item.id === nodeId)
+        return node ? node.displayLabel || node.label : null
+      }),
     apply: applyCosmosHistorySnapshot
   },
   home: {
     read: readHomeHistorySnapshot,
-    current: currentHomeHistorySnapshot,
+    current: () => buildHomeHistorySnapshot(),
     stateKey: homeSnapshotStateKey,
     label: homeHistoryLabel,
     open: openHomeHistorySnapshot
   },
   secondBrain: {
     read: readSecondBrainHistorySnapshot,
-    current: currentSecondBrainHistorySnapshot,
+    current: () => buildSecondBrainHistorySnapshot(),
     stateKey: secondBrainSnapshotStateKey,
     label: secondBrainHistoryLabel,
     open: openSecondBrainHistorySnapshot
