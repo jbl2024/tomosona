@@ -26,8 +26,6 @@ function createCommands() {
     allWorkspaceFiles: ref(['/vault/a.md']),
     previousNonCosmosMode,
     setSidebarMode: vi.fn(),
-    persistSidebarMode: vi.fn(),
-    persistPreviousNonCosmosMode: vi.fn(),
     notifyError: vi.fn(),
     notifySuccess: vi.fn()
   }
@@ -177,8 +175,6 @@ describe('useAppShellCommands', () => {
 
     expect(workspacePort.previousNonCosmosMode.value).toBe('search')
     expect(actionPort.closeOverflowMenu).toHaveBeenCalled()
-    expect(workspacePort.persistSidebarMode).toHaveBeenCalled()
-    expect(workspacePort.persistPreviousNonCosmosMode).toHaveBeenCalled()
     expect(actionPort.focusSearchInput).toHaveBeenCalled()
     scope.stop()
   })

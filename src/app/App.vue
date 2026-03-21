@@ -112,6 +112,16 @@ import {
 } from './lib/appShellDocuments'
 import { formatDurationMs } from './lib/indexActivity'
 import {
+  basenameLabel,
+  buildMetadataRows,
+  buildShortcutSections,
+  buildSystemThemeLabel,
+  buildThemePickerItems,
+  formatRelativeTime,
+  formatSearchScore
+} from './lib/appShellPresentation'
+import { clampEditorZoom, readPersistedMultiPaneLayout } from './lib/appShellPersistence'
+import {
   readRecentWorkspaces,
   removeRecentWorkspace,
   upsertRecentWorkspace
@@ -141,6 +151,7 @@ import { useAppShellCommands } from './composables/useAppShellCommands'
 import { useAppShellKeyboard } from './composables/useAppShellKeyboard'
 import { useAppShellLaunchpad } from './composables/useAppShellLaunchpad'
 import { useAppShellModals } from './composables/useAppShellModals'
+import { useAppShellPersistence } from './composables/useAppShellPersistence'
 import { useAppShellSearch, type AppShellSearchHit } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
@@ -153,12 +164,6 @@ import {
   type QuickOpenResult
 } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
-import {
-  SYSTEM_DARK_THEME_ID,
-  SYSTEM_LIGHT_THEME_ID,
-  type AppThemeDefinition,
-  type ThemeId
-} from '../shared/lib/themeRegistry'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from '../domains/editor/composables/useEditorState'
 import { useEchoesDiscoverability } from '../domains/echoes/composables/useEchoesDiscoverability'
@@ -177,8 +182,6 @@ import type {
 } from './lib/appShellViewModels'
 import {
   createInitialLayout,
-  hydrateLayout,
-  serializeLayout,
   useMultiPaneWorkspaceState
 } from './composables/useMultiPaneWorkspaceState'
 import packageJson from '../../package.json'
@@ -289,18 +292,28 @@ const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
-const hydratedMultiPane = hydrateLayout(
-  (() => {
-    const raw = window.sessionStorage.getItem(MULTI_PANE_STORAGE_KEY)
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
-    }
-  })()
-)
-const multiPane = useMultiPaneWorkspaceState(hydratedMultiPane ?? createInitialLayout())
+const persistedMultiPane = readPersistedMultiPaneLayout(MULTI_PANE_STORAGE_KEY)
+const multiPane = useMultiPaneWorkspaceState(persistedMultiPane ?? createInitialLayout())
+const shellPersistence = useAppShellPersistence({
+  theme: {
+    themePreference,
+    loadThemePreference,
+    persistThemePreference,
+    applyTheme
+  },
+  workspace: {
+    sidebarMode: workspace.sidebarMode,
+    previousNonCosmosMode
+  },
+  layout: multiPane.layout,
+  editorZoom,
+  storageKeys: {
+    sidebarMode: VIEW_MODE_STORAGE_KEY,
+    previousNonCosmosMode: PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY,
+    editorZoom: EDITOR_ZOOM_STORAGE_KEY,
+    multiPane: MULTI_PANE_STORAGE_KEY
+  }
+})
 const showDebugTools = import.meta.env.DEV
 const appVersion = packageJson.version
 
@@ -641,49 +654,15 @@ const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'lexical', label: 'Lexical' }
 ]
 
-type ThemePickerItem =
-  | {
-      kind: 'system'
-      id: 'system'
-      label: string
-      meta: string
-      previewThemeIds: ThemeId[]
-    }
-  | {
-      kind: 'theme'
-      id: ThemeId
-      label: string
-      meta: string
-      colorScheme: AppThemeDefinition['colorScheme']
-      group: AppThemeDefinition['group']
-    }
+const systemThemeLabel = computed(() => buildSystemThemeLabel(activeColorScheme.value))
 
-const systemThemeLabel = computed(() => {
-  return activeColorScheme.value === 'dark' ? 'System (Tomosona Dark)' : 'System (Tomosona Light)'
-})
-
-const themePickerItems = computed<ThemePickerItem[]>(() => {
-  const q = themePickerQuery.value.trim().toLowerCase()
-  const items: ThemePickerItem[] = [
-    {
-      kind: 'system',
-      id: 'system',
-      label: 'System',
-      meta: systemThemeLabel.value,
-      previewThemeIds: [SYSTEM_LIGHT_THEME_ID, SYSTEM_DARK_THEME_ID]
-    },
-    ...availableThemes.map((theme) => ({
-      kind: 'theme' as const,
-      id: theme.id,
-      label: theme.label,
-      meta: `${theme.group === 'official' ? 'Official' : 'Included'} • ${theme.colorScheme === 'dark' ? 'Dark' : 'Light'}`,
-      colorScheme: theme.colorScheme,
-      group: theme.group
-    }))
-  ]
-  if (!q) return items
-  return items.filter((item) => `${item.label} ${item.meta}`.toLowerCase().includes(q))
-})
+const themePickerItems = computed(() =>
+  buildThemePickerItems(availableThemes, activeColorScheme.value).filter((item) => {
+    const q = themePickerQuery.value.trim().toLowerCase()
+    if (!q) return true
+    return `${item.label} ${item.meta}`.toLowerCase().includes(q)
+  })
+)
 
 const themePickerItemCount = computed(() => themePickerItems.value.length)
 
@@ -924,7 +903,7 @@ const shellModals = useAppShellModals({
     resetQuickOpenState,
     ensureAllFilesLoaded: loadAllFiles,
     hasAllFilesLoaded: () => allWorkspaceFiles.value.length > 0,
-    syncEditorZoom
+    syncEditorZoom: () => shellPersistence.syncEditorZoom()
   },
   domPort: {
     focusQuickOpenInput: () => {
@@ -1026,53 +1005,15 @@ const {
   submitOpenDateFromModal
 } = workspaceEntries
 
-const shortcutSections = computed(() => {
-  const mod = primaryModLabel.value
-  return [
-    {
-      title: 'General',
-      items: [
-        { keys: `${mod}+P`, action: 'Quick open' },
-        { keys: `${mod}+Shift+P`, action: 'Command palette' },
-        { keys: `${mod}+S`, action: 'Save note' },
-        { keys: `${mod}+W`, action: 'Close current tab' },
-        { keys: `${mod}+Tab`, action: 'Next tab' },
-        { keys: `${mod}+Shift+F`, action: 'Search panel' }
-      ]
-    },
-    {
-      title: 'Navigation',
-      items: [
-        { keys: backShortcutLabel.value, action: 'Back in history' },
-        { keys: forwardShortcutLabel.value, action: 'Forward in history' },
-        { keys: `${mod}+D`, action: 'Open today note' },
-        { keys: `${mod}+Shift+H`, action: 'Open Home' },
-        { keys: `${mod}+Click`, action: 'Open date token (YYYY-MM-DD) in editor' },
-        { keys: `${mod}+E`, action: 'Show explorer' },
-        { keys: `${mod}+B`, action: 'Toggle sidebar' },
-        { keys: `${mod}+J`, action: 'Toggle right pane' }
-      ]
-    },
-    {
-      title: 'Multi-pane',
-      items: [
-        { keys: `${mod}+\\\\`, action: 'Split pane right' },
-        { keys: `${mod}+Shift+\\\\`, action: 'Split pane down' },
-        { keys: `${mod}+1..4`, action: 'Focus pane 1..4' },
-        { keys: `Alt+Shift+ArrowLeft/Right`, action: 'Move active tab between panes' },
-        { keys: `Palette`, action: 'Join panes' }
-      ]
-    },
-    {
-      title: 'Editor Zoom',
-      items: [
-        { keys: `${mod}++`, action: 'Zoom in' },
-        { keys: `${mod}+-`, action: 'Zoom out' },
-        { keys: `${mod}+0`, action: 'Reset zoom' }
-      ]
-    }
-  ]
-})
+const shortcutSections = computed(() =>
+  buildShortcutSections({
+    primaryModLabel: primaryModLabel.value,
+    backShortcutLabel: backShortcutLabel.value,
+    forwardShortcutLabel: forwardShortcutLabel.value,
+    homeShortcutLabel: homeShortcutLabel.value,
+    commandPaletteShortcutLabel: commandPaletteShortcutLabel.value
+  })
+)
 
 const filteredShortcutSections = computed(() => {
   const query = shortcutsFilterQuery.value.trim().toLowerCase()
@@ -1090,38 +1031,16 @@ const filteredShortcutSections = computed(() => {
     .filter((section) => section.items.length > 0)
 })
 
-const metadataRows = computed(() => {
-  if (!activeFilePath.value) {
-    const activeTab = multiPane.getActiveTab()
-    if (!activeTab || activeTab.type === 'document') return []
-    const label = activeTab.type === 'home'
-      ? 'Home'
-      : activeTab.type === 'cosmos'
-        ? 'Cosmos'
-        : activeTab.type === 'second-brain-chat'
-          ? 'Second Brain'
-          : 'Surface'
-    return [
-      { label: 'Surface', value: label },
-      { label: 'Metadata', value: 'No document metadata for this surface' }
-    ]
-  }
-  const status = activeStatus.value
-  const state = status.saving
-    ? 'saving'
-    : virtualDocs.value[activeFilePath.value]
-      ? 'unsaved'
-      : status.dirty
-        ? 'editing'
-        : 'saved'
-  return [
-    { label: 'Path', value: toRelativePath(activeFilePath.value) },
-    { label: 'State', value: state },
-    { label: 'Workspace', value: toRelativePath(filesystem.workingFolderPath.value) || filesystem.workingFolderPath.value },
-    { label: 'Created', value: formatTimestamp(activeFileMetadata.value?.created_at_ms ?? null) },
-    { label: 'Updated', value: formatTimestamp(activeFileMetadata.value?.updated_at_ms ?? null) }
-  ]
-})
+const metadataRows = computed(() => buildMetadataRows({
+  activeFilePath: activeFilePath.value,
+  activeStatus: activeStatus.value,
+  virtualDocExists: Boolean(virtualDocs.value[activeFilePath.value]),
+  activeTab: multiPane.getActiveTab(),
+  activeFileMetadata: activeFileMetadata.value,
+  workspacePath: filesystem.workingFolderPath.value,
+  toRelativePath,
+  formatTimestamp
+}))
 const backlinkCount = computed(() => backlinks.value.length)
 const semanticLinkCount = computed(() => semanticLinks.value.length)
 const activeNoteInContext = computed(() => {
@@ -1213,65 +1132,10 @@ const forwardHistoryItems = computed(() =>
   }))
 )
 
-function loadSavedSidebarMode() {
-  const saved = window.sessionStorage.getItem(VIEW_MODE_STORAGE_KEY)
-  if (saved === 'explorer' || saved === 'favorites' || saved === 'search') {
-    workspace.sidebarMode.value = saved
-  }
-  const savedPrevious = window.sessionStorage.getItem(PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY)
-  if (savedPrevious === 'explorer' || savedPrevious === 'favorites' || savedPrevious === 'search') {
-    previousNonCosmosMode.value = savedPrevious
-  }
-}
-
-function persistSidebarMode() {
-  window.sessionStorage.setItem(VIEW_MODE_STORAGE_KEY, workspace.sidebarMode.value)
-}
-
-function persistPreviousNonCosmosMode() {
-  window.sessionStorage.setItem(PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY, previousNonCosmosMode.value)
-}
-
 function resolvedNoteNavigationFallback(): SidebarMode {
   const current = previousNonCosmosMode.value
   if (current === 'search' || current === 'favorites' || current === 'explorer') return current
   return 'explorer'
-}
-
-function formatSearchScore(value: number): string {
-  if (!Number.isFinite(value)) return '--'
-  return value.toFixed(3)
-}
-
-function basenameLabel(path: string): string {
-  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
-  const last = normalized.split('/').filter(Boolean).pop()
-  return last || path
-}
-
-function formatRelativeTime(tsMs: number | null, prefix = ''): string {
-  if (typeof tsMs !== 'number' || !Number.isFinite(tsMs) || tsMs <= 0) {
-    return prefix ? `${prefix} recently` : 'recently'
-  }
-  const deltaMs = tsMs - Date.now()
-  const absMs = Math.abs(deltaMs)
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
-  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ['year', 365 * 24 * 60 * 60 * 1000],
-    ['month', 30 * 24 * 60 * 60 * 1000],
-    ['week', 7 * 24 * 60 * 60 * 1000],
-    ['day', 24 * 60 * 60 * 1000],
-    ['hour', 60 * 60 * 1000],
-    ['minute', 60 * 1000]
-  ]
-  for (const [unit, size] of units) {
-    if (absMs >= size || unit === 'minute') {
-      const value = Math.round(deltaMs / size)
-      const label = rtf.format(value, unit)
-      return prefix ? `${prefix} ${label}` : label
-    }
-  }
-  return prefix ? `${prefix} just now` : 'just now'
 }
 
 function openIndexStatusModal() {
@@ -1308,7 +1172,7 @@ function isTitleOnlyContent(content: string, titleLine: string): boolean {
 function toggleOverflowMenu() {
   closeHistoryMenu()
   if (!overflowMenuOpen.value) {
-    syncEditorZoom()
+    shellPersistence.syncEditorZoom()
   }
   overflowMenuOpen.value = !overflowMenuOpen.value
 }
@@ -1323,37 +1187,27 @@ function openDesignSystemDebugFromOverflow() {
   openDesignSystemDebugModal()
 }
 
-function clampEditorZoom(value: number): number {
-  return Math.max(0.8, Math.min(1.6, Number(value.toFixed(2))))
-}
-
-function readStoredEditorZoom(): number {
-  const raw = Number.parseFloat(window.localStorage.getItem(EDITOR_ZOOM_STORAGE_KEY) ?? '1')
-  return Number.isFinite(raw) ? clampEditorZoom(raw) : 1
-}
-
-function syncEditorZoom() {
-  const viaEditor = editorRef.value?.getZoom()
-  if (typeof viaEditor === 'number' && Number.isFinite(viaEditor)) {
-    editorZoom.value = clampEditorZoom(viaEditor)
-    return
-  }
-  editorZoom.value = readStoredEditorZoom()
-}
-
 function zoomInFromOverflow() {
   const next = editorRef.value?.zoomIn()
-  editorZoom.value = clampEditorZoom(typeof next === 'number' ? next : readStoredEditorZoom())
+  if (typeof next === 'number' && Number.isFinite(next)) {
+    editorZoom.value = clampEditorZoom(next)
+    return
+  }
+  shellPersistence.syncEditorZoom()
 }
 
 function zoomOutFromOverflow() {
   const next = editorRef.value?.zoomOut()
-  editorZoom.value = clampEditorZoom(typeof next === 'number' ? next : readStoredEditorZoom())
+  if (typeof next === 'number' && Number.isFinite(next)) {
+    editorZoom.value = clampEditorZoom(next)
+    return
+  }
+  shellPersistence.syncEditorZoom()
 }
 
 function resetZoomFromOverflow() {
   const next = editorRef.value?.resetZoom()
-  editorZoom.value = clampEditorZoom(typeof next === 'number' ? next : 1)
+  shellPersistence.syncEditorZoom(() => (typeof next === 'number' && Number.isFinite(next) ? next : 1))
 }
 
 function zoomInFromPalette() {
@@ -1595,8 +1449,6 @@ const commands = useAppShellCommands({
     allWorkspaceFiles,
     previousNonCosmosMode,
     setSidebarMode: (mode) => workspace.setSidebarMode(mode),
-    persistSidebarMode,
-    persistPreviousNonCosmosMode,
     notifyError: (message) => filesystem.notifyError(message),
     notifySuccess: (message) => filesystem.notifySuccess(message)
   },
@@ -2546,14 +2398,11 @@ function setSidebarMode(mode: SidebarMode) {
 
   if (current === target) {
     workspace.toggleSidebar()
-    persistSidebarMode()
     return
   }
 
   previousNonCosmosMode.value = target
-  persistPreviousNonCosmosMode()
   workspace.setSidebarMode(target)
-  persistSidebarMode()
 }
 
 let activeNoteEffectsRequestToken = 0
@@ -2810,7 +2659,6 @@ async function onCosmosOpenNode(path: string) {
   if (!opened) return
   const fallback = resolvedNoteNavigationFallback()
   workspace.setSidebarMode(fallback)
-  persistSidebarMode()
   await nextTick()
   if (fallback === 'explorer') {
     const revealPathInView = explorerRef.value?.revealPathInView
@@ -3121,13 +2969,6 @@ async function saveActiveTab() {
   await editorRef.value?.saveNow()
 }
 
-// Remaining watchers in App are composition-level concerns: persisted shell UI
-// state, theme integration, and top-level editor/navigation synchronization.
-watch(themePreference, () => {
-  persistThemePreference()
-  applyTheme()
-})
-
 watch(themePickerQuery, () => {
   themePickerActiveIndex.value = 0
 })
@@ -3149,15 +2990,6 @@ watch(
     if (count > 0 && previousCount === 0) {
       noteEchoesDiscoverability.markPackShown()
     }
-  }
-)
-
-watch(
-  () => workspace.sidebarMode.value,
-  (mode) => {
-    persistSidebarMode()
-    previousNonCosmosMode.value = mode
-    persistPreviousNonCosmosMode()
   }
 )
 
@@ -3190,19 +3022,8 @@ watch(
   { immediate: true }
 )
 
-watch(
-  () => multiPane.layout.value,
-  (layout) => {
-    window.sessionStorage.setItem(MULTI_PANE_STORAGE_KEY, JSON.stringify(serializeLayout(layout)))
-  },
-  { deep: true }
-)
-
 onMounted(() => {
-  loadThemePreference()
-  loadSavedSidebarMode()
-  applyTheme()
-  editorZoom.value = readStoredEditorZoom()
+  shellPersistence.initializeShellPersistence()
   installOpenDebugLongTaskObserver()
   disposeOpenTraceActivitySubscription = subscribeOpenTraceActivity((active) => {
     echoesEnabled.value = !active

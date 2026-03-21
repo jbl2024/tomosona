@@ -12,8 +12,6 @@ export type AppShellCommandsWorkspacePort = {
   allWorkspaceFiles: Readonly<Ref<string[]>>
   previousNonCosmosMode: Ref<SidebarMode>
   setSidebarMode: (mode: SidebarMode) => void
-  persistSidebarMode: () => void
-  persistPreviousNonCosmosMode: () => void
   notifyError: (message: string) => void
   notifySuccess: (message: string) => void
 }
@@ -120,9 +118,7 @@ function documentPathsForPane(
 export function useAppShellCommands(options: UseAppShellCommandsOptions) {
   function persistSidebarModeSelection(mode: SidebarMode) {
     options.workspacePort.previousNonCosmosMode.value = mode
-    options.workspacePort.persistPreviousNonCosmosMode()
     options.workspacePort.setSidebarMode(mode)
-    options.workspacePort.persistSidebarMode()
   }
 
   async function openCosmosViewFromPalette() {

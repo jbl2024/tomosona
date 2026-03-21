@@ -30,6 +30,7 @@
 
 ## Shell Composables
 - `useAppModalController`: modal selector derivation, focus restore, tab trapping.
+- `useAppShellPersistence`: shell bootstrapping and persistence for theme, sidebar mode, zoom, and multi-pane layout.
 - `useAppShellCommands`: cross-domain command routing for palette, launchpad, pane chrome, and shell menus.
 - `useAppShellKeyboard`: global shortcut priority, `Escape` routing, pane/navigation shortcut dispatch.
 - `useAppShellSearch`: global search state, debounce, grouping, mode switching.
