@@ -148,6 +148,7 @@ import { useAppShellOpenFlow, type RefreshBacklinksOptions } from './composables
 import { useAppShellPersistence } from './composables/useAppShellPersistence'
 import { useAppShellChromeRuntime } from './composables/useAppShellChromeRuntime'
 import { useAppShellRuntimeLifecycle } from './composables/useAppShellRuntimeLifecycle'
+import { useAppShellEchoesRefresh } from './composables/useAppShellEchoesRefresh'
 import { useAppShellSearch } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
@@ -314,6 +315,10 @@ const noteEchoes = useEchoesPack(activeFilePath, {
   limit: 5,
   enabled: echoesEnabled,
   refreshKey: workspaceMutationEchoesToken
+})
+useAppShellEchoesRefresh({
+  indexingState: filesystem.indexingState,
+  refreshEchoes: () => noteEchoes.refresh()
 })
 const noteEchoesDiscoverability = useEchoesDiscoverability()
 const constitutedContext = useConstitutedContext({
