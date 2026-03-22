@@ -97,6 +97,14 @@ vi.mock('./shared/api/indexApi', () => ({
     model_last_duration_ms: null,
     model_last_error: null
   })),
+  readIndexOverviewStats: vi.fn(async () => ({
+    semantic_links_count: 0,
+    processed_notes_count: 0,
+    workspace_notes_count: 0,
+    last_run_finished_at_ms: null,
+    last_run_title: null,
+    last_run_duration_ms: null
+  })),
   readIndexLogs: vi.fn(async () => []),
   readPropertyTypeSchema: vi.fn(async () => ({})),
   writePropertyTypeSchema: vi.fn(async () => {}),
