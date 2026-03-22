@@ -41,6 +41,18 @@ pub(crate) struct IndexRuntimeStatus {
     pub model_last_error: Option<String>,
 }
 
+#[derive(Serialize)]
+pub(crate) struct IndexOverviewStats {
+    pub semantic_links_count: u64,
+    pub indexed_notes_count: u64,
+    pub workspace_notes_count: u64,
+    pub last_run_finished_at_ms: Option<u64>,
+    pub last_run_title: Option<String>,
+}
+
+const INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY: &str = "last_index_run_finished_at_ms";
+const INTERNAL_META_LAST_RUN_TITLE_KEY: &str = "last_index_run_title";
+
 fn sanitize_log_value(value: &str) -> String {
     value
         .chars()
@@ -141,6 +153,7 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
       DROP TABLE IF EXISTS second_brain_messages;
       DROP TABLE IF EXISTS second_brain_context_items;
       DROP TABLE IF EXISTS second_brain_sessions;
+      DELETE FROM internal_meta WHERE key IN ('last_index_run_finished_at_ms', 'last_index_run_title');
       DELETE FROM internal_meta WHERE key = 'index_schema_version';
     "#,
         )?;
@@ -493,6 +506,7 @@ pub(crate) fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &P
         0,
         started_at.elapsed().as_millis()
     ));
+    let _ = record_last_index_run(conn, "Semantic links refreshed", crate::now_ms());
     Ok(())
 }
 
@@ -573,6 +587,10 @@ pub(crate) fn rebuild_workspace_index_sync() -> Result<RebuildIndexResult> {
         "rebuild:done indexed={indexed_files} semantic_indexed={semantic_indexed} scanned={processed_files} canceled={canceled} total_ms={}",
         rebuild_started_at.elapsed().as_millis()
     ));
+    if !canceled {
+        let finished_at_ms = crate::now_ms();
+        let _ = record_last_index_run(&conn, "Workspace rebuild done", finished_at_ms);
+    }
     Ok(RebuildIndexResult {
         indexed_files,
         canceled,
@@ -596,6 +614,48 @@ pub(crate) fn read_index_runtime_status() -> Result<IndexRuntimeStatus> {
         model_last_duration_ms: status.model_last_duration_ms,
         model_last_error: status.model_last_error,
     })
+}
+
+pub(crate) fn read_index_overview_stats() -> Result<IndexOverviewStats> {
+    let conn = open_db()?;
+    let root = active_workspace_root()?;
+    let semantic_links_count = conn.query_row("SELECT COUNT(*) FROM semantic_edges", [], |row| row.get::<_, i64>(0))? as u64;
+    let indexed_notes_count = conn.query_row("SELECT COUNT(*) FROM note_embeddings", [], |row| row.get::<_, i64>(0))? as u64;
+    let workspace_notes_count = list_markdown_files_via_find(&root)?.len() as u64;
+    let last_run_finished_at_ms = conn
+        .query_row(
+            "SELECT value FROM internal_meta WHERE key = ?1",
+            [INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok());
+    let last_run_title = conn
+        .query_row(
+            "SELECT value FROM internal_meta WHERE key = ?1",
+            [INTERNAL_META_LAST_RUN_TITLE_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .ok();
+    Ok(IndexOverviewStats {
+        semantic_links_count,
+        indexed_notes_count,
+        workspace_notes_count,
+        last_run_finished_at_ms,
+        last_run_title,
+    })
+}
+
+pub(crate) fn record_last_index_run(conn: &Connection, title: &str, finished_at_ms: u64) -> Result<()> {
+    conn.execute(
+        "INSERT OR REPLACE INTO internal_meta(key, value) VALUES (?1, ?2)",
+        params![INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY, finished_at_ms.to_string()],
+    )?;
+    conn.execute(
+        "INSERT OR REPLACE INTO internal_meta(key, value) VALUES (?1, ?2)",
+        params![INTERNAL_META_LAST_RUN_TITLE_KEY, title],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn read_index_logs(limit: Option<usize>) -> Result<Vec<IndexLogEntry>> {

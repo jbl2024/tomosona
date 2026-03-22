@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { toEchoesPack, type EchoesPack } from '../../domains/echoes/lib/echoes'
 import type {
   IndexLogEntry,
+  IndexOverviewStats,
   IndexRuntimeStatus,
   PathMove,
   PathMoveRewriteResult,
@@ -97,6 +98,11 @@ export async function requestIndexCancel(): Promise<void> {
 /** Reads runtime status for indexing and embedding model initialization. */
 export async function readIndexRuntimeStatus(): Promise<IndexRuntimeStatus> {
   return await invoke('read_index_runtime_status')
+}
+
+/** Reads persisted index overview counts for the active workspace. */
+export async function readIndexOverviewStats(): Promise<IndexOverviewStats> {
+  return await invoke('read_index_overview_stats')
 }
 
 /** Reads recent indexing log entries for the active workspace. */

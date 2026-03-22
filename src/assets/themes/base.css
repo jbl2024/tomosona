@@ -483,7 +483,7 @@
     radial-gradient(circle at 100% 100%, rgba(254, 215, 170, 0.18), transparent 36%),
     color-mix(in srgb, var(--surface-bg) 92%, #f9fbff);
   --index-card-border: var(--modal-panel-border);
-  --index-card-bg: color-mix(in srgb, var(--surface-bg) 86%, transparent);
+  --index-card-bg: var(--surface-bg);
   --index-progress-track: var(--editor-progress-track);
   --index-progress-fill: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
   --index-badge-ready-bg: #dcfce7;

@@ -97,6 +97,14 @@ export type IndexRuntimeStatus = {
   model_last_error: string | null
 }
 
+export type IndexOverviewStats = {
+  semantic_links_count: number
+  indexed_notes_count: number
+  workspace_notes_count: number
+  last_run_finished_at_ms: number | null
+  last_run_title: string | null
+}
+
 export type IndexLogEntry = {
   ts_ms: number
   message: string

@@ -1,5 +1,5 @@
 import { computed, getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue'
-import type { IndexLogEntry, IndexRuntimeStatus } from '../../shared/api/apiTypes'
+import type { IndexLogEntry, IndexOverviewStats, IndexRuntimeStatus } from '../../shared/api/apiTypes'
 import { buildIndexActivityRows, type IndexActivityRow, type IndexLogFilter } from '../lib/indexActivity'
 import { formatTimestamp } from '../lib/appShellPaths'
 import { hasActiveOpenTrace } from '../../shared/lib/openTrace'
@@ -40,6 +40,7 @@ export type AppIndexingShellPort = {
 export type AppIndexingApiPort = {
   readIndexLogs: (limit: number) => Promise<IndexLogEntry[]>
   readIndexRuntimeStatus: () => Promise<IndexRuntimeStatus>
+  readIndexOverviewStats: () => Promise<IndexOverviewStats>
   requestIndexCancel: () => Promise<void>
   rebuildWorkspaceIndex: () => Promise<{ indexed_files: number; canceled: boolean }>
   reindexMarkdownFileLexical: (path: string) => Promise<void>
@@ -121,6 +122,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   const indexRunLastFinishedAt = ref<number | null>(null)
   const indexStatusBusy = ref(false)
   const indexRuntimeStatus = ref<IndexRuntimeStatus | null>(null)
+  const indexOverviewStats = ref<IndexOverviewStats | null>(null)
   const indexLogEntries = ref<IndexLogEntry[]>([])
   const indexLogFilter = ref<IndexLogFilter>('all')
   const indexStatusModalVisible = ref(false)
@@ -304,6 +306,16 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     return status.model_init_attempts <= 1 && status.model_state !== 'ready'
   })
 
+  const indexSemanticLinksCount = computed(() => indexOverviewStats.value?.semantic_links_count ?? 0)
+
+  const indexIndexedNotesCount = computed(() => indexOverviewStats.value?.indexed_notes_count ?? 0)
+
+  const indexWorkspaceNotesCount = computed(() => indexOverviewStats.value?.workspace_notes_count ?? 0)
+
+  const indexLastRunFinishedAtMs = computed(() => indexOverviewStats.value?.last_run_finished_at_ms ?? null)
+
+  const indexLastRunTitle = computed(() => indexOverviewStats.value?.last_run_title ?? null)
+
   const indexActivityRows = computed(() => buildIndexActivityRows(indexLogEntries.value, indexingShellPort.toRelativePath))
 
   const indexCurrentActivity = computed<IndexActivityRow | null>(() => {
@@ -485,9 +497,19 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
+  /** Refreshes persisted index overview counts used by the summary cards. */
+  async function refreshIndexOverviewStats() {
+    if (!indexingShellPort.hasWorkspace.value) return
+    try {
+      indexOverviewStats.value = await indexingApiPort.readIndexOverviewStats()
+    } catch {
+      indexOverviewStats.value = null
+    }
+  }
+
   /** Refreshes both runtime status and activity logs in parallel. */
   async function refreshIndexModalData() {
-    await Promise.all([refreshIndexRuntimeStatus(), refreshIndexLogs()])
+    await Promise.all([refreshIndexRuntimeStatus(), refreshIndexOverviewStats(), refreshIndexLogs()])
   }
 
   /**
@@ -861,6 +883,12 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexRunLastFinishedAt,
     indexStatusBusy,
     indexRuntimeStatus,
+    indexOverviewStats,
+    indexSemanticLinksCount,
+    indexIndexedNotesCount,
+    indexWorkspaceNotesCount,
+    indexLastRunFinishedAtMs,
+    indexLastRunTitle,
     indexLogEntries,
     indexLogFilter,
     indexStatusModalVisible,

@@ -53,6 +53,12 @@ defineProps<{
   indexModelStatusLabel: string
   indexShowWarmupNote: boolean
   indexAlert: { level: 'error' | 'warning'; title: string; message: string } | null
+  indexSemanticLinksCount: number
+  indexIndexedNotesCount: number
+  indexNotesTotalCount: number
+  indexNotesTotalLoading: boolean
+  lastRunFinishedAtMs: number | null
+  lastRunTitle: string
   indexLogFilter: IndexLogFilter
   filteredIndexActivityRows: IndexActivityRow[]
   indexErrorCount: number
@@ -170,6 +176,12 @@ const emit = defineEmits<{
     :model-status-label="indexModelStatusLabel"
     :show-warmup-note="indexShowWarmupNote"
     :alert="indexAlert"
+    :semantic-links-count="indexSemanticLinksCount"
+    :indexed-notes-count="indexIndexedNotesCount"
+    :notes-total-count="indexNotesTotalCount"
+    :notes-total-loading="indexNotesTotalLoading"
+    :last-run-finished-at-ms="lastRunFinishedAtMs"
+    :last-run-title="lastRunTitle"
     :log-filter="indexLogFilter"
     :filtered-rows="filteredIndexActivityRows"
     :error-count="indexErrorCount"

@@ -43,12 +43,13 @@ pub(crate) use index_schema::refresh_semantic_edges_cache_now_sync;
 use index_schema::{
     ensure_index_schema, init_db as init_db_impl, list_markdown_files_via_find, min_max_normalize,
     read_index_logs as read_index_logs_impl,
+    read_index_overview_stats as read_index_overview_stats_impl,
     read_index_runtime_status as read_index_runtime_status_impl,
     rebuild_workspace_index_sync as rebuild_workspace_index_sync_impl,
     refresh_semantic_edges_cache,
     refresh_semantic_edges_cache_now_sync as refresh_semantic_edges_cache_now_sync_impl,
-    request_index_cancel as request_index_cancel_impl, IndexLogEntry, IndexRuntimeStatus,
-    RebuildIndexResult,
+    request_index_cancel as request_index_cancel_impl, IndexLogEntry, IndexOverviewStats,
+    IndexRuntimeStatus, RebuildIndexResult,
 };
 #[cfg(test)]
 use markdown_index::{
@@ -227,6 +228,11 @@ fn read_index_logs(limit: Option<usize>) -> Result<Vec<IndexLogEntry>> {
     read_index_logs_impl(limit)
 }
 
+#[tauri::command]
+fn read_index_overview_stats() -> Result<IndexOverviewStats> {
+    read_index_overview_stats_impl()
+}
+
 /// Returns a workspace wikilink graph for the Cosmos view.
 ///
 /// The graph is built from indexed wikilinks, while node existence is validated
@@ -388,6 +394,7 @@ pub fn run() {
             request_index_cancel,
             read_index_runtime_status,
             read_index_logs,
+            read_index_overview_stats,
             backlinks_for_path,
             semantic_links_for_path,
             update_wikilinks_for_rename,
@@ -1367,6 +1374,67 @@ mod tests {
         assert_eq!(embedding_n, 3);
         assert_eq!(note_embedding_n, 1);
         assert_eq!(note_embedding_dim, 2);
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn read_index_overview_stats_reports_persisted_counts() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-index-overview-stats");
+        let root = workspace.to_string_lossy().to_string();
+        fs::write(workspace.join("a.md"), "# A").expect("write a");
+        fs::write(workspace.join("b.md"), "# B").expect("write b");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let conn = open_db().expect("open db");
+        conn.execute(
+            "INSERT INTO note_embeddings(path, model, dim, vector, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["a.md", "test-model", 2_i64, vec![1_u8, 2, 3, 4], 1_i64],
+        )
+        .expect("insert note embedding a");
+        conn.execute(
+            "INSERT INTO note_embeddings(path, model, dim, vector, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["b.md", "test-model", 2_i64, vec![5_u8, 6, 7, 8], 1_i64],
+        )
+        .expect("insert note embedding b");
+        conn.execute(
+            "INSERT INTO semantic_edges(source_path, target_path, score, model, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["a.md", "b.md", 0.91_f32, "test-model", 1_i64],
+        )
+        .expect("insert semantic edge");
+        index_schema::record_last_index_run(&conn, "Semantic links refreshed", 1710836339000)
+            .expect("record last run");
+        drop(conn);
+
+        let stats = read_index_overview_stats_impl().expect("read overview stats");
+        assert_eq!(stats.semantic_links_count, 1);
+        assert_eq!(stats.indexed_notes_count, 2);
+        assert_eq!(stats.workspace_notes_count, 2);
+        assert_eq!(stats.last_run_finished_at_ms, Some(1710836339000));
+        assert_eq!(stats.last_run_title.as_deref(), Some("Semantic links refreshed"));
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn read_index_overview_stats_reports_workspace_total_notes() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-index-overview-total");
+        let root = workspace.to_string_lossy().to_string();
+        fs::create_dir_all(workspace.join("nested")).expect("create nested");
+        fs::write(workspace.join("a.md"), "# A").expect("write a");
+        fs::write(workspace.join("nested/b.md"), "# B").expect("write b");
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let stats = read_index_overview_stats_impl().expect("read overview stats");
+        assert_eq!(stats.workspace_notes_count, 2);
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

@@ -33,6 +33,7 @@ import {
   getWikilinkGraph,
   initDb,
   readIndexLogs,
+  readIndexOverviewStats,
   readIndexRuntimeStatus,
   readPropertyTypeSchema,
   rebuildWorkspaceIndex,
@@ -452,6 +453,7 @@ const indexingControllerShellPort = {
 const indexingControllerApiPort = {
   readIndexLogs,
   readIndexRuntimeStatus,
+  readIndexOverviewStats,
   requestIndexCancel,
   rebuildWorkspaceIndex,
   reindexMarkdownFileLexical,
@@ -488,6 +490,9 @@ const {
   indexRunCurrentPath,
   indexStatusBusy,
   indexRuntimeStatus,
+  indexOverviewStats,
+  indexLastRunFinishedAtMs,
+  indexLastRunTitle,
   indexLogFilter,
   indexStatusModalVisible,
   indexStateLabel,
@@ -521,6 +526,13 @@ const {
   runWorkspaceMutation,
   dispose: disposeIndexingController
 } = indexing
+
+const indexNotesTotalCount = computed(() => indexOverviewStats.value?.workspace_notes_count ?? allWorkspaceFiles.value.length)
+const indexNotesTotalLoading = computed(() => loadingAllFiles.value)
+const indexSemanticLinksCount = computed(() => indexOverviewStats.value?.semantic_links_count ?? 0)
+const indexIndexedNotesCount = computed(() => indexOverviewStats.value?.indexed_notes_count ?? 0)
+const indexLastRunFinishedAtLabel = computed(() => indexLastRunFinishedAtMs.value)
+const indexLastRunTitleLabel = computed(() => indexLastRunTitle.value ?? '')
 const workspaceMutationEffects = useWorkspaceMutationEffects({
   workingFolderPath: filesystem.workingFolderPath,
   allWorkspaceFiles,
@@ -2261,6 +2273,12 @@ onBeforeUnmount(() => {
       :index-model-status-label="indexModelStatusLabel"
       :index-show-warmup-note="indexShowWarmupNote"
       :index-alert="indexAlert"
+      :index-semantic-links-count="indexSemanticLinksCount"
+      :index-indexed-notes-count="indexIndexedNotesCount"
+      :index-notes-total-count="indexNotesTotalCount"
+      :index-notes-total-loading="indexNotesTotalLoading"
+      :last-run-finished-at-ms="indexLastRunFinishedAtLabel"
+      :last-run-title="indexLastRunTitleLabel"
       :index-log-filter="indexLogFilter"
       :filtered-index-activity-rows="filteredIndexActivityRows"
       :index-error-count="indexErrorCount"

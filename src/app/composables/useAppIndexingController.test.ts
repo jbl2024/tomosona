@@ -26,6 +26,13 @@ function createController() {
   const refreshBacklinks = vi.fn(async () => {})
   const refreshCosmosGraph = vi.fn(async () => {})
   const readIndexLogs = vi.fn(async (): Promise<IndexLogEntry[]> => [])
+  const readIndexOverviewStats = vi.fn(async () => ({
+    semantic_links_count: 71,
+    indexed_notes_count: 10,
+    workspace_notes_count: 20,
+    last_run_finished_at_ms: 1710836339000,
+    last_run_title: 'Workspace rebuild done'
+  }))
   const readIndexRuntimeStatus = vi.fn(async () => ({
     model_name: 'bge',
     model_state: 'ready',
@@ -61,6 +68,7 @@ function createController() {
     removeMarkdownFileFromIndex,
     refreshBacklinks,
     refreshCosmosGraph,
+    readIndexOverviewStats,
     confirmStopCurrentOperation,
     notifyInfo,
     notifySuccess,
@@ -76,6 +84,7 @@ function createController() {
       indexingApiPort: {
         readIndexLogs,
         readIndexRuntimeStatus,
+        readIndexOverviewStats,
         requestIndexCancel,
         rebuildWorkspaceIndex,
         reindexMarkdownFileLexical,
@@ -413,21 +422,24 @@ describe('useAppIndexingController', () => {
 
   it('opens and closes the index status modal with polling-safe state', async () => {
     vi.useFakeTimers()
-    const { controller, readIndexLogs, readIndexRuntimeStatus } = createController()
+    const { controller, readIndexLogs, readIndexOverviewStats, readIndexRuntimeStatus } = createController()
 
     controller.openIndexStatusModal()
     await Promise.resolve()
     expect(controller.indexStatusModalVisible.value).toBe(true)
     expect(readIndexLogs).toHaveBeenCalled()
+    expect(readIndexOverviewStats).toHaveBeenCalled()
     expect(readIndexRuntimeStatus).toHaveBeenCalled()
 
     readIndexLogs.mockClear()
+    readIndexOverviewStats.mockClear()
     readIndexRuntimeStatus.mockClear()
     controller.closeIndexStatusModal()
     vi.advanceTimersByTime(1_000)
 
     expect(controller.indexStatusModalVisible.value).toBe(false)
     expect(readIndexLogs).not.toHaveBeenCalled()
+    expect(readIndexOverviewStats).not.toHaveBeenCalled()
     expect(readIndexRuntimeStatus).not.toHaveBeenCalled()
   })
 

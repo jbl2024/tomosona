@@ -15,9 +15,10 @@ use crate::workspace_paths::{
 };
 use crate::{
     active_workspace_root, ensure_index_schema, ensure_within_root, log_index, open_db,
-    refresh_semantic_edges_cache, refresh_semantic_edges_cache_now_sync, semantic, AppError,
-    Result,
+    refresh_semantic_edges_cache, refresh_semantic_edges_cache_now_sync, semantic,
+    AppError, Result,
 };
+use crate::index_schema::record_last_index_run;
 
 // Small semantic embedding batches reduce peak memory on large notes.
 const SEMANTIC_EMBED_BATCH_SIZE: usize = 8;
@@ -595,6 +596,7 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     log_index(&format!(
         "reindex:done path={path_for_db} chunks={chunk_count} targets={target_count} properties={property_count} embedding=deferred embedding_ms=0 total_ms={total_ms}"
     ));
+    let _ = record_last_index_run(&conn, "Indexed file content", crate::now_ms());
     Ok(())
 }
 
@@ -792,6 +794,7 @@ pub(crate) fn reindex_markdown_file_semantic_sync(path: String) -> Result<()> {
         "semantic:reindex:done path={path_for_db} chunks_total={total_chunks} chunks_reused={reused} chunks_reembedded={reembedded} total_ms={}",
         started_at.elapsed().as_millis()
     ));
+    let _ = record_last_index_run(&conn, "Semantic note updated", crate::now_ms());
     Ok(())
 }
 
