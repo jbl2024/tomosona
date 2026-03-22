@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../../shared/components/ui/UiFilterableDropdown.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: string[]
@@ -17,7 +18,9 @@ const emit = defineEmits<{
 }>()
 
 const draft = ref('')
-const suggestionListId = `property-token-input-suggestions-${Math.random().toString(36).slice(2)}`
+const suggestionOpen = ref(false)
+const suggestionQuery = ref('')
+const suggestionActiveIndex = ref(0)
 
 const normalizedSuggestions = computed(() => {
   const existing = new Set(normalizeTokens(props.modelValue).map((item) => item.toLowerCase()))
@@ -34,6 +37,13 @@ const normalizedSuggestions = computed(() => {
   return out
 })
 
+const suggestionItems = computed<FilterableDropdownItem[]>(() =>
+  normalizedSuggestions.value.map((suggestion) => ({
+    id: `property-suggestion:${suggestion}`,
+    label: suggestion
+  }))
+)
+
 function normalizeTokens(tokens: string[]): string[] {
   return tokens
     .map((item) => item.trim())
@@ -44,11 +54,25 @@ function nextTokens(input: string): string[] {
   return normalizeTokens(input.split(/[\n,]/g))
 }
 
+function openSuggestions(nextQuery = draft.value) {
+  const query = nextQuery.trim()
+  suggestionQuery.value = query
+  suggestionOpen.value = normalizedSuggestions.value.length > 0
+  suggestionActiveIndex.value = 0
+}
+
+function closeSuggestions() {
+  suggestionOpen.value = false
+  suggestionQuery.value = ''
+  suggestionActiveIndex.value = 0
+}
+
 function commitDraft() {
   if (props.disabled) return
   const incoming = nextTokens(draft.value)
   if (!incoming.length) {
     draft.value = ''
+    closeSuggestions()
     return
   }
 
@@ -62,6 +86,7 @@ function commitDraft() {
 
   emit('update:modelValue', merged)
   draft.value = ''
+  closeSuggestions()
 }
 
 function removeToken(index: number) {
@@ -76,11 +101,13 @@ function onInput(event: Event) {
   const next = (event.target as HTMLInputElement | null)?.value ?? ''
   if (!next.includes(',')) {
     draft.value = next
+    openSuggestions(next)
     return
   }
 
   const segments = next.split(',')
   draft.value = segments.pop() ?? ''
+  openSuggestions(draft.value)
   const committed = normalizeTokens(segments)
   if (!committed.length) return
 
@@ -104,6 +131,9 @@ function onKeydown(event: KeyboardEvent) {
     if (!existing.length) return
     existing.pop()
     emit('update:modelValue', existing)
+    if (!draft.value) {
+      closeSuggestions()
+    }
   }
 }
 
@@ -124,6 +154,23 @@ function onPaste(event: ClipboardEvent) {
   emit('update:modelValue', merged)
 }
 
+function onSuggestionSelect(item: FilterableDropdownItem) {
+  const value = String(item.label ?? '').trim()
+  if (!value) return
+
+  const existing = normalizeTokens(props.modelValue)
+  if (!existing.includes(value)) {
+    emit('update:modelValue', [...existing, value])
+  }
+  draft.value = ''
+  closeSuggestions()
+}
+
+function onTriggerFocus() {
+  if (props.disabled) return
+  openSuggestions()
+}
+
 watch(
   () => props.modelValue,
   () => {
@@ -132,45 +179,81 @@ watch(
     }
   }
 )
+
+watch(
+  normalizedSuggestions,
+  () => {
+    if (suggestionOpen.value) {
+      openSuggestions()
+    }
+  }
+)
 </script>
 
 <template>
-  <div class="property-token-input">
-    <span
-      v-for="(token, index) in modelValue"
-      :key="`${token}-${index}`"
-      class="token-pill"
-    >
-      <span>{{ token }}</span>
-      <button
-        type="button"
-        class="token-remove"
-        :disabled="disabled"
-        @click="removeToken(index)"
-      >
-        ×
-      </button>
-    </span>
-    <input
-      :value="draft"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      :list="normalizedSuggestions.length ? suggestionListId : undefined"
-      autocomplete="off"
-      class="token-editor"
-      @input="onInput"
-      @keydown="onKeydown"
-      @blur="commitDraft"
-      @paste="onPaste"
-    />
-    <datalist v-if="normalizedSuggestions.length" :id="suggestionListId">
-      <option v-for="suggestion in normalizedSuggestions" :key="suggestion" :value="suggestion" />
-    </datalist>
-  </div>
+  <UiFilterableDropdown
+    class="property-token-input"
+    :items="suggestionItems"
+    :model-value="suggestionOpen"
+    :query="suggestionQuery"
+    :active-index="suggestionActiveIndex"
+    :show-filter="false"
+    :auto-focus-on-open="false"
+    :close-on-select="false"
+    menu-mode="portal"
+    menu-class="property-token-input-menu"
+    :matcher="(item, query) => item.label.toLowerCase().startsWith(query)"
+    @open-change="suggestionOpen = $event"
+    @query-change="suggestionQuery = $event"
+    @active-index-change="suggestionActiveIndex = $event"
+    @select="onSuggestionSelect"
+  >
+    <template #trigger>
+      <div class="property-token-input-trigger">
+        <span
+          v-for="(token, index) in modelValue"
+          :key="`${token}-${index}`"
+          class="token-pill"
+        >
+          <span>{{ token }}</span>
+          <button
+            type="button"
+            class="token-remove"
+            :disabled="disabled"
+            @click="removeToken(index)"
+          >
+            ×
+          </button>
+        </span>
+        <input
+          :value="draft"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          autocomplete="off"
+          class="token-editor"
+          @focus="onTriggerFocus"
+          @input="onInput"
+          @keydown="onKeydown"
+          @blur="commitDraft"
+          @paste="onPaste"
+        />
+      </div>
+    </template>
+    <template #item="{ item }">
+      <span class="property-token-input-suggestion">{{ item.label }}</span>
+    </template>
+    <template #empty>
+      <span class="property-token-input-empty">No suggestions</span>
+    </template>
+  </UiFilterableDropdown>
 </template>
 
 <style>
 .property-token-input {
+  position: relative;
+}
+
+.property-token-input-trigger {
   display: flex;
   min-height: 2rem;
   width: 100%;
@@ -181,6 +264,18 @@ watch(
   border-radius: var(--radius-sm);
   padding: 0.25rem 0.5rem;
   background: var(--input-bg);
+}
+
+.property-token-input-menu {
+  width: min(22rem, calc(100vw - 2rem));
+}
+
+.property-token-input-suggestion {
+  display: block;
+}
+
+.property-token-input-empty {
+  display: block;
 }
 
 .property-token-input .token-pill {

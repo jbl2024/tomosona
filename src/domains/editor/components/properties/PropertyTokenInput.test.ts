@@ -24,15 +24,17 @@ describe('PropertyTokenInput', () => {
     await nextTick()
 
     const input = root.querySelector('.token-editor') as HTMLInputElement | null
-    expect(input?.getAttribute('list')).toContain('property-token-input-suggestions-')
+    input?.focus()
+    input!.value = 're'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
 
-    const datalist = root.querySelector('datalist')
-    expect(datalist).toBeTruthy()
-    expect(datalist?.querySelectorAll('option')).toHaveLength(2)
-    expect(Array.from(datalist?.querySelectorAll('option') ?? []).map((option) => (option as HTMLOptionElement).value)).toEqual([
-      'review',
-      'published'
-    ])
+    const menu = document.body.querySelector('.property-token-input-menu')
+    expect(menu).toBeTruthy()
+    const options = Array.from(menu?.querySelectorAll('.ui-filterable-dropdown-option') ?? []).map(
+      (option) => option.textContent?.trim()
+    )
+    expect(options).toEqual(['review'])
 
     app.unmount()
   })
