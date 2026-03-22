@@ -110,7 +110,9 @@ const autocompletePropertyType = computed(() => propertyTypeForAutocompleteKey(a
 const autocompleteEnabled = computed(() => {
   if (props.disabled) return false
   if (modePrefixOnly.value) return false
-  return props.query.trim().length === 0 || autocompleteContext.value.token.includes(':')
+  if (props.query.trim().length === 0) return true
+  if (autocompleteContext.value.key === 'has') return true
+  return Boolean(autocompletePropertyType.value)
 })
 const autocompleteQuery = computed(() =>
   autocompleteContext.value.mode === 'values'

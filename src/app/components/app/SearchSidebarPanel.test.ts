@@ -123,6 +123,17 @@ describe('SearchSidebarPanel', () => {
 
     expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
 
+    mounted.query.value = 'created:'
+    await nextTick()
+    mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
+      new Event('input', { bubbles: true })
+    )
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
+
     mounted.query.value = 'semantic:'
     await nextTick()
     mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
