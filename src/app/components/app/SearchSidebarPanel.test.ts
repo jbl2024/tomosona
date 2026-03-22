@@ -2,13 +2,9 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SearchSidebarPanel from './SearchSidebarPanel.vue'
 
-const readPropertyKeys = vi.fn(async () => ['category', 'semantic', 'hybrid', 'status', 'tags'])
-const readPropertyTypeSchema = vi.fn(async () => ({
-  category: 'list',
-  status: 'text',
-  tags: 'tags'
-}))
+const readPropertyKeys = vi.fn(async () => ['category', 'created', 'semantic', 'hybrid', 'status', 'tags'])
 const readPropertyValueSuggestions = vi.fn(async (key: string) => {
+  if (key === 'created') return ['2026-03-06', '2026-03-07']
   if (key === 'status') return ['draft', 'published']
   if (key === 'category') return ['design', 'research']
   if (key === 'tags') return ['roadmap', 'ux']
@@ -17,7 +13,6 @@ const readPropertyValueSuggestions = vi.fn(async (key: string) => {
 
 vi.mock('../../../shared/api/indexApi', () => ({
   readPropertyKeys: () => readPropertyKeys(),
-  readPropertyTypeSchema: () => readPropertyTypeSchema(),
   readPropertyValueSuggestions: (key: string) => readPropertyValueSuggestions(key)
 }))
 
@@ -64,7 +59,6 @@ describe('SearchSidebarPanel', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     readPropertyKeys.mockClear()
-    readPropertyTypeSchema.mockClear()
     readPropertyValueSuggestions.mockClear()
   })
 
@@ -80,7 +74,8 @@ describe('SearchSidebarPanel', () => {
       .map((button) => button.textContent ?? '')
     expect(optionTexts.some((text) => text.includes('Tags'))).toBe(true)
     expect(optionTexts.some((text) => text.includes('category'))).toBe(true)
-    expect(optionTexts.some((text) => text.includes('status'))).toBe(false)
+    expect(optionTexts.some((text) => text.includes('status'))).toBe(true)
+    expect(optionTexts.some((text) => text.includes('created'))).toBe(true)
     expect(optionTexts.some((text) => text.includes('semantic'))).toBe(false)
     expect(optionTexts.some((text) => text.includes('hybrid'))).toBe(false)
     expect(document.body.textContent).toContain('Quick filters')
@@ -111,23 +106,34 @@ describe('SearchSidebarPanel', () => {
 
     expect(mounted.query.value).toBe('category:design')
 
-    mounted.query.value = 'multi'
+    mounted.query.value = 'status:'
     await nextTick()
-    const plainTextInput = mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')
-    if (plainTextInput) {
-      plainTextInput.dispatchEvent(new Event('input', { bubbles: true }))
-    }
+    mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
+      new Event('input', { bubbles: true })
+    )
     await nextTick()
     await flushPromises()
     await nextTick()
 
-    expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
+    expect(document.body.textContent).toContain('draft')
 
     mounted.query.value = 'created:'
     await nextTick()
     mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
       new Event('input', { bubbles: true })
     )
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.body.textContent).toContain('2026-03-06')
+
+    mounted.query.value = 'multi'
+    await nextTick()
+    const plainTextInput = mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')
+    if (plainTextInput) {
+      plainTextInput.dispatchEvent(new Event('input', { bubbles: true }))
+    }
     await nextTick()
     await flushPromises()
     await nextTick()

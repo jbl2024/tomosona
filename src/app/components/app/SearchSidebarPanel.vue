@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
-import { readPropertyKeys, readPropertyTypeSchema, readPropertyValueSuggestions } from '../../../shared/api/indexApi'
+import { readPropertyKeys, readPropertyValueSuggestions } from '../../../shared/api/indexApi'
 import { applySearchMode, detectSearchMode, stripSearchModePrefix, type SearchMode } from '../../../shared/lib/searchMode'
 
 /**
@@ -36,8 +36,6 @@ type AutocompleteContext = {
 }
 
 const RESERVED_SEARCH_PREFIX_KEYS = new Set(['semantic', 'lexical', 'hybrid'])
-const LISTLIKE_AUTOCOMPLETE_TYPES = new Set(['list', 'tags'])
-const LISTLIKE_DEFAULT_KEYS = new Set(['tags', 'aliases', 'cssclasses'])
 
 const props = defineProps<{
   disabled: boolean
@@ -66,11 +64,8 @@ const dropdownRef = ref<{ menuEl?: HTMLElement | null } | null>(null)
 const dropdownOpen = ref(false)
 const dropdownActiveIndex = ref(0)
 const propertyKeys = ref<string[]>([])
-const propertyTypeSchema = ref<Record<string, string>>({})
 const propertyKeysLoading = ref(false)
 const propertyKeysLoaded = ref(false)
-const propertyTypeSchemaLoading = ref(false)
-const propertyTypeSchemaLoaded = ref(false)
 const propertyValuesByKey = ref<Record<string, string[]>>({})
 const propertyValuesLoading = ref<Record<string, boolean>>({})
 const propertyValuesLoaded = ref<Record<string, boolean>>({})
@@ -106,13 +101,10 @@ function parseAutocompleteContext(query: string): AutocompleteContext {
 }
 
 const autocompleteContext = computed(() => parseAutocompleteContext(baseQuery.value))
-const autocompletePropertyType = computed(() => propertyTypeForAutocompleteKey(autocompleteContext.value.key))
 const autocompleteEnabled = computed(() => {
   if (props.disabled) return false
   if (modePrefixOnly.value) return false
-  if (props.query.trim().length === 0) return true
-  if (autocompleteContext.value.key === 'has') return true
-  return Boolean(autocompletePropertyType.value)
+  return props.query.trim().length === 0 || autocompleteContext.value.token.includes(':')
 })
 const autocompleteQuery = computed(() =>
   autocompleteContext.value.mode === 'values'
@@ -127,7 +119,7 @@ const autocompleteItems = computed<SearchSuggestionItem[]>(() => {
 
   if (autocompleteContext.value.mode === 'values') {
     const key = autocompleteContext.value.key
-    if (!autocompletePropertyType.value) return []
+    if (!key) return []
     const values = propertyValuesByKey.value[key] ?? []
     return values.map((value) => ({
       id: `search-property-value:${key}:${value}`,
@@ -140,7 +132,7 @@ const autocompleteItems = computed<SearchSuggestionItem[]>(() => {
   }
 
   if (autocompleteContext.value.key === 'has') {
-    return propertyKeys.value.filter(canAutocompletePropertyKey).map((key) => ({
+    return propertyKeys.value.map((key) => ({
       id: `search-property-has:${key}`,
       label: key,
       kind: 'key',
@@ -161,7 +153,7 @@ const autocompleteItems = computed<SearchSuggestionItem[]>(() => {
       group: 'Quick filters'
     })
   }
-  for (const key of propertyKeys.value.filter(canAutocompletePropertyKey)) {
+  for (const key of propertyKeys.value) {
     items.push({
       id: `search-property-key:${key}`,
       label: key,
@@ -176,27 +168,12 @@ const autocompleteItems = computed<SearchSuggestionItem[]>(() => {
 
 const autocompleteLoading = computed(() => {
   if (props.disabled) return false
-  if (!propertyTypeSchemaLoaded.value || propertyTypeSchemaLoading.value || !propertyKeysLoaded.value || propertyKeysLoading.value) {
+  if (!propertyKeysLoaded.value || propertyKeysLoading.value) {
     return true
   }
   const key = autocompleteContext.value.key
-  return Boolean(key && propertyTypeForAutocompleteKey(key) && propertyValuesLoading.value[key])
+  return Boolean(key && propertyValuesLoading.value[key])
 })
-
-function propertyTypeForAutocompleteKey(key: string): string | null {
-  const normalized = key.trim().toLowerCase()
-  if (!normalized) return null
-  if (LISTLIKE_DEFAULT_KEYS.has(normalized)) {
-    return normalized === 'tags' ? 'tags' : 'list'
-  }
-  const fromSchema = propertyTypeSchema.value[normalized]
-  if (!fromSchema || !LISTLIKE_AUTOCOMPLETE_TYPES.has(fromSchema)) return null
-  return fromSchema
-}
-
-function canAutocompletePropertyKey(key: string): boolean {
-  return Boolean(propertyTypeForAutocompleteKey(key))
-}
 
 function buildQueryWithReplacement(fragment: string): string {
   const currentMode = detectSearchMode(props.query)
@@ -232,28 +209,8 @@ async function loadPropertyKeys() {
   }
 }
 
-async function loadPropertyTypeSchema() {
-  if (props.disabled || propertyTypeSchemaLoading.value || propertyTypeSchemaLoaded.value) return
-  const requestToken = autocompleteRequestToken
-  propertyTypeSchemaLoading.value = true
-  try {
-    const schema = await readPropertyTypeSchema()
-    if (requestToken !== autocompleteRequestToken) return
-    propertyTypeSchema.value = schema
-    propertyTypeSchemaLoaded.value = true
-  } catch {
-    if (requestToken !== autocompleteRequestToken) return
-    propertyTypeSchema.value = {}
-    propertyTypeSchemaLoaded.value = true
-  } finally {
-    if (requestToken === autocompleteRequestToken) {
-      propertyTypeSchemaLoading.value = false
-    }
-  }
-}
-
 async function loadPropertyValues(key: string) {
-  if (props.disabled || !canAutocompletePropertyKey(key)) return
+  if (props.disabled || !key) return
   if (propertyValuesLoaded.value[key] || propertyValuesLoading.value[key]) return
   const requestToken = autocompleteRequestToken
   propertyValuesLoading.value = { ...propertyValuesLoading.value, [key]: true }
@@ -277,9 +234,8 @@ async function loadPropertyValues(key: string) {
 
 async function ensureAutocompleteDataLoaded() {
   if (props.disabled) return
-  await loadPropertyTypeSchema()
   await loadPropertyKeys()
-  if (autocompleteContext.value.mode === 'values' && autocompletePropertyType.value) {
+  if (autocompleteContext.value.mode === 'values') {
     await loadPropertyValues(autocompleteContext.value.key)
   }
 }
@@ -289,9 +245,6 @@ function resetAutocompleteCache() {
   propertyKeys.value = []
   propertyKeysLoading.value = false
   propertyKeysLoaded.value = false
-  propertyTypeSchema.value = {}
-  propertyTypeSchemaLoading.value = false
-  propertyTypeSchemaLoaded.value = false
   propertyValuesByKey.value = {}
   propertyValuesLoading.value = {}
   propertyValuesLoaded.value = {}
