@@ -163,6 +163,7 @@ import { useAppShellWorkspaceRouting } from './composables/useAppShellWorkspaceR
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
+import { useAppShellConstitutedContextActions } from './composables/useAppShellConstitutedContextActions'
 import { useAppQuickOpen } from './composables/useAppQuickOpen'
 import { useAppTheme, type ThemePreference } from './composables/useAppTheme'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
@@ -608,6 +609,47 @@ const {
   onSecondBrainContextChanged,
   onSecondBrainSessionChanged
 } = secondBrainBridge
+const constitutedContextActions = useAppShellConstitutedContextActions({
+  activeFilePath,
+  constitutedContext,
+  filesystem: {
+    hasWorkspace: filesystem.hasWorkspace,
+    workingFolderPath: filesystem.workingFolderPath,
+    errorMessage: filesystem.errorMessage,
+    notifyError: (message) => filesystem.notifyError(message)
+  },
+  contextActionLoading,
+  noteTitleFromPath,
+  normalizeContextPathsForUpdate,
+  secondBrain: {
+    resolveSecondBrainSessionForPath: (path) => secondBrainBridge.resolveSecondBrainSessionForPath(path),
+    replaceSessionContext,
+    setSecondBrainSessionId,
+    setSecondBrainPrompt,
+    setSecondBrainAlterId,
+    openSecondBrainViewFromPalette: () => openSecondBrainViewFromPalette()
+  },
+  cosmos: {
+    graph: cosmos.graph,
+    error: cosmos.error,
+    refreshGraph: () => cosmos.refreshGraph(),
+    selectNode: (nodeId) => cosmos.selectNode(nodeId),
+    openCosmosViewFromPalette: () => openCosmosViewFromPalette(),
+    recordCosmosHistorySnapshot: () => recordCosmosHistorySnapshot()
+  }
+})
+const {
+  addPathToConstitutedContext,
+  removePathFromConstitutedContext,
+  removeLocalPathFromConstitutedContext,
+  removePinnedPathFromConstitutedContext,
+  toggleActiveNoteInConstitutedContext,
+  openConstitutedContextInSecondBrain,
+  openConstitutedContextInCosmos,
+  openConstitutedContextInPulse,
+  openPulseContextInSecondBrain,
+  openAlterInSecondBrain
+} = constitutedContextActions
 
 const search = useAppShellSearch({
   workingFolderPath: filesystem.workingFolderPath,
@@ -1644,149 +1686,6 @@ function onThemePickerEnter() {
 
 function openThemePickerFromOverflow() {
   shellModalInteractions?.openThemePickerFromOverflow()
-}
-
-function addPathToConstitutedContext(path: string) {
-  const anchorPath = activeFilePath.value.trim() || constitutedContext.anchorPath.value.trim() || path.trim()
-  if (!anchorPath || !path.trim()) return
-  constitutedContext.add(path, anchorPath, (itemPath) => ({
-    path: itemPath,
-    title: noteTitleFromPath(itemPath)
-  }))
-}
-
-function removePathFromConstitutedContext(path: string) {
-  constitutedContext.remove(path)
-}
-
-function removeLocalPathFromConstitutedContext(path: string) {
-  constitutedContext.removeLocal(path)
-}
-
-function removePinnedPathFromConstitutedContext(path: string) {
-  constitutedContext.removePinned(path)
-}
-
-function toggleActiveNoteInConstitutedContext() {
-  const path = activeFilePath.value.trim()
-  if (!path) return
-  if (constitutedContext.contains(path)) {
-    constitutedContext.remove(path)
-    return
-  }
-  addPathToConstitutedContext(path)
-}
-
-async function openConstitutedContextInSecondBrain(prompt?: string) {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
-
-  const normalized = normalizeContextPathsForUpdate(
-    filesystem.workingFolderPath.value,
-    constitutedContext.paths.value
-  )
-  const seedPath = normalized[0] || activeFilePath.value
-  if (!seedPath) {
-    filesystem.errorMessage.value = 'No note context available for Second Brain.'
-    return false
-  }
-
-  contextActionLoading.value = true
-  try {
-    const sessionId = await secondBrainBridge.resolveSecondBrainSessionForPath(seedPath)
-    await replaceSessionContext(sessionId, normalized)
-    setSecondBrainSessionId(sessionId, { bumpNonce: true })
-    setSecondBrainPrompt(prompt?.trim() ?? '', { bumpNonce: true })
-    await openSecondBrainViewFromPalette()
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not open Second Brain with this context.'
-    return false
-  } finally {
-    contextActionLoading.value = false
-  }
-}
-
-async function openConstitutedContextInCosmos() {
-  if (!constitutedContext.paths.value.length) return false
-  const opened = await openCosmosViewFromPalette()
-  if (!opened) return false
-
-  const targetPath = constitutedContext.paths.value[0]
-  const targetKey = normalizePathKey(targetPath.trim())
-  let match = cosmos.graph.value.nodes.find((node) =>
-    normalizePathKey(node.path) === targetKey || normalizePathKey(node.id) === targetKey
-  )
-  if (!match) {
-    await cosmos.refreshGraph()
-    match = cosmos.graph.value.nodes.find((node) =>
-      normalizePathKey(node.path) === targetKey || normalizePathKey(node.id) === targetKey
-    )
-  }
-  if (!match) {
-    if (cosmos.error.value) {
-      filesystem.notifyError(cosmos.error.value)
-      return false
-    }
-    filesystem.notifyError('Context anchor is not available in the current graph index.')
-    return true
-  }
-
-  cosmos.selectNode(match.id)
-  scheduleCosmosNodeFocus(match.id)
-  recordCosmosHistorySnapshot()
-  return true
-}
-
-async function openConstitutedContextInPulse() {
-  if (!constitutedContext.paths.value.length) return false
-  return await openConstitutedContextInSecondBrain(
-    'Transform the current constituted context into a useful written output. Use Pulse from the Second Brain context surface.'
-  )
-}
-
-async function openPulseContextInSecondBrain(payload: {
-  contextPaths: string[]
-  prompt?: string
-}) {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
-
-  const normalized = normalizeContextPathsForUpdate(filesystem.workingFolderPath.value, payload.contextPaths)
-  const seedPath = normalized[0] || activeFilePath.value
-  if (!seedPath) {
-    filesystem.errorMessage.value = 'No note context available for Second Brain.'
-    return false
-  }
-
-  try {
-    const sessionId = await secondBrainBridge.resolveSecondBrainSessionForPath(seedPath)
-    await replaceSessionContext(sessionId, normalized)
-
-    // The shell forwards explicit session/prompt requests so the pane reacts
-    // through public inputs instead of reaching into bridge internals.
-    setSecondBrainSessionId(sessionId, { bumpNonce: true })
-    setSecondBrainPrompt(payload.prompt?.trim() ?? '', { bumpNonce: true })
-    await openSecondBrainViewFromPalette()
-    return true
-  } catch (err) {
-    filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not open Second Brain with Pulse context.'
-    return false
-  }
-}
-
-async function openAlterInSecondBrain(alterId: string) {
-  if (!filesystem.hasWorkspace.value) {
-    filesystem.errorMessage.value = 'Open a workspace first.'
-    return false
-  }
-  setSecondBrainAlterId(alterId, { bumpNonce: true })
-  await openSecondBrainViewFromPalette()
-  return true
 }
 
 function onSettingsSaved(result: { path: string; embeddings_changed: boolean }) {

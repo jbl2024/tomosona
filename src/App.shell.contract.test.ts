@@ -44,6 +44,15 @@ describe('App shell contract', () => {
     expect(appSource).toContain('useAppShellChromeRuntime')
   })
 
+  it('keeps constituted-context routing out of App.vue', () => {
+    expect(appSource).not.toContain('function addPathToConstitutedContext(')
+    expect(appSource).not.toContain('function openConstitutedContextInSecondBrain(')
+    expect(appSource).not.toContain('function openConstitutedContextInCosmos(')
+    expect(appSource).not.toContain('function openPulseContextInSecondBrain(')
+    expect(appSource).not.toContain('function openAlterInSecondBrain(')
+    expect(appSource).toContain('useAppShellConstitutedContextActions')
+  })
+
   it('keeps the command palette catalog in a dedicated helper', () => {
     expect(appSource).not.toContain('createPaletteAction(')
     expect(appSource).not.toContain('paletteActionPriority: Record<string, number> = {')
