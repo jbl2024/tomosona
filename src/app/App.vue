@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EditorPaneGrid, { type EditorPaneGridExposed } from './components/panes/EditorPaneGrid.vue'
 import AppShellChromeSurface, { type AppShellChromeSurfaceExposed } from './components/app/AppShellChromeSurface.vue'
 import AppShellWorkspaceSurface, { type AppShellWorkspaceSurfaceExposed } from './components/app/AppShellWorkspaceSurface.vue'
+import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import AppShellOverlays from './components/app/AppShellOverlays.vue'
 import { useDocumentHistory } from '../domains/editor/composables/useDocumentHistory'
 import {
@@ -2054,11 +2055,6 @@ onBeforeUnmount(() => {
       :zoom-percent-label="zoomPercentLabel"
       :active-theme-label="themePreference === 'system' ? systemThemeLabel : activeTheme.label"
       :show-debug-tools="showDebugTools"
-      :active-file-label="activeFilePath ? toRelativePath(activeFilePath) : 'No file'"
-      :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
-      :index-state-label="indexStateLabel"
-      :index-state-class="indexStateClass"
-      :workspace-label="filesystem.workingFolderPath.value || 'none'"
       @history-button-click="onHistoryButtonClick"
       @history-button-context-menu="onHistoryButtonContextMenu"
       @history-button-pointer-down="onHistoryButtonPointerDown"
@@ -2089,7 +2085,6 @@ onBeforeUnmount(() => {
       @zoom-out="zoomOutFromOverflow"
       @reset-zoom="resetZoomFromOverflow"
       @open-theme-picker="openThemePickerFromOverflow"
-      @open-index-status="openIndexStatusModal"
     />
 
     <AppShellWorkspaceSurface
@@ -2233,6 +2228,15 @@ onBeforeUnmount(() => {
         />
       </template>
     </AppShellWorkspaceSurface>
+
+    <WorkspaceStatusBar
+      :active-file-label="activeFilePath ? toRelativePath(activeFilePath) : 'No file'"
+      :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
+      :index-state-label="indexStateLabel"
+      :index-state-class="indexStateClass"
+      :workspace-label="filesystem.workingFolderPath.value || 'none'"
+      @open-index-status="openIndexStatusModal"
+    />
 
     <AppShellOverlays
       :toast-message="filesystem.notificationMessage.value"

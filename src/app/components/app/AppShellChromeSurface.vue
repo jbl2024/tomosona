@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { ref, type CSSProperties } from 'vue'
 import TopbarNavigationControls from './TopbarNavigationControls.vue'
-import WorkspaceStatusBar from './WorkspaceStatusBar.vue'
 
 /**
  * Module: AppShellChromeSurface
  *
  * Purpose:
- * - Own the shell chrome composition for the top navigation bar and status
- *   footer so `App.vue` stays focused on orchestration.
+ * - Own the shell chrome composition for the top navigation bar so `App.vue`
+ *   stays focused on orchestration.
  *
  * Boundary:
  * - The parent still owns shell state and command handlers.
- * - This component only assembles the chrome surfaces and forwards their
+ * - This component only assembles the top chrome surface and forwards its
  *   interactions.
  */
 
@@ -42,11 +41,6 @@ const props = defineProps<{
   zoomPercentLabel: string
   activeThemeLabel: string
   showDebugTools?: boolean
-  activeFileLabel: string
-  activeStateLabel: string
-  indexStateLabel: string
-  indexStateClass: string
-  workspaceLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -80,7 +74,6 @@ const emit = defineEmits<{
   zoomOut: []
   resetZoom: []
   openThemePicker: []
-  openIndexStatus: []
 }>()
 
 const topbarRef = ref<InstanceType<typeof TopbarNavigationControls> | null>(null)
@@ -157,15 +150,6 @@ defineExpose<AppShellChromeSurfaceExposed>({
       @zoom-out="emit('zoomOut')"
       @reset-zoom="emit('resetZoom')"
       @open-theme-picker="emit('openThemePicker')"
-    />
-
-    <WorkspaceStatusBar
-      :active-file-label="activeFileLabel"
-      :active-state-label="activeStateLabel"
-      :index-state-label="indexStateLabel"
-      :index-state-class="indexStateClass"
-      :workspace-label="workspaceLabel"
-      @open-index-status="emit('openIndexStatus')"
     />
   </div>
 </template>

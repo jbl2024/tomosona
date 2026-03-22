@@ -32,11 +32,6 @@ function mountHarness() {
           zoomPercentLabel: '100%',
           activeThemeLabel: 'System',
           showDebugTools: true,
-          activeFileLabel: 'notes/a.md',
-          activeStateLabel: 'saved',
-          indexStateLabel: 'indexed',
-          indexStateClass: 'status-item-indexed',
-          workspaceLabel: '/vault',
           onHistoryButtonClick: (side: string) => events.push(`history:${side}`),
           onHistoryButtonContextMenu: (side: string) => events.push(`context:${side}`),
           onHistoryButtonPointerDown: (side: string) => events.push(`pointer:${side}`),
@@ -66,8 +61,7 @@ function mountHarness() {
           onZoomIn: () => events.push('zoom-in'),
           onZoomOut: () => events.push('zoom-out'),
           onResetZoom: () => events.push('reset-zoom'),
-          onOpenThemePicker: () => events.push('open-theme-picker'),
-          onOpenIndexStatus: () => events.push('open-index-status')
+          onOpenThemePicker: () => events.push('open-theme-picker')
         })
     }
   }))
@@ -91,15 +85,13 @@ describe('AppShellChromeSurface', () => {
     mounted.root.querySelector<HTMLButtonElement>('.history-menu-item')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Search or type a command (Cmd+P)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="View options"]')?.click()
-    mounted.root.querySelector<HTMLButtonElement>('.status-trigger')?.click()
 
     expect(mounted.events).toEqual([
       'toggle-sidebar',
       'history:back',
       'target:1',
       'open-command-palette',
-      'toggle-overflow',
-      'open-index-status'
+      'toggle-overflow'
     ])
 
     mounted.app.unmount()

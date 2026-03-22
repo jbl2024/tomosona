@@ -26,13 +26,13 @@ describe('App shell contract', () => {
   it('uses dedicated shell surface wrappers instead of inlining chrome and overlays', () => {
     expect(appSource).toContain('AppShellChromeSurface')
     expect(appSource).toContain('AppShellWorkspaceSurface')
+    expect(appSource).toContain('import WorkspaceStatusBar')
+    expect(appSource).toContain('<WorkspaceStatusBar')
     expect(appSource).toContain('AppShellOverlays')
     expect(appSource).not.toContain('import TopbarNavigationControls')
     expect(appSource).not.toContain('<TopbarNavigationControls')
     expect(appSource).not.toContain('import SidebarSurface')
     expect(appSource).not.toContain('<SidebarSurface')
-    expect(appSource).not.toContain('import WorkspaceStatusBar')
-    expect(appSource).not.toContain('<WorkspaceStatusBar')
     expect(appSource).not.toContain('import QuickOpenModal')
     expect(appSource).not.toContain('<QuickOpenModal')
     expect(appSource).not.toContain('import ThemePickerModal')
@@ -49,5 +49,13 @@ describe('App shell contract', () => {
     expect(appSource).not.toContain('<ShortcutsModal')
     expect(appSource).not.toContain('import AboutModal')
     expect(appSource).not.toContain('<AboutModal')
+  })
+
+  it('renders the workspace status bar after the workspace surface', () => {
+    expect(appSource.indexOf('<AppShellWorkspaceSurface')).toBeGreaterThan(-1)
+    expect(appSource.indexOf('<WorkspaceStatusBar')).toBeGreaterThan(-1)
+    expect(appSource.indexOf('<AppShellWorkspaceSurface')).toBeLessThan(
+      appSource.indexOf('<WorkspaceStatusBar')
+    )
   })
 })
