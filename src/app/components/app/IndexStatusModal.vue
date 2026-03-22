@@ -68,21 +68,26 @@ const emit = defineEmits<{
 const visibleRows = computed(() => props.filteredRows.slice(0, 8))
 
 const latestCompletedRow = computed(() => props.filteredRows[0] ?? null)
+const latestRebuildRow = computed(() => props.filteredRows.find((row) => row.group === 'rebuild' && row.state === 'done') ?? null)
 
 const lastRunFinishedAtLabel = computed(() =>
-  latestCompletedRow.value ? latestCompletedRow.value.timeLabel : props.lastRunFinishedAtMs != null
-    ? props.formatTimestamp(props.lastRunFinishedAtMs)
-    : '--:--:--'
+  latestRebuildRow.value
+    ? latestRebuildRow.value.timeLabel
+    : props.lastRunFinishedAtMs != null
+      ? props.formatTimestamp(props.lastRunFinishedAtMs)
+      : latestCompletedRow.value
+        ? latestCompletedRow.value.timeLabel
+        : '--:--:--'
 )
 
 const lastRunTitleLabel = computed(() =>
-  latestCompletedRow.value?.title || props.lastRunTitle || 'Waiting for the first completed run'
+  latestRebuildRow.value?.title || props.lastRunTitle || latestCompletedRow.value?.title || 'Waiting for the first completed run'
 )
 
 const lastRunDetailLabel = computed(() => {
   const title = lastRunTitleLabel.value
-  const durationLabel = (latestCompletedRow.value?.durationMs != null
-    ? props.formatDurationMs(latestCompletedRow.value.durationMs)
+  const durationLabel = (latestRebuildRow.value?.durationMs != null
+    ? props.formatDurationMs(latestRebuildRow.value.durationMs)
     : (
     props.lastRunDurationMs != null ? props.formatDurationMs(props.lastRunDurationMs) : ''
   )).trim()

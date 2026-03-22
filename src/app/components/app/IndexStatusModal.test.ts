@@ -14,6 +14,24 @@ function mountModal() {
 
   const rows: IndexActivityRow[] = [
     createRow({
+      id: 'rebuild-done',
+      ts: 1710836300000,
+      timeLabel: '10:18:20',
+      state: 'done',
+      group: 'rebuild',
+      path: '',
+      directory: '',
+      fileName: '',
+      title: 'Workspace rebuild done',
+      detail: '474000 ms',
+      durationMs: 474000,
+      chunks: null,
+      targets: null,
+      properties: null,
+      embeddingStatus: '',
+      rawMessage: 'rebuild:done indexed=32 semantic_indexed=29 scanned=32 canceled=false total_ms=474000'
+    }),
+    createRow({
       id: 'semantic-refresh-done',
       ts: 1710836239000,
       timeLabel: '10:17:19',
@@ -129,8 +147,9 @@ describe('IndexStatusModal', () => {
     expect(mounted.root.textContent).toContain('Last run')
     expect(mounted.root.textContent).toContain('71')
     expect(mounted.root.textContent).toContain('10/20')
-    expect(mounted.root.textContent).toContain('Semantic links refreshed')
+    expect(mounted.root.textContent).toContain('Workspace rebuild done')
     expect(mounted.root.textContent).toContain('86 ms')
+    expect(mounted.root.textContent).toContain('474000 ms')
     expect(mounted.root.textContent).toContain('Rebuild index')
     expect(mounted.root.textContent).toContain('Close')
 
