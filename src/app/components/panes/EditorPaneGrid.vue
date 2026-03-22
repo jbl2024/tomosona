@@ -12,6 +12,13 @@ import type {
   AppShellLaunchpadViewModel,
   AppShellSecondBrainViewModel
 } from '../../lib/appShellViewModels'
+import {
+  collectPaneIds,
+  computeSplitRatio,
+  createSplitDragState,
+  getPaneGridPosition,
+  type SplitDragState
+} from './editorPaneGridLayout'
 
 export type EditorPaneGridExposed = {
   saveNow: () => Promise<void>
@@ -115,11 +122,7 @@ const RESIZER_TRACK_PX = 6
 const MIN_RATIO = 20
 const MAX_RATIO = 80
 
-const dragState = ref<{
-  axis: 'column' | 'row'
-  startClient: number
-  startRatio: number
-} | null>(null)
+const dragState = ref<SplitDragState | null>(null)
 
 const hasColumnSplit = computed(() => paneList.value.length >= 2)
 const hasRowSplit = computed(() => paneList.value.length >= 3)
@@ -139,27 +142,11 @@ const gridRows = computed(() => {
 })
 
 function listPaneIds(node: MultiPaneLayout['root']): string[] {
-  if (node.kind === 'pane') return [node.paneId]
-  return [...listPaneIds(node.a), ...listPaneIds(node.b)]
+  return collectPaneIds(node)
 }
 
 function paneGridPosition(index: number): { gridColumn: string; gridRow: string } {
-  if (!hasColumnSplit.value && !hasRowSplit.value) {
-    return { gridColumn: '1', gridRow: '1' }
-  }
-  if (hasColumnSplit.value && !hasRowSplit.value) {
-    return {
-      gridColumn: index === 0 ? '1' : '3',
-      gridRow: '1'
-    }
-  }
-
-  const rowTop = index <= 1
-  const colLeft = index % 2 === 0
-  return {
-    gridColumn: colLeft ? '1' : '3',
-    gridRow: rowTop ? '1' : '3'
-  }
+  return getPaneGridPosition(index, hasColumnSplit.value, hasRowSplit.value)
 }
 
 function paneActiveTab(pane: PaneState): PaneTab | null {
@@ -175,11 +162,11 @@ function paneDocumentPaths(pane: PaneState): string[] {
 
 function onResizerPointerDown(axis: 'column' | 'row', event: PointerEvent) {
   event.preventDefault()
-  dragState.value = {
+  dragState.value = createSplitDragState(
     axis,
-    startClient: axis === 'column' ? event.clientX : event.clientY,
-    startRatio: axis === 'column' ? columnSplitRatio.value : rowSplitRatio.value
-  }
+    axis === 'column' ? event.clientX : event.clientY,
+    axis === 'column' ? columnSplitRatio.value : rowSplitRatio.value
+  )
   window.addEventListener('pointermove', onResizerPointerMove)
   window.addEventListener('pointerup', onResizerPointerUp)
 }
@@ -190,12 +177,15 @@ function onResizerPointerMove(event: PointerEvent) {
   const grid = gridRoot.value
   if (!grid) return
   const rect = grid.getBoundingClientRect()
-  const size = drag.axis === 'column'
-    ? Math.max(1, rect.width - RESIZER_TRACK_PX)
-    : Math.max(1, rect.height - RESIZER_TRACK_PX)
-  const delta = (drag.axis === 'column' ? event.clientX : event.clientY) - drag.startClient
-  const deltaRatio = (delta / size) * 100
-  const next = Math.min(MAX_RATIO, Math.max(MIN_RATIO, drag.startRatio + deltaRatio))
+  const size = drag.axis === 'column' ? rect.width : rect.height
+  const next = computeSplitRatio(
+    drag,
+    drag.axis === 'column' ? event.clientX : event.clientY,
+    size,
+    RESIZER_TRACK_PX,
+    MIN_RATIO,
+    MAX_RATIO
+  )
   if (drag.axis === 'column') {
     columnSplitRatio.value = next
   } else {

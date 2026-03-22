@@ -7,6 +7,14 @@ import type {
 } from '../../../shared/api/apiTypes'
 import { fetchSecondBrainConfigStatus, parseMessageCitations } from '../lib/secondBrainApi'
 import { SECOND_BRAIN_MODES } from '../lib/secondBrainModes'
+import {
+  buildContextItems,
+  createAssistantPlaceholderMessage,
+  createLoadedSecondBrainState,
+  createOptimisticUserMessage,
+  rebalanceContextItemEstimates,
+  resolveSecondBrainMessageContent
+} from './secondBrainStateModel'
 import { useSecondBrainDeliberation } from './useSecondBrainDeliberation'
 import { useSecondBrainDraft } from './useSecondBrainDraft'
 import { useSecondBrainSessions } from './useSecondBrainSessions'
@@ -62,25 +70,22 @@ export function useSecondBrainState() {
 
   async function loadSession(sessionId: string) {
     const loaded = await sessions.loadSession(sessionId)
-    activeSessionId.value = loaded.payload.session_id
-    activeSessionTitle.value = loaded.payload.title
-    activeProvider.value = loaded.payload.provider
-    activeModel.value = loaded.payload.model
-    contextItems.value = loaded.payload.context_items
-    messages.value = loaded.payload.messages
-    citationsByMessageId.value = loaded.citationsByMessageId
-    draft.draftContent.value = loaded.payload.draft_content
+    const snapshot = createLoadedSecondBrainState(loaded)
+    activeSessionId.value = snapshot.activeSessionId
+    activeSessionTitle.value = snapshot.activeSessionTitle
+    activeProvider.value = snapshot.activeProvider
+    activeModel.value = snapshot.activeModel
+    contextItems.value = snapshot.contextItems
+    messages.value = snapshot.messages
+    citationsByMessageId.value = snapshot.citationsByMessageId
+    draft.draftContent.value = snapshot.draftContent
   }
 
   async function replaceContext(paths: string[]) {
     if (!activeSessionId.value) return
-    const nextItems = paths.map((path) => ({ path, token_estimate: 0 }))
+    const nextItems = buildContextItems(paths)
     const newEstimate = await sessions.updateContext(activeSessionId.value, nextItems)
-    contextItems.value = nextItems
-    if (contextItems.value.length > 0) {
-      const average = Math.max(1, Math.round(newEstimate / contextItems.value.length))
-      contextItems.value = contextItems.value.map((item) => ({ ...item, token_estimate: average }))
-    }
+    contextItems.value = rebalanceContextItemEstimates(nextItems, newEstimate)
   }
 
   async function sendCurrentMessage() {
@@ -88,16 +93,8 @@ export function useSecondBrainState() {
     const message = inputMessage.value.trim()
     if (!sessionId || !message) return
 
-    const localUserMessage: SecondBrainMessage = {
-      id: `tmp-user-${Date.now()}`,
-      role: 'user',
-      mode: selectedMode.value,
-      content_md: message,
-      citations_json: '[]',
-      attachments_json: '[]',
-      created_at_ms: Date.now()
-    }
-    messages.value = [...messages.value, localUserMessage]
+    const createdAtMs = Date.now()
+    messages.value = [...messages.value, createOptimisticUserMessage(selectedMode.value, message, createdAtMs)]
     inputMessage.value = ''
 
     const response = await deliberation.sendMessage({
@@ -106,23 +103,14 @@ export function useSecondBrainState() {
       message
     })
 
-    const assistantPlaceholder: SecondBrainMessage = {
-      id: response.assistantMessageId,
-      role: 'assistant',
-      mode: selectedMode.value,
-      content_md: '',
-      citations_json: JSON.stringify(contextItems.value.map((item) => item.path)),
-      attachments_json: '[]',
-      created_at_ms: Date.now()
-    }
-    messages.value = [...messages.value, assistantPlaceholder]
+    messages.value = [
+      ...messages.value,
+      createAssistantPlaceholderMessage(selectedMode.value, response.assistantMessageId, contextItems.value, Date.now())
+    ]
   }
 
   function getMessageContent(message: SecondBrainMessage): string {
-    if (message.role === 'assistant') {
-      return deliberation.resolveAssistantMessage(message)
-    }
-    return message.content_md
+    return resolveSecondBrainMessageContent(message, deliberation.resolveAssistantMessage)
   }
 
   return {
