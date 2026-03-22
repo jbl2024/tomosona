@@ -7,7 +7,7 @@ describe('PropertyTokenInput', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders autocomplete suggestions through a datalist', async () => {
+  it('shows all autocomplete suggestions on focus and filters as the user types', async () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
 
@@ -25,13 +25,22 @@ describe('PropertyTokenInput', () => {
 
     const input = root.querySelector('.token-editor') as HTMLInputElement | null
     input?.focus()
+    await nextTick()
+
+    let menu = document.body.querySelector('.property-token-input-menu')
+    expect(menu).toBeTruthy()
+    let options = Array.from(menu?.querySelectorAll('.ui-filterable-dropdown-option') ?? []).map(
+      (option) => option.textContent?.trim()
+    )
+    expect(options).toEqual(['review', 'published'])
+
     input!.value = 're'
     input!.dispatchEvent(new Event('input', { bubbles: true }))
     await nextTick()
 
-    const menu = document.body.querySelector('.property-token-input-menu')
+    menu = document.body.querySelector('.property-token-input-menu')
     expect(menu).toBeTruthy()
-    const options = Array.from(menu?.querySelectorAll('.ui-filterable-dropdown-option') ?? []).map(
+    options = Array.from(menu?.querySelectorAll('.ui-filterable-dropdown-option') ?? []).map(
       (option) => option.textContent?.trim()
     )
     expect(options).toEqual(['review'])

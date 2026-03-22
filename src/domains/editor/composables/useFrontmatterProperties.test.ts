@@ -112,6 +112,25 @@ describe('useFrontmatterProperties', () => {
     api.parseAndStoreFrontmatter('notes/a.md', '---\nstatus:\n  - draft\ntags:\n  - alpha\n---\nBody')
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-    expect(apiMocks.readPropertyValueSuggestions.mock.calls.length).toBe(firstCallCount)
+    expect(apiMocks.readPropertyValueSuggestions.mock.calls.length).toBe(firstCallCount + 2)
+  })
+
+  it('refreshes suggestions when a different note is loaded', async () => {
+    const { api } = setup()
+    apiMocks.readPropertyValueSuggestions.mockClear()
+
+    api.parseAndStoreFrontmatter('notes/a.md', '---\nstatus:\n  - draft\n---\nBody')
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    expect(api.propertySuggestionsForField(api.activeFields.value[0]!) ).toEqual(['draft', 'review', 'published'])
+
+    apiMocks.readPropertyValueSuggestions.mockImplementation(async (key: string) => {
+      if (key === 'status') return ['draft', 'review', 'published', 'blocked']
+      return []
+    })
+
+    api.parseAndStoreFrontmatter('notes/b.md', '---\nstatus:\n  - draft\n---\nBody')
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+    expect(api.propertySuggestionsForField(api.activeFields.value[0]!) ).toEqual(['draft', 'review', 'published', 'blocked'])
   })
 })

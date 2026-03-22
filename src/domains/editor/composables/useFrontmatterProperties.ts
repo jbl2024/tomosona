@@ -220,10 +220,10 @@ export function useFrontmatterProperties(options: UseFrontmatterPropertiesOption
   /**
    * Loads and caches workspace values for a property key once per session.
    */
-  async function ensurePropertySuggestionsLoaded(key: string) {
+  async function ensurePropertySuggestionsLoaded(key: string, force = false) {
     const normalized = normalizePropertyKey(key)
     if (!normalized) return
-    if (propertySuggestionsLoadedByKey.value[normalized] || propertySuggestionsLoadingByKey.value[normalized]) {
+    if (!force && (propertySuggestionsLoadedByKey.value[normalized] || propertySuggestionsLoadingByKey.value[normalized])) {
       return
     }
 
@@ -256,10 +256,10 @@ export function useFrontmatterProperties(options: UseFrontmatterPropertiesOption
   /**
    * Preloads suggestions for list-like fields without blocking render.
    */
-  function preloadPropertySuggestions(fields: FrontmatterField[]) {
+  function preloadPropertySuggestions(fields: FrontmatterField[], force = false) {
     for (const field of fields) {
       if (field.type !== 'list' && field.type !== 'tags') continue
-      void ensurePropertySuggestionsLoaded(field.key)
+      void ensurePropertySuggestionsLoaded(field.key, force)
     }
   }
 
@@ -285,7 +285,7 @@ export function useFrontmatterProperties(options: UseFrontmatterPropertiesOption
         [path]: false
       }
     }
-    preloadPropertySuggestions(envelope.fields)
+    preloadPropertySuggestions(envelope.fields, true)
     emitProperties(path)
   }
 
