@@ -18,6 +18,21 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.22.1] - 2026-03-22
+
+### Added
+- feat(editor): add autocomplete for list and tags properties (f3f6df4)
+
+### Changed
+- chore(css): line-clamp (7e67de4)
+-  filter themes from picker query (b4d4af0)
+
+### Fixed
+- fix(editor): sort property add menu alphabetically (80d76b7)
+- fix(editor): refresh autocomplete suggestions on note load (dc59b0e)
+- fix(editor): reuse filterable dropdown for property autocomplete (c384170)
+- fix(editor): simplify frontmatter quick-add presets (fd1e76e)
+
 ## [0.22.0] - 2026-03-22
 
 ### Added
