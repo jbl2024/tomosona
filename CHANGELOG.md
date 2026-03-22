@@ -18,6 +18,20 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.22.5] - 2026-03-22
+
+### Added
+- feat(editor): show block structure labels in gutter (0d7e66d)
+
+### Changed
+- test(echoes): fix build compatibility for integration test (da490e1)
+- test(echoes): cover refresh after index rebuild (5c050b2)
+
+### Fixed
+- fix(editor): refresh gutter label on heading level changes (958601d)
+- fix(echoes): refresh suggestions after indexing completes (b1c2e1a)
+- fix(index): prevent derived view refresh from hanging (36cd8d0)
+
 ## [0.22.4] - 2026-03-22
 
 ### Added
