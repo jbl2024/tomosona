@@ -283,61 +283,90 @@ describe('EditorView interactions contract', () => {
     const editor = setupState.renderedEditorsByPath?.['a.md']
     if (!editor) throw new Error('Expected a rendered editor for a.md')
 
-    Object.defineProperty(window, 'scrollBy', {
-      configurable: true,
-      value: vi.fn()
-    })
-    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-      configurable: true,
-      value: vi.fn()
-    })
+    const originalWindowScrollBy = Object.getOwnPropertyDescriptor(window, 'scrollBy')
+    const originalElementScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo')
+    const prototypes = [Node.prototype, Element.prototype, HTMLElement.prototype, Text.prototype, Range.prototype]
+    const originalRects = prototypes.map((prototype) => ({
+      prototype,
+      clientRects: Object.getOwnPropertyDescriptor(prototype, 'getClientRects'),
+      boundingRect: Object.getOwnPropertyDescriptor(prototype, 'getBoundingClientRect')
+    }))
 
-    const rectList = () => [{ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 }]
-    const rect = () => ({ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 })
-    for (const prototype of [Node.prototype, Element.prototype, HTMLElement.prototype, Text.prototype, Range.prototype]) {
-      Object.defineProperty(prototype, 'getClientRects', {
+    try {
+      Object.defineProperty(window, 'scrollBy', {
         configurable: true,
-        value: rectList
+        value: vi.fn()
       })
-      Object.defineProperty(prototype, 'getBoundingClientRect', {
+      Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
         configurable: true,
-        value: rect
+        value: vi.fn()
       })
+
+      const rectList = () => [{ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 }]
+      const rect = () => ({ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 })
+      for (const prototype of prototypes) {
+        Object.defineProperty(prototype, 'getClientRects', {
+          configurable: true,
+          value: rectList
+        })
+        Object.defineProperty(prototype, 'getBoundingClientRect', {
+          configurable: true,
+          value: rect
+        })
+      }
+
+      editor.commands.focus()
+      editor.commands.setTextSelection(1)
+      await flushUi()
+
+      const handle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
+      expect(handle).toBeTruthy()
+      expect(handle?.style.visibility).not.toBe('hidden')
+      expect(handle?.style.left).not.toBe('0px')
+      expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('H1')
+      expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
+      expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
+
+      let paragraphPos = -1
+      editor.state.doc.descendants((node: { type: { name: string } }, pos: number) => {
+        if (paragraphPos >= 0) return false
+        if (node.type.name !== 'paragraph') return undefined
+        paragraphPos = pos + 1
+        return false
+      })
+      expect(paragraphPos).toBeGreaterThan(0)
+
+      editor.commands.setTextSelection(paragraphPos)
+      await flushUi()
+
+      const paragraphHandle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
+      expect(paragraphHandle?.style.visibility).not.toBe('hidden')
+      expect(paragraphHandle?.style.left).not.toBe('0px')
+      expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('P')
+      expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
+      expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
+    } finally {
+      if (originalWindowScrollBy) {
+        Object.defineProperty(window, 'scrollBy', originalWindowScrollBy)
+      }
+      if (originalElementScrollTo) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollTo', originalElementScrollTo)
+      }
+      for (const entry of originalRects) {
+        if (entry.clientRects) {
+          Object.defineProperty(entry.prototype, 'getClientRects', entry.clientRects)
+        } else {
+          Reflect.deleteProperty(entry.prototype, 'getClientRects')
+        }
+        if (entry.boundingRect) {
+          Object.defineProperty(entry.prototype, 'getBoundingClientRect', entry.boundingRect)
+        } else {
+          Reflect.deleteProperty(entry.prototype, 'getBoundingClientRect')
+        }
+      }
+      app.unmount()
+      document.body.innerHTML = ''
     }
-
-    editor.commands.focus()
-    editor.commands.setTextSelection(1)
-    await flushUi()
-
-    const handle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
-    expect(handle).toBeTruthy()
-    expect(handle?.style.visibility).not.toBe('hidden')
-    expect(handle?.style.left).not.toBe('0px')
-    expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('H1')
-    expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
-    expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
-
-    let paragraphPos = -1
-    editor.state.doc.descendants((node: { type: { name: string } }, pos: number) => {
-      if (paragraphPos >= 0) return false
-      if (node.type.name !== 'paragraph') return undefined
-      paragraphPos = pos + 1
-      return false
-    })
-    expect(paragraphPos).toBeGreaterThan(0)
-
-    editor.commands.setTextSelection(paragraphPos)
-    await flushUi()
-
-    const paragraphHandle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
-    expect(paragraphHandle?.style.visibility).not.toBe('hidden')
-    expect(paragraphHandle?.style.left).not.toBe('0px')
-    expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('P')
-    expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
-    expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
-
-    app.unmount()
-    document.body.innerHTML = ''
   })
 
   it('opens inline find with Cmd/Ctrl+F and supports filtering controls', async () => {
