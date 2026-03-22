@@ -37,4 +37,36 @@ describe('PropertyAddDropdown', () => {
     app.unmount()
     document.body.innerHTML = ''
   })
+
+  it('sorts visible properties alphabetically', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const app = createApp({
+      render() {
+        return h(PropertyAddDropdown, {
+          options: [
+            { key: 'tags', description: 'Tag list' },
+            { key: 'deadline', description: 'Due date' },
+            { key: 'aliases', description: 'Alternative names' },
+            { key: 'date', description: 'Primary date' }
+          ],
+          existingKeys: []
+        })
+      }
+    })
+
+    app.mount(root)
+    await nextTick()
+
+    const trigger = root.querySelector('button.property-add-trigger') as HTMLButtonElement | null
+    trigger?.click()
+    await nextTick()
+
+    const items = Array.from(document.body.querySelectorAll('.dropdown-item > span')).map((el) => el.textContent?.trim())
+    expect(items).toEqual(['aliases', 'date', 'deadline', 'tags'])
+
+    app.unmount()
+    document.body.innerHTML = ''
+  })
 })

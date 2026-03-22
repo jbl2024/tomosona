@@ -35,6 +35,7 @@ const availableOptions = computed<Array<FilterableDropdownItem & { key: string; 
       key: option.key,
       description: option.description ?? ''
     }))
+    .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }))
 )
 
 function close() {
