@@ -49,8 +49,8 @@ function serializableFrontmatterFields(fields: FrontmatterField[]): FrontmatterF
  */
 function suggestedPropertyTypeForKey(key: string): PropertyType | null {
   const normalized = normalizePropertyKey(key)
-  if (normalized === 'date' || normalized === 'deadline') return 'date'
-  if (normalized === 'archive' || normalized === 'published') return 'checkbox'
+  if (normalized === 'date' || normalized === 'deadline' || normalized === 'created' || normalized === 'updated') return 'date'
+  if (normalized === 'priority') return 'number'
   return null
 }
 

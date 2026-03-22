@@ -30,11 +30,14 @@ type CorePropertyOption = { key: string; label?: string; description?: string }
 const CORE_PROPERTY_OPTIONS: CorePropertyOption[] = [
   { key: 'tags', label: 'tags', description: 'Tag list' },
   { key: 'aliases', label: 'aliases', description: 'Alternative names' },
-  { key: 'cssclasses', label: 'cssclasses', description: 'Note CSS classes' },
   { key: 'date', label: 'date', description: 'Primary date (YYYY-MM-DD)' },
   { key: 'deadline', label: 'deadline', description: 'Due date (YYYY-MM-DD)' },
-  { key: 'archive', label: 'archive', description: 'Archive flag' },
-  { key: 'published', label: 'published', description: 'Publish flag' }
+  { key: 'status', label: 'status', description: 'Workflow state' },
+  { key: 'category', label: 'category', description: 'Content category' },
+  { key: 'created', label: 'created', description: 'Creation date (YYYY-MM-DD)' },
+  { key: 'updated', label: 'updated', description: 'Last update date (YYYY-MM-DD)' },
+  { key: 'priority', label: 'priority', description: 'Priority level' },
+  { key: 'version', label: 'version', description: 'Version label' }
 ]
 
 const props = defineProps<{

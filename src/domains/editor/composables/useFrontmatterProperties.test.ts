@@ -59,6 +59,17 @@ describe('useFrontmatterProperties', () => {
     expect(messages.some((message) => message.includes('Duplicate property key'))).toBe(true)
   })
 
+  it('assigns the expected default types for common second-brain keys', () => {
+    const { api } = setup()
+    api.parseAndStoreFrontmatter('notes/a.md', 'Body')
+
+    api.addPropertyField('created')
+    api.addPropertyField('priority')
+    api.addPropertyField('version')
+
+    expect(api.activeFields.value.map((field) => field.type)).toEqual(['date', 'number', 'text'])
+  })
+
   it('coerces values when field type changes', async () => {
     const { api } = setup()
     api.parseAndStoreFrontmatter('notes/a.md', '---\ncount: "7"\n---\nBody')

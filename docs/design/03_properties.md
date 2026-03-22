@@ -119,6 +119,19 @@ Default mode with row-based property editor:
 
 Reserved keys (`tags`, `aliases`, `cssclasses`) are type-locked in UI.
 
+The quick-add menu stays intentionally small and second-brain-oriented:
+
+- `tags`
+- `aliases`
+- `date`
+- `deadline`
+- `status`
+- `category`
+- `created`
+- `updated`
+- `priority`
+- `version`
+
 ### 5.2 Raw YAML mode
 
 Advanced mode with direct YAML editing.
