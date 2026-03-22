@@ -40,6 +40,7 @@ const props = defineProps<{
   echoesLoading: boolean
   echoesError: string
   echoesHintVisible: boolean
+  indexingState: 'indexed' | 'indexing' | 'out_of_sync'
   localContextItems: ConstitutedContextItem[]
   pinnedContextItems: ConstitutedContextItem[]
   contextError?: string
@@ -64,6 +65,7 @@ const emit = defineEmits<{
   'echoes-open': [path: string]
   'echoes-add-to-context': [path: string]
   'echoes-remove-from-context': [path: string]
+  'echoes-reindex': []
   'outline-click': [payload: { index: number; heading: HeadingNode }]
   'backlink-open': [path: string]
   'context-open': [path: string]
@@ -153,10 +155,13 @@ watch(
       :loading="props.echoesLoading"
       :error="props.echoesError"
       :hint-visible="props.echoesHintVisible"
+      :indexing-state="props.indexingState"
+      :can-reindex="Boolean(props.activeNotePath)"
       :to-relative-path="props.toRelativePath"
       @open="emit('echoes-open', $event)"
       @add="emit('echoes-add-to-context', $event)"
       @remove="emit('echoes-remove-from-context', $event)"
+      @reindex="emit('echoes-reindex')"
     />
 
     <section class="pane-card pane-section context-card">

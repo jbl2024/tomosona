@@ -13,6 +13,7 @@ describe('EditorRightPane', () => {
     const onActiveNoteRemoveFromContext = vi.fn()
     const onActiveNoteOpenCosmos = vi.fn()
     const onEchoesAddToContext = vi.fn()
+    const onEchoesReindex = vi.fn()
     const onContextOpen = vi.fn()
     const onContextRemoveLocal = vi.fn()
     const onContextRemovePinned = vi.fn()
@@ -35,6 +36,7 @@ describe('EditorRightPane', () => {
           activeNoteInContext: false,
           canToggleFavorite: true,
           isFavorite: true,
+          indexingState: 'out_of_sync',
           echoesItems: [{
             path: '/wk/notes/e.md',
             title: 'Echo',
@@ -67,6 +69,7 @@ describe('EditorRightPane', () => {
           onActiveNoteRemoveFromContext,
           onActiveNoteOpenCosmos,
           onEchoesAddToContext,
+          onEchoesReindex,
           onContextOpen,
           onContextRemoveLocal,
           onContextRemovePinned,
@@ -107,6 +110,8 @@ describe('EditorRightPane', () => {
     const echoesButtons = Array.from(root.querySelectorAll('.echoes-action-btn')) as HTMLButtonElement[]
     echoesButtons[0].click()
     expect(onEchoesAddToContext).toHaveBeenCalledWith('/wk/notes/e.md')
+    ;(root.querySelector('.echoes-mark-btn') as HTMLButtonElement).click()
+    expect(onEchoesReindex).toHaveBeenCalledTimes(1)
 
     ;(root.querySelector('.context-open-btn') as HTMLButtonElement).click()
     expect(onContextOpen).toHaveBeenCalledWith('/wk/notes/c.md')
@@ -174,6 +179,7 @@ describe('EditorRightPane', () => {
           activeNoteInContext: true,
           canToggleFavorite: false,
           isFavorite: false,
+          indexingState: 'indexed',
           echoesItems: [],
           echoesLoading: false,
           echoesError: '',

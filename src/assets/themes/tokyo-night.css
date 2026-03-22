@@ -132,14 +132,19 @@ html[data-theme='tokyo-night'] {
   --sb-danger-text: #fda4b4;
   --echoes-card-bg: #232842;
   --echoes-card-border: rgba(86, 95, 137, 0.34);
-  --echoes-card-hover-border: rgba(122, 162, 247, 0.45);
+  --echoes-card-hover-border: rgba(141, 196, 150, 0.44);
   --echoes-title: #b5bde4;
   --echoes-copy: #a9b1d6;
   --echoes-empty-bg: rgba(86, 95, 137, 0.22);
   --echoes-item-hover-bg: #2a3150;
-  --echoes-item-hover-border: rgba(122, 162, 247, 0.24);
+  --echoes-item-hover-border: rgba(141, 196, 150, 0.26);
   --echoes-item-title: #dbe7ff;
   --echoes-item-path: #97a3d1;
-  --echoes-icon: #a9b1d6;
-  --echoes-icon-secondary: #7f88b7;
+  --echoes-icon: #6fff8b;
+  --echoes-icon-hover: #41f26b;
+  --echoes-icon-secondary: #93e59a;
+  --echoes-reindexing-bg: rgba(245, 158, 11, 0.2);
+  --echoes-reindexing-border: rgba(245, 158, 11, 0.34);
+  --echoes-reindexing-text: #fcd34d;
+  --echoes-reindexing-icon: #f59e0b;
 }

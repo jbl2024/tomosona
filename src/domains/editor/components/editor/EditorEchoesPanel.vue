@@ -3,6 +3,7 @@
  * Presentational Echoes panel for the note-side context surface.
  *
  * The component renders explainable suggestions and emits only user intents.
+ * Reindexing stays in the shell so this surface remains presentational.
  */
 import {
   ArrowTopRightOnSquareIcon,
@@ -22,6 +23,8 @@ const props = defineProps<{
   loading: boolean
   error: string
   hintVisible: boolean
+  indexingState: 'indexed' | 'indexing' | 'out_of_sync'
+  canReindex: boolean
   toRelativePath: (path: string) => string
 }>()
 
@@ -29,6 +32,7 @@ const emit = defineEmits<{
   open: [path: string]
   add: [path: string]
   remove: [path: string]
+  reindex: []
 }>()
 
 type EchoesRenderItem = EditorEchoesListItem & {
@@ -80,6 +84,14 @@ const visibleItems = computed<EchoesRenderItem[]>(() => {
   })
 })
 
+const isReindexing = computed(() => props.indexingState === 'indexing')
+
+const reindexLabel = computed(() => {
+  if (isReindexing.value) return 'Reindexing in progress'
+  if (!props.canReindex) return 'No active note to reindex'
+  return 'Reindex active note'
+})
+
 function addVisibleItemsToContext() {
   for (const item of visibleItems.value) {
     if (item.isInContext) continue
@@ -101,14 +113,24 @@ function onCardClick(item: EditorEchoesListItem) {
 </script>
 
 <template>
-  <section class="pane-card pane-section">
+  <section class="pane-card pane-section" :data-indexing-state="props.indexingState">
     <div class="echoes-head">
       <div class="echoes-heading">
-        <span class="echoes-mark" aria-hidden="true">
-          <span class="echoes-mark-bar echoes-mark-bar--short"></span>
-          <span class="echoes-mark-bar echoes-mark-bar--tall"></span>
-          <span class="echoes-mark-bar echoes-mark-bar--mid"></span>
-        </span>
+        <UiIconButton
+          variant="ghost"
+          size="sm"
+          class-name="echoes-mark-btn"
+          :disabled="!props.canReindex || isReindexing"
+          :title="reindexLabel"
+          :aria-label="reindexLabel"
+          @click="emit('reindex')"
+        >
+          <span class="echoes-mark" aria-hidden="true">
+            <span class="echoes-mark-bar echoes-mark-bar--short"></span>
+            <span class="echoes-mark-bar echoes-mark-bar--tall"></span>
+            <span class="echoes-mark-bar echoes-mark-bar--mid"></span>
+          </span>
+        </UiIconButton>
         <h3 class="section-title">Echoes</h3>
       </div>
       <button
@@ -203,6 +225,19 @@ function onCardClick(item: EditorEchoesListItem) {
 
 .pane-section {
   position: relative;
+  --echoes-header-accent: var(--echoes-icon);
+  --echoes-header-accent-muted: var(--echoes-icon-secondary);
+  --echoes-header-accent-soft: color-mix(in srgb, var(--echoes-icon) 14%, var(--surface-bg));
+  --echoes-header-accent-border: var(--echoes-card-hover-border);
+  --echoes-header-accent-hover-bg: color-mix(in srgb, var(--echoes-header-accent-soft) 78%, var(--surface-bg));
+}
+
+.pane-section[data-indexing-state='indexing'] {
+  --echoes-header-accent: var(--echoes-reindexing-icon);
+  --echoes-header-accent-muted: var(--echoes-reindexing-text);
+  --echoes-header-accent-soft: var(--echoes-reindexing-bg);
+  --echoes-header-accent-border: var(--echoes-reindexing-border);
+  --echoes-header-accent-hover-bg: color-mix(in srgb, var(--echoes-reindexing-bg) 72%, var(--surface-bg));
 }
 
 .echoes-head {
@@ -222,14 +257,48 @@ function onCardClick(item: EditorEchoesListItem) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--text-faint);
+  color: currentColor;
+}
+
+.echoes-mark-btn {
+  color: var(--echoes-icon) !important;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  border-radius: 999px;
+  width: 1.8rem;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.echoes-mark-btn:hover:not(:disabled),
+.echoes-mark-btn:focus-visible:not(:disabled) {
+  color: var(--echoes-icon-hover) !important;
+  opacity: 1;
+}
+
+.pane-section[data-indexing-state='indexing'] .echoes-mark-btn {
+  color: var(--echoes-reindexing-icon) !important;
+}
+
+.pane-section[data-indexing-state='indexing'] .echoes-mark-btn:hover:not(:disabled),
+.pane-section[data-indexing-state='indexing'] .echoes-mark-btn:focus-visible:not(:disabled) {
+  color: color-mix(in srgb, var(--echoes-reindexing-icon) 88%, var(--echoes-item-title)) !important;
+}
+
+.echoes-mark-btn:disabled {
+  color: var(--echoes-header-accent-muted);
+  opacity: 0.92;
 }
 
 .echoes-mark-bar {
   width: 4px;
   border-radius: 999px;
   background: currentColor;
-  opacity: 0.45;
+  opacity: 0.9;
   animation: echoes-pulse 2.2s ease-in-out infinite;
 }
 
@@ -265,7 +334,7 @@ function onCardClick(item: EditorEchoesListItem) {
 }
 
 .echoes-count {
-  color: var(--echoes-title);
+  color: var(--echoes-header-accent);
   font-size: 11px;
   font-family: var(--font-code);
   letter-spacing: 0.08em;
@@ -273,16 +342,16 @@ function onCardClick(item: EditorEchoesListItem) {
   white-space: nowrap;
   padding: 0.38rem 0.82rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface-bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--right-pane-card-border) 90%, transparent);
+  background: var(--echoes-header-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--echoes-header-accent-border) 48%, var(--right-pane-card-border));
   transition: background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .echoes-count:hover,
 .echoes-count:focus-visible {
   color: var(--echoes-item-title);
-  background: color-mix(in srgb, var(--surface-subtle) 70%, var(--right-pane-item-hover));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--right-pane-card-border) 72%, var(--echoes-card-hover-border));
+  background: var(--echoes-header-accent-hover-bg);
+  box-shadow: inset 0 0 0 1px var(--echoes-header-accent-border);
 }
 
 .empty-state {
@@ -327,20 +396,20 @@ function onCardClick(item: EditorEchoesListItem) {
 }
 
 .echoes-card[data-signal-tone='echoes-signal--backlink']:hover {
-  --echoes-item-hover-border: color-mix(in srgb, var(--accent) 78%, var(--text-soft));
+  --echoes-item-hover-border: color-mix(in srgb, var(--accent) 70%, var(--text-soft));
 }
 
 .echoes-card[data-signal-tone='echoes-signal--semantic']:hover {
-  --echoes-item-hover-border: color-mix(in srgb, var(--success) 78%, var(--text-soft));
+  --echoes-item-hover-border: color-mix(in srgb, var(--success) 70%, var(--text-soft));
 }
 
 .echoes-card[data-signal-tone='echoes-signal--recent']:hover {
-  --echoes-item-hover-border: color-mix(in srgb, var(--warning) 82%, var(--text-soft));
+  --echoes-item-hover-border: color-mix(in srgb, var(--warning) 74%, var(--text-soft));
 }
 
 .echoes-card[data-signal-tone='echoes-signal--direct']:hover,
 .echoes-card[data-signal-tone='echoes-signal--default']:hover {
-  --echoes-item-hover-border: color-mix(in srgb, var(--accent) 70%, var(--text-soft));
+  --echoes-item-hover-border: color-mix(in srgb, var(--accent) 66%, var(--text-soft));
 }
 
 .echoes-divider {

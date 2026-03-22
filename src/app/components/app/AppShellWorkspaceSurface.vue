@@ -49,6 +49,7 @@ defineProps<{
   backlinkCount: number
   semanticLinkCount: number
   activeNoteInContext: boolean
+  indexingState: 'indexed' | 'indexing' | 'out_of_sync'
   favoriteItems: FavoriteEntry[]
   favoritesLoading: boolean
   searchQuery: string
@@ -143,6 +144,7 @@ const emit = defineEmits<{
   echoesOpen: [path: string]
   echoesAddToContext: [path: string]
   echoesRemoveFromContext: [path: string]
+  echoesReindex: []
   outlineClick: [payload: { index: number; heading: HeadingNode }]
   backlinkOpen: [path: string]
   contextOpen: [path: string]
@@ -236,6 +238,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           :backlink-count="backlinkCount"
           :semantic-link-count="semanticLinkCount"
           :active-note-in-context="activeNoteInContext"
+          :indexing-state="indexingState"
           :can-toggle-favorite="canToggleFavorite"
           :is-favorite="isFavorite"
           :echoes-items="echoesItems"
@@ -262,6 +265,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           @echoes-open="emit('echoesOpen', $event)"
           @echoes-add-to-context="emit('echoesAddToContext', $event)"
           @echoes-remove-from-context="emit('echoesRemoveFromContext', $event)"
+          @echoes-reindex="emit('echoesReindex')"
           @outline-click="emit('outlineClick', $event)"
           @backlink-open="emit('backlinkOpen', $event)"
           @context-open="emit('contextOpen', $event)"

@@ -1,11 +1,13 @@
 import { createApp, defineComponent, h, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import AppShellWorkspaceSurface, { type AppShellWorkspaceSurfaceExposed } from './AppShellWorkspaceSurface.vue'
 
 function mountHarness() {
   const root = document.createElement('div')
   document.body.appendChild(root)
   const events: string[] = []
+  const activeFilePath = '/vault/a.md'
+  const enqueueMarkdownReindex = vi.fn()
   const surface = ref<AppShellWorkspaceSurfaceExposed | null>(null)
 
   const app = createApp(defineComponent({
@@ -22,12 +24,13 @@ function mountHarness() {
             leftPaneWidth: 280,
             rightPaneVisible: true,
             rightPaneWidth: 320,
-            activeFilePath: '/vault/a.md',
+            activeFilePath,
             activeNoteTitle: 'a',
             activeStateLabel: 'saved',
             backlinkCount: 0,
             semanticLinkCount: 0,
             activeNoteInContext: false,
+            indexingState: 'out_of_sync',
             favoriteItems: [],
             favoritesLoading: false,
             searchQuery: 'hello',
@@ -90,6 +93,7 @@ function mountHarness() {
             onEchoesOpen: () => {},
             onEchoesAddToContext: () => {},
             onEchoesRemoveFromContext: () => {},
+            onEchoesReindex: () => enqueueMarkdownReindex(activeFilePath),
             onOutlineClick: () => {}
           },
           {
@@ -100,7 +104,7 @@ function mountHarness() {
   }))
 
   app.mount(root)
-  return { app, root, events, surface }
+  return { app, root, events, surface, enqueueMarkdownReindex }
 }
 
 describe('AppShellWorkspaceSurface', () => {
@@ -119,6 +123,7 @@ describe('AppShellWorkspaceSurface', () => {
     mounted.root.querySelector<HTMLDivElement>('.splitter')?.dispatchEvent(
       new MouseEvent('mousedown', { bubbles: true })
     )
+    mounted.root.querySelector<HTMLButtonElement>('.echoes-mark-btn')?.click()
 
     expect(mounted.events).toEqual([
       'mode:explorer',
@@ -126,6 +131,7 @@ describe('AppShellWorkspaceSurface', () => {
       'mode:search',
       'resize:left'
     ])
+    expect(mounted.enqueueMarkdownReindex).toHaveBeenCalledWith('/vault/a.md')
 
     mounted.app.unmount()
   })
