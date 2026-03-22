@@ -123,6 +123,11 @@ export async function readPropertyValueSuggestions(
   })
 }
 
+/** Reads distinct indexed property keys for the active workspace. */
+export async function readPropertyKeys(limit = 100): Promise<string[]> {
+  return await invoke('read_property_keys', { limit })
+}
+
 /** Reads the persisted property type schema for the active workspace. */
 export async function readPropertyTypeSchema(): Promise<Record<string, string>> {
   return await invoke('read_property_type_schema')

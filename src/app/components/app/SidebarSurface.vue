@@ -152,6 +152,7 @@ defineExpose({
       <SearchSidebarPanel
         v-else-if="sidebarMode === 'search'"
         :disabled="!hasWorkspace"
+        :working-folder-path="workingFolderPath"
         :query="searchQuery"
         :mode="globalSearchMode"
         :mode-options="searchModeOptions"

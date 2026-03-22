@@ -202,6 +202,8 @@ Tauri commands:
 
 - `read_property_type_schema(folder_path)`
 - `write_property_type_schema(folder_path, schema)`
+- `read_property_keys(limit)`
+- `read_property_value_suggestions(key, query, limit)`
 
 Path and safety rules:
 
@@ -214,6 +216,13 @@ Indexing behavior:
 
 - frontmatter is stripped before chunking and target parsing
 - prevents metadata noise in search and wikilink/date extraction
+
+Search integration:
+
+- the search sidebar can autocomplete property keys from the workspace index
+- once a key is inserted, known values for that key are suggested too
+- quick filters are kept intentionally small and map to the most common property queries
+- search mode prefixes such as `semantic:`, `lexical:`, and `hybrid:` are reserved and excluded from property-key autocomplete
 
 ## 10. Obsidian Compatibility Notes
 

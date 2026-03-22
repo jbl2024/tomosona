@@ -162,6 +162,28 @@ pub(crate) fn read_property_value_suggestions(
     Ok(values)
 }
 
+pub(crate) fn read_property_keys(limit: Option<usize>) -> Result<Vec<String>> {
+    let limit = limit.unwrap_or(100).clamp(1, 200) as i64;
+
+    let conn = open_db()?;
+    ensure_index_schema(&conn)?;
+
+    let mut values = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT key
+         FROM note_properties
+         WHERE key IS NOT NULL
+           AND key <> ''
+         ORDER BY lower(key) ASC
+         LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(params![limit], |row| row.get::<_, String>(0))?;
+    for row in rows {
+        values.push(row?);
+    }
+    Ok(values)
+}
+
 fn is_property_key_token(input: &str) -> bool {
     let trimmed = input.trim();
     !trimmed.is_empty()

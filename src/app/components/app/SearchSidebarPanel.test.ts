@@ -1,6 +1,29 @@
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import SearchSidebarPanel from './SearchSidebarPanel.vue'
+
+const readPropertyKeys = vi.fn(async () => ['category', 'semantic', 'hybrid', 'status', 'tags'])
+const readPropertyTypeSchema = vi.fn(async () => ({
+  category: 'list',
+  status: 'text',
+  tags: 'tags'
+}))
+const readPropertyValueSuggestions = vi.fn(async (key: string) => {
+  if (key === 'status') return ['draft', 'published']
+  if (key === 'category') return ['design', 'research']
+  if (key === 'tags') return ['roadmap', 'ux']
+  return []
+})
+
+vi.mock('../../../shared/api/indexApi', () => ({
+  readPropertyKeys: () => readPropertyKeys(),
+  readPropertyTypeSchema: () => readPropertyTypeSchema(),
+  readPropertyValueSuggestions: (key: string) => readPropertyValueSuggestions(key)
+}))
+
+function flushPromises() {
+  return new Promise<void>((resolve) => setTimeout(resolve, 0))
+}
 
 function mountHarness() {
   const root = document.createElement('div')
@@ -14,6 +37,7 @@ function mountHarness() {
       return () =>
         h(SearchSidebarPanel, {
           disabled: false,
+          workingFolderPath: '/vault',
           query: query.value,
           mode: 'hybrid',
           modeOptions: [{ mode: 'hybrid', label: 'Hybrid' }, { mode: 'semantic', label: 'Semantic' }],
@@ -39,24 +63,94 @@ function mountHarness() {
 describe('SearchSidebarPanel', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+    readPropertyKeys.mockClear()
+    readPropertyTypeSchema.mockClear()
+    readPropertyValueSuggestions.mockClear()
   })
 
-  it('emits updates for query, mode changes, and result opens', async () => {
+  it('renders property suggestions, quick filters, and searchable values', async () => {
     const mounted = mountHarness()
     const input = mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')
-    if (input) {
-      input.value = 'graph'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    }
+    input?.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
+    await nextTick()
+    await flushPromises()
     await nextTick()
 
-    const buttons = mounted.root.querySelectorAll<HTMLButtonElement>('.search-mode-chip')
-    buttons[1]?.click()
-    mounted.root.querySelector<HTMLButtonElement>('.result-item')?.click()
+    const optionTexts = Array.from(document.querySelectorAll<HTMLButtonElement>('.ui-filterable-dropdown-option'))
+      .map((button) => button.textContent ?? '')
+    expect(optionTexts.some((text) => text.includes('Tags'))).toBe(true)
+    expect(optionTexts.some((text) => text.includes('category'))).toBe(true)
+    expect(optionTexts.some((text) => text.includes('status'))).toBe(false)
+    expect(optionTexts.some((text) => text.includes('semantic'))).toBe(false)
+    expect(optionTexts.some((text) => text.includes('hybrid'))).toBe(false)
+    expect(document.body.textContent).toContain('Quick filters')
 
-    expect(mounted.query.value).toBe('graph')
-    expect(mounted.selectedModes).toEqual(['semantic'])
-    expect(mounted.openedResults).toEqual(['/vault/a.md'])
+    const categorySuggestion = Array.from(document.querySelectorAll<HTMLButtonElement>('.ui-filterable-dropdown-option'))
+      .find((button) => button.textContent?.includes('category'))
+    categorySuggestion?.click()
+    await nextTick()
+
+    expect(mounted.query.value).toBe('category:')
+
+    const reopenedInput = mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')
+    if (reopenedInput) {
+      reopenedInput.value = 'category:'
+      reopenedInput.dispatchEvent(new Event('input', { bubbles: true }))
+      reopenedInput.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
+    }
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.body.textContent).toContain('design')
+
+    const draftSuggestion = Array.from(document.querySelectorAll<HTMLButtonElement>('.ui-filterable-dropdown-option'))
+      .find((button) => button.textContent?.includes('design'))
+    draftSuggestion?.click()
+    await nextTick()
+
+    expect(mounted.query.value).toBe('category:design')
+
+    mounted.query.value = 'multi'
+    await nextTick()
+    const plainTextInput = mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')
+    if (plainTextInput) {
+      plainTextInput.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
+
+    mounted.query.value = 'semantic:'
+    await nextTick()
+    mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
+      new Event('input', { bubbles: true })
+    )
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
+
+    mounted.query.value = 'hybrid:'
+    await nextTick()
+    mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
+      new Event('input', { bubbles: true })
+    )
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
+
+    mounted.query.value = ''
+    await nextTick()
+    mounted.root.querySelector<HTMLButtonElement>('.search-quick-filter')?.click()
+    await nextTick()
+
+    expect(mounted.query.value).toBe('tags:')
 
     mounted.app.unmount()
   })

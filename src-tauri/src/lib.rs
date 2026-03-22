@@ -66,6 +66,7 @@ use search_index::{
 };
 use search_index::{
     fts_search_sync as fts_search_sync_impl,
+    read_property_keys as read_property_keys_impl,
     read_property_value_suggestions as read_property_value_suggestions_impl,
     read_property_type_schema as read_property_type_schema_impl,
     write_property_type_schema as write_property_type_schema_impl, Hit,
@@ -239,6 +240,11 @@ fn read_property_value_suggestions(
 }
 
 #[tauri::command]
+fn read_property_keys(limit: Option<usize>) -> Result<Vec<String>> {
+    read_property_keys_impl(limit)
+}
+
+#[tauri::command]
 fn read_index_overview_stats() -> Result<IndexOverviewStats> {
     read_index_overview_stats_impl()
 }
@@ -405,6 +411,7 @@ pub fn run() {
             read_index_runtime_status,
             read_index_logs,
             read_property_value_suggestions,
+            read_property_keys,
             read_index_overview_stats,
             backlinks_for_path,
             semantic_links_for_path,
@@ -673,6 +680,33 @@ mod tests {
         let limited = read_property_value_suggestions_impl("status".to_string(), None, Some(2))
             .expect("read limited suggestions");
         assert_eq!(limited.len(), 2);
+
+        clear_active_workspace().expect("clear workspace");
+        fs::remove_dir_all(&workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn read_property_keys_returns_distinct_sorted_values() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-property-keys-test");
+        let root = workspace.to_string_lossy().to_string();
+
+        set_active_workspace(&root).expect("set workspace");
+        init_db().expect("init db");
+
+        let note_a = workspace.join("a.md");
+        let note_b = workspace.join("b.md");
+        let note_c = workspace.join("c.md");
+        fs::write(&note_a, "---\nStatus: draft\ncategory: work\n---\nbody").expect("write note a");
+        fs::write(&note_b, "---\npriority: 1\ntags:\n  - alpha\n---\nbody").expect("write note b");
+        fs::write(&note_c, "---\nupdated: 2026-01-01\n---\nbody").expect("write note c");
+
+        reindex_markdown_file_lexical_sync(note_a.to_string_lossy().to_string()).expect("index a");
+        reindex_markdown_file_lexical_sync(note_b.to_string_lossy().to_string()).expect("index b");
+        reindex_markdown_file_lexical_sync(note_c.to_string_lossy().to_string()).expect("index c");
+
+        let keys = read_property_keys_impl(Some(20)).expect("read keys");
+        assert_eq!(keys, vec!["category", "priority", "status", "tags", "updated"]);
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");
