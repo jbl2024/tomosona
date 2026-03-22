@@ -44,6 +44,9 @@ export type EditorInteractionRuntimeChromePort = {
     closeBlockMenu: () => void
     hideTableToolbar: () => void
   }
+  blockHandles: {
+    syncSelectionTarget: () => void
+  }
   toolbars: {
     updateFormattingToolbar: () => void
     updateTableToolbar: () => void
@@ -203,6 +206,7 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
     getSessionEditor: (path) => documentPort.getSession(path)?.editor ?? null,
     markSlashActivatedByUser: slashMenu.markSlashActivatedByUser,
     syncSlashMenuFromSelection: slashMenu.syncSlashMenuFromSelection,
+    syncBlockHandleFromSelection: () => chromePort.blockHandles.syncSelectionTarget(),
     updateTableToolbar: () => chromePort.toolbars.updateTableToolbar(),
     syncWikilinkUiFromPluginState: wikilinkOverlay.syncWikilinkUiFromPluginState,
     captureCaret: caretOutline.captureCaret,

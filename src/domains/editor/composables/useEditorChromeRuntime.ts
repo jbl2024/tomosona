@@ -157,6 +157,7 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     gutterHover: false,
     controlsHover: false,
     dragging: false,
+    selectionLocked: false,
     activeTarget: null
   })
 
@@ -290,6 +291,15 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
       const targetReferenceLeft = shellRect.left + shellPaddingLeft - offsetParentLeft - DRAG_HANDLE_CONTENT_EDGE_GAP_PX
       return { x: state.x + (targetReferenceLeft - referenceLeft) }
     }
+  }
+  /**
+   * Keep nested drag targets eligible at the edges of headings/paragraphs.
+   *
+   * The default left/top edge preference can skip the first text blocks in the
+   * document, which makes the gutter feel absent even though the handle exists.
+   */
+  const dragHandleNestedOptions = {
+    edgeDetection: 'none' as const
   }
   const dragHandleComputePositionConfig = {
     placement: 'left-start' as const,
@@ -847,6 +857,7 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     onBlockMenuPlus: blockAndTableControls.blockHandleControls.onBlockMenuPlus,
     onBlockMenuSelect: blockAndTableControls.blockHandleControls.onBlockMenuSelect,
     onBlockHandleNodeChange: blockAndTableControls.blockHandleControls.onBlockHandleNodeChange,
+    onBlockHandleSelectionUpdate: blockAndTableControls.blockHandleControls.onSelectionUpdate,
     onHandleControlsEnter: blockAndTableControls.blockHandleControls.onHandleControlsEnter,
     onHandleControlsLeave: blockAndTableControls.blockHandleControls.onHandleControlsLeave,
     onHandleDragStart: blockAndTableControls.blockHandleControls.onHandleDragStart,
@@ -867,6 +878,7 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     addRowBeforeFromTrigger: blockAndTableControls.tableInteractions.addRowBeforeFromTrigger,
     addColumnBeforeFromTrigger: blockAndTableControls.tableInteractions.addColumnBeforeFromTrigger,
     addColumnAfterFromTrigger: blockAndTableControls.tableInteractions.addColumnAfterFromTrigger,
+    dragHandleNestedOptions,
     onEditorMouseMove: blockAndTableControls.onEditorMouseMove,
     onEditorMouseLeave: blockAndTableControls.onEditorMouseLeave
   }

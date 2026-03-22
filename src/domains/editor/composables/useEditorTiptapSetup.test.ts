@@ -15,6 +15,7 @@ function createSetup(overrides: Partial<Parameters<typeof useEditorTiptapSetup>[
     getSessionEditor: () => null,
     markSlashActivatedByUser: vi.fn(),
     syncSlashMenuFromSelection: vi.fn(),
+    syncBlockHandleFromSelection: vi.fn(),
     updateTableToolbar: vi.fn(),
     syncWikilinkUiFromPluginState: vi.fn(),
     captureCaret: vi.fn(),
@@ -62,6 +63,7 @@ describe('useEditorTiptapSetup', () => {
     editorOptions.onTransaction({ transaction: { docChanged: true } })
 
     expect(options.syncSlashMenuFromSelection).toHaveBeenCalled()
+    expect(options.syncBlockHandleFromSelection).toHaveBeenCalled()
     expect(options.updateTableToolbar).toHaveBeenCalled()
     expect(options.syncWikilinkUiFromPluginState).toHaveBeenCalled()
     expect(options.captureCaret).toHaveBeenCalledWith('a.md')
@@ -78,6 +80,7 @@ describe('useEditorTiptapSetup', () => {
 
     expect(options.captureCaret).not.toHaveBeenCalled()
     expect(options.syncSlashMenuFromSelection).toHaveBeenCalled()
+    expect(options.syncBlockHandleFromSelection).toHaveBeenCalled()
     expect(options.updateFormattingToolbar).toHaveBeenCalled()
   })
 

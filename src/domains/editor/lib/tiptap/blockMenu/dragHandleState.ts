@@ -5,11 +5,12 @@ export type DragHandleUiState = {
   gutterHover: boolean
   controlsHover: boolean
   dragging: boolean
+  selectionLocked: boolean
   activeTarget: BlockMenuTarget | null
 }
 
 export function computeHandleLock(state: DragHandleUiState): boolean {
-  return state.menuOpen || state.gutterHover || state.controlsHover || state.dragging
+  return state.menuOpen || state.gutterHover || state.controlsHover || state.dragging || state.selectionLocked
 }
 
 export function resolveActiveTarget(

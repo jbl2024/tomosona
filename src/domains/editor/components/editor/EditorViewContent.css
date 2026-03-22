@@ -429,6 +429,23 @@
   line-height: 1;
 }
 
+.editor-holder .tomosona-block-structure-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.35rem;
+  padding: 0 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 58%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--badge-neutral-bg) 84%, transparent);
+  color: var(--badge-neutral-text);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .editor-holder .tomosona-block-control-btn {
   width: 1.7rem;
   height: 1.7rem;

@@ -26,6 +26,7 @@ export type BlockMenuTarget = {
   canDelete: boolean
   canConvert: boolean
   text: string
+  attrs?: Record<string, unknown>
 }
 
 export type BlockMenuActionItem = {

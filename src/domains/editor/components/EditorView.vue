@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { DragHandle as DragHandleVue3 } from '@tiptap/extension-drag-handle-vue-3'
 import { openExternalUrl } from '../../../shared/api/workspaceApi'
@@ -10,6 +10,7 @@ import { captureHeavyRenderEpoch, hasPendingHeavyRender, waitForHeavyRenderIdle 
 import { useEditorChromeRuntime } from '../composables/useEditorChromeRuntime'
 import { useEditorDocumentRuntime } from '../composables/useEditorDocumentRuntime'
 import { useEditorInteractionRuntime } from '../composables/useEditorInteractionRuntime'
+import { getBlockStructureLabel } from '../lib/tiptap/blockMenu/guards'
 import EditorContextOverlays from './editor/EditorContextOverlays.vue'
 import EditorFindToolbar from './editor/EditorFindToolbar.vue'
 import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
@@ -159,6 +160,9 @@ interactionRuntime = useEditorInteractionRuntime({
       closeBlockMenu: () => chromeRuntime.blockAndTable.closeBlockMenu(),
       hideTableToolbar: () => chromeRuntime.blockAndTable.hideTableToolbar()
     },
+    blockHandles: {
+      syncSelectionTarget: () => chromeRuntime.blockAndTable.onBlockHandleSelectionUpdate()
+    },
     toolbars: {
       updateFormattingToolbar: () => chromeRuntime.toolbars.updateFormattingToolbar(),
       updateTableToolbar: () => chromeRuntime.blockAndTable.updateTableToolbar(),
@@ -257,7 +261,7 @@ const setPulseInstruction = pulse.setPulseInstruction
 const pulseSelectionRange = pulse.pulseSelectionRange
 void setPulseInstruction
 void pulseSelectionRange
-const {
+  const {
   propertyEditorMode,
   activeParseErrors,
   activeRawYaml,
@@ -343,9 +347,53 @@ const {
   addRowBeforeFromTrigger,
   addColumnBeforeFromTrigger,
   addColumnAfterFromTrigger,
+  dragHandleNestedOptions,
   onEditorMouseMove,
   onEditorMouseLeave
 } = blockAndTable
+const activeBlockStructureLabel = computed(() => getBlockStructureLabel(dragHandleUiState.value.activeTarget))
+
+function syncBlockDragHandleVisibility() {
+  const handleElement = contentShell.value?.querySelector('.tomosona-drag-handle') as HTMLElement | null
+  if (!handleElement) return
+
+  const shouldShow = Boolean(dragHandleUiState.value.activeTarget)
+  handleElement.style.visibility = shouldShow ? 'visible' : 'hidden'
+  handleElement.style.pointerEvents = shouldShow ? 'auto' : 'none'
+}
+
+function syncBlockDragHandlePosition() {
+  const editor = renderedEditor.value
+  const target = dragHandleUiState.value.activeTarget
+  if (!editor || !target) return
+
+  const handleElement = contentShell.value?.querySelector('.tomosona-drag-handle') as HTMLElement | null
+  if (!handleElement) return
+
+  const targetDom = editor.view.nodeDOM(target.pos)
+  const blockElement = targetDom instanceof HTMLElement
+    ? targetDom
+    : targetDom instanceof Node
+      ? targetDom.parentElement
+      : null
+  if (!blockElement) return
+
+  const blockRect = blockElement.getBoundingClientRect()
+  const handleRect = handleElement.getBoundingClientRect()
+  const offsetParent = handleElement.offsetParent instanceof HTMLElement
+    ? handleElement.offsetParent
+    : (contentShell.value?.parentElement ?? contentShell.value)
+  const parentRect = offsetParent?.getBoundingClientRect()
+  if (!parentRect) return
+
+  const left = blockRect.left - parentRect.left - handleRect.width - 8
+  const top = blockRect.top - parentRect.top + Math.max(0, (blockRect.height - handleRect.height) / 2)
+
+  handleElement.style.position = 'absolute'
+  handleElement.style.left = `${left}px`
+  handleElement.style.top = `${top}px`
+}
+
 const {
   renderedEditor,
   editorZoomStyle,
@@ -353,6 +401,22 @@ const {
   resetEditorZoom,
   gutterHitboxStyle
 } = layout
+watch(
+  () => dragHandleUiState.value.activeTarget,
+  () => {
+    syncBlockDragHandleVisibility()
+    syncBlockDragHandlePosition()
+  },
+  { immediate: true, flush: 'post' }
+)
+watch(
+  renderedEditor,
+  () => {
+    syncBlockDragHandleVisibility()
+    syncBlockDragHandlePosition()
+  },
+  { immediate: true, flush: 'post' }
+)
 const {
   pulseOpen,
   pulse: pulseState,
@@ -584,12 +648,19 @@ defineExpose({
             :plugin-key="DRAG_HANDLE_PLUGIN_KEY"
             :compute-position-config="dragHandleComputePositionConfig"
             class="tomosona-drag-handle"
-            :nested="true"
+            :nested="dragHandleNestedOptions"
             :on-node-change="onBlockHandleNodeChange"
             :on-element-drag-start="onHandleDragStart"
             :on-element-drag-end="onHandleDragEnd"
           >
             <div class="tomosona-block-controls" @mouseenter="onHandleControlsEnter" @mouseleave="onHandleControlsLeave">
+              <span
+                v-if="activeBlockStructureLabel"
+                class="tomosona-block-structure-label"
+                aria-hidden="true"
+              >
+                {{ activeBlockStructureLabel }}
+              </span>
               <button
                 type="button"
                 class="tomosona-block-control-btn"

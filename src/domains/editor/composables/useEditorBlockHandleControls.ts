@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import type { BlockMenuActionItem, BlockMenuTarget } from '../lib/tiptap/blockMenu/types'
-import { canCopyAnchor, toBlockMenuTarget } from '../lib/tiptap/blockMenu/guards'
+import { canCopyAnchor, toBlockMenuTarget, toSelectionBlockMenuTarget } from '../lib/tiptap/blockMenu/guards'
 import { deleteNode, duplicateNode, insertAbove, insertBelow, moveNodeDown, moveNodeUp, turnInto } from '../lib/tiptap/blockMenu/actions'
 import { computeHandleLock, type DragHandleUiState } from '../lib/tiptap/blockMenu/dragHandleState'
 
@@ -60,7 +60,7 @@ export function useEditorBlockHandleControls(options: UseEditorBlockHandleContro
 
   function shouldKeepTargetDuringTransition(): boolean {
     const state = options.dragHandleUiState.value
-    return state.menuOpen || state.controlsHover || state.gutterHover || state.dragging
+    return state.menuOpen || state.controlsHover || state.gutterHover || state.dragging || state.selectionLocked
   }
 
   function clearActiveTargetNow(reason: string) {
@@ -70,6 +70,7 @@ export function useEditorBlockHandleControls(options: UseEditorBlockHandleContro
       activeTarget: null,
       controlsHover: false,
       gutterHover: false,
+      selectionLocked: false,
     }
     syncDragHandleLockFromState(reason)
   }
@@ -118,10 +119,7 @@ export function useEditorBlockHandleControls(options: UseEditorBlockHandleContro
       return
     }
     clearTargetClearTimer()
-    const editor = options.getEditor()
-    const nodeAtPos = editor?.state.doc.nodeAt(payload.pos)
-    if (!nodeAtPos) return
-    const nextTarget = toBlockMenuTarget(nodeAtPos, payload.pos)
+    const nextTarget = toBlockMenuTarget(payload.node as Parameters<typeof toBlockMenuTarget>[0], payload.pos)
     options.blockMenuTarget.value = nextTarget
     options.lastStableBlockMenuTarget.value = nextTarget
     options.dragHandleUiState.value = {
@@ -129,6 +127,41 @@ export function useEditorBlockHandleControls(options: UseEditorBlockHandleContro
       activeTarget: nextTarget,
     }
     debug('target-change', nextTarget.pos)
+  }
+
+  /**
+   * Updates the target and drag lock from the current editor selection so the
+   * gutter stays visible while editing a top-level block with the caret inside.
+   */
+  function onSelectionUpdate() {
+    const editor = options.getEditor()
+    const selectionTarget = toSelectionBlockMenuTarget(editor)
+    const state = options.dragHandleUiState.value
+
+    if (selectionTarget) {
+      clearTargetClearTimer()
+      options.blockMenuTarget.value = selectionTarget
+      options.lastStableBlockMenuTarget.value = selectionTarget
+      options.dragHandleUiState.value = {
+        ...state,
+        activeTarget: selectionTarget,
+        selectionLocked: true,
+      }
+      syncDragHandleLockFromState('selection-target')
+      return
+    }
+
+    options.dragHandleUiState.value = {
+      ...state,
+      selectionLocked: false,
+    }
+
+    if (shouldKeepTargetDuringTransition()) {
+      syncDragHandleLockFromState('selection-clear')
+      return
+    }
+
+    clearActiveTargetNow('selection-clear')
   }
 
   function toggleBlockMenu(event: MouseEvent) {
@@ -247,6 +280,7 @@ export function useEditorBlockHandleControls(options: UseEditorBlockHandleContro
   return {
     closeBlockMenu,
     onBlockHandleNodeChange,
+    onSelectionUpdate,
     toggleBlockMenu,
     onBlockMenuPlus,
     onBlockMenuSelect,

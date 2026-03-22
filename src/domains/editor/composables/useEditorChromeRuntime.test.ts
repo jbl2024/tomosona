@@ -199,6 +199,12 @@ describe('useEditorChromeRuntime', () => {
     expect(activeEditor.value?.commands.focus).toHaveBeenCalled()
   })
 
+  it('keeps nested drag-handle edge detection disabled so top text blocks stay targetable', () => {
+    const { runtime } = createRuntimeHarness()
+
+    expect(runtime.blockAndTable.dragHandleNestedOptions.edgeDetection).toBe('none')
+  })
+
   it('exposes loading overlay refs for document orchestration', () => {
     const { runtime } = createRuntimeHarness()
 

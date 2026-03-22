@@ -27,6 +27,7 @@ describe('useEditorBlockHandleControls', () => {
       gutterHover: false,
       controlsHover: false,
       dragging: false,
+      selectionLocked: false,
       activeTarget: createTarget()
     })
     const stableTarget = ref<BlockMenuTarget | null>(createTarget())
@@ -115,6 +116,25 @@ describe('useEditorBlockHandleControls', () => {
     controls.syncDragHandleLockFromState('b')
   })
 
+  it('keeps heading attrs from the drag-handle payload', () => {
+    const { controls, dragHandleUiState } = createHarness()
+
+    controls.onBlockHandleNodeChange({
+      pos: 1,
+      node: {
+        type: { name: 'heading' },
+        nodeSize: 4,
+        attrs: { level: 2 },
+        textContent: 'Section'
+      }
+    })
+
+    expect(dragHandleUiState.value.activeTarget).toMatchObject({
+      nodeType: 'heading',
+      attrs: { level: 2 }
+    })
+  })
+
   it('keeps target briefly on null node change before clearing', () => {
     vi.useFakeTimers()
     const { controls, dragHandleUiState } = createHarness()
@@ -137,5 +157,30 @@ describe('useEditorBlockHandleControls', () => {
     expect(dragHandleUiState.value.activeTarget).not.toBeNull()
     expect(dragHandleUiState.value.controlsHover).toBe(true)
     expect(dragHandleUiState.value.gutterHover).toBe(true)
+  })
+
+  it('locks and exposes the target from a top-level caret selection', () => {
+    const { controls, dragHandleUiState, editor } = createHarness()
+    editor.state.selection = {
+      $from: {
+        depth: 1,
+        parent: {
+          type: { name: 'heading' },
+          nodeSize: 4,
+          attrs: { level: 2 },
+          textContent: 'Title'
+        },
+        before: () => 1
+      }
+    } as any
+
+    controls.onSelectionUpdate()
+
+    expect(dragHandleUiState.value.selectionLocked).toBe(true)
+    expect(dragHandleUiState.value.activeTarget).toMatchObject({
+      nodeType: 'heading',
+      attrs: { level: 2 },
+      text: 'Title'
+    })
   })
 })

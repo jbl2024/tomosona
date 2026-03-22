@@ -7,6 +7,7 @@ function state(overrides: Partial<DragHandleUiState>): DragHandleUiState {
     gutterHover: false,
     controlsHover: false,
     dragging: false,
+    selectionLocked: false,
     activeTarget: null,
     ...overrides,
   }
@@ -22,6 +23,7 @@ describe('computeHandleLock', () => {
     expect(computeHandleLock(state({ gutterHover: true }))).toBe(true)
     expect(computeHandleLock(state({ controlsHover: true }))).toBe(true)
     expect(computeHandleLock(state({ dragging: true }))).toBe(true)
+    expect(computeHandleLock(state({ selectionLocked: true }))).toBe(true)
   })
 })
 

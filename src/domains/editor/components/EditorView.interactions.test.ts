@@ -190,6 +190,156 @@ describe('EditorView interactions contract', () => {
     document.body.innerHTML = ''
   })
 
+  it('shows a compact structure label in the gutter for the active block', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const editorRef = ref<unknown>(null)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(EditorView, {
+            ref: editorRef,
+            path: 'a.md',
+            openPaths: ['a.md'],
+            openFile: async () => '# Title\n\nBody',
+            saveFile: async () => ({ persisted: true }),
+            renameFileFromTitle: async (valuePath: string, title: string) => ({ path: valuePath, title }),
+            loadLinkTargets: async () => ['a.md'],
+            loadLinkHeadings: async () => ['H1'],
+            loadPropertyTypeSchema: async () => ({}),
+            savePropertyTypeSchema: async () => {},
+            openLinkTarget: async () => true,
+            onStatus: () => {},
+            onOutline: () => {},
+            onProperties: () => {},
+            onPathRenamed: () => {}
+          })
+      }
+    }))
+
+    app.mount(root)
+    await flushUi()
+
+    const setupState = (editorRef.value as { $?: { setupState?: Record<string, any> } })?.$?.setupState
+    if (!setupState) throw new Error('Expected EditorView setup state')
+
+    setupState.dragHandleUiState.activeTarget = {
+      pos: 1,
+      nodeType: 'heading',
+      nodeSize: 4,
+      canDelete: true,
+      canConvert: true,
+      text: 'Title',
+      attrs: { level: 2 }
+    }
+    await flushUi()
+
+    expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('H2')
+
+    setupState.dragHandleUiState.activeTarget = null
+    await flushUi()
+
+    expect(root.querySelector('.tomosona-block-structure-label')).toBeNull()
+
+    app.unmount()
+    document.body.innerHTML = ''
+  })
+
+  it('shows the gutter controls when the caret is inside a heading', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const editorRef = ref<unknown>(null)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(EditorView, {
+            ref: editorRef,
+            path: 'a.md',
+            openPaths: ['a.md'],
+            openFile: async () => '# Title\n\nBody',
+            saveFile: async () => ({ persisted: true }),
+            renameFileFromTitle: async (valuePath: string, title: string) => ({ path: valuePath, title }),
+            loadLinkTargets: async () => ['a.md'],
+            loadLinkHeadings: async () => ['H1'],
+            loadPropertyTypeSchema: async () => ({}),
+            savePropertyTypeSchema: async () => {},
+            openLinkTarget: async () => true,
+            onStatus: () => {},
+            onOutline: () => {},
+            onProperties: () => {},
+            onPathRenamed: () => {}
+          })
+      }
+    }))
+
+    app.mount(root)
+    await flushUi()
+
+    const setupState = (editorRef.value as { $?: { setupState?: Record<string, any> } })?.$?.setupState
+    if (!setupState) throw new Error('Expected EditorView setup state')
+
+    const editor = setupState.renderedEditorsByPath?.['a.md']
+    if (!editor) throw new Error('Expected a rendered editor for a.md')
+
+    Object.defineProperty(window, 'scrollBy', {
+      configurable: true,
+      value: vi.fn()
+    })
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: vi.fn()
+    })
+
+    const rectList = () => [{ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 }]
+    const rect = () => ({ left: 0, top: 0, right: 40, bottom: 16, width: 40, height: 16 })
+    for (const prototype of [Node.prototype, Element.prototype, HTMLElement.prototype, Text.prototype, Range.prototype]) {
+      Object.defineProperty(prototype, 'getClientRects', {
+        configurable: true,
+        value: rectList
+      })
+      Object.defineProperty(prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value: rect
+      })
+    }
+
+    editor.commands.focus()
+    editor.commands.setTextSelection(1)
+    await flushUi()
+
+    const handle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
+    expect(handle).toBeTruthy()
+    expect(handle?.style.visibility).not.toBe('hidden')
+    expect(handle?.style.left).not.toBe('0px')
+    expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('H1')
+    expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
+    expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
+
+    let paragraphPos = -1
+    editor.state.doc.descendants((node: { type: { name: string } }, pos: number) => {
+      if (paragraphPos >= 0) return false
+      if (node.type.name !== 'paragraph') return undefined
+      paragraphPos = pos + 1
+      return false
+    })
+    expect(paragraphPos).toBeGreaterThan(0)
+
+    editor.commands.setTextSelection(paragraphPos)
+    await flushUi()
+
+    const paragraphHandle = root.querySelector('.tomosona-drag-handle') as HTMLElement | null
+    expect(paragraphHandle?.style.visibility).not.toBe('hidden')
+    expect(paragraphHandle?.style.left).not.toBe('0px')
+    expect(root.querySelector('.tomosona-block-structure-label')?.textContent).toBe('P')
+    expect(root.querySelector('button[aria-label="Insert below"]')).toBeTruthy()
+    expect(root.querySelector('button[aria-label="Open block menu"]')).toBeTruthy()
+
+    app.unmount()
+    document.body.innerHTML = ''
+  })
+
   it('opens inline find with Cmd/Ctrl+F and supports filtering controls', async () => {
     const root = document.createElement('div')
     document.body.appendChild(root)

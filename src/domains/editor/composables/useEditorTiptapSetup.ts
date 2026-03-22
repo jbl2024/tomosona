@@ -35,6 +35,7 @@ export type UseEditorTiptapSetupOptions = {
   getSessionEditor: (path: string) => Editor | null
   markSlashActivatedByUser: () => void
   syncSlashMenuFromSelection: (options?: { preserveIndex?: boolean }) => void
+  syncBlockHandleFromSelection: () => void
   updateTableToolbar: () => void
   syncWikilinkUiFromPluginState: () => void
   captureCaret: (path: string) => void
@@ -338,6 +339,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           ? (options.shouldCaptureCaret ? options.shouldCaptureCaret(activePath) : true)
           : false
         if (activePath && allowCapture) options.captureCaret(activePath)
+        options.syncBlockHandleFromSelection()
         options.syncSlashMenuFromSelection({ preserveIndex: true })
         options.updateFormattingToolbar()
         options.updateTableToolbar()
