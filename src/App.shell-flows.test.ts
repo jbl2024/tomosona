@@ -49,6 +49,10 @@ const hoisted = vi.hoisted(() => {
   }
 })
 
+const indexApi = vi.hoisted(() => ({
+  computeEchoesPack: vi.fn(async () => ({ anchorPath: '/vault/a.md', generatedAtMs: 1, items: [] }))
+}))
+
 vi.mock('./shared/api/workspaceApi', () => ({
   selectWorkingFolder: hoisted.selectWorkingFolder,
   clearWorkingFolder: hoisted.clearWorkingFolder,
@@ -119,7 +123,7 @@ vi.mock('./shared/api/indexApi', () => ({
   readPropertyTypeSchema: vi.fn(async () => ({})),
   writePropertyTypeSchema: vi.fn(async () => {}),
   getWikilinkGraph: hoisted.getWikilinkGraph,
-  computeEchoesPack: vi.fn(async () => ({ anchorPath: '/vault/a.md', generatedAtMs: 1, items: [] }))
+  computeEchoesPack: indexApi.computeEchoesPack
 }))
 
 vi.mock('./shared/api/settingsApi', () => ({
@@ -312,6 +316,36 @@ describe('App shell flows', () => {
     await flushUi()
 
     expect(hoisted.listChildren.mock.calls.length).toBeGreaterThan(initialListChildrenCalls)
+
+    mounted.app.unmount()
+  })
+
+  it('refreshes Echoes after a rebuild returns the index to indexed', async () => {
+    const mounted = mountApp()
+    await flushUi()
+
+    await runPaletteCommand(mounted.root, '>open today')
+    let initialEchoesCalls = indexApi.computeEchoesPack.mock.calls.length
+    for (let i = 0; i < 10 && initialEchoesCalls === 0; i += 1) {
+      await flushUi()
+      initialEchoesCalls = indexApi.computeEchoesPack.mock.calls.length
+    }
+    expect(initialEchoesCalls).toBeGreaterThan(0)
+    const initialAnchorPath = indexApi.computeEchoesPack.mock.calls.at(initialEchoesCalls - 1)?.[0]
+
+    mounted.root.querySelector<HTMLButtonElement>('button.status-trigger')?.click()
+    await flushUi()
+
+    const rebuildButton = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('[data-modal="index-status"] button'))
+      .find((button) => button.textContent?.includes('Rebuild index'))
+    expect(rebuildButton).toBeTruthy()
+    rebuildButton?.click()
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 250))
+    await flushUi()
+
+    expect(indexApi.computeEchoesPack.mock.calls.length).toBeGreaterThan(initialEchoesCalls)
+    expect(indexApi.computeEchoesPack.mock.calls.at(-1)?.[0]).toBe(initialAnchorPath)
 
     mounted.app.unmount()
   })
