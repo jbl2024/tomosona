@@ -427,6 +427,16 @@
   padding: 0;
   padding-right: 0.8rem;
   line-height: 1;
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+
+@media (hover: hover) {
+  [data-menu-open='false'][data-gutter-hover='false'][data-controls-hover='false']
+    .tomosona-drag-handle[data-dragging='false']
+    .tomosona-block-controls:not(:hover):not(:focus-within) {
+    opacity: 0.56;
+  }
 }
 
 .editor-holder .tomosona-block-structure-label {
