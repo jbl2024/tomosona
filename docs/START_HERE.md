@@ -52,6 +52,7 @@ Use this as a quick routing table when you need to make a change.
 | --- | --- | --- |
 | Workspace boot / restore | `src/app/App.vue` | `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellWorkspaceFsSync.ts`, `src/app/composables/useAppShellPersistence.ts`, `src/app/composables/useAppWorkspaceController.ts` |
 | App runtime bootstrap / teardown | `src/app/composables/useAppShellRuntimeLifecycle.ts` | `src/app/App.vue`, `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellPersistence.ts`, `src/shared/lib/openTrace.ts` |
+| Shell chrome controls | `src/app/composables/useAppShellChromeRuntime.ts` | `src/app/App.vue`, `src/app/composables/useAppShellHistoryUi.ts`, `src/app/composables/useAppShellPersistence.ts` |
 | Workspace entry routing | `src/app/composables/useAppShellWorkspaceRouting.ts` | `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellWorkspaceSetup.ts`, `src/app/composables/useAppShellModals.ts`, `src/app/ARCHITECTURE.md` |
 | Workspace setup wizard | `src/app/components/app/WorkspaceSetupWizardModal.vue` | `src/app/composables/useAppShellWorkspaceSetup.ts`, `src/app/lib/workspaceSetupWizard.ts`, `src/app/ARCHITECTURE.md` |
 | Open note | `src/app/composables/useAppShellOpenFlow.ts` | `src/app/composables/useAppNavigationController.ts`, `src/domains/editor/composables/*`, `src-tauri/src/fs_ops.rs` |

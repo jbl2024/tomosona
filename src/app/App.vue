@@ -108,7 +108,7 @@ import {
   formatRelativeTime,
   formatSearchScore
 } from './lib/appShellPresentation'
-import { clampEditorZoom, readPersistedMultiPaneLayout } from './lib/appShellPersistence'
+import { readPersistedMultiPaneLayout } from './lib/appShellPersistence'
 import {
   readRecentWorkspaces,
   removeRecentWorkspace,
@@ -153,6 +153,7 @@ import { useAppShellEntryActions } from './composables/useAppShellEntryActions'
 import { useAppShellModals } from './composables/useAppShellModals'
 import { useAppShellOpenFlow, type RefreshBacklinksOptions } from './composables/useAppShellOpenFlow'
 import { useAppShellPersistence } from './composables/useAppShellPersistence'
+import { useAppShellChromeRuntime } from './composables/useAppShellChromeRuntime'
 import { useAppShellRuntimeLifecycle } from './composables/useAppShellRuntimeLifecycle'
 import { useAppShellSearch } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
@@ -240,8 +241,6 @@ const themePickerVisible = ref(false)
 const themePickerQuery = ref('')
 const themePickerActiveIndex = ref(0)
 const themePickerHasPreview = ref(false)
-const leftPaneWidth = ref(290)
-const rightPaneWidth = ref(300)
 const editorRef = ref<EditorViewExposed | null>(null)
 const explorerRef = ref<ExplorerTreeExposed | null>(null)
 const topbarRef = ref<InstanceType<typeof TopbarNavigationControls> | null>(null)
@@ -302,12 +301,6 @@ const appVersion = packageJson.version
 let shellOpenFlow: ReturnType<typeof useAppShellOpenFlow> | null = null
 let shellModalInteractions: ReturnType<typeof useAppShellModalInteractions> | null = null
 let closeQuickOpenProxy = () => {}
-
-const resizeState = ref<{
-  side: 'left' | 'right'
-  startX: number
-  startWidth: number
-} | null>(null)
 
 const paneCount = computed(() => Object.keys(multiPane.layout.value.panesById).length)
 const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
@@ -863,60 +856,8 @@ function isTitleOnlyContent(content: string, titleLine: string): boolean {
   return normalized === '' || normalized === titleLine
 }
 
-function toggleOverflowMenu() {
-  closeHistoryMenu()
-  if (!overflowMenuOpen.value) {
-    shellPersistence.syncEditorZoom()
-  }
-  overflowMenuOpen.value = !overflowMenuOpen.value
-}
-
 function closeOverflowMenu() {
   overflowMenuOpen.value = false
-}
-
-function openDesignSystemDebugFromOverflow() {
-  if (!showDebugTools) return
-  closeOverflowMenu()
-  openDesignSystemDebugModal()
-}
-
-function zoomInFromOverflow() {
-  const next = editorRef.value?.zoomIn()
-  if (typeof next === 'number' && Number.isFinite(next)) {
-    editorZoom.value = clampEditorZoom(next)
-    return
-  }
-  shellPersistence.syncEditorZoom()
-}
-
-function zoomOutFromOverflow() {
-  const next = editorRef.value?.zoomOut()
-  if (typeof next === 'number' && Number.isFinite(next)) {
-    editorZoom.value = clampEditorZoom(next)
-    return
-  }
-  shellPersistence.syncEditorZoom()
-}
-
-function resetZoomFromOverflow() {
-  const next = editorRef.value?.resetZoom()
-  shellPersistence.syncEditorZoom(() => (typeof next === 'number' && Number.isFinite(next) ? next : 1))
-}
-
-function zoomInFromPalette() {
-  zoomInFromOverflow()
-  return false
-}
-
-function zoomOutFromPalette() {
-  zoomOutFromOverflow()
-  return false
-}
-
-function resetZoomFromPalette() {
-  resetZoomFromOverflow()
-  return false
 }
 
 async function applyCosmosHistorySnapshot(snapshot: CosmosHistorySnapshot): Promise<boolean> {
@@ -1307,6 +1248,31 @@ const {
   onGlobalPointerDown: onGlobalPointerDownInternal,
   dispose: disposeHistoryUi
 } = historyUi
+const chromeRuntime = useAppShellChromeRuntime({
+  editorRef,
+  editorZoom,
+  overflowMenuOpen,
+  closeHistoryMenu: () => closeHistoryMenu(),
+  closeOverflowMenu: () => closeOverflowMenu(),
+  openDesignSystemDebugModal: () => openDesignSystemDebugModal(),
+  showDebugTools,
+  syncEditorZoom: (getZoom) => shellPersistence.syncEditorZoom(getZoom)
+})
+const {
+  leftPaneWidth,
+  rightPaneWidth,
+  beginResize,
+  onPointerMove,
+  stopResize,
+  toggleOverflowMenu,
+  openDesignSystemDebugFromOverflow,
+  zoomInFromOverflow,
+  zoomOutFromOverflow,
+  resetZoomFromOverflow,
+  zoomInFromPalette,
+  zoomOutFromPalette,
+  resetZoomFromPalette
+} = chromeRuntime
 const commands = useAppShellCommands({
   workspacePort: {
     hasWorkspace: filesystem.hasWorkspace,
@@ -1846,31 +1812,6 @@ async function syncAlterSettingsFromDisk() {
       default_influence_intensity: 'balanced'
     }
   }
-}
-
-function beginResize(side: 'left' | 'right', event: MouseEvent) {
-  event.preventDefault()
-  resizeState.value = {
-    side,
-    startX: event.clientX,
-    startWidth: side === 'left' ? leftPaneWidth.value : rightPaneWidth.value
-  }
-}
-
-function onPointerMove(event: MouseEvent) {
-  if (!resizeState.value) return
-  const { side, startWidth, startX } = resizeState.value
-  const delta = event.clientX - startX
-
-  if (side === 'left') {
-    leftPaneWidth.value = Math.min(420, Math.max(180, startWidth + delta))
-    return
-  }
-  rightPaneWidth.value = Math.min(560, Math.max(220, startWidth - delta))
-}
-
-function stopResize() {
-  resizeState.value = null
 }
 
 function onExplorerError(message: string) {

@@ -34,6 +34,16 @@ describe('App shell contract', () => {
     expect(appSource).toContain('useAppShellRuntimeLifecycle')
   })
 
+  it('keeps shell chrome runtime helpers out of App.vue', () => {
+    expect(appSource).not.toContain('function beginResize(')
+    expect(appSource).not.toContain('function toggleOverflowMenu(')
+    expect(appSource).not.toContain('function openDesignSystemDebugFromOverflow(')
+    expect(appSource).not.toContain('function zoomInFromOverflow(')
+    expect(appSource).not.toContain('function zoomOutFromOverflow(')
+    expect(appSource).not.toContain('function resetZoomFromOverflow(')
+    expect(appSource).toContain('useAppShellChromeRuntime')
+  })
+
   it('keeps the command palette catalog in a dedicated helper', () => {
     expect(appSource).not.toContain('createPaletteAction(')
     expect(appSource).not.toContain('paletteActionPriority: Record<string, number> = {')
