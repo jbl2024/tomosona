@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.22.8] - 2026-03-23
+
+### Fixed
+- fix(editor): suppress gutter flashes during list edits (6d53f20)
+- fix(editor): slow gutter reappearance after typing (61e6fb6)
+- fix(editor): target list blocks in gutter selection (a98cc26)
+- fix(editor): hide gutter controls while typing (1eee9c9)
+
 ## [0.22.7] - 2026-03-22
 
 ### Fixed
