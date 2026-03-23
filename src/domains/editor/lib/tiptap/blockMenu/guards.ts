@@ -14,6 +14,11 @@ function humanizeNodeType(nodeType: string): string {
   return `${spaced[0].toUpperCase()}${spaced.slice(1)}`
 }
 
+function nodeAtDepth($from: { depth: number; node?: (depth: number) => ProseNode | null }, depth: number): ProseNode | null {
+  if (typeof $from.node !== 'function') return null
+  return $from.node(depth) ?? null
+}
+
 export function toBlockMenuTarget(node: ProseNode, pos: number): BlockMenuTarget {
   const canDelete = !NON_BLOCK_NODE_TYPES.has(node.type.name)
   const canConvert = !NON_BLOCK_NODE_TYPES.has(node.type.name)
@@ -34,8 +39,8 @@ function listAncestorTarget(editor: Editor): BlockMenuTarget | null {
   const { $from } = selection
 
   for (let depth = $from.depth; depth >= 0; depth -= 1) {
-    const node = $from.node(depth)
-    if (!LIST_NODE_TYPES.has(node.type.name)) continue
+    const node = nodeAtDepth($from, depth)
+    if (!node || !LIST_NODE_TYPES.has(node.type.name)) continue
     return toBlockMenuTarget(node, depth === 0 ? 0 : $from.before(depth))
   }
 
@@ -45,7 +50,8 @@ function listAncestorTarget(editor: Editor): BlockMenuTarget | null {
 function isInsideTable(editor: Editor): boolean {
   const { $from } = editor.state.selection
   for (let depth = $from.depth; depth >= 0; depth -= 1) {
-    if (TABLE_NODE_TYPES.has($from.node(depth).type.name)) return true
+    const node = nodeAtDepth($from, depth)
+    if (node && TABLE_NODE_TYPES.has(node.type.name)) return true
   }
   return false
 }
@@ -79,7 +85,8 @@ export function isSelectionInsideList(editor: Editor | null): boolean {
   const $from = selection?.$from
   if (!$from) return false
   for (let depth = $from.depth; depth >= 0; depth -= 1) {
-    if (LIST_NODE_TYPES.has($from.node(depth).type.name)) return true
+    const node = nodeAtDepth($from, depth)
+    if (node && LIST_NODE_TYPES.has(node.type.name)) return true
   }
   return false
 }
