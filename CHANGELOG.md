@@ -18,6 +18,13 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.23.0] - 2026-03-23
+
+### Added
+- feat(export): compact docx table layout (0b1ba85)
+- feat(export): support markdown callouts in docx (917cca5)
+- feat(export): convert markdown to docx in rust (5a3b4ad)
+
 ## [0.22.9] - 2026-03-23
 
 ### Fixed
