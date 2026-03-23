@@ -84,6 +84,7 @@ describe('toSelectionBlockMenuTarget', () => {
           $from: {
             depth: 1,
             parent: headingNode,
+            node: (depth: number) => (depth === 1 ? headingNode : { type: { name: 'doc' } }),
             before: () => 1
           }
         }
@@ -95,6 +96,7 @@ describe('toSelectionBlockMenuTarget', () => {
           $from: {
             depth: 1,
             parent: paragraphNode,
+            node: (depth: number) => (depth === 1 ? paragraphNode : { type: { name: 'doc' } }),
             before: () => 5
           }
         }
@@ -112,13 +114,87 @@ describe('toSelectionBlockMenuTarget', () => {
     })
   })
 
+  it('maps a cursor inside a list item to the enclosing list block', () => {
+    const listNode = {
+      type: { name: 'bulletList' },
+      nodeSize: 12,
+      attrs: {},
+      textContent: 'Item'
+    } as any
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      nodeSize: 4,
+      attrs: {},
+      textContent: 'Item'
+    } as any
+    const listItemNode = {
+      type: { name: 'listItem' },
+      nodeSize: 8,
+      attrs: {},
+      textContent: 'Item'
+    } as any
+    const editor = {
+      state: {
+        selection: {
+          $from: {
+            depth: 3,
+            parent: paragraphNode,
+            node: (depth: number) => {
+              if (depth === 3) return paragraphNode
+              if (depth === 2) return listItemNode
+              if (depth === 1) return listNode
+              return { type: { name: 'doc' } }
+            },
+            before: (depth: number) => {
+              if (depth === 1) return 9
+              return 1
+            }
+          }
+        }
+      }
+    } as any
+
+    expect(toSelectionBlockMenuTarget(editor)).toMatchObject({
+      nodeType: 'bulletList',
+      text: 'Item'
+    })
+  })
+
+  it('keeps table selections out of the block handle target', () => {
+    const editor = {
+      state: {
+        selection: {
+          $from: {
+            depth: 3,
+            parent: {
+              type: { name: 'paragraph' },
+              nodeSize: 4,
+              attrs: {},
+              textContent: 'Cell'
+            },
+            node: (depth: number) => {
+              if (depth === 3) return { type: { name: 'paragraph' }, nodeSize: 4, attrs: {}, textContent: 'Cell' }
+              if (depth === 2) return { type: { name: 'tableCell' }, nodeSize: 10, attrs: {}, textContent: 'Cell' }
+              if (depth === 1) return { type: { name: 'tableRow' }, nodeSize: 12, attrs: {}, textContent: 'Cell' }
+              return { type: { name: 'table' }, nodeSize: 14, attrs: {}, textContent: 'Cell' }
+            },
+            before: () => 1
+          }
+        }
+      }
+    } as any
+
+    expect(toSelectionBlockMenuTarget(editor)).toBeNull()
+  })
+
   it('returns null for non-textblock selections', () => {
     const editor = {
       state: {
         selection: {
           $from: {
             depth: 1,
-            parent: { type: { name: 'bulletList' } },
+            parent: { type: { name: 'tableCell' } },
+            node: (depth: number) => (depth === 1 ? { type: { name: 'tableCell' } } : { type: { name: 'doc' } }),
             before: () => 1
           }
         }

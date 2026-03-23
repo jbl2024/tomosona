@@ -4,6 +4,8 @@ import { NodeSelection } from '@tiptap/pm/state'
 import type { BlockMenuTarget, TurnIntoType } from './types'
 
 const NON_BLOCK_NODE_TYPES = new Set(['tableRow', 'tableCell', 'tableHeader'])
+const LIST_NODE_TYPES = new Set(['bulletList', 'orderedList', 'taskList'])
+const TABLE_NODE_TYPES = new Set(['table', 'tableRow', 'tableCell', 'tableHeader'])
 
 function humanizeNodeType(nodeType: string): string {
   const stripped = nodeType.replace(/(Block|Node|List|Item)$/u, '')
@@ -27,19 +29,48 @@ export function toBlockMenuTarget(node: ProseNode, pos: number): BlockMenuTarget
   }
 }
 
+function listAncestorTarget(editor: Editor): BlockMenuTarget | null {
+  const { selection } = editor.state
+  const { $from } = selection
+
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    const node = $from.node(depth)
+    if (!LIST_NODE_TYPES.has(node.type.name)) continue
+    return toBlockMenuTarget(node, depth === 0 ? 0 : $from.before(depth))
+  }
+
+  return null
+}
+
+function isInsideTable(editor: Editor): boolean {
+  const { $from } = editor.state.selection
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    if (TABLE_NODE_TYPES.has($from.node(depth).type.name)) return true
+  }
+  return false
+}
+
 export function toSelectionBlockMenuTarget(editor: Editor | null): BlockMenuTarget | null {
   if (!editor) return null
 
   const { selection } = editor.state
+  if (isInsideTable(editor)) return null
   if (selection instanceof NodeSelection) {
     return toBlockMenuTarget(selection.node, selection.from)
   }
 
   const { $from } = selection
   const parentType = $from.parent.type.name
-  if (parentType !== 'heading' && parentType !== 'paragraph') return null
+  if (LIST_NODE_TYPES.has(parentType)) {
+    return toBlockMenuTarget($from.parent, $from.before($from.depth))
+  }
+  if (parentType === 'heading' || parentType === 'paragraph') {
+    const listTarget = listAncestorTarget(editor)
+    if (listTarget) return listTarget
+    return toBlockMenuTarget($from.parent, $from.before($from.depth))
+  }
 
-  return toBlockMenuTarget($from.parent, $from.before($from.depth))
+  return null
 }
 
 export function getBlockStructureLabel(target: BlockMenuTarget | null): string {
