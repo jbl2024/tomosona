@@ -1,15 +1,15 @@
 //! Tauri command surface for local filesystem, lexical search, semantic search,
 //! and Cosmos graph payload generation.
 
+mod alters;
+mod app_meta;
 mod db;
 mod docx;
-mod editor_sync;
 mod echoes;
+mod editor_sync;
 mod favorites;
 mod fs_ops;
 mod index_schema;
-mod app_meta;
-mod alters;
 mod markdown_index;
 mod search_index;
 mod second_brain;
@@ -33,14 +33,14 @@ use std::{
 };
 use thiserror::Error;
 
+use docx::convert_markdown_to_docx;
+use editor_sync::{read_note_snapshot, save_note_buffer};
 use fs_ops::{
     clear_working_folder, copy_entry, create_entry, duplicate_entry, list_children,
     list_markdown_files, move_entry, open_external_url, open_path_external, path_exists,
     read_file_metadata, read_text_file, rename_entry, reveal_in_file_manager,
     select_working_folder, set_working_folder, trash_entry, write_text_file,
 };
-use docx::convert_markdown_to_docx;
-use editor_sync::{read_note_snapshot, save_note_buffer};
 pub(crate) use index_schema::refresh_semantic_edges_cache_now_sync;
 use index_schema::{
     ensure_index_schema, init_db as init_db_impl, list_markdown_files_via_find, min_max_normalize,
@@ -67,10 +67,9 @@ use search_index::{
     build_prefix_fts_query, parse_search_query, semantic_snippet_preview, SearchMode,
 };
 use search_index::{
-    fts_search_sync as fts_search_sync_impl,
-    read_property_keys as read_property_keys_impl,
-    read_property_value_suggestions as read_property_value_suggestions_impl,
+    fts_search_sync as fts_search_sync_impl, read_property_keys as read_property_keys_impl,
     read_property_type_schema as read_property_type_schema_impl,
+    read_property_value_suggestions as read_property_value_suggestions_impl,
     write_property_type_schema as write_property_type_schema_impl, Hit,
 };
 use wikilink_graph::{
@@ -363,7 +362,9 @@ fn update_wikilinks_for_path_moves(moves: Vec<PathMoveInput>) -> Result<PathMove
 }
 
 #[tauri::command]
-async fn compute_echoes_pack(payload: echoes::ComputeEchoesPackPayload) -> Result<echoes::EchoesPackDto> {
+async fn compute_echoes_pack(
+    payload: echoes::ComputeEchoesPackPayload,
+) -> Result<echoes::EchoesPackDto> {
     tauri::async_runtime::spawn_blocking(move || echoes::compute_echoes_pack(payload))
         .await
         .map_err(|_| AppError::OperationFailed)?
@@ -710,7 +711,10 @@ mod tests {
         reindex_markdown_file_lexical_sync(note_c.to_string_lossy().to_string()).expect("index c");
 
         let keys = read_property_keys_impl(Some(20)).expect("read keys");
-        assert_eq!(keys, vec!["category", "priority", "status", "tags", "updated"]);
+        assert_eq!(
+            keys,
+            vec!["category", "priority", "status", "tags", "updated"]
+        );
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");
@@ -972,9 +976,18 @@ mod tests {
         set_active_workspace(&root).expect("set workspace");
         init_db().expect("init db");
 
-        fs::rename(workspace.join("journal/foo.md"), workspace.join("archive/foo.md")).expect("move note");
-        reindex_markdown_file_lexical_sync(workspace.join("archive/foo.md").to_string_lossy().to_string())
-            .expect("reindex moved note");
+        fs::rename(
+            workspace.join("journal/foo.md"),
+            workspace.join("archive/foo.md"),
+        )
+        .expect("move note");
+        reindex_markdown_file_lexical_sync(
+            workspace
+                .join("archive/foo.md")
+                .to_string_lossy()
+                .to_string(),
+        )
+        .expect("reindex moved note");
 
         let result = update_wikilinks_for_path_moves_impl(vec![PathMoveInput {
             from_path: format!("{root}/journal/foo.md"),
@@ -1018,7 +1031,8 @@ mod tests {
         set_active_workspace(&root).expect("set workspace");
         init_db().expect("init db");
 
-        fs::rename(workspace.join("journal"), workspace.join("archive/journal")).expect("move folder");
+        fs::rename(workspace.join("journal"), workspace.join("archive/journal"))
+            .expect("move folder");
 
         let result = update_wikilinks_for_path_moves_impl(vec![PathMoveInput {
             from_path: format!("{root}/journal"),
@@ -1181,12 +1195,13 @@ mod tests {
 
         set_active_workspace(&root).expect("set workspace");
 
-        let created = second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
-            title: None,
-            context_paths: vec![],
-            alter_id: None,
-        })
-        .expect("create session");
+        let created =
+            second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
+                title: None,
+                context_paths: vec![],
+                alter_id: None,
+            })
+            .expect("create session");
 
         let reopened = open_db().expect("reopen db");
         let session_columns: Vec<String> = {
@@ -1247,12 +1262,13 @@ mod tests {
 
         set_active_workspace(&root).expect("set workspace");
 
-        let created = second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
-            title: None,
-            context_paths: vec![],
-            alter_id: None,
-        })
-        .expect("create session");
+        let created =
+            second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
+                title: None,
+                context_paths: vec![],
+                alter_id: None,
+            })
+            .expect("create session");
 
         let reopened = open_db().expect("reopen db");
         let session_columns: Vec<String> = {
@@ -1511,7 +1527,7 @@ mod tests {
             1710836339000,
             Some(4321),
         )
-            .expect("record last run");
+        .expect("record last run");
         drop(conn);
 
         let stats = read_index_overview_stats_impl().expect("read overview stats");
@@ -1519,7 +1535,10 @@ mod tests {
         assert_eq!(stats.processed_notes_count, 2);
         assert_eq!(stats.workspace_notes_count, 2);
         assert_eq!(stats.last_run_finished_at_ms, Some(1710836339000));
-        assert_eq!(stats.last_run_title.as_deref(), Some("Semantic links refreshed"));
+        assert_eq!(
+            stats.last_run_title.as_deref(),
+            Some("Semantic links refreshed")
+        );
         assert_eq!(stats.last_run_duration_ms, Some(4321));
 
         clear_active_workspace().expect("clear workspace");
@@ -1649,10 +1668,9 @@ mod tests {
                     .iter()
                     .any(|label| label == "Semantically related")
         }));
-        assert!(pack
-            .items
-            .iter()
-            .any(|item| item.path.ends_with("/c.md") && item.title == "c" && item.reason_label == "Backlink"));
+        assert!(pack.items.iter().any(|item| item.path.ends_with("/c.md")
+            && item.title == "c"
+            && item.reason_label == "Backlink"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");
@@ -1698,7 +1716,11 @@ mod tests {
         let root = workspace.to_string_lossy().to_string();
         fs::write(workspace.join("anchor.md"), "[[notes/plain target]]").expect("write anchor");
         fs::create_dir_all(workspace.join("notes")).expect("create notes dir");
-        fs::write(workspace.join("notes/plain target.md"), "body without heading").expect("write target");
+        fs::write(
+            workspace.join("notes/plain target.md"),
+            "body without heading",
+        )
+        .expect("write target");
 
         set_active_workspace(&root).expect("set workspace");
         init_db().expect("init db");
@@ -1720,7 +1742,8 @@ mod tests {
         assert!(pack
             .items
             .iter()
-            .any(|item| item.path.ends_with("/notes/plain target.md") && item.title == "plain target"));
+            .any(|item| item.path.ends_with("/notes/plain target.md")
+                && item.title == "plain target"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

@@ -20,7 +20,9 @@ use super::{
     stream_control::consume_stream_cancel,
     AppError, Result, SendMessagePayload, SendMessageResult, StreamEvent,
 };
-use crate::alters::{effective_generation_temperature, resolve_invocation_prompt, resolve_invocation_temperature};
+use crate::alters::{
+    effective_generation_temperature, resolve_invocation_prompt, resolve_invocation_temperature,
+};
 use crate::ensure_index_schema;
 
 /// Runs the complete assistant message flow while preserving the existing IPC events.
@@ -58,9 +60,9 @@ pub(super) async fn send_message(
         .unwrap_or(&session_alter_id)
         .trim()
         .to_string();
-    let effective_temperature = effective_generation_temperature(
-        resolve_invocation_temperature(Some(&effective_alter_id))?,
-    );
+    let effective_temperature = effective_generation_temperature(resolve_invocation_temperature(
+        Some(&effective_alter_id),
+    )?);
 
     let user_message_id = next_id("sbm-user");
     let assistant_message_id = next_id("sbm-assistant");
@@ -180,22 +182,28 @@ async fn run_assistant_generation(
     let stream_message_id = assistant_message_id.to_string();
     let app_for_stream = app.clone();
     let llm_result = if active.capabilities.streaming {
-        run_llm_stream(active, system_prompt, user_prompt, Some(temperature), move |chunk| {
-            if consume_stream_cancel(&stream_session_id, &stream_message_id) {
-                return Err("Generation canceled.".to_string());
-            }
-            let _ = app_for_stream.emit(
-                "second-brain://assistant-delta",
-                StreamEvent {
-                    session_id: stream_session_id.clone(),
-                    message_id: stream_message_id.clone(),
-                    chunk: chunk.to_string(),
-                    done: false,
-                    error: None,
-                },
-            );
-            Ok(())
-        })
+        run_llm_stream(
+            active,
+            system_prompt,
+            user_prompt,
+            Some(temperature),
+            move |chunk| {
+                if consume_stream_cancel(&stream_session_id, &stream_message_id) {
+                    return Err("Generation canceled.".to_string());
+                }
+                let _ = app_for_stream.emit(
+                    "second-brain://assistant-delta",
+                    StreamEvent {
+                        session_id: stream_session_id.clone(),
+                        message_id: stream_message_id.clone(),
+                        chunk: chunk.to_string(),
+                        done: false,
+                        error: None,
+                    },
+                );
+                Ok(())
+            },
+        )
         .await
     } else {
         run_llm(active, system_prompt, user_prompt, Some(temperature)).await

@@ -40,12 +40,12 @@ fn extract_template_style(doc: &Document) -> TemplateStyle {
 
     styles.body = extract_block_style(doc, "body", &["Normal"], styles.body.clone());
     styles.title = extract_block_style(doc, "title", &["Titre", "Title"], styles.title.clone());
-    styles.heading1 = extract_block_style(doc, "heading1", &["Titre1", "Heading1"], styles.heading1.clone());
-    styles.heading2 = extract_block_style(doc, "heading2", &["Titre2", "Heading2"], styles.heading2.clone());
-    styles.heading3 = extract_block_style(doc, "heading3", &["Titre3", "Heading3"], styles.heading3.clone());
-    styles.heading4 = extract_block_style(doc, "heading4", &["Titre4", "Heading4"], styles.heading4.clone());
-    styles.heading5 = extract_block_style(doc, "heading5", &["Titre5", "Heading5"], styles.heading5.clone());
-    styles.heading6 = extract_block_style(doc, "heading6", &["Titre6", "Heading6"], styles.heading6.clone());
+    styles.heading1 = extract_heading_style(doc, 1, styles.heading1.clone());
+    styles.heading2 = extract_heading_style(doc, 2, styles.heading2.clone());
+    styles.heading3 = extract_heading_style(doc, 3, styles.heading3.clone());
+    styles.heading4 = extract_heading_style(doc, 4, styles.heading4.clone());
+    styles.heading5 = extract_heading_style(doc, 5, styles.heading5.clone());
+    styles.heading6 = extract_heading_style(doc, 6, styles.heading6.clone());
     styles.quote = extract_block_style(
         doc,
         "quote",
@@ -55,11 +55,37 @@ fn extract_template_style(doc: &Document) -> TemplateStyle {
     styles.list = extract_block_style(
         doc,
         "list",
-        &["Paragraphedeliste", "ListParagraph", "ListBullet", "ListNumber"],
+        &[
+            "Paragraphedeliste",
+            "ListParagraph",
+            "ListBullet",
+            "ListNumber",
+        ],
         styles.list.clone(),
     );
 
     styles
+}
+
+fn extract_heading_style(doc: &Document, level: u8, fallback: BlockStyle) -> BlockStyle {
+    extract_block_style(
+        doc,
+        &format!("heading{level}"),
+        heading_style_candidates(level),
+        fallback,
+    )
+}
+
+fn heading_style_candidates(level: u8) -> &'static [&'static str] {
+    match level {
+        1 => &["Titre1", "Heading1"],
+        2 => &["Titre2", "Heading2"],
+        3 => &["Titre3", "Heading3"],
+        4 => &["Titre4", "Heading4"],
+        5 => &["Titre5", "Heading5"],
+        6 => &["Titre6", "Heading6"],
+        _ => &["Heading6", "Titre6"],
+    }
 }
 
 fn extract_block_style(
@@ -147,15 +173,15 @@ fn extract_block_style(
 mod tests {
     use super::*;
     use std::{
-        fs::File,
         fs,
+        fs::File,
         io::{Read, Write},
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use zip::{write::SimpleFileOptions, ZipWriter};
     use zip::ZipArchive;
+    use zip::{write::SimpleFileOptions, ZipWriter};
 
     fn create_temp_workspace(prefix: &str) -> PathBuf {
         let nonce = SystemTime::now()
@@ -191,9 +217,7 @@ mod tests {
                 bytes = styles_xml.as_bytes().to_vec();
             }
 
-            writer
-                .start_file(&name, options)
-                .expect("write entry");
+            writer.start_file(&name, options).expect("write entry");
             writer.write_all(&bytes).expect("write bytes");
         }
 
@@ -322,7 +346,10 @@ mod tests {
         assert_eq!(style.heading4.run.size, Some(22));
         assert_eq!(style.heading5.run.size, Some(20));
         assert_eq!(style.heading6.run.size, Some(18));
-        assert_eq!(style.quote.paragraph.shading_fill.as_deref(), Some("F5F7F9"));
+        assert_eq!(
+            style.quote.paragraph.shading_fill.as_deref(),
+            Some("F5F7F9")
+        );
         assert_eq!(style.list.paragraph.space_after, Some(4.0));
     }
 }

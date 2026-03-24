@@ -492,7 +492,11 @@ fn apply_save_payload(
         alters: AltersSettings {
             default_mode: payload.alters.default_mode.trim().to_lowercase(),
             show_badge_in_chat: payload.alters.show_badge_in_chat,
-            default_influence_intensity: payload.alters.default_influence_intensity.trim().to_lowercase(),
+            default_influence_intensity: payload
+                .alters
+                .default_influence_intensity
+                .trim()
+                .to_lowercase(),
         },
     };
     validate_settings(&settings)?;

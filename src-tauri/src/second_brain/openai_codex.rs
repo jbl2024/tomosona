@@ -268,7 +268,12 @@ pub async fn discover_models() -> Result<Vec<CodexDiscoveredModel>, String> {
     Ok(models)
 }
 
-fn codex_request_body(model: &str, system_prompt: &str, user_prompt: &str, temperature: Option<f64>) -> Value {
+fn codex_request_body(
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+    temperature: Option<f64>,
+) -> Value {
     let mut body = serde_json::json!({
         "model": model,
         "stream": true,

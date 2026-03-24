@@ -9,16 +9,16 @@ use std::{
 
 use rusqlite::params;
 
+use crate::index_schema::record_last_index_run;
 use crate::workspace_paths::{
     has_hidden_dir_component, normalize_existing_file, normalize_note_key,
     normalize_workspace_relative_from_input, normalize_workspace_relative_path,
 };
 use crate::{
     active_workspace_root, ensure_index_schema, ensure_within_root, log_index, open_db,
-    refresh_semantic_edges_cache, refresh_semantic_edges_cache_now_sync, semantic,
-    AppError, Result,
+    refresh_semantic_edges_cache, refresh_semantic_edges_cache_now_sync, semantic, AppError,
+    Result,
 };
-use crate::index_schema::record_last_index_run;
 
 // Small semantic embedding batches reduce peak memory on large notes.
 const SEMANTIC_EMBED_BATCH_SIZE: usize = 8;
@@ -601,7 +601,12 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     log_index(&format!(
         "reindex:done path={path_for_db} chunks={chunk_count} targets={target_count} properties={property_count} embedding=deferred embedding_ms=0 total_ms={total_ms}"
     ));
-    let _ = record_last_index_run(&conn, "Indexed file content", crate::now_ms(), Some(total_ms as u64));
+    let _ = record_last_index_run(
+        &conn,
+        "Indexed file content",
+        crate::now_ms(),
+        Some(total_ms as u64),
+    );
     Ok(())
 }
 
@@ -857,8 +862,7 @@ pub(crate) fn remove_markdown_file_from_index_sync(path: String) -> Result<()> {
     if let Err(err) = refresh_semantic_edges_cache(&conn, &root) {
         log_index(&format!(
             "semantic_edges:refresh_error phase=remove_markdown_refresh err={} err_debug={:?}",
-            err,
-            err
+            err, err
         ));
     }
     log_index(&format!("reindex:removed path={path_for_db}"));

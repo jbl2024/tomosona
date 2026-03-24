@@ -16,9 +16,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::{
-    editor_sync::{
-        recent_internal_write_for, same_version, version_from_path, FileVersion,
-    },
+    editor_sync::{recent_internal_write_for, same_version, version_from_path, FileVersion},
     AppError, Result,
 };
 
@@ -262,7 +260,11 @@ fn content_hash(path: &Path) -> Option<String> {
     Some(blake3::hash(&bytes).to_hex().to_string())
 }
 
-fn should_filter_internal_write(path: &Path, normalized: &str, version: Option<&FileVersion>) -> bool {
+fn should_filter_internal_write(
+    path: &Path,
+    normalized: &str,
+    version: Option<&FileVersion>,
+) -> bool {
     let Some(record) = recent_internal_write_for(normalized) else {
         return false;
     };
@@ -311,7 +313,9 @@ fn should_filter_internal_remove(normalized: &str) -> bool {
     false
 }
 
-fn enrich_change_versions_and_filter_internal_writes(changes: Vec<WorkspaceFsChange>) -> Vec<WorkspaceFsChange> {
+fn enrich_change_versions_and_filter_internal_writes(
+    changes: Vec<WorkspaceFsChange>,
+) -> Vec<WorkspaceFsChange> {
     let mut filtered = Vec::with_capacity(changes.len());
 
     for mut change in changes {
@@ -344,7 +348,10 @@ fn enrich_change_versions_and_filter_internal_writes(changes: Vec<WorkspaceFsCha
             continue;
         }
 
-        if matches!(change.kind, WorkspaceFsChangeKind::Created | WorkspaceFsChangeKind::Modified) {
+        if matches!(
+            change.kind,
+            WorkspaceFsChangeKind::Created | WorkspaceFsChangeKind::Modified
+        ) {
             let version = version_from_path(&path_buf);
             if should_filter_internal_write(&path_buf, path, version.as_ref()) {
                 continue;
@@ -646,7 +653,9 @@ pub(crate) fn start_workspace_watcher(app_handle: AppHandle, root_path: PathBuf)
             }
         },
     )
-    .map_err(|err| AppError::InvalidOperation(format!("Could not start workspace watcher: {err}")))?;
+    .map_err(|err| {
+        AppError::InvalidOperation(format!("Could not start workspace watcher: {err}"))
+    })?;
 
     watcher
         .watch(&root_canonical, RecursiveMode::Recursive)

@@ -100,7 +100,10 @@ pub async fn run_llm(
 
     let request = ChatRequest::new(messages);
     let chat_options = temperature.map(|value| chat_options_for_temperature(value, false));
-    match client.exec_chat(&model, request, chat_options.as_ref()).await {
+    match client
+        .exec_chat(&model, request, chat_options.as_ref())
+        .await
+    {
         Ok(response) => {
             let text = response
                 .first_text()
@@ -136,7 +139,14 @@ where
     F: FnMut(&str) -> Result<(), String>,
 {
     if is_openai_codex(profile) {
-        return run_codex_stream(&profile.model, system_prompt, user_prompt, temperature, on_chunk).await;
+        return run_codex_stream(
+            &profile.model,
+            system_prompt,
+            user_prompt,
+            temperature,
+            on_chunk,
+        )
+        .await;
     }
 
     configure_environment(profile);

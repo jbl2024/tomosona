@@ -764,10 +764,7 @@ mod tests {
 
     #[test]
     fn title_from_candidate_path_uses_filename_stem() {
-        assert_eq!(
-            title_from_candidate_path("notes/Note B.markdown"),
-            "Note B"
-        );
+        assert_eq!(title_from_candidate_path("notes/Note B.markdown"), "Note B");
         assert_eq!(title_from_candidate_path("recent.md"), "recent");
     }
 }

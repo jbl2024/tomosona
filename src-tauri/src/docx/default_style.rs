@@ -279,6 +279,10 @@ impl TemplateStyle {
         }
     }
 
+    pub(crate) fn heading_style_id(&self, level: u8) -> Option<&str> {
+        self.heading(level).style_id.as_deref()
+    }
+
     pub(crate) fn quote(&self) -> &BlockStyle {
         &self.quote
     }
@@ -342,11 +346,22 @@ mod tests {
         assert_eq!(style.heading4.run.size, Some(22));
         assert_eq!(style.heading5.run.size, Some(20));
         assert_eq!(style.heading6.run.size, Some(18));
-        assert_eq!(style.heading1.paragraph.border_bottom.as_ref().map(|spec| spec.color.as_str()), Some("1F3864"));
+        assert_eq!(
+            style
+                .heading1
+                .paragraph
+                .border_bottom
+                .as_ref()
+                .map(|spec| spec.color.as_str()),
+            Some("1F3864")
+        );
         assert_eq!(style.heading1.style_id.as_deref(), Some("Heading1"));
 
         assert_eq!(style.quote.run.italic, true);
-        assert_eq!(style.quote.paragraph.shading_fill.as_deref(), Some("F5F7F9"));
+        assert_eq!(
+            style.quote.paragraph.shading_fill.as_deref(),
+            Some("F5F7F9")
+        );
         assert_eq!(style.quote.paragraph.indent_left, Some(18.0));
         assert_eq!(style.quote.style_id.as_deref(), Some("Quote"));
 

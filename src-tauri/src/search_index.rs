@@ -7,9 +7,10 @@ use serde::Serialize;
 
 use crate::markdown_index::{is_iso_date_value, unquote_yaml_scalar};
 use crate::{
-    active_workspace_root, ensure_index_schema, min_max_normalize, open_db, property_type_schema_path,
-    semantic, workspace_absolute_path, AppError, Result, HYBRID_LEXICAL_WEIGHT,
-    HYBRID_SEMANTIC_WEIGHT, SEARCH_CANDIDATE_LIMIT, SEARCH_RESULT_LIMIT, SEMANTIC_THRESHOLD,
+    active_workspace_root, ensure_index_schema, min_max_normalize, open_db,
+    property_type_schema_path, semantic, workspace_absolute_path, AppError, Result,
+    HYBRID_LEXICAL_WEIGHT, HYBRID_SEMANTIC_WEIGHT, SEARCH_CANDIDATE_LIMIT, SEARCH_RESULT_LIMIT,
+    SEMANTIC_THRESHOLD,
 };
 
 #[derive(Serialize)]
@@ -115,10 +116,7 @@ pub(crate) fn read_property_value_suggestions(
         return Ok(Vec::new());
     }
 
-    let normalized_query = query
-        .unwrap_or_default()
-        .trim()
-        .to_lowercase();
+    let normalized_query = query.unwrap_or_default().trim().to_lowercase();
     let limit = limit.unwrap_or(20).clamp(1, 100) as i64;
 
     let conn = open_db()?;
@@ -135,7 +133,9 @@ pub(crate) fn read_property_value_suggestions(
              ORDER BY value_text ASC
              LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![normalized_key, limit], |row| row.get::<_, String>(0))?;
+        let rows = stmt.query_map(params![normalized_key, limit], |row| {
+            row.get::<_, String>(0)
+        })?;
         for row in rows {
             values.push(row?);
         }
@@ -152,10 +152,9 @@ pub(crate) fn read_property_value_suggestions(
          ORDER BY value_text ASC
          LIMIT ?3",
     )?;
-    let rows = stmt.query_map(
-        params![normalized_key, normalized_query, limit],
-        |row| row.get::<_, String>(0),
-    )?;
+    let rows = stmt.query_map(params![normalized_key, normalized_query, limit], |row| {
+        row.get::<_, String>(0)
+    })?;
     for row in rows {
         values.push(row?);
     }

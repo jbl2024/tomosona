@@ -1,8 +1,7 @@
 use std::{
     collections::HashMap,
-    env,
+    env, fs,
     fs::File,
-    fs,
     io::{Read, Write},
     path::Path,
     sync::{Mutex, OnceLock},
@@ -116,7 +115,12 @@ fn should_log_read_snapshot_perf(elapsed_ms: u128) -> bool {
         || elapsed_ms >= 75
 }
 
-fn log_read_snapshot_perf(command: &str, path: &Path, started_at: Instant, extra_fields: &[(&str, String)]) {
+fn log_read_snapshot_perf(
+    command: &str,
+    path: &Path,
+    started_at: Instant,
+    extra_fields: &[(&str, String)],
+) {
     let elapsed_ms = started_at.elapsed().as_millis();
     if !should_log_read_snapshot_perf(elapsed_ms) {
         return;
@@ -146,7 +150,9 @@ fn version_from_metadata(metadata: &fs::Metadata) -> Option<FileVersion> {
 }
 
 pub(crate) fn version_from_path(path: &Path) -> Option<FileVersion> {
-    fs::metadata(path).ok().and_then(|metadata| version_from_metadata(&metadata))
+    fs::metadata(path)
+        .ok()
+        .and_then(|metadata| version_from_metadata(&metadata))
 }
 
 fn internal_write_slot() -> &'static Mutex<HashMap<String, InternalWriteRecord>> {
@@ -399,12 +405,19 @@ pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult
         version
     ));
 
-    Ok(SaveNoteResult::Success(SaveNoteSuccess { ok: true, version }))
+    Ok(SaveNoteResult::Success(SaveNoteSuccess {
+        ok: true,
+        version,
+    }))
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf, time::{Duration, SystemTime, UNIX_EPOCH}};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{Duration, SystemTime, UNIX_EPOCH},
+    };
 
     use super::*;
     use crate::{set_active_workspace, workspace_test_guard};
@@ -431,7 +444,8 @@ mod tests {
         let path = root.join("note.md");
         fs::write(&path, "hello").expect("write note");
 
-        let snapshot = read_note_snapshot(path.to_string_lossy().to_string()).expect("read snapshot");
+        let snapshot =
+            read_note_snapshot(path.to_string_lossy().to_string()).expect("read snapshot");
 
         assert_eq!(snapshot.content, "hello");
         assert_eq!(snapshot.path, normalize_slashes(&path));

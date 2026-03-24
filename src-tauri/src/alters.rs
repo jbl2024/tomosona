@@ -10,13 +10,13 @@ use atomicwrites::{AllowOverwrite, AtomicFile, DisallowOverwrite};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    next_index_run_id, now_ms, normalize_workspace_relative_from_input,
-    open_db, ensure_index_schema, workspace_runtime::active_workspace_root, AppError, Result,
-};
 use crate::second_brain::config::active_profile;
 use crate::second_brain::llm::run_llm;
 use crate::settings;
+use crate::{
+    ensure_index_schema, next_index_run_id, normalize_workspace_relative_from_input, now_ms,
+    open_db, workspace_runtime::active_workspace_root, AppError, Result,
+};
 
 const ALTER_PREFIX: &str = "alter";
 pub const ALTER_DEFAULT_TEMPERATURE: f64 = 0.15;
@@ -223,7 +223,11 @@ fn next_id(prefix: &str) -> String {
 fn empty_to_none(value: Option<String>) -> Option<String> {
     value.and_then(|item| {
         let trimmed = item.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     })
 }
 
@@ -277,7 +281,11 @@ fn slugify(name: &str) -> String {
     while slug.ends_with('-') {
         slug.pop();
     }
-    if slug.is_empty() { "alter".to_string() } else { slug }
+    if slug.is_empty() {
+        "alter".to_string()
+    } else {
+        slug
+    }
 }
 
 fn normalize_generated_source_type(raw: Option<&str>) -> AlterInspirationSourceType {
@@ -364,11 +372,22 @@ fn normalize_generated_draft(parsed: GeneratedAlterDraft, prompt: &str) -> Creat
 
     CreateAlterPayload {
         name: parsed.name.unwrap_or(fallback_name).trim().to_string(),
-        description: parsed.description.unwrap_or_else(|| "Generated from a quick-start brief.".to_string()).trim().to_string(),
+        description: parsed
+            .description
+            .unwrap_or_else(|| "Generated from a quick-start brief.".to_string())
+            .trim()
+            .to_string(),
         icon: parsed.icon.and_then(|value| empty_to_none(Some(value))),
-        color: parsed.color.and_then(|value| empty_to_none(Some(value))).or(Some("#8d6e63".to_string())),
+        color: parsed
+            .color
+            .and_then(|value| empty_to_none(Some(value)))
+            .or(Some("#8d6e63".to_string())),
         category: parsed.category.and_then(|value| empty_to_none(Some(value))),
-        mission: parsed.mission.unwrap_or(fallback_mission).trim().to_string(),
+        mission: parsed
+            .mission
+            .unwrap_or(fallback_mission)
+            .trim()
+            .to_string(),
         inspirations: parsed
             .inspirations
             .into_iter()
@@ -377,9 +396,13 @@ fn normalize_generated_draft(parsed: GeneratedAlterDraft, prompt: &str) -> Creat
                 if label.is_empty() {
                     return None;
                 }
-                let reference_id = item.reference_id.and_then(|value| empty_to_none(Some(value)));
+                let reference_id = item
+                    .reference_id
+                    .and_then(|value| empty_to_none(Some(value)));
                 let source_type = normalize_generated_source_type(item.source_type.as_deref());
-                let safe_source_type = if matches!(source_type, AlterInspirationSourceType::Note) && reference_id.is_none() {
+                let safe_source_type = if matches!(source_type, AlterInspirationSourceType::Note)
+                    && reference_id.is_none()
+                {
                     AlterInspirationSourceType::Manual
                 } else {
                     source_type
@@ -401,10 +424,18 @@ fn normalize_generated_draft(parsed: GeneratedAlterDraft, prompt: &str) -> Creat
         system_hints: sanitize_lines(&parsed.system_hints),
         style: AlterStyle {
             tone: style.tone.unwrap_or(defaults.tone).trim().to_string(),
-            verbosity: style.verbosity.unwrap_or(defaults.verbosity).trim().to_string(),
+            verbosity: style
+                .verbosity
+                .unwrap_or(defaults.verbosity)
+                .trim()
+                .to_string(),
             temperature: style.temperature.unwrap_or(defaults.temperature),
-            contradiction_level: style.contradiction_level.unwrap_or(defaults.contradiction_level),
-            exploration_level: style.exploration_level.unwrap_or(defaults.exploration_level),
+            contradiction_level: style
+                .contradiction_level
+                .unwrap_or(defaults.contradiction_level),
+            exploration_level: style
+                .exploration_level
+                .unwrap_or(defaults.exploration_level),
             influence_intensity: style
                 .influence_intensity
                 .unwrap_or(defaults.influence_intensity)
@@ -428,22 +459,36 @@ fn validate_style(style: &AlterStyle) -> Result<()> {
     let valid_intensity = ["light", "balanced", "strong"];
     let valid_response = ["concise", "analytic", "dialectic", "frontal"];
     if !valid_tones.contains(&style.tone.trim()) {
-        return Err(AppError::InvalidOperation("Alter tone is invalid.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter tone is invalid.".to_string(),
+        ));
     }
     if !valid_verbosity.contains(&style.verbosity.trim()) {
-        return Err(AppError::InvalidOperation("Alter verbosity is invalid.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter verbosity is invalid.".to_string(),
+        ));
     }
     if !valid_intensity.contains(&style.influence_intensity.trim()) {
-        return Err(AppError::InvalidOperation("Alter intensity is invalid.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter intensity is invalid.".to_string(),
+        ));
     }
     if !valid_response.contains(&style.response_style.trim()) {
-        return Err(AppError::InvalidOperation("Alter response style is invalid.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter response style is invalid.".to_string(),
+        ));
     }
     if !(0.0..=1.0).contains(&style.temperature) {
-        return Err(AppError::InvalidOperation("Alter temperature must be between 0 and 1.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter temperature must be between 0 and 1.".to_string(),
+        ));
     }
-    if !(0..=100).contains(&style.contradiction_level) || !(0..=100).contains(&style.exploration_level) {
-        return Err(AppError::InvalidOperation("Alter behavior levels must be between 0 and 100.".to_string()));
+    if !(0..=100).contains(&style.contradiction_level)
+        || !(0..=100).contains(&style.exploration_level)
+    {
+        return Err(AppError::InvalidOperation(
+            "Alter behavior levels must be between 0 and 100.".to_string(),
+        ));
     }
     Ok(())
 }
@@ -452,27 +497,35 @@ fn validate_inspirations(items: &[AlterInspiration]) -> Result<Vec<AlterInspirat
     let root = active_workspace_root()?;
     let mut out = Vec::with_capacity(items.len());
     for item in items {
-      let label = item.label.trim();
-      if label.is_empty() {
-        return Err(AppError::InvalidOperation("Alter inspiration label is required.".to_string()));
-      }
-      let reference_id = match item.source_type {
-        AlterInspirationSourceType::Note => {
-          let raw = item.reference_id.as_deref().unwrap_or("").trim();
-          if raw.is_empty() {
-            return Err(AppError::InvalidOperation("Note inspiration requires a note reference.".to_string()));
-          }
-          Some(normalize_workspace_relative_from_input(&root, raw)?)
+        let label = item.label.trim();
+        if label.is_empty() {
+            return Err(AppError::InvalidOperation(
+                "Alter inspiration label is required.".to_string(),
+            ));
         }
-        _ => empty_to_none(item.reference_id.clone())
-      };
-      out.push(AlterInspiration {
-        id: if item.id.trim().is_empty() { next_id("insp") } else { item.id.trim().to_string() },
-        label: label.to_string(),
-        source_type: item.source_type.clone(),
-        weight: item.weight,
-        reference_id
-      });
+        let reference_id = match item.source_type {
+            AlterInspirationSourceType::Note => {
+                let raw = item.reference_id.as_deref().unwrap_or("").trim();
+                if raw.is_empty() {
+                    return Err(AppError::InvalidOperation(
+                        "Note inspiration requires a note reference.".to_string(),
+                    ));
+                }
+                Some(normalize_workspace_relative_from_input(&root, raw)?)
+            }
+            _ => empty_to_none(item.reference_id.clone()),
+        };
+        out.push(AlterInspiration {
+            id: if item.id.trim().is_empty() {
+                next_id("insp")
+            } else {
+                item.id.trim().to_string()
+            },
+            label: label.to_string(),
+            source_type: item.source_type.clone(),
+            weight: item.weight,
+            reference_id,
+        });
     }
     Ok(out)
 }
@@ -534,14 +587,22 @@ fn compile_invocation_prompt(record: &AlterRecord) -> String {
     out
 }
 
-fn normalize_create_payload(payload: CreateAlterPayload, existing_id: Option<String>, created_at_ms: Option<u64>) -> Result<AlterRecord> {
+fn normalize_create_payload(
+    payload: CreateAlterPayload,
+    existing_id: Option<String>,
+    created_at_ms: Option<u64>,
+) -> Result<AlterRecord> {
     let name = payload.name.trim().to_string();
     if name.is_empty() {
-        return Err(AppError::InvalidOperation("Alter name is required.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter name is required.".to_string(),
+        ));
     }
     let mission = payload.mission.trim().to_string();
     if mission.is_empty() {
-        return Err(AppError::InvalidOperation("Alter mission is required.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter mission is required.".to_string(),
+        ));
     }
     validate_style(&payload.style)?;
     let ts = now_ms();
@@ -576,13 +637,17 @@ fn normalize_create_payload(payload: CreateAlterPayload, existing_id: Option<Str
 fn normalize_alter_id(alter_id: &str) -> Result<String> {
     let trimmed = alter_id.trim();
     if trimmed.is_empty() {
-        return Err(AppError::InvalidOperation("Alter id is required.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter id is required.".to_string(),
+        ));
     }
     if !trimmed
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
     {
-        return Err(AppError::InvalidOperation("Alter id is invalid.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter id is invalid.".to_string(),
+        ));
     }
     Ok(trimmed.to_string())
 }
@@ -662,7 +727,9 @@ fn write_alter_record(alter: &AlterRecord, overwrite: bool) -> Result<()> {
     fs::create_dir_all(parent)?;
 
     if !overwrite && path.exists() {
-        return Err(AppError::InvalidOperation("Alter already exists.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Alter already exists.".to_string(),
+        ));
     }
 
     let json = serde_json::to_string_pretty(alter).map_err(|_| AppError::OperationFailed)?;
@@ -703,7 +770,10 @@ fn remove_alter_record(alter_id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn resolve_invocation_prompt(_conn: &Connection, alter_id: Option<&str>) -> Result<Option<String>> {
+pub fn resolve_invocation_prompt(
+    _conn: &Connection,
+    alter_id: Option<&str>,
+) -> Result<Option<String>> {
     let Some(alter_id) = alter_id.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(None);
     };
@@ -779,7 +849,9 @@ fn quick_start_user_prompt(prompt: &str) -> String {
 }
 
 #[tauri::command]
-pub async fn generate_alter_draft(payload: GenerateAlterDraftPayload) -> Result<CreateAlterPayload> {
+pub async fn generate_alter_draft(
+    payload: GenerateAlterDraftPayload,
+) -> Result<CreateAlterPayload> {
     let normalized_prompt = payload.prompt.trim().to_string();
     if normalized_prompt.is_empty() {
         return Err(AppError::InvalidOperation(
@@ -908,7 +980,8 @@ pub fn load_alter_revision(revision_id: String) -> Result<AlterRevisionPayload> 
 
 #[tauri::command]
 pub fn preview_alter(payload: PreviewAlterPayload) -> Result<PreviewAlterResult> {
-    let record = normalize_create_payload(payload.draft, Some("preview".to_string()), Some(now_ms()))?;
+    let record =
+        normalize_create_payload(payload.draft, Some("preview".to_string()), Some(now_ms()))?;
     let preview_prompt = format!(
         "{}\n\nPrompt utilisateur de test:\n{}\n\nReponds comme cet Alter.",
         record.invocation_prompt,
@@ -1006,7 +1079,9 @@ mod tests {
         );
 
         assert!(!draft.name.trim().is_empty());
-        assert!(draft.mission.contains("Build an alter for strategy under uncertainty"));
+        assert!(draft
+            .mission
+            .contains("Build an alter for strategy under uncertainty"));
         assert_eq!(draft.style.influence_intensity, "balanced");
         assert_eq!(draft.style.temperature, ALTER_DEFAULT_TEMPERATURE);
         assert_eq!(draft.color.as_deref(), Some("#8d6e63"));
@@ -1014,7 +1089,10 @@ mod tests {
 
     #[test]
     fn effective_generation_temperature_defaults_to_neutral() {
-        assert_eq!(effective_generation_temperature(None), ALTER_DEFAULT_TEMPERATURE);
+        assert_eq!(
+            effective_generation_temperature(None),
+            ALTER_DEFAULT_TEMPERATURE
+        );
         assert_eq!(effective_generation_temperature(Some(0.42)), 0.42);
     }
 
@@ -1048,9 +1126,18 @@ mod tests {
             assert_eq!(loaded.style.tone, created.style.tone);
             assert_eq!(loaded.style.verbosity, created.style.verbosity);
             assert_eq!(loaded.style.temperature, created.style.temperature);
-            assert_eq!(loaded.style.contradiction_level, created.style.contradiction_level);
-            assert_eq!(loaded.style.exploration_level, created.style.exploration_level);
-            assert_eq!(loaded.style.influence_intensity, created.style.influence_intensity);
+            assert_eq!(
+                loaded.style.contradiction_level,
+                created.style.contradiction_level
+            );
+            assert_eq!(
+                loaded.style.exploration_level,
+                created.style.exploration_level
+            );
+            assert_eq!(
+                loaded.style.influence_intensity,
+                created.style.influence_intensity
+            );
             assert_eq!(loaded.style.response_style, created.style.response_style);
             assert_eq!(loaded.style.cite_hypotheses, created.style.cite_hypotheses);
             assert_eq!(loaded.style.signal_biases, created.style.signal_biases);
@@ -1111,10 +1198,16 @@ mod tests {
             let path = alter_path(&created.id)?;
             let mut json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path)?)
                 .map_err(|_| AppError::OperationFailed)?;
-            if let Some(style) = json.get_mut("style").and_then(|value| value.as_object_mut()) {
+            if let Some(style) = json
+                .get_mut("style")
+                .and_then(|value| value.as_object_mut())
+            {
                 style.remove("temperature");
             }
-            fs::write(&path, serde_json::to_string_pretty(&json).map_err(|_| AppError::OperationFailed)?)?;
+            fs::write(
+                &path,
+                serde_json::to_string_pretty(&json).map_err(|_| AppError::OperationFailed)?,
+            )?;
 
             let loaded = load_alter(created.id.clone())?;
             assert_eq!(loaded.style.temperature, ALTER_DEFAULT_TEMPERATURE);

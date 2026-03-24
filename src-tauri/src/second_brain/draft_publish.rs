@@ -9,7 +9,8 @@ use rusqlite::params;
 
 use super::{
     super::{
-        active_workspace_root, ensure_index_schema, now_ms, open_db, reindex_markdown_file_now_sync, AppError, Result,
+        active_workspace_root, ensure_index_schema, now_ms, open_db,
+        reindex_markdown_file_now_sync, AppError, Result,
     },
     draft::{read_draft, write_draft},
     paths::{

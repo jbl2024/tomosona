@@ -155,7 +155,10 @@ pub(super) fn build_user_prompt(
         build_history_section(history_messages, history_budget, SB_HISTORY_WINDOW);
 
     let mut prompt = String::new();
-    if let Some(alter_prompt) = alter_prompt.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(alter_prompt) = alter_prompt
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         prompt.push_str("Alter actif:\n");
         prompt.push_str(alter_prompt);
         prompt.push_str("\n\n");
@@ -276,10 +279,7 @@ fn frontmatter_candidates() -> &'static [(&'static str, &'static str)] {
 
 fn count_hints(text: &str, hints: &[&str]) -> usize {
     let lowered = text.to_lowercase();
-    hints
-        .iter()
-        .map(|hint| lowered.matches(hint).count())
-        .sum()
+    hints.iter().map(|hint| lowered.matches(hint).count()).sum()
 }
 
 fn detect_note_language(text: &str) -> &'static str {
@@ -291,18 +291,55 @@ fn detect_note_language(text: &str) -> &'static str {
     let french_score = count_hints(
         cleaned,
         &[
-            " le ", " la ", " les ", " des ", " une ", " un ", " et ", " pour ", " avec ", " dans ",
-            " que ", " est ", " être ", "sur ", " à ", " du ", "de ", "note ", "projet ", "brouillon ",
+            " le ",
+            " la ",
+            " les ",
+            " des ",
+            " une ",
+            " un ",
+            " et ",
+            " pour ",
+            " avec ",
+            " dans ",
+            " que ",
+            " est ",
+            " être ",
+            "sur ",
+            " à ",
+            " du ",
+            "de ",
+            "note ",
+            "projet ",
+            "brouillon ",
         ],
     ) + cleaned
         .chars()
-        .filter(|ch| matches!(ch, 'à' | 'â' | 'ç' | 'é' | 'è' | 'ê' | 'ë' | 'î' | 'ï' | 'ô' | 'ù' | 'û' | 'ü'))
+        .filter(|ch| {
+            matches!(
+                ch,
+                'à' | 'â' | 'ç' | 'é' | 'è' | 'ê' | 'ë' | 'î' | 'ï' | 'ô' | 'ù' | 'û' | 'ü'
+            )
+        })
         .count();
     let english_score = count_hints(
         cleaned,
         &[
-            " the ", " and ", " with ", " for ", " from ", " note ", " project ", " draft ", " should ",
-            " this ", " that ", " are ", " is ", " to ", " of ", " in ",
+            " the ",
+            " and ",
+            " with ",
+            " for ",
+            " from ",
+            " note ",
+            " project ",
+            " draft ",
+            " should ",
+            " this ",
+            " that ",
+            " are ",
+            " is ",
+            " to ",
+            " of ",
+            " in ",
         ],
     );
 
@@ -375,8 +412,10 @@ fn build_frontmatter_generation_output_schema(target_key: Option<&str>) -> Strin
 pub(super) fn build_frontmatter_generation_prompt(
     input: &FrontmatterGenerationPromptInput,
 ) -> BuiltPrompt {
-    let body_excerpt = truncate_text_for_tokens(&input.body_markdown, FRONTMATTER_BODY_BUDGET_TOKENS);
-    let raw_yaml_excerpt = truncate_text_for_tokens(&input.raw_yaml, FRONTMATTER_RAW_YAML_BUDGET_TOKENS);
+    let body_excerpt =
+        truncate_text_for_tokens(&input.body_markdown, FRONTMATTER_BODY_BUDGET_TOKENS);
+    let raw_yaml_excerpt =
+        truncate_text_for_tokens(&input.raw_yaml, FRONTMATTER_RAW_YAML_BUDGET_TOKENS);
     let detected_language_hint = input
         .language_hint
         .as_deref()
@@ -395,7 +434,9 @@ pub(super) fn build_frontmatter_generation_prompt(
     let mut prompt = String::new();
     prompt.push_str("Tu generes des properties frontmatter pour Tomosona.\n");
     prompt.push_str("Retourne uniquement du JSON valide, sans bloc de code, sans explication, sans texte autour.\n");
-    prompt.push_str("Les clefs doivent rester canoniques et stables. Ne traduis pas les clefs systeme.\n");
+    prompt.push_str(
+        "Les clefs doivent rester canoniques et stables. Ne traduis pas les clefs systeme.\n",
+    );
     prompt.push_str("Adapte les valeurs textuelles a la langue dominante de la note.\n");
     prompt.push_str("N'ecrase pas silencieusement une valeur non vide en mode auto.\n");
     prompt.push_str("Pour un sparkle sur une property, ne renvoie que cette clef.\n\n");
@@ -428,11 +469,17 @@ pub(super) fn build_frontmatter_generation_prompt(
     prompt.push_str("- En mode auto, propose seulement les properties les plus pertinentes.\n");
     prompt.push_str("- Ne propose pas une clef deja remplie sauf si sa valeur est vide.\n");
     prompt.push_str("- Si aucune property pertinente n'existe, retourne un tableau vide.\n");
-    if let Some(target_key) = input.target_key.as_deref().filter(|value| !value.trim().is_empty()) {
+    if let Some(target_key) = input
+        .target_key
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
         prompt.push_str(&format!("- Sparkle cible: {target_key}\n"));
     }
     prompt.push_str("\nFormat JSON attendu:\n");
-    prompt.push_str(&build_frontmatter_generation_output_schema(input.target_key.as_deref()));
+    prompt.push_str(&build_frontmatter_generation_output_schema(
+        input.target_key.as_deref(),
+    ));
     prompt.push_str("\n");
 
     BuiltPrompt {
@@ -654,10 +701,14 @@ mod tests {
         };
 
         let built = build_frontmatter_generation_prompt(&input);
-        assert!(built.user_prompt.contains("Retourne uniquement du JSON valide"));
+        assert!(built
+            .user_prompt
+            .contains("Retourne uniquement du JSON valide"));
         assert!(built.user_prompt.contains("Langue detectee: fr"));
         assert!(built.user_prompt.contains("Properties deja presentes"));
         assert!(built.user_prompt.contains("status (text) = draft"));
-        assert!(built.user_prompt.contains("Proprietes canoniques candidates"));
+        assert!(built
+            .user_prompt
+            .contains("Proprietes canoniques candidates"));
     }
 }

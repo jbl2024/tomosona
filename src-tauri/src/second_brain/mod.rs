@@ -8,9 +8,9 @@ use super::{ensure_index_schema, now_ms, open_db, settings, AppError, Result};
 
 pub mod config;
 mod context;
-mod frontmatter_generation;
 pub mod draft;
 mod draft_publish;
+mod frontmatter_generation;
 pub mod llm;
 mod message_flow;
 pub mod modes;
@@ -29,14 +29,17 @@ use draft_publish::{
     publish_draft_to_existing_note, publish_draft_to_new_note, save_draft,
     set_session_target_note_impl,
 };
-use message_flow::send_message;
-use openai_codex::{discover_models, has_codex_tokens, CodexDiscoveredModel};
 use frontmatter_generation::{
     generate_frontmatter_properties as generate_frontmatter_properties_impl,
     GenerateFrontmatterPropertiesPayload, GenerateFrontmatterPropertiesResult,
 };
+use message_flow::send_message;
+use openai_codex::{discover_models, has_codex_tokens, CodexDiscoveredModel};
 use pulse_flow::run_pulse;
-use session_store::{create_session, delete_session, list_sessions, load_session, set_session_alter_id, upsert_context};
+use session_store::{
+    create_session, delete_session, list_sessions, load_session, set_session_alter_id,
+    upsert_context,
+};
 use stream_control::request_stream_cancel;
 
 const SESSION_PREFIX: &str = "sb";
@@ -351,15 +354,14 @@ pub fn create_second_brain_session(payload: CreateSessionPayload) -> Result<Crea
         .unwrap_or("Second Brain Session")
         .to_string();
 
-    let (created_at_ms, _updated_at_ms) =
-        create_session(
-            &conn,
-            &session_id,
-            &title,
-            &active.provider,
-            &active.model,
-            payload.alter_id.as_deref().unwrap_or("").trim(),
-        )?;
+    let (created_at_ms, _updated_at_ms) = create_session(
+        &conn,
+        &session_id,
+        &title,
+        &active.provider,
+        &active.model,
+        payload.alter_id.as_deref().unwrap_or("").trim(),
+    )?;
 
     let context_items = load_context_items(&payload.context_paths)?;
     let _ = upsert_context(&conn, &session_id, &context_items)?;
@@ -372,7 +374,9 @@ pub fn create_second_brain_session(payload: CreateSessionPayload) -> Result<Crea
 }
 
 #[tauri::command]
-pub fn set_second_brain_session_alter(payload: SetSessionAlterPayload) -> Result<SetSessionAlterResult> {
+pub fn set_second_brain_session_alter(
+    payload: SetSessionAlterPayload,
+) -> Result<SetSessionAlterResult> {
     let conn = open_db()?;
     ensure_index_schema(&conn)?;
     if !session_exists(&conn, &payload.session_id)? {

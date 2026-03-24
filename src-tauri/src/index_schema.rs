@@ -77,7 +77,10 @@ fn sqlite_error_tokens(err: &rusqlite::Error) -> String {
             tokens.push(format!("sqlite_msg={}", sanitize_log_value(message)));
         }
     }
-    tokens.push(format!("err_debug={}", sanitize_log_value(&format!("{err:?}"))));
+    tokens.push(format!(
+        "err_debug={}",
+        sanitize_log_value(&format!("{err:?}"))
+    ));
     tokens.join(" ")
 }
 
@@ -398,35 +401,39 @@ pub(crate) fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &P
             source_count,
             source_path
         ));
-        let mut stmt = conn.prepare(
-            r#"
+        let mut stmt = conn
+            .prepare(
+                r#"
             SELECT path, distance
             FROM note_embeddings_vec
             WHERE embedding MATCH (SELECT embedding FROM note_embeddings_vec WHERE path = ?1)
             ORDER BY distance ASC
             LIMIT ?2
         "#,
-        ).map_err(|err| {
-            log_index(&format!(
-                "semantic_edges:refresh_error run_id={} phase=prepare_query source_path={} {}",
-                run_id,
-                source_path,
-                sqlite_error_tokens(&err)
-            ));
-            AppError::Sqlite(err)
-        })?;
-        let mut rows = stmt.query(params![
-            source_path.clone(),
-            crate::SEMANTIC_TOP_K_PER_NOTE + 1
-        ]).map_err(|err| {
-            log_index(&format!(
-                "semantic_edges:refresh_error run_id={} phase=run_query source_path={} {}",
-                run_id,
-                source_path,
-                sqlite_error_tokens(&err)
-            ));
-            AppError::Sqlite(err)
-        })?;
+            )
+            .map_err(|err| {
+                log_index(&format!(
+                    "semantic_edges:refresh_error run_id={} phase=prepare_query source_path={} {}",
+                    run_id,
+                    source_path,
+                    sqlite_error_tokens(&err)
+                ));
+                AppError::Sqlite(err)
+            })?;
+        let mut rows = stmt
+            .query(params![
+                source_path.clone(),
+                crate::SEMANTIC_TOP_K_PER_NOTE + 1
+            ])
+            .map_err(|err| {
+                log_index(&format!(
+                    "semantic_edges:refresh_error run_id={} phase=run_query source_path={} {}",
+                    run_id,
+                    source_path,
+                    sqlite_error_tokens(&err)
+                ));
+                AppError::Sqlite(err)
+            })?;
         sources_with_vector += 1;
         sources_query_ok += 1;
 
@@ -638,7 +645,9 @@ pub(crate) fn read_index_runtime_status() -> Result<IndexRuntimeStatus> {
 pub(crate) fn read_index_overview_stats() -> Result<IndexOverviewStats> {
     let conn = open_db()?;
     let root = active_workspace_root()?;
-    let semantic_links_count = conn.query_row("SELECT COUNT(*) FROM semantic_edges", [], |row| row.get::<_, i64>(0))? as u64;
+    let semantic_links_count = conn.query_row("SELECT COUNT(*) FROM semantic_edges", [], |row| {
+        row.get::<_, i64>(0)
+    })? as u64;
     let processed_notes_count = conn.query_row(
         r#"
         SELECT CASE
@@ -692,7 +701,10 @@ pub(crate) fn record_last_index_run(
 ) -> Result<()> {
     conn.execute(
         "INSERT OR REPLACE INTO internal_meta(key, value) VALUES (?1, ?2)",
-        params![INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY, finished_at_ms.to_string()],
+        params![
+            INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY,
+            finished_at_ms.to_string()
+        ],
     )?;
     conn.execute(
         "INSERT OR REPLACE INTO internal_meta(key, value) VALUES (?1, ?2)",
@@ -702,7 +714,10 @@ pub(crate) fn record_last_index_run(
         Some(duration_ms) => {
             conn.execute(
                 "INSERT OR REPLACE INTO internal_meta(key, value) VALUES (?1, ?2)",
-                params![INTERNAL_META_LAST_RUN_DURATION_MS_KEY, duration_ms.to_string()],
+                params![
+                    INTERNAL_META_LAST_RUN_DURATION_MS_KEY,
+                    duration_ms.to_string()
+                ],
             )?;
         }
         None => {
@@ -768,7 +783,9 @@ mod tests {
     #[test]
     fn sanitize_log_value_replaces_whitespace_and_symbols() {
         assert_eq!(
-            sanitize_log_value("UNIQUE constraint failed: semantic_edges(source_path, target_path)"),
+            sanitize_log_value(
+                "UNIQUE constraint failed: semantic_edges(source_path, target_path)"
+            ),
             "UNIQUE_constraint_failed:_semantic_edges_source_path__target_path_"
         );
     }

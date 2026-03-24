@@ -1,8 +1,7 @@
 #[cfg(windows)]
 use std::os::windows::fs::MetadataExt;
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
@@ -11,11 +10,11 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
+use crate::editor_sync::record_workspace_mutation_write_from_disk;
 use crate::{
     active_workspace_root, clear_active_workspace, set_active_workspace, workspace_watch, AppError,
     Result,
 };
-use crate::editor_sync::record_workspace_mutation_write_from_disk;
 
 const TRASH_DIR_NAME: &str = ".tomosona-trash";
 const INTERNAL_DIR_NAME: &str = ".tomosona";
@@ -187,12 +186,7 @@ fn should_log_fs_perf(elapsed_ms: u128) -> bool {
         || elapsed_ms >= 75
 }
 
-fn log_fs_perf(
-    command: &str,
-    path: &Path,
-    started_at: Instant,
-    extra_fields: &[(&str, String)],
-) {
+fn log_fs_perf(command: &str, path: &Path, started_at: Instant, extra_fields: &[(&str, String)]) {
     let elapsed_ms = started_at.elapsed().as_millis();
     if !should_log_fs_perf(elapsed_ms) {
         return;

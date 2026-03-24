@@ -212,14 +212,15 @@ pub fn load_session(
         ))
     });
 
-    let (id, title, provider, model, created_at_ms, updated_at_ms, target_note_path, alter_id) = match row {
-        Ok(value) => value,
-        Err(_) => {
-            return Err(AppError::InvalidOperation(
-                "Second Brain session not found.".to_string(),
-            ))
-        }
-    };
+    let (id, title, provider, model, created_at_ms, updated_at_ms, target_note_path, alter_id) =
+        match row {
+            Ok(value) => value,
+            Err(_) => {
+                return Err(AppError::InvalidOperation(
+                    "Second Brain session not found.".to_string(),
+                ))
+            }
+        };
 
     let mut context_stmt = conn.prepare(
         "SELECT path, token_estimate FROM second_brain_context_items WHERE session_id = ?1 ORDER BY sort_order ASC",

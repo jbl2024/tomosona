@@ -2,8 +2,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     time::Instant,
     time::{SystemTime, UNIX_EPOCH},
@@ -12,18 +11,18 @@ use std::{
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+use crate::editor_sync::record_workspace_mutation_write;
+use crate::markdown_index::{
+    reindex_markdown_file_lexical_sync, reindex_markdown_file_semantic_sync,
+};
 use crate::{
     active_workspace_root, list_markdown_files_via_find, normalize_note_key,
     normalize_note_key_from_workspace_path, normalize_workspace_path,
     normalize_workspace_relative_path, note_key_basename, note_label_from_workspace_path,
     note_link_target, open_db, refresh_semantic_edges_cache_now_sync,
-    reindex_markdown_file_now_sync,
-    rewrite_wikilinks_for_note, workspace_absolute_path, AppError, Result,
+    reindex_markdown_file_now_sync, rewrite_wikilinks_for_note, workspace_absolute_path, AppError,
+    Result,
 };
-use crate::markdown_index::{
-    reindex_markdown_file_lexical_sync, reindex_markdown_file_semantic_sync,
-};
-use crate::editor_sync::record_workspace_mutation_write;
 
 #[derive(Serialize)]
 pub(crate) struct GraphNodeDto {
@@ -489,7 +488,9 @@ fn collect_note_moves_for_path_move(
             let old_file = old_path.join(relative);
             let old_target_key = normalize_note_key(root_canonical, &old_file)?;
             let new_target = note_link_target(root_canonical, &new_file)?;
-            if old_target_key.is_empty() || old_target_key == normalize_note_key(root_canonical, &new_file)? {
+            if old_target_key.is_empty()
+                || old_target_key == normalize_note_key(root_canonical, &new_file)?
+            {
                 continue;
             }
             expanded.push((old_target_key, new_target, old_file, new_file));
@@ -503,7 +504,8 @@ fn collect_note_moves_for_path_move(
 
     let old_target_key = normalize_note_key(root_canonical, &old_path)?;
     let new_target = note_link_target(root_canonical, &new_path)?;
-    if old_target_key.is_empty() || old_target_key == normalize_note_key(root_canonical, &new_path)? {
+    if old_target_key.is_empty() || old_target_key == normalize_note_key(root_canonical, &new_path)?
+    {
         return Ok(Vec::new());
     }
 
@@ -517,7 +519,10 @@ pub(crate) fn update_wikilinks_for_path_moves(
     let mut note_moves: Vec<(String, String, PathBuf, PathBuf)> = Vec::new();
 
     for path_move in moves {
-        note_moves.extend(collect_note_moves_for_path_move(&root_canonical, &path_move)?);
+        note_moves.extend(collect_note_moves_for_path_move(
+            &root_canonical,
+            &path_move,
+        )?);
     }
 
     if note_moves.is_empty() {

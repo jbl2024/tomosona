@@ -5,11 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{active_profile, load_config, llm::run_llm, AppError, Result};
 use super::prompt_builder::{
     build_frontmatter_generation_prompt, frontmatter_generation_system_prompt,
     FrontmatterGenerationPromptInput,
 };
+use super::{active_profile, llm::run_llm, load_config, AppError, Result};
 use crate::second_brain::config::SecondBrainConfig;
 
 /// How the frontend is asking the model to generate properties.
@@ -122,19 +122,20 @@ fn parse_generated_frontmatter_response(raw: &str) -> Result<GeneratedFrontmatte
     let json = extract_json_object(raw).ok_or_else(|| {
         AppError::InvalidOperation("Model response was not valid JSON.".to_string())
     })?;
-    serde_json::from_str::<GeneratedFrontmatterPayload>(json).map_err(|_| {
-        AppError::InvalidOperation("Model response was not valid JSON.".to_string())
-    })
+    serde_json::from_str::<GeneratedFrontmatterPayload>(json)
+        .map_err(|_| AppError::InvalidOperation("Model response was not valid JSON.".to_string()))
 }
 
 fn load_active_second_brain_config() -> Result<SecondBrainConfig> {
     load_config()
 }
 
-fn active_profile_for_frontmatter(config: &SecondBrainConfig) -> Result<super::config::ProviderProfile> {
-    active_profile(config)
-        .cloned()
-        .ok_or_else(|| AppError::InvalidOperation("Second Brain configuration is unavailable.".to_string()))
+fn active_profile_for_frontmatter(
+    config: &SecondBrainConfig,
+) -> Result<super::config::ProviderProfile> {
+    active_profile(config).cloned().ok_or_else(|| {
+        AppError::InvalidOperation("Second Brain configuration is unavailable.".to_string())
+    })
 }
 
 /// Generates frontmatter suggestions from the active Second Brain LLM profile.
@@ -153,7 +154,9 @@ pub async fn generate_frontmatter_properties(
         raw_yaml: payload.raw_yaml,
         existing_fields: normalize_existing_fields(&payload.existing_fields),
         mode: payload.mode.clone(),
-        target_key: payload.target_key.and_then(|value| sanitize_property_key(&value)),
+        target_key: payload
+            .target_key
+            .and_then(|value| sanitize_property_key(&value)),
         language_hint: payload
             .language_hint
             .and_then(|value| sanitize_property_key(&value)),
