@@ -9,7 +9,7 @@ use std::path::Path;
 
 use rdocx::{BorderStyle, Document};
 
-use crate::default_style::{
+use crate::docx::default_style::{
     BlockStyle, BorderSpec, ParagraphStyle, TemplateStyle, TextStyle, DEFAULT_BODY_SIZE,
     DEFAULT_FONT,
 };
@@ -123,7 +123,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
+    use zip::{write::SimpleFileOptions, ZipWriter};
     use zip::ZipArchive;
 
     fn create_temp_workspace(prefix: &str) -> PathBuf {

@@ -21,9 +21,9 @@ use mermaid_rs_renderer::{
 use rdocx::{Alignment, BorderStyle, Document, Length, VerticalAlignment};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
-use crate::default_style::{ParagraphStyle, TemplateStyle, TextStyle};
+use crate::docx::default_style::{ParagraphStyle, TemplateStyle, TextStyle};
 use crate::markdown_index::{parse_yaml_frontmatter_properties, strip_yaml_frontmatter};
-use crate::style_from_docx::read_template_style;
+use crate::docx::style_from_docx::read_template_style;
 use crate::{
     active_workspace_root, ensure_within_root, normalize_workspace_path, AppError, Result,
 };
