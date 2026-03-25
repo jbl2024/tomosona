@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Root render shell for the Second Brain chat surface.
+ *
+ * This component owns layout and event wiring only; the actual session,
+ * stream, and composer behavior live in the domain composables.
+ */
 import { computed } from 'vue'
 import { ClipboardDocumentIcon, PaperAirplaneIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'

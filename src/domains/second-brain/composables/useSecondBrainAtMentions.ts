@@ -1,3 +1,10 @@
+/**
+ * Mention resolution and suggestion workflow for Second Brain composers.
+ *
+ * This module keeps the `@`-mention behavior self-contained so the composer
+ * runtime can ask for suggestions, insert them, and resolve them to explicit
+ * workspace paths without knowing the filesystem details.
+ */
 import { computed, ref, type Ref } from 'vue'
 import {
   normalizeWorkspacePath,
@@ -80,6 +87,12 @@ export function useSecondBrainAtMentions(params: {
 
   const isOpen = computed(() => Boolean(trigger.value) && suggestions.value.length > 0)
 
+  /**
+   * Recomputes the active mention trigger from the current composer text.
+   *
+   * A null or invalid caret clears the menu, which keeps stale suggestion UI
+   * from lingering after focus changes.
+   */
   function updateTrigger(text: string, caret: number | null) {
     if (caret == null || caret < 0) {
       trigger.value = null
@@ -89,11 +102,17 @@ export function useSecondBrainAtMentions(params: {
     activeIndex.value = 0
   }
 
+  /**
+   * Closes the suggestion menu and resets the active index.
+   */
   function close() {
     trigger.value = null
     activeIndex.value = 0
   }
 
+  /**
+   * Updates the highlighted suggestion while wrapping within the current list.
+   */
   function setActiveIndex(next: number) {
     const total = suggestions.value.length
     if (!total) {
@@ -103,10 +122,19 @@ export function useSecondBrainAtMentions(params: {
     activeIndex.value = (next + total) % total
   }
 
+  /**
+   * Moves the highlighted suggestion up or down by one item.
+   */
   function moveActive(delta: 1 | -1) {
     setActiveIndex(activeIndex.value + delta)
   }
 
+  /**
+   * Inserts the selected mention into the composer text.
+   *
+   * The trailing space is intentional: it mirrors normal typing and keeps the
+   * caret positioned after the inserted note path.
+   */
   function applySuggestion(text: string, item: SecondBrainAtMentionItem): { text: string; caret: number } {
     const current = trigger.value
     if (!current) {
@@ -122,6 +150,12 @@ export function useSecondBrainAtMentions(params: {
     }
   }
 
+  /**
+   * Resolves inline mentions to absolute workspace paths.
+   *
+   * Unresolved tokens are returned separately so the caller can explain what
+   * was ignored instead of silently dropping user input.
+   */
   function resolveMentionedPaths(text: string): { resolvedPaths: string[]; unresolved: string[] } {
     const resolved: string[] = []
     const unresolved: string[] = []

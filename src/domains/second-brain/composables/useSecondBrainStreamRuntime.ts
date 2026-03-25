@@ -1,3 +1,10 @@
+/**
+ * Stream runtime for the Second Brain chat surface.
+ *
+ * This module owns the assistant event listeners, cancellation handling, and
+ * thread scroll behavior so the composer runtime does not need to understand
+ * backend stream timing or DOM observer details.
+ */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import type { SecondBrainMessage } from '../../../shared/api/apiTypes'
 import {
@@ -36,6 +43,12 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
   const ignoredAssistantMessageIds = new Set<string>()
   let threadBottomObserver: IntersectionObserver | null = null
 
+  /**
+   * Returns the text currently visible for a message.
+   *
+   * Assistant messages prefer the live stream buffer so partial responses are
+   * rendered without waiting for the persisted payload to catch up.
+   */
   function displayMessage(message: SecondBrainMessage): string {
     if (message.role === 'assistant') {
       return options.streamByMessage.value[message.id] ?? message.content_md
@@ -43,6 +56,9 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
     return message.content_md
   }
 
+  /**
+   * Renders assistant content to sanitized HTML for preview display.
+   */
   function renderAssistantMarkdown(message: SecondBrainMessage): string {
     return renderSecondBrainMarkdownPreview(displayMessage(message))
   }
@@ -52,6 +68,12 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
     return remaining <= 8
   }
 
+  /**
+   * Scrolls the thread to the bottom when auto-scroll is enabled.
+   *
+   * `force` bypasses the auto-scroll gate for explicit navigation events such
+   * as session load or a freshly appended local message.
+   */
   async function scrollThreadToBottom(config: { force?: boolean } = {}) {
     await nextTick()
     const thread = threadRef.value
@@ -66,6 +88,9 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
     threadAutoScrollEnabled.value = true
   }
 
+  /**
+   * Updates the auto-scroll gate from a manual scroll event.
+   */
   function onThreadScroll() {
     const thread = threadRef.value
     if (!thread) return
@@ -73,6 +98,10 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
     threadAutoScrollEnabled.value = isThreadNearBottom(thread)
   }
 
+  /**
+   * Hooks an intersection observer to keep the auto-scroll state in sync with
+   * the thread sentinel when the browser supports it.
+   */
   function setupThreadBottomObserver() {
     if (typeof IntersectionObserver === 'undefined') return
     const thread = threadRef.value
@@ -89,11 +118,18 @@ export function useSecondBrainStreamRuntime(options: UseSecondBrainStreamRuntime
     threadBottomObserver.observe(sentinel)
   }
 
+  /**
+   * Marks a stream message id as ignored after cancellation.
+   */
   function markAssistantMessageIgnored(messageId: string | null) {
     if (!messageId) return
     ignoredAssistantMessageIds.add(messageId)
   }
 
+  /**
+   * Cancels the active assistant stream and suppresses the expected cancel
+   * error that follows from the backend.
+   */
   async function onStopStreaming() {
     if (!requestInFlight.value || !sending.value) return
     sending.value = false

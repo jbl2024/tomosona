@@ -1,3 +1,11 @@
+/**
+ * Session and explicit-context workflow for the Second Brain view.
+ *
+ * This module owns the state that must survive across view interactions:
+ * selected session, context chips, Alter selection, Echoes anchor, and session
+ * list refreshes. Keeping that logic here prevents the composer and stream
+ * runtimes from learning persistence details.
+ */
 import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
 import type {
   AlterSummary,
@@ -72,6 +80,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
 
   const alterSettings = computed<AppSettingsAlters>(() => options.settings.value ?? DEFAULT_ALTER_SETTINGS)
 
+  /**
+   * Converts a workspace path to a display-friendly relative path.
+   *
+   * This is used in chips, copy messages, and error text so user-facing paths
+   * stay stable across absolute workspace locations.
+   */
   function toRelativePath(path: string): string {
     const value = path.replace(/\\/g, '/')
     const root = options.workspacePath.value.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -81,6 +95,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return value
   }
 
+  /**
+   * Produces a normalized key for comparing document identity across inputs.
+   *
+   * The key intentionally collapses separator differences and casing so the UI
+   * can deduplicate context chips and Echoes anchors reliably.
+   */
   function canonicalWorkspaceDocumentKey(path: string): string {
     const absolute = toAbsoluteWorkspacePath(options.workspacePath.value, path)
     const relative = toRelativePath(absolute)
@@ -147,10 +167,16 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return availableAlters.value.find((item) => item.id === selectedAlterId.value)?.name ?? 'Neutral'
   })
 
+  /**
+   * Returns whether a path is already part of the active session context.
+   */
   function isPathInContext(path: string): boolean {
     return contextPathSet.value.has(canonicalWorkspaceDocumentKey(path))
   }
 
+  /**
+   * Merges new paths into the current context without duplicating entries.
+   */
   function mergeContextPaths(nextPaths: string[]): string[] {
     const merged = new Set(contextPaths.value)
     for (const path of nextPaths) {
@@ -159,6 +185,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return Array.from(merged)
   }
 
+  /**
+   * Resets the session-scoped UI state back to the empty shell state.
+   *
+   * This is used when a session is deleted or when the view first opens
+   * without a requested session id.
+   */
   function resetConversationState(config: { emitSessionChange?: boolean } = {}) {
     sessionId.value = ''
     if (config.emitSessionChange ?? true) {
@@ -175,6 +207,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     options.emitContextChanged([])
   }
 
+  /**
+   * Persists the current context list and reconciles local token estimates.
+   *
+   * Returning a tagged result keeps the caller in charge of rollback and user
+   * messaging so failure handling stays explicit at the workflow boundary.
+   */
   async function syncContextWithBackend(): Promise<LoadSyncResult> {
     if (!sessionId.value) return { ok: true }
     try {
@@ -193,6 +231,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Replaces the active context list and optionally rolls back on failure.
+   */
   async function replaceContextPaths(nextPaths: string[], config: ReplaceContextOptions = {}): Promise<LoadSyncResult> {
     const previousContextPaths = [...contextPaths.value]
     contextPaths.value = nextPaths
@@ -207,6 +248,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return sync
   }
 
+  /**
+   * Removes one context chip and syncs the new list back to the backend.
+   */
   async function removeContextPath(path: string) {
     const previousContextPaths = [...contextPaths.value]
     const previousComposerPaths = [...composerContextPaths.value]
@@ -226,6 +270,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     mentionInfo.value = ''
   }
 
+  /**
+   * Adds a path to the context list and keeps the rollback path explicit.
+   */
   async function addPathToContext(path: string): Promise<boolean> {
     if (!path.trim()) return false
     const previousContextPaths = [...contextPaths.value]
@@ -244,6 +291,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return true
   }
 
+  /**
+   * Loads a persisted session into the current session shell.
+   *
+   * The load step is where persisted messages, title, Alter selection, and
+   * context chips re-enter the local state.
+   */
   async function loadSession(nextSessionId: string) {
     if (!nextSessionId.trim()) return
     loading.value = true
@@ -274,6 +327,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Refreshes the session dropdown index.
+   */
   async function refreshSessionsIndex() {
     try {
       sessionsIndex.value = await fetchSecondBrainSessions(120)
@@ -282,6 +338,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Refreshes the available Alter list for the header selector.
+   */
   async function refreshAlterList() {
     try {
       availableAlters.value = await fetchAlterList()
@@ -290,6 +349,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Persists the selected Alter for the active session.
+   */
   async function applySelectedAlter(alterId: string) {
     const normalized = (alterId ?? '').trim()
     selectedAlterId.value = normalized
@@ -301,6 +363,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Creates a new blank session and makes it the active session.
+   */
   async function onCreateSession() {
     if (creatingSession.value) return
     creatingSession.value = true
@@ -327,6 +392,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Deletes a persisted session and resets the shell if it was active.
+   */
   async function onDeleteSession(sessionToDelete: string) {
     if (!sessionToDelete.trim()) return
     await removeDeliberationSession(sessionToDelete)
@@ -337,6 +405,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     resetConversationState()
   }
 
+  /**
+   * Resolves the initial session state the first time the view opens.
+   *
+   * The order is deliberate: refresh metadata first, then load the requested
+   * session if one was supplied, otherwise open the shell in a clean state.
+   */
   async function initializeSessionOnFirstOpen() {
     if (sessionId.value) return
 
@@ -354,10 +428,16 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   }
 
+  /**
+   * Emits the open-note event for a context chip.
+   */
   function openContextNote(path: string) {
     options.emitOpenNote(path)
   }
 
+  /**
+   * Toggles which context chip feeds the Echoes suggestions panel.
+   */
   function toggleEchoesAnchor(path: string) {
     if (selectedEchoesContextPath.value === path) {
       selectedEchoesContextPath.value = ''
@@ -367,6 +447,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     selectedEchoesContextPath.value = path
   }
 
+  /**
+   * Adds an Echoes suggestion to the active context list.
+   */
   async function addEchoesSuggestion(path: string) {
     await addPathToContext(path)
   }

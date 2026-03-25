@@ -1,3 +1,9 @@
+/**
+ * Session list/load helpers for the Second Brain domain.
+ *
+ * This composable keeps the low-level fetch/create/update calls grouped so the
+ * higher-level view workflows can stay focused on UI intent and state mapping.
+ */
 import { ref } from 'vue'
 import {
   createDeliberationSession,
@@ -17,6 +23,12 @@ export type LoadedSession = {
   citationsByMessageId: Record<string, string[]>
 }
 
+/**
+ * Wraps the backend session APIs needed by the Second Brain UI.
+ *
+ * The caller injects a citation parser so this module stays transport-focused
+ * and does not own any rendering or markdown assumptions.
+ */
 export function useSecondBrainSessions(deps: {
   parseCitations: (message: SecondBrainMessage) => string[]
 }) {
@@ -24,6 +36,12 @@ export function useSecondBrainSessions(deps: {
   const sessions = ref<SecondBrainSessionSummary[]>([])
   const sessionError = ref('')
 
+  /**
+   * Refreshes the session list shown in the dropdown and session panels.
+   *
+   * Failures are downgraded to an empty list so the UI can still mount and
+   * show a recoverable error state instead of crashing the whole view.
+   */
   async function refreshSessions(limit = 80) {
     loadingSessions.value = true
     sessionError.value = ''
@@ -37,11 +55,17 @@ export function useSecondBrainSessions(deps: {
     }
   }
 
+  /**
+   * Creates a new persisted session and returns its id.
+   */
   async function createSession(contextPaths: string[], title = '') {
     const created = await createDeliberationSession({ contextPaths, title })
     return created.sessionId
   }
 
+  /**
+   * Loads a persisted session and precomputes message citations.
+   */
   async function loadSession(sessionId: string): Promise<LoadedSession> {
     const payload = await loadDeliberationSession(sessionId)
     const citationsByMessageId: Record<string, string[]> = {}
@@ -51,6 +75,9 @@ export function useSecondBrainSessions(deps: {
     return { payload, citationsByMessageId }
   }
 
+  /**
+   * Persists the active context list for a session.
+   */
   async function updateContext(sessionId: string, contextItems: SecondBrainContextItem[]) {
     return await replaceSessionContext(
       sessionId,

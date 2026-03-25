@@ -1,9 +1,17 @@
 /**
- * Declarative mode contract used by Second Brain frontend UI.
+ * Declarative mode contract used by the Second Brain frontend UI.
+ *
+ * Keep the registry local and explicit so mode labels, kinds, and
+ * descriptions stay reviewable without hidden backend coupling.
  */
 export type SecondBrainModeKind = 'prompt_template' | 'agent_builtin' | 'skill_ref'
 
-/** A selectable deliberation mode shown to users. */
+/**
+ * A selectable deliberation mode shown to users.
+ *
+ * `kind` tells the UI whether the entry is a prompt template, a built-in agent,
+ * or a skill reference, which matters for how the composer explains it.
+ */
 export type SecondBrainModeSpec = {
   id: string
   label: string
@@ -11,7 +19,11 @@ export type SecondBrainModeSpec = {
   description: string
 }
 
-/** Default mode registry for v1. */
+/**
+ * Default mode registry for v1.
+ *
+ * These are the initial user-facing modes presented by the chat surface.
+ */
 export const SECOND_BRAIN_MODES: SecondBrainModeSpec[] = [
   {
     id: 'freestyle',

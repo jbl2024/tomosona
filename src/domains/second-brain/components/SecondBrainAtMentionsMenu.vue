@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Inline suggestion popup for Second Brain `@` mentions.
+ *
+ * The parent composer owns trigger detection and path resolution; this menu
+ * only renders the current suggestions and reports which item was chosen.
+ */
 import type { SecondBrainAtMentionItem } from '../composables/useSecondBrainAtMentions'
 
 const props = defineProps<{

@@ -24,6 +24,9 @@ export type SecondBrainStateSnapshot = {
 
 /**
  * Converts selected context paths into empty context items.
+ *
+ * The backend fills token estimates later, so the frontend starts with a
+ * stable zeroed shape and then rebalances once the total estimate is known.
  */
 export function buildContextItems(paths: string[]): SecondBrainContextItem[] {
   return paths.map((path) => ({ path, token_estimate: 0 }))
@@ -31,6 +34,9 @@ export function buildContextItems(paths: string[]): SecondBrainContextItem[] {
 
 /**
  * Rebalances token estimates after the backend returns an aggregate value.
+ *
+ * The current UI only needs a rough per-chip estimate, not exact item-level
+ * accounting, so we distribute the total evenly to keep the display simple.
  */
 export function rebalanceContextItemEstimates(
   items: SecondBrainContextItem[],
@@ -43,6 +49,9 @@ export function rebalanceContextItemEstimates(
 
 /**
  * Projects a loaded session payload into the local UI state fields.
+ *
+ * This isolates the shape mapping from the rest of the session workflow so the
+ * rest of the composable can remain focused on intent instead of field copying.
  */
 export function createLoadedSecondBrainState(loaded: LoadedSession): SecondBrainStateSnapshot {
   return {
@@ -59,6 +68,9 @@ export function createLoadedSecondBrainState(loaded: LoadedSession): SecondBrain
 
 /**
  * Creates the optimistic user message inserted before the backend responds.
+ *
+ * We keep the message id time-based so it cannot collide with backend ids in a
+ * normal session and can be replaced when the real response arrives.
  */
 export function createOptimisticUserMessage(mode: string, message: string, createdAtMs: number): SecondBrainMessage {
   return {
@@ -74,6 +86,9 @@ export function createOptimisticUserMessage(mode: string, message: string, creat
 
 /**
  * Creates the placeholder assistant message that will later be filled by the stream.
+ *
+ * The assistant placeholder keeps the UI stable while the backend streams the
+ * answer, which avoids reflow and lets the copy action read the live content.
  */
 export function createAssistantPlaceholderMessage(
   mode: string,
@@ -94,6 +109,9 @@ export function createAssistantPlaceholderMessage(
 
 /**
  * Resolves the user-facing content for a message, preferring streamed text for assistants.
+ *
+ * Assistant messages can be backed by live stream text or persisted content,
+ * so this helper keeps the precedence rule in one place.
  */
 export function resolveSecondBrainMessageContent(
   message: SecondBrainMessage,

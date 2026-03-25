@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Session list and delete picker for the Second Brain domain.
+ *
+ * This component keeps the session catalog readable and actionable, but the
+ * actual session lifecycle remains in the view workflow composables.
+ */
 import { computed, ref } from 'vue'
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import type { SecondBrainSessionSummary } from '../../../shared/api/apiTypes'

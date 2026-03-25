@@ -1,3 +1,10 @@
+/**
+ * Composer workflow for the Second Brain chat surface.
+ *
+ * This module owns user input, mention resolution, Pulse prompt prep, and
+ * clipboard/export helpers. It deliberately does not own stream lifecycle,
+ * which stays in the sibling stream runtime.
+ */
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import type { FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../../shared/api/apiTypes'
@@ -79,6 +86,9 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     Boolean(options.sessionId.value && !options.requestInFlight.value && (options.contextPaths.value.length > 0 || options.messages.value.length > 0))
   )
 
+  /**
+   * Formats a workspace path for user-facing text and export output.
+   */
   function toRelativePath(path: string): string {
     const value = path.replace(/\\/g, '/')
     const root = options.workspacePath.value.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -88,6 +98,12 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     return value
   }
 
+  /**
+   * Displays a transient clipboard feedback toast.
+   *
+   * The timeout is reset on every call so rapid repeat copies do not leave
+   * stale toast state behind.
+   */
   function showCopyToast(kind: 'success' | 'error', message: string, durationMs = 2000) {
     if (copyToastTimer) clearTimeout(copyToastTimer)
     copyToast.value = {
@@ -101,6 +117,12 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     }, durationMs)
   }
 
+  /**
+   * Builds the markdown export for the current session.
+   *
+   * This export is intentionally explicit: context first, then conversation,
+   * so the output is stable and readable when copied or saved elsewhere.
+   */
   function buildConversationMarkdown(contextEntries: Array<{ path: string; content: string }>): string {
     const lines: string[] = [`# ${options.sessionTitle.value || 'Second Brain Session'}`, '', '## Context', '']
 
@@ -117,6 +139,12 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     return lines.join('\n').trim()
   }
 
+  /**
+   * Writes text to the clipboard, falling back to the native Tauri helper.
+   *
+   * The browser clipboard is tried first so the webview path stays fast when
+   * permissions allow it, but desktop fallback keeps the action reliable.
+   */
   async function writeTextToClipboard(text: string): Promise<void> {
     try {
       if (navigator.clipboard?.writeText) {
@@ -129,6 +157,9 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     await writeClipboardText(text)
   }
 
+  /**
+   * Copies the full conversation and explicit context to the clipboard.
+   */
   async function onCopyConversation() {
     if (!canCopyConversation.value) return
 
@@ -149,6 +180,9 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     }
   }
 
+  /**
+   * Copies the currently visible assistant text to the clipboard.
+   */
   async function onCopyAssistantMessage(message: SecondBrainMessage) {
     if (message.role !== 'assistant') return
     const content = options.displayMessage(message).trim()
@@ -179,15 +213,27 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     }
   }
 
+  /**
+   * Recomputes the current `@` trigger from the composer caret position.
+   */
   function updateMentionTriggerFromComposer() {
     mentions.updateTrigger(inputMessage.value, composerRef.value?.selectionStart ?? null)
   }
 
+  /**
+   * Syncs the textarea input into the reactive composer state.
+   */
   function onComposerInput(event: Event) {
     inputMessage.value = (event.target as HTMLTextAreaElement).value
     updateMentionTriggerFromComposer()
   }
 
+  /**
+   * Applies a mention suggestion and persists the resolved path.
+   *
+   * The local composer path list is restored if backend sync fails so the user
+   * does not lose what they just selected.
+   */
   async function applyMentionSuggestion(item: SecondBrainAtMentionItem) {
     const trigger = mentions.trigger.value
     const previousComposerPaths = [...options.composerContextPaths.value]
@@ -214,6 +260,9 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     })
   }
 
+  /**
+   * Handles send shortcut and mention-menu navigation in the composer.
+   */
   function onComposerKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
       event.preventDefault()
@@ -250,11 +299,20 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     }
   }
 
+  /**
+   * Matches dropdown aliases against the search query.
+   */
   function pulseDropdownMatcher(item: FilterableDropdownItem, query: string): boolean {
     const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry).toLowerCase()) : []
     return aliases.some((token) => token.includes(query))
   }
 
+  /**
+   * Rewrites the composer into a Pulse prompt for the current context.
+   *
+   * The goal is to help the user steer the next generation without forcing a
+   * modal flow or losing any extra guidance already typed.
+   */
   async function runPulseFromSecondBrain() {
     if (!options.contextPaths.value.length) {
       options.mentionInfo.value = 'Add note context before using Pulse.'
@@ -277,15 +335,24 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     void nextTick(() => composerRef.value?.focus())
   }
 
+  /**
+   * Selects a Pulse action and injects its prompt into the composer.
+   */
   async function onPulseAction(actionId: PulseActionId) {
     pulseActionId.value = actionId
     await runPulseFromSecondBrain()
   }
 
+  /**
+   * Translates dropdown selection into a Pulse action selection.
+   */
   function onPulseDropdownSelect(item: FilterableDropdownItem) {
     void onPulseAction(item.id as PulseActionId)
   }
 
+  /**
+   * Adds a path to the current session context while keeping rollback explicit.
+   */
   async function addPathToContext(path: string): Promise<boolean> {
     const next = options.mergeContextPaths([path])
     const sync = await options.replaceContextPaths(next, { revertOnFailure: true })
@@ -298,6 +365,12 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     return true
   }
 
+  /**
+   * Sends the composer text to the backend after resolving explicit mentions.
+   *
+   * Optimistic message insertion, stream lifecycle, and scroll handling stay in
+   * the stream runtime; this function only prepares the user-facing payload.
+   */
   async function onSendMessage() {
     if (!options.sessionId.value || !inputMessage.value.trim() || options.requestInFlight.value) return
     options.requestInFlight.value = true

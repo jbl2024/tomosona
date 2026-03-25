@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Output publishing panel for Second Brain drafts.
+ *
+ * Keep this component focused on draft export and target-note selection; the
+ * actual draft save/publish APIs remain in the domain composables.
+ */
 import { ref } from 'vue'
 import EditorView from '../../editor/components/EditorView.vue'
 

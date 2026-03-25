@@ -1,3 +1,9 @@
+/**
+ * Facade that assembles the three Second Brain workflows into one view model.
+ *
+ * The view consumes this surface directly so it does not need to know whether a
+ * ref comes from session persistence, stream handling, or composer behavior.
+ */
 import type { ComputedRef, Ref } from 'vue'
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import { useSecondBrainConversationRuntime } from './useSecondBrainConversationRuntime'
@@ -21,11 +27,10 @@ export type UseSecondBrainViewStateOptions = {
 }
 
 /**
- * Facade for the Second Brain view state.
+ * Assembles the Second Brain session, stream, and composer workflows.
  *
- * The session workflow owns session/context persistence, while the conversation
- * runtime owns composition, streaming, copy, and Pulse affordances. The view
- * binds the returned refs directly and stays a render shell.
+ * The split keeps each workflow focused while preserving a single object for
+ * the render shell to destructure.
  */
 export function useSecondBrainViewState(options: UseSecondBrainViewStateOptions) {
   const session = useSecondBrainSessionWorkflow(options)

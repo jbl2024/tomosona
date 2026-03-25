@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Context chip and picker panel for Second Brain.
+ *
+ * The parent owns persistence; this panel only lets the user inspect, add, and
+ * remove explicit context paths before the list is synced back upstream.
+ */
 import { computed, ref } from 'vue'
 import type { SecondBrainContextItem } from '../../../shared/api/apiTypes'
 

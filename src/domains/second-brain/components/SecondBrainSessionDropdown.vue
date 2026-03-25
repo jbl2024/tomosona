@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Header dropdown for switching, deleting, and creating Second Brain sessions.
+ *
+ * Keep the component presentational: it transforms session summaries into a
+ * filterable menu and emits user intent back to the parent shell.
+ */
 import { computed, ref } from 'vue'
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'

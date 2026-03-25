@@ -1,7 +1,18 @@
+/**
+ * Thin deliberation transport wrapper for the Second Brain domain.
+ *
+ * This module owns the lower-level send/stream wiring used by older state
+ * containers and tests. Keep it small and transport-focused so higher-level
+ * workflows can layer on mention handling, optimistic messages, and copy UI.
+ */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { runDeliberation, subscribeSecondBrainStream } from '../lib/secondBrainApi'
 import type { SecondBrainAttachmentMeta, SecondBrainMessage } from '../../../shared/api/apiTypes'
 
+/**
+ * Exposes the minimal backend deliberation primitives needed by legacy
+ * Second Brain state containers.
+ */
 export function useSecondBrainDeliberation() {
   const sending = ref(false)
   const sendError = ref('')
@@ -10,6 +21,12 @@ export function useSecondBrainDeliberation() {
 
   const activeStreamingMessageIds = computed(() => Object.keys(streamTextByMessageId.value))
 
+  /**
+   * Binds backend assistant stream events to local per-message buffers.
+   *
+   * Callers that still use this helper are expected to pair it with
+   * `resolveAssistantMessage` when rendering assistant messages.
+   */
   async function bindStreamEvents() {
     const onStart = await subscribeSecondBrainStream('second-brain://assistant-start', (payload) => {
       streamTextByMessageId.value = {
@@ -36,6 +53,9 @@ export function useSecondBrainDeliberation() {
     unlisteners.push(onStart, onDelta, onComplete, onError)
   }
 
+  /**
+   * Sends a deliberation request and returns the backend message ids.
+   */
   async function sendMessage(payload: {
     sessionId: string
     mode: string
@@ -54,6 +74,9 @@ export function useSecondBrainDeliberation() {
     }
   }
 
+  /**
+   * Resolves assistant message content by preferring the live stream buffer.
+   */
   function resolveAssistantMessage(message: SecondBrainMessage): string {
     return streamTextByMessageId.value[message.id] ?? message.content_md
   }

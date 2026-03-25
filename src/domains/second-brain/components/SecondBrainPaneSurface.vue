@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Pane-level adapter for mounting the Second Brain view inside the app shell.
+ *
+ * This component exists only to forward shell props and events into the domain
+ * view so pane orchestration stays separate from chat behavior.
+ */
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import SecondBrainView from './SecondBrainView.vue'
 

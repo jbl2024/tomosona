@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Mode selector for Second Brain prompting.
+ *
+ * The selector is intentionally dumb: it only reflects the mode registry and
+ * emits the chosen id back to the parent workflow.
+ */
 import type { SecondBrainModeSpec } from '../lib/secondBrainModes'
 
 const props = defineProps<{

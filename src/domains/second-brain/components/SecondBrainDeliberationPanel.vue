@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * Conversation timeline panel for Second Brain.
+ *
+ * This component renders the message history, mode selector, and compose bar
+ * while leaving send logic and stream ownership to the view workflows.
+ */
 import type { SecondBrainMessage } from '../../../shared/api/apiTypes'
 import type { SecondBrainModeSpec } from '../lib/secondBrainModes'
 import { renderSecondBrainMarkdownPreview } from '../lib/secondBrainMarkdownPreview'
