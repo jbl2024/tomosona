@@ -27,6 +27,16 @@ async function flushEditor() {
   await nextTick()
 }
 
+async function waitForTextarea(root: HTMLElement) {
+  for (let remainingFrames = 20; remainingFrames > 0; remainingFrames -= 1) {
+    const textarea = root.querySelector('.tomosona-html-textarea') as HTMLTextAreaElement | null
+    if (textarea) return textarea
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  }
+
+  return root.querySelector('.tomosona-html-textarea') as HTMLTextAreaElement | null
+}
+
 function createEditorHarness() {
   const root = document.createElement('div')
   document.body.appendChild(root)
@@ -83,7 +93,7 @@ describe('HtmlNode integration focus', () => {
     await flushEditor()
 
     const htmlNode = root.querySelector('.tomosona-html-node') as HTMLElement | null
-    const textarea = root.querySelector('.tomosona-html-textarea') as HTMLTextAreaElement | null
+    const textarea = await waitForTextarea(root)
     expect(htmlNode).toBeTruthy()
     expect(textarea).toBeTruthy()
     expect(document.activeElement).toBe(textarea)
