@@ -9,9 +9,14 @@ This folder contains the modular frontend surface for the Second Brain view.
 - `SecondBrainAtMentionsMenu.vue`: inline `@` suggestion list for context picks.
 
 ## State & Services
-- `useSecondBrainViewState.ts` owns session loading, explicit context updates,
-  assistant streaming, copy/export helpers, Pulse prompt presets, and
-  mention-driven context orchestration.
+- `useSecondBrainViewState.ts` is the façade that stitches the session and
+  conversation workflows together.
+- `useSecondBrainSessionWorkflow.ts` owns session loading, explicit context
+  updates, Alter selection, Echoes context anchoring, and session lifecycle
+  actions.
+- `useSecondBrainConversationRuntime.ts` owns assistant streaming,
+  copy/export helpers, Pulse prompt presets, and mention-driven context
+  orchestration.
 - `SecondBrainView.vue` should only bind props, emits, and render the surface.
 - Backend calls are isolated in `src/domains/second-brain/lib/secondBrainApi.ts`.
 - Modes contract is declared in `src/domains/second-brain/lib/secondBrainModes.ts`.
@@ -24,3 +29,4 @@ This folder contains the modular frontend surface for the Second Brain view.
 - Use explicit context and no implicit cross-session memory.
 - Do not auto-resume the latest session on pane open; session restore must be explicit.
 - Do not reintroduce direct backend API calls or stream subscriptions into `SecondBrainView.vue`.
+- Keep persistence in the session workflow and transport/runtime behavior in the conversation workflow.

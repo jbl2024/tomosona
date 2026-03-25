@@ -84,6 +84,7 @@ const {
   requestInFlight,
   selectedAlterId,
   selectedEchoesContextPath,
+  sessionLoadError,
   sendError,
   sending,
   sessionId,
@@ -126,7 +127,7 @@ void threadRef
       <header class="sb-center-head">
         <div class="title-wrap">
           <h2>{{ sessionTitle }}</h2>
-          <p v-if="configError" class="sb-error">{{ configError }}</p>
+          <p v-if="configError || sessionLoadError" class="sb-error">{{ configError || sessionLoadError }}</p>
           <div class="sb-alter-row">
             <label for="sb-alter-select">Alter</label>
             <select
