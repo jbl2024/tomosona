@@ -567,6 +567,8 @@ const formatOptions = [
   display: flex;
   min-height: 0;
   height: 100%;
+  background: var(--sb-layout-bg);
+  color: var(--sb-text);
 }
 
 .alter-exploration__shell {
@@ -577,6 +579,11 @@ const formatOptions = [
   width: 100%;
   gap: 0.85rem;
   overflow: hidden;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: var(--sb-center-bg);
+  box-shadow: none;
+  padding: 8px;
 }
 
 .alter-exploration__header {
@@ -623,22 +630,24 @@ const formatOptions = [
   bottom: 0;
   z-index: 1;
   padding: 10px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--sb-input-border);
   border-radius: 16px;
-  background: var(--panel-bg);
-  box-shadow: var(--panel-shadow);
+  background: var(--sb-input-bg);
+  box-shadow: var(--sb-composer-shadow);
 }
 
 .alter-exploration__notice {
   padding: 0.75rem 0.9rem;
   border-radius: 0.75rem;
-  background: rgba(58, 115, 84, 0.12);
+  background: var(--sb-active-bg);
+  color: var(--sb-active-text);
 }
 
 .alter-exploration__error {
   padding: 0.75rem 0.9rem;
   border-radius: 0.75rem;
-  background: rgba(180, 60, 60, 0.12);
+  background: var(--sb-danger-bg);
+  color: var(--sb-danger-text);
 }
 
 .alter-exploration__workspace {
@@ -663,8 +672,8 @@ const formatOptions = [
   gap: 1rem;
   padding: 1rem;
   border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  background: color-mix(in srgb, currentColor 3%, transparent);
+  border: 1px solid var(--sb-border);
+  background: var(--sb-thread-bg);
 }
 
 .alter-exploration__section-head {
@@ -739,21 +748,22 @@ const formatOptions = [
 .alter-exploration__alter-chip {
   display: grid;
   gap: 0.2rem;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border: 1px solid var(--sb-border);
   border-radius: 0.9rem;
   padding: 0.75rem 0.85rem;
-  background: transparent;
+  background: var(--sb-thread-bg);
   text-align: left;
   min-width: 11rem;
+  color: var(--sb-text);
 }
 
 .alter-exploration__alter-chip--active {
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  border-color: var(--sb-active-border);
+  background: var(--sb-assistant-bg);
 }
 
 .alter-exploration__alter-chip small {
-  opacity: 0.7;
+  color: var(--sb-text-dim);
 }
 
 .alter-exploration__grid {
@@ -784,8 +794,8 @@ const formatOptions = [
 .alter-exploration__result-card {
   border-radius: 1rem;
   padding: 0.85rem;
-  background: color-mix(in srgb, currentColor 4%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  background: var(--sb-assistant-bg);
+  border: 1px solid var(--sb-border);
 }
 
 .alter-exploration__result-head {
@@ -806,8 +816,9 @@ const formatOptions = [
   white-space: pre-wrap;
   padding: 1rem;
   border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  background: color-mix(in srgb, currentColor 4%, transparent);
+  border: 1px solid var(--sb-input-border);
+  background: var(--sb-input-bg);
+  color: var(--sb-text);
 }
 
 .alter-exploration__history {
@@ -821,8 +832,8 @@ const formatOptions = [
   gap: 1rem;
   padding: 0.8rem 0.9rem;
   border-radius: 0.85rem;
-  border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-  background: transparent;
+  border: 1px solid var(--sb-border);
+  background: var(--sb-thread-bg);
   text-align: left;
 }
 
@@ -832,10 +843,6 @@ const formatOptions = [
 }
 
 @media (max-width: 1120px) {
-  .alter-exploration__session-toolbar {
-    flex-wrap: wrap;
-  }
-
   .alter-exploration__grid {
     grid-template-columns: 1fr;
   }
