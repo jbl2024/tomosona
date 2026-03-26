@@ -20,6 +20,7 @@ import { toWorkspaceRelativePath } from '../../explorer/lib/workspacePaths'
 import SecondBrainAtMentionsMenu from '../../second-brain/components/SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from '../../second-brain/components/SecondBrainEchoesPanel.vue'
 import { useSecondBrainAtMentions } from '../../second-brain/composables/useSecondBrainAtMentions'
+import { renderSecondBrainMarkdownPreview } from '../../second-brain/lib/secondBrainMarkdownPreview'
 import type { AlterExplorationRoundResult, AlterSummary } from '../../../shared/api/apiTypes'
 import { useAlterExploration } from '../composables/useAlterExploration'
 
@@ -117,6 +118,14 @@ function toRelativePath(path: string): string {
 
 function splitRoundResults(roundNumber: number): AlterExplorationRoundResult[] {
   return roundGroups.value.find((group) => group.roundNumber === roundNumber)?.results ?? []
+}
+
+function renderRoundContent(content: string): string {
+  return renderSecondBrainMarkdownPreview(content)
+}
+
+function renderFinalSynthesis(content: string | null | undefined): string {
+  return renderSecondBrainMarkdownPreview(content ?? '')
 }
 
 function getPromptEchoesItems() {
@@ -418,7 +427,7 @@ const formatOptions = [
                         {{ result.references_alter_ids.length ? result.references_alter_ids.map(resolveAlterName).join(', ') : 'open' }}
                       </UiBadge>
                     </div>
-                    <p class="alter-exploration__result-copy">{{ result.content }}</p>
+                    <div class="alter-exploration__markdown" v-html="renderRoundContent(result.content)"></div>
                   </article>
                 </div>
               </section>
@@ -428,7 +437,10 @@ const formatOptions = [
                   <h4>Final synthesis</h4>
                   <UiBadge tone="accent" size="sm">{{ session.output_format }}</UiBadge>
                 </div>
-                <pre class="alter-exploration__synthesis">{{ session.final_synthesis || 'No synthesis available yet.' }}</pre>
+                <div
+                  class="alter-exploration__synthesis alter-exploration__markdown"
+                  v-html="renderFinalSynthesis(session.final_synthesis || 'No synthesis available yet.')"
+                ></div>
 
                 <div class="alter-exploration__final-actions">
                   <UiButton
@@ -795,14 +807,109 @@ const formatOptions = [
   margin-bottom: 0.5rem;
 }
 
-.alter-exploration__result-copy {
-  margin: 0;
-  white-space: pre-wrap;
+.alter-exploration__markdown {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.alter-exploration__markdown p {
+  margin: 0 0 6px;
+}
+
+.alter-exploration__markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.alter-exploration__markdown h1,
+.alter-exploration__markdown h2,
+.alter-exploration__markdown h3,
+.alter-exploration__markdown h4,
+.alter-exploration__markdown h5,
+.alter-exploration__markdown h6 {
+  margin: 8px 0 5px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.alter-exploration__markdown ul,
+.alter-exploration__markdown ol {
+  margin: 5px 0 6px;
+  padding-left: 18px;
+}
+
+.alter-exploration__markdown ul {
+  list-style: disc outside;
+}
+
+.alter-exploration__markdown ol {
+  list-style: decimal outside;
+}
+
+.alter-exploration__markdown li {
+  margin: 1px 0;
+}
+
+.alter-exploration__markdown ul ul {
+  list-style-type: circle;
+}
+
+.alter-exploration__markdown ol ol {
+  list-style-type: lower-alpha;
+}
+
+.alter-exploration__markdown blockquote {
+  margin: 5px 0 6px;
+  border-left: 3px solid var(--sb-blockquote-border);
+  padding: 2px 0 2px 10px;
+  color: var(--sb-text-soft);
+}
+
+.alter-exploration__markdown code {
+  font-family: var(--font-code);
+  background: var(--sb-code-bg);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.alter-exploration__markdown pre {
+  margin: 6px 0;
+  background: var(--sb-code-bg);
+  border: 1px solid var(--sb-input-border);
+  border-radius: 8px;
+  padding: 6px;
+  overflow: auto;
+}
+
+.alter-exploration__markdown pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.alter-exploration__markdown a {
+  color: var(--sb-active-text);
+  text-decoration: underline;
+}
+
+.alter-exploration__markdown table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.alter-exploration__markdown th,
+.alter-exploration__markdown td {
+  border: 1px solid var(--sb-input-border);
+  padding: 4px 8px;
+}
+
+.alter-exploration__markdown th {
+  background: var(--sb-code-bg);
+  font-weight: 600;
 }
 
 .alter-exploration__synthesis {
-  margin: 0;
-  white-space: pre-wrap;
   padding: 1rem;
   border-radius: 1rem;
   border: 1px solid var(--sb-input-border);

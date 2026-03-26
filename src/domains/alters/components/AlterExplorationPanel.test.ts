@@ -2,6 +2,39 @@ import { createApp, defineComponent, h, nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AlterExplorationPanel from './AlterExplorationPanel.vue'
 
+vi.mock('../../../shared/components/workspace/WorkspaceSessionDropdown.vue', async () => {
+  const { defineComponent, h } = await import('vue')
+  return {
+    default: defineComponent({
+      name: 'WorkspaceSessionDropdownStub',
+      props: {
+        sessions: {
+          type: Array,
+          default: () => []
+        },
+        loading: {
+          type: Boolean,
+          default: false
+        }
+      },
+      emits: ['select'],
+      setup(props, { emit }) {
+        return () =>
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'sb-session-gear-btn',
+              disabled: props.loading,
+              onClick: () => emit('select', 'session-markdown')
+            },
+            'Sessions'
+          )
+      }
+    })
+  }
+})
+
 const alterExplorationApi = vi.hoisted(() => ({
   cancelWorkspaceAlterExplorationSession: vi.fn(),
   createWorkspaceAlterExplorationSession: vi.fn(),
@@ -177,4 +210,5 @@ describe('AlterExplorationPanel', () => {
 
     mounted.app.unmount()
   })
+
 })
