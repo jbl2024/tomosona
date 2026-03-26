@@ -11,6 +11,7 @@ import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
+import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
 import SecondBrainSessionDropdown from './SecondBrainSessionDropdown.vue'
@@ -354,31 +355,14 @@ void threadRef
             @update:active-index="mentions.setActiveIndex"
           />
 
-          <div v-if="contextCards.length" class="sb-chip-row">
-            <article v-for="chip in contextCards" :key="chip.path" class="sb-chip">
-              <button
-                type="button"
-                class="sb-chip-main"
-                :class="{ active: selectedEchoesContextPath === chip.path }"
-                :title="`Use ${chip.name} for Echoes suggestions`"
-                :aria-pressed="selectedEchoesContextPath === chip.path"
-                @click="toggleEchoesAnchor(chip.path)"
-              >
-                <strong>{{ chip.name }}</strong>
-                <span>{{ chip.parent }}</span>
-              </button>
-              <button
-                type="button"
-                class="sb-chip-open"
-                :title="`Open ${chip.name}`"
-                :aria-label="`Open ${chip.name}`"
-                @click="openContextNote(chip.path)"
-              >
-                Open
-              </button>
-              <button type="button" class="sb-chip-remove" @click="void removeContextPath(chip.path)">×</button>
-            </article>
-          </div>
+          <WorkspaceContextChips
+            :chips="contextCards"
+            :active-path="selectedEchoesContextPath"
+            active-label="Use this note for Echoes suggestions"
+            @toggle="toggleEchoesAnchor"
+            @open="openContextNote"
+            @remove="removeContextPath"
+          />
 
           <textarea
             ref="composerRef"
@@ -825,79 +809,6 @@ void threadRef
   --ui-dropdown-text: var(--sb-text);
   --ui-dropdown-muted: var(--sb-text-dim);
   --ui-dropdown-hover: var(--sb-assistant-bg);
-}
-
-.sb-chip-row {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-  gap: 5px;
-  margin-bottom: 6px;
-  padding-bottom: 2px;
-}
-
-.sb-chip {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--sb-chip-border);
-  background: var(--sb-chip-bg);
-  border-radius: 8px;
-  padding: 3px 5px;
-}
-
-.sb-chip-main {
-  border: 0;
-  background: transparent;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  padding: 0;
-}
-
-.sb-chip-main.active strong {
-  color: var(--sb-active-text);
-}
-
-.sb-chip-main.active span {
-  color: var(--sb-active-text);
-}
-
-.sb-chip-main strong {
-  display: block;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.sb-chip-main span {
-  display: block;
-  color: var(--sb-chip-meta);
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.sb-chip-open {
-  border: 1px solid var(--sb-button-border);
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  border-radius: 999px;
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 600;
-  padding: 4px 8px;
-}
-
-.sb-chip-remove {
-  border: 0;
-  background: transparent;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--sb-text-dim);
 }
 
 .sb-composer .sb-textarea {

@@ -19,7 +19,13 @@ import type {
   AlterExplorationSubjectType,
   AlterSummary
 } from '../../../shared/api/apiTypes'
+import { useEchoesPack } from '../../echoes/composables/useEchoesPack'
 import { useSecondBrainAtMentions } from '../../second-brain/composables/useSecondBrainAtMentions'
+import {
+  normalizeWorkspacePath,
+  toWorkspacePathKey,
+  toWorkspaceRelativePath
+} from '../../explorer/lib/workspacePaths'
 import {
   cancelWorkspaceAlterExplorationSession,
   createWorkspaceAlterExplorationSession,
@@ -43,11 +49,19 @@ export type AlterExplorationRoundGroup = {
   results: AlterExplorationRoundResult[]
 }
 
+export type AlterExplorationPromptContextCard = {
+  path: string
+  name: string
+  parent: string
+  relativePath: string
+}
+
 export type UseAlterExplorationOptions = {
   workspacePath: Ref<string>
   availableAlters: Ref<AlterSummary[]>
   allWorkspaceFiles?: Ref<string[]>
   activeNotePath?: Ref<string | undefined>
+  emitOpenNote?: (path: string) => void
 }
 
 /**
@@ -65,7 +79,8 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
   })
   const subjectText = ref('')
   const subjectType = ref<AlterExplorationSubjectType>('prompt')
-  const subjectSourceId = ref('')
+  const selectedPromptPaths = ref<string[]>([])
+  const selectedPromptAnchorPath = ref('')
   const mode = ref<AlterExplorationMode>('challenge')
   const rounds = ref(DEFAULT_ROUNDS)
   const outputFormat = ref<AlterExplorationOutputFormat>('summary')
@@ -83,6 +98,38 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
     return selectedAlterIds.value
       .map((alterId) => byId.get(alterId))
       .filter((alter): alter is AlterSummary => Boolean(alter))
+  })
+
+  const promptContextCards = computed<AlterExplorationPromptContextCard[]>(() =>
+    selectedPromptPaths.value.map((path) => {
+      const absolutePath = normalizeWorkspacePath(path)
+      const relativePath = toWorkspaceRelativePath(workspacePath.value, absolutePath)
+      const parts = relativePath.split('/')
+      return {
+        path: absolutePath,
+        name: parts.length ? parts[parts.length - 1] : (relativePath || absolutePath),
+        parent: parts.slice(0, -1).join('/') || '.',
+        relativePath
+      }
+    })
+  )
+
+  const promptContextSet = computed(() => {
+    const set = new Set<string>()
+    for (const path of selectedPromptPaths.value) {
+      set.add(toWorkspacePathKey(path))
+    }
+    return set
+  })
+
+  const promptEchoesAnchor = computed(() => {
+    const selectedPath = normalizeWorkspacePath(selectedPromptAnchorPath.value)
+    if (!selectedPath) return ''
+    return promptContextSet.value.has(toWorkspacePathKey(selectedPath)) ? selectedPath : ''
+  })
+
+  const promptEchoes = useEchoesPack(promptEchoesAnchor, {
+    limit: 5
   })
 
   const selectedCountLabel = computed(() => {
@@ -127,6 +174,20 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
     selectedAlterIds.value = defaults
   }
 
+  function normalizeContextPaths(paths: string[]): string[] {
+    const deduped: string[] = []
+    const seen = new Set<string>()
+    for (const path of paths) {
+      const normalized = normalizeWorkspacePath(path)
+      if (!normalized) continue
+      const key = toWorkspacePathKey(normalized)
+      if (seen.has(key)) continue
+      seen.add(key)
+      deduped.push(normalized)
+    }
+    return deduped
+  }
+
   function toggleAlterSelection(alterId: string) {
     error.value = ''
     notice.value = ''
@@ -141,6 +202,50 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
     selectedAlterIds.value = [...selectedAlterIds.value, alterId]
   }
 
+  function replacePromptContextPaths(paths: string[]) {
+    selectedPromptPaths.value = normalizeContextPaths(paths)
+    if (selectedPromptAnchorPath.value && !isPromptPathInContext(selectedPromptAnchorPath.value)) {
+      selectedPromptAnchorPath.value = ''
+    }
+  }
+
+  function addPromptContextPath(path: string): boolean {
+    const normalized = normalizeWorkspacePath(path)
+    if (!normalized) return false
+    const next = normalizeContextPaths([...selectedPromptPaths.value, normalized])
+    selectedPromptPaths.value = next
+    return true
+  }
+
+  function removePromptContextPath(path: string) {
+    const normalized = normalizeWorkspacePath(path)
+    if (!normalized) return
+    selectedPromptPaths.value = selectedPromptPaths.value.filter((item) => toWorkspacePathKey(item) !== toWorkspacePathKey(normalized))
+    if (toWorkspacePathKey(selectedPromptAnchorPath.value) === toWorkspacePathKey(normalized)) {
+      selectedPromptAnchorPath.value = ''
+    }
+  }
+
+  function isPromptPathInContext(path: string): boolean {
+    return promptContextSet.value.has(toWorkspacePathKey(path))
+  }
+
+  function togglePromptEchoesAnchor(path: string) {
+    const normalized = normalizeWorkspacePath(path)
+    if (!normalized || !isPromptPathInContext(normalized)) return
+    if (toWorkspacePathKey(selectedPromptAnchorPath.value) === toWorkspacePathKey(normalized)) {
+      selectedPromptAnchorPath.value = ''
+      return
+    }
+    selectedPromptAnchorPath.value = normalized
+  }
+
+  function openPromptContextNote(path: string) {
+    const normalized = normalizeWorkspacePath(path)
+    if (!normalized) return
+    options?.emitOpenNote?.(normalized)
+  }
+
   function resolveAlterName(alterId: string): string {
     const sessionAlter = session.value?.alters?.find((item) => item.id === alterId)
     if (sessionAlter?.name) return sessionAlter.name
@@ -150,15 +255,15 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
 
   function buildSubject(): AlterExplorationSubject {
     const text = subjectText.value.trim()
-    const sourceId = subjectSourceId.value.trim()
     const resolvedMentions = mentionResolver.resolveMentionedPaths(text)
-    const mentionSourceId = resolvedMentions.resolvedPaths.length
-      ? resolvedMentions.resolvedPaths.join('\n')
-      : null
+    const contextPaths = normalizeContextPaths([
+      ...selectedPromptPaths.value,
+      ...resolvedMentions.resolvedPaths
+    ])
     return {
       subject_type: subjectType.value,
       text,
-      source_id: sourceId ? sourceId : mentionSourceId
+      source_id: contextPaths.length ? contextPaths.join('\n') : null
     }
   }
 
@@ -186,7 +291,6 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
     const subject = session.value.subject.text.trim()
     const alterNames = selectedAlters.value.map((item) => item.name).join(', ')
     const finalSynthesis = session.value.final_synthesis?.trim() || 'No synthesis available yet.'
-    const sourceLabel = session.value.subject.source_id?.trim() || 'none'
     const contextNotes = session.value.subject.source_id
       ? session.value.subject.source_id
           .split(/\r?\n|,/)
@@ -213,7 +317,6 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
       `- Rounds: ${session.value.rounds}`,
       `- Output format: ${session.value.output_format}`,
       `- Alters: ${alterNames || session.value.alter_ids.map((alterId) => resolveAlterName(alterId)).join(', ')}`,
-      `- Subject source: ${sourceLabel}`,
       '',
       bodyByKind[kind],
       '',
@@ -312,7 +415,11 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
       selectedAlterIds.value = [...session.value.alter_ids]
       subjectText.value = session.value.subject.text
       subjectType.value = session.value.subject.subject_type
-      subjectSourceId.value = session.value.subject.source_id ?? ''
+      replacePromptContextPaths(
+        session.value.subject.source_id
+          ? session.value.subject.source_id.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean)
+          : []
+      )
       mode.value = session.value.mode
       rounds.value = session.value.rounds
       outputFormat.value = session.value.output_format
@@ -431,12 +538,16 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
   return {
     subjectText,
     subjectType,
-    subjectSourceId,
     mode,
     rounds,
     outputFormat,
     selectedAlterIds,
     selectedAlters,
+    promptContextCards,
+    selectedPromptPaths,
+    selectedPromptAnchorPath,
+    promptEchoes,
+    promptEchoesAnchor,
     selectedCountLabel,
     selectionLimitReached,
     hasMinimumAlters,
@@ -451,14 +562,21 @@ export function useAlterExploration(options?: UseAlterExplorationOptions) {
     error,
     notice,
     roundGroups,
+    addPromptContextPath,
+    isPromptPathInContext,
+    openPromptContextNote,
     resolveAlterName,
+    removePromptContextPath,
+    replacePromptContextPaths,
+    togglePromptEchoesAnchor,
     toggleAlterSelection,
     toggleAlter: toggleAlterSelection,
     resetSession,
     clearSetup: () => {
       subjectText.value = ''
       subjectType.value = 'prompt'
-      subjectSourceId.value = ''
+      selectedPromptPaths.value = []
+      selectedPromptAnchorPath.value = ''
       mode.value = 'challenge'
       rounds.value = DEFAULT_ROUNDS
       outputFormat.value = 'summary'

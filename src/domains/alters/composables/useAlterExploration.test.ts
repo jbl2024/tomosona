@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { useAlterExploration } from './useAlterExploration'
 import type { AlterExplorationSession, AlterExplorationSessionSummary } from '../../../shared/api/apiTypes'
@@ -95,6 +96,35 @@ describe('useAlterExploration', () => {
     expect(api.createWorkspaceAlterExplorationSession).toHaveBeenCalled()
     expect(api.runWorkspaceAlterExplorationSession).toHaveBeenCalled()
     expect(controller.activeSession.value?.id).toBe('session-1')
+  })
+
+  it('captures selected prompt context chips in the session payload', async () => {
+    api.createWorkspaceAlterExplorationSession.mockResolvedValue(sampleSession('session-1'))
+    api.runWorkspaceAlterExplorationSession.mockResolvedValue(sampleSession('session-1'))
+    api.fetchAlterExplorationSessions.mockResolvedValue([sampleSummary('session-1')])
+
+    const controller = useAlterExploration({
+      workspacePath: ref('/vault'),
+      allWorkspaceFiles: ref(['/vault/notes/context.md']),
+      availableAlters: ref([
+        { id: 'alter-a', name: 'A', slug: 'a', description: '', icon: null, color: null, category: null, mission: '', is_favorite: false, is_built_in: false, revision_count: 0, updated_at_ms: 1 },
+        { id: 'alter-b', name: 'B', slug: 'b', description: '', icon: null, color: null, category: null, mission: '', is_favorite: false, is_built_in: false, revision_count: 0, updated_at_ms: 1 }
+      ])
+    })
+
+    controller.subjectText.value = 'Investigate runtime notes'
+    controller.addPromptContextPath('/vault/notes/context.md')
+    controller.toggleAlter('alter-a')
+    controller.toggleAlter('alter-b')
+
+    const ok = await controller.startSession()
+    expect(ok).toBe(true)
+    expect(api.createWorkspaceAlterExplorationSession).toHaveBeenCalledWith(expect.objectContaining({
+      subject: expect.objectContaining({
+        text: 'Investigate runtime notes',
+        source_id: '/vault/notes/context.md'
+      })
+    }))
   })
 
   it('loads sessions list on refresh', async () => {
