@@ -154,7 +154,6 @@ describe('AlterExplorationPanel', () => {
     await nextTick()
 
     expect(mounted.root.textContent).toContain('Alter Exploration')
-    expect(mounted.root.textContent).toContain('Prompt composer')
     expect(mounted.root.querySelector('label[for="alter-exploration-subject"]')).toBeFalsy()
     expect(mounted.root.textContent).not.toContain('Type `@` to add workspace notes')
     expect(mounted.root.textContent).toContain('Reader')

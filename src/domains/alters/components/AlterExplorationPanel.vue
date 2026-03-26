@@ -611,11 +611,7 @@ const formatOptions = [
         </div>
 
         <footer class="alter-exploration__composer">
-          <div class="alter-exploration__section-head alter-exploration__section-head--composer">
-            <div>
-              <p class="alter-exploration__kicker">Prompt composer</p>
-              <h4 class="alter-exploration__section-title">Write the prompt, attach notes, then launch</h4>
-            </div>
+          <div class="alter-exploration__composer-meta">
             <UiBadge tone="neutral" size="sm">{{ selectedPromptCountLabel }}</UiBadge>
           </div>
 
@@ -816,10 +812,6 @@ const formatOptions = [
   flex-wrap: wrap;
 }
 
-.alter-exploration__section-head--composer {
-  padding-bottom: 0.15rem;
-}
-
 .alter-exploration__section-title {
   margin: 0;
 }
@@ -873,6 +865,11 @@ const formatOptions = [
   margin: 0;
   color: var(--sb-text-muted);
   font-size: 0.9rem;
+}
+
+.alter-exploration__composer-meta {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .alter-exploration__reader-nav {
