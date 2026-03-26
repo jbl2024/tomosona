@@ -643,7 +643,6 @@ onMounted(() => {
       <div class="alter-wizard">
         <aside class="alter-wizard__rail">
           <div class="alter-wizard__intro">
-            <p class="alter-kicker">Wizard</p>
             <h3>{{ currentStep.title }}</h3>
             <p>{{ currentStep.detail }}</p>
           </div>
@@ -1515,6 +1514,25 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.alter-wizard__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.alter-wizard__intro h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.alter-wizard__intro p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .alter-step-button {
