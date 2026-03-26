@@ -3,8 +3,10 @@
  * WorkspaceStatusBar
  *
  * Purpose:
- * - Render the compact app status footer.
+ * - Render the compact app status footer, including global app toggles.
  */
+
+import { ShieldCheckIcon } from '@heroicons/vue/24/outline'
 
 defineProps<{
   activeFileLabel: string
@@ -12,10 +14,12 @@ defineProps<{
   indexStateLabel: string
   indexStateClass: string
   workspaceLabel: string
+  spellcheckEnabled: boolean
 }>()
 
 const emit = defineEmits<{
   'open-index-status': []
+  'toggle-spellcheck': []
 }>()
 </script>
 
@@ -26,6 +30,17 @@ const emit = defineEmits<{
     <button type="button" class="status-item status-item-index status-trigger" :class="indexStateClass" @click="emit('open-index-status')">
       <span class="status-dot" :class="indexStateClass"></span>
       <span>index: {{ indexStateLabel }}</span>
+    </button>
+    <button
+      type="button"
+      class="status-item status-item-spellcheck status-trigger"
+      :class="{ 'status-item-spellcheck--on': spellcheckEnabled }"
+      :aria-pressed="spellcheckEnabled"
+      aria-label="Toggle spellcheck"
+      @click="emit('toggle-spellcheck')"
+    >
+      <ShieldCheckIcon class="status-spellcheck-icon" :class="{ 'status-spellcheck-icon--on': spellcheckEnabled }" aria-hidden="true" />
+      <span>spellcheck: {{ spellcheckEnabled ? 'on' : 'off' }}</span>
     </button>
     <span class="status-item">workspace: {{ workspaceLabel }}</span>
   </footer>
@@ -74,6 +89,11 @@ const emit = defineEmits<{
   gap: 6px;
 }
 
+.status-item-spellcheck {
+  gap: 6px;
+  color: var(--footer-text);
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -95,6 +115,17 @@ const emit = defineEmits<{
   background: var(--warning);
 }
 
+.status-spellcheck-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.status-spellcheck-icon--on {
+  color: #7cff2b;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, #7cff2b 55%, transparent));
+  animation: spellcheckPulse 1.4s ease-in-out infinite;
+}
+
 .status-item + .status-item {
   border-left: 1px solid var(--footer-divider);
 }
@@ -109,6 +140,19 @@ const emit = defineEmits<{
   50% {
     opacity: 1;
     transform: scale(1.1);
+  }
+}
+
+@keyframes spellcheckPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
   }
 }
 </style>

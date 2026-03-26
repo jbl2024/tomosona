@@ -2182,8 +2182,10 @@ onBeforeUnmount(() => {
       :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
       :index-state-label="indexStateLabel"
       :index-state-class="indexStateClass"
+      :spellcheck-enabled="spellcheckEnabled"
       :workspace-label="filesystem.workingFolderPath.value || 'none'"
       @open-index-status="openIndexStatusModal"
+      @toggle-spellcheck="toggleSpellcheckEnabled"
     />
 
     <AppShellOverlays
