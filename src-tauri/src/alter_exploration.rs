@@ -11,7 +11,7 @@ use atomicwrites::{AllowOverwrite, AtomicFile};
 use serde::{Deserialize, Serialize};
 
 use crate::second_brain::config::{active_profile, ProviderProfile, SecondBrainConfig};
-use crate::second_brain::llm::run_llm;
+use crate::second_brain::session_store::estimate_tokens;
 use crate::settings;
 use crate::{
     active_workspace_root, now_ms, next_index_run_id, AppError, Result,
@@ -26,6 +26,9 @@ const MIN_ALTERS: usize = 2;
 const MAX_ALTERS: usize = 4;
 const MIN_ROUNDS: i64 = 2;
 const MAX_ROUNDS: i64 = 3;
+const CONTEXT_PROMPT_BUDGET_TOKENS: usize = 6_500;
+const CONTEXT_MAX_FILE_TOKENS: usize = 1_200;
+const TRUNCATION_MARKER: &str = "\n[CONTENU TRONQUE]\n";
 
 static CANCELLED_SESSIONS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
@@ -132,6 +135,12 @@ struct AlterInvocation {
 }
 
 #[derive(Debug, Clone)]
+struct ExplorationContextEntry {
+    path: String,
+    content: String,
+}
+
+#[derive(Debug, Clone)]
 enum ExplorationModelRole {
     Basic,
     Normal,
@@ -180,6 +189,147 @@ fn normalize_session_id(raw: &str) -> Result<String> {
         ));
     }
     Ok(trimmed.to_string())
+}
+
+fn normalize_markdown_context_path(raw: &str) -> Result<String> {
+    let root = active_workspace_root()?;
+    let candidate = {
+        let normalized = raw.trim().replace('\\', "/");
+        if normalized.is_empty() {
+            return Err(AppError::InvalidPath);
+        }
+        let path = PathBuf::from(&normalized);
+        if path.is_absolute() {
+            path
+        } else {
+            root.join(path)
+        }
+    };
+
+    if !candidate.exists() || !candidate.is_file() {
+        return Err(AppError::InvalidPath);
+    }
+
+    let canonical = fs::canonicalize(candidate)?;
+    if !canonical.starts_with(&root) {
+        return Err(AppError::InvalidPath);
+    }
+
+    let ext_ok = canonical
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
+        .unwrap_or(false);
+    if !ext_ok {
+        return Err(AppError::InvalidOperation(
+            "Only markdown notes can be used in Alter Exploration context.".to_string(),
+        ));
+    }
+
+    let relative = canonical
+        .strip_prefix(&root)
+        .map_err(|_| AppError::InvalidPath)?
+        .to_string_lossy()
+        .replace('\\', "/");
+    Ok(relative)
+}
+
+fn parse_context_source_paths(source_id: Option<&str>) -> Vec<String> {
+    let raw = match source_id {
+        Some(value) => value.trim(),
+        None => "",
+    };
+    if raw.is_empty() {
+        return Vec::new();
+    }
+
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for token in raw.split(['\n', ',']) {
+        let path = token.trim();
+        if path.is_empty() {
+            continue;
+        }
+        let key = path.to_lowercase();
+        if !seen.insert(key) {
+            continue;
+        }
+        out.push(path.to_string());
+    }
+    out
+}
+
+fn truncate_text_for_tokens(text: &str, max_tokens: usize) -> String {
+    if max_tokens == 0 {
+        return String::new();
+    }
+    if estimate_tokens(text) <= max_tokens {
+        return text.to_string();
+    }
+
+    let max_chars = max_tokens.saturating_mul(4);
+    let marker_len = TRUNCATION_MARKER.chars().count();
+    if max_chars <= marker_len + 32 {
+        return TRUNCATION_MARKER.trim().to_string();
+    }
+
+    let keep_each = (max_chars - marker_len) / 2;
+    let start: String = text.chars().take(keep_each).collect();
+    let end_vec: Vec<char> = text.chars().rev().take(keep_each).collect();
+    let end: String = end_vec.into_iter().rev().collect();
+    format!("{start}{TRUNCATION_MARKER}{end}")
+}
+
+fn load_exploration_context_entries(subject: &AlterExplorationSubject) -> Result<Vec<ExplorationContextEntry>> {
+    let root = active_workspace_root()?;
+    let mut entries = Vec::new();
+    for path in parse_context_source_paths(subject.source_id.as_deref()) {
+        let normalized = normalize_markdown_context_path(&path)?;
+        let content = fs::read_to_string(root.join(&normalized))?;
+        entries.push(ExplorationContextEntry {
+            path: normalized,
+            content,
+        });
+    }
+    Ok(entries)
+}
+
+fn build_context_section(entries: &[ExplorationContextEntry], budget_tokens: usize) -> String {
+    if entries.is_empty() || budget_tokens == 0 {
+        return String::new();
+    }
+
+    let mut section = String::from("Contextes fournis:\n");
+    let mut consumed = estimate_tokens(&section);
+    for entry in entries {
+        let remaining = budget_tokens.saturating_sub(consumed);
+        if remaining < 64 {
+            break;
+        }
+
+        let header = format!("\n--- SOURCE: {} ---\n", entry.path);
+        let header_tokens = estimate_tokens(&header);
+        if header_tokens >= remaining {
+            break;
+        }
+
+        let content_budget = remaining.saturating_sub(header_tokens).min(CONTEXT_MAX_FILE_TOKENS);
+        if content_budget < 32 {
+            break;
+        }
+
+        let content = truncate_text_for_tokens(&entry.content, content_budget);
+        section.push_str(&header);
+        section.push_str(&content);
+        section.push('\n');
+        consumed = consumed.saturating_add(estimate_tokens(&header) + estimate_tokens(&content));
+    }
+
+    if section.trim() == "Contextes fournis:" {
+        String::new()
+    } else {
+        section.trim().to_string()
+    }
 }
 
 fn explorations_dir() -> Result<PathBuf> {
@@ -350,27 +500,34 @@ fn output_format_guidance(format: &AlterExplorationOutputFormat) -> &'static str
     }
 }
 
-fn round1_prompt(subject: &AlterExplorationSubject, mode: &AlterExplorationMode) -> String {
+fn round1_prompt(
+    subject: &AlterExplorationSubject,
+    mode: &AlterExplorationMode,
+    context_section: &str,
+) -> String {
     format!(
-        "Alter Exploration Mode (Round 1)\nMode guidance: {}\n\nSubject ({}):\n{}\n\nInstructions:\n- Provide your reading of the subject.\n- State your main concern.\n- State your main recommendation.\n\nConstraints:\n- Keep each section short and dense.\n- Do not roleplay.\n\nResponse format:\nReading: ...\nConcern: ...\nRecommendation: ...",
+        "Alter Exploration Mode (Round 1)\nMode guidance: {}\n\nSubject ({}):\n{}\n\n{}\n\nInstructions:\n- Provide your reading of the subject.\n- State your main concern.\n- State your main recommendation.\n\nConstraints:\n- Keep each section short and dense.\n- Do not roleplay.\n\nResponse format:\nReading: ...\nConcern: ...\nRecommendation: ...",
         mode_guidance(mode),
         format!("{:?}", subject.subject_type).to_lowercase(),
-        subject.text.trim()
+        subject.text.trim(),
+        context_section
     )
 }
 
 fn round2_prompt(
     subject: &AlterExplorationSubject,
     mode: &AlterExplorationMode,
+    context_section: &str,
     target_name: &str,
     target_content: &str,
     round_digest: &str,
 ) -> String {
     format!(
-        "Alter Exploration Mode (Round 2)\nMode guidance: {}\n\nSubject ({}):\n{}\n\nRound 1 digest:\n{}\n\nYou must react to {}'s position below. Reference them explicitly.\n\n--- {} position ---\n{}\n\nInstructions:\n- Respond with agreement, disagreement, or refinement.\n- Add something new; no restating your own Round 1.\n\nResponse format:\nReaction (to {}): ...\nAgreement/Disagreement: ...\nAdjustment: ...",
+        "Alter Exploration Mode (Round 2)\nMode guidance: {}\n\nSubject ({}):\n{}\n\n{}\n\nRound 1 digest:\n{}\n\nYou must react to {}'s position below. Reference them explicitly.\n\n--- {} position ---\n{}\n\nInstructions:\n- Respond with agreement, disagreement, or refinement.\n- Add something new; no restating your own Round 1.\n\nResponse format:\nReaction (to {}): ...\nAgreement/Disagreement: ...\nAdjustment: ...",
         mode_guidance(mode),
         format!("{:?}", subject.subject_type).to_lowercase(),
         subject.text.trim(),
+        context_section,
         round_digest.trim(),
         target_name,
         target_name,
@@ -382,13 +539,15 @@ fn round2_prompt(
 fn round3_prompt(
     subject: &AlterExplorationSubject,
     mode: &AlterExplorationMode,
+    context_section: &str,
     tension_digest: &str,
 ) -> String {
     format!(
-        "Alter Exploration Mode (Round 3)\nMode guidance: {}\n\nSubject ({}):\n{}\n\nRound 2 tension digest:\n{}\n\nInstructions:\n- State what you now see as the strongest point.\n- State what remains unresolved.\n- State what should happen next.\n\nResponse format:\nStrongest point: ...\nUnresolved: ...\nNext step: ...",
+        "Alter Exploration Mode (Round 3)\nMode guidance: {}\n\nSubject ({}):\n{}\n\n{}\n\nRound 2 tension digest:\n{}\n\nInstructions:\n- State what you now see as the strongest point.\n- State what remains unresolved.\n- State what should happen next.\n\nResponse format:\nStrongest point: ...\nUnresolved: ...\nNext step: ...",
         mode_guidance(mode),
         format!("{:?}", subject.subject_type).to_lowercase(),
         subject.text.trim(),
+        context_section,
         tension_digest.trim()
     )
 }
@@ -397,14 +556,16 @@ fn synthesis_prompt(
     subject: &AlterExplorationSubject,
     mode: &AlterExplorationMode,
     output_format: &AlterExplorationOutputFormat,
+    context_section: &str,
     rounds_text: &str,
 ) -> String {
     format!(
-        "You are the silent moderator. Produce the final artifact.\nMode guidance: {}\nOutput format: {}\n\nSubject ({}):\n{}\n\nRound results:\n{}\n\nConstraints:\n- Be actionable.\n- Keep it concise and dense.\n- Do not roleplay.\n\n{}",
+        "You are the silent moderator. Produce the final artifact.\nMode guidance: {}\nOutput format: {}\n\nSubject ({}):\n{}\n\n{}\n\nRound results:\n{}\n\nConstraints:\n- Be actionable.\n- Keep it concise and dense.\n- Do not roleplay.\n\n{}",
         mode_guidance(mode),
         format!("{:?}", output_format).to_lowercase(),
         format!("{:?}", subject.subject_type).to_lowercase(),
         subject.text.trim(),
+        context_section,
         rounds_text.trim(),
         output_format_guidance(output_format)
     )
@@ -461,6 +622,9 @@ async fn run_llm_for_exploration(
         .pop_front()
         .unwrap_or_else(|| "mock-response".to_string()))
 }
+
+#[cfg(not(test))]
+use crate::second_brain::llm::run_llm;
 
 #[cfg(not(test))]
 async fn run_llm_for_exploration(
@@ -550,6 +714,8 @@ async fn run_exploration(
 
     let subject = session.subject.clone();
     let mode = session.mode.clone();
+    let context_entries = load_exploration_context_entries(&subject)?;
+    let context_section = build_context_section(&context_entries, CONTEXT_PROMPT_BUDGET_TOKENS);
 
     for alter in &invocations {
         if is_cancelled(&session.id) {
@@ -557,7 +723,7 @@ async fn run_exploration(
             clear_cancelled(&session.id);
             return Err(AppError::InvalidOperation("Exploration cancelled.".to_string()));
         }
-        let prompt = round1_prompt(&subject, &mode);
+        let prompt = round1_prompt(&subject, &mode, &context_section);
         let response = run_llm_step(
             &mut session,
             normal_profile,
@@ -616,6 +782,7 @@ async fn run_exploration(
         let prompt = round2_prompt(
             &subject,
             &mode,
+            &context_section,
             &target.name,
             &target_content,
             &round1_digest,
@@ -662,7 +829,7 @@ async fn run_exploration(
                 clear_cancelled(&session.id);
                 return Err(AppError::InvalidOperation("Exploration cancelled.".to_string()));
             }
-            let prompt = round3_prompt(&subject, &mode, &round2_digest);
+            let prompt = round3_prompt(&subject, &mode, &context_section, &round2_digest);
             let response = run_llm_step(
                 &mut session,
                 normal_profile,
@@ -693,6 +860,7 @@ async fn run_exploration(
         &subject,
         &mode,
         &session.output_format,
+        &context_section,
         &rounds_text,
     );
     let synthesis = run_llm_step(
@@ -862,7 +1030,13 @@ mod tests {
                     api_key: "x".to_string(),
                     base_url: None,
                     default_mode: None,
-                    capabilities: Default::default(),
+                    capabilities: crate::second_brain::config::ProfileCapabilities {
+                        text: true,
+                        image_input: false,
+                        audio_input: false,
+                        tool_calling: false,
+                        streaming: true,
+                    },
                 },
                 ProviderProfile {
                     id: "p2".to_string(),
@@ -872,7 +1046,13 @@ mod tests {
                     api_key: "x".to_string(),
                     base_url: None,
                     default_mode: None,
-                    capabilities: Default::default(),
+                    capabilities: crate::second_brain::config::ProfileCapabilities {
+                        text: true,
+                        image_input: false,
+                        audio_input: false,
+                        tool_calling: false,
+                        streaming: true,
+                    },
                 },
             ],
         };
@@ -922,12 +1102,38 @@ mod tests {
     fn builds_round_prompts() {
         let subject = sample_subject();
         let mode = AlterExplorationMode::Challenge;
-        let round1 = round1_prompt(&subject, &mode);
+        let context_section = "Contextes fournis:\n--- SOURCE: notes/a.md ---\nEvidence from note";
+        let round1 = round1_prompt(&subject, &mode, context_section);
         assert!(round1.contains("Round 1"));
-        let round2 = round2_prompt(&subject, &mode, "Alter A", "content", "digest");
+        assert!(round1.contains("Evidence from note"));
+        let round2 = round2_prompt(&subject, &mode, context_section, "Alter A", "content", "digest");
         assert!(round2.contains("Alter A"));
-        let round3 = round3_prompt(&subject, &mode, "tension");
+        let round3 = round3_prompt(&subject, &mode, context_section, "tension");
         assert!(round3.contains("Round 3"));
+        let synth = synthesis_prompt(&subject, &mode, &AlterExplorationOutputFormat::Summary, context_section, "rounds");
+        assert!(synth.contains("Evidence from note"));
+    }
+
+    #[test]
+    fn loads_source_notes_into_prompt_context() -> Result<()> {
+        use_test_workspace(|| {
+            let note_path = active_workspace_root()?.join("notes/source.md");
+            if let Some(parent) = note_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&note_path, "# Source\n\nThis note should be injected.")?;
+            let subject = AlterExplorationSubject {
+                subject_type: AlterExplorationSubjectType::Prompt,
+                text: "Discuss this".to_string(),
+                source_id: Some(note_path.to_string_lossy().to_string()),
+            };
+            let entries = load_exploration_context_entries(&subject)?;
+            assert_eq!(entries.len(), 1);
+            let context = build_context_section(&entries, CONTEXT_PROMPT_BUDGET_TOKENS);
+            assert!(context.contains("This note should be injected."));
+            assert!(context.contains("SOURCE: notes/source.md"));
+            Ok(())
+        })
     }
 
     #[test]
@@ -1003,10 +1209,7 @@ mod tests {
                 output_format: AlterExplorationOutputFormat::Summary,
             };
             let session = create_alter_exploration_session(payload)?;
-            let mut session = read_session_file(&exploration_path(&session.id)?)?;
-            session.alter_ids = vec!["a".to_string(), "b".to_string()];
-            session.updated_at_ms = now_ms();
-            write_session_file(&session)?;
+            let session = read_session_file(&exploration_path(&session.id)?)?;
             let result = tauri::async_runtime::block_on(run_exploration(session))?;
             assert!(matches!(result.state, AlterExplorationState::Completed));
             assert_eq!(result.round_results.len(), 4);
