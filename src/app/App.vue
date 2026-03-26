@@ -2624,7 +2624,7 @@ onBeforeUnmount(() => {
   padding: 10px;
 }
 
-.confirm-modal:not(.index-status-modal) {
+.confirm-modal:not(.index-status-modal):not(.spellcheck-dictionary-modal) {
   width: min(560px, calc(100vw - 32px));
 }
 

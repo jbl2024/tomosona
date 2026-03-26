@@ -138,11 +138,11 @@ onBeforeUnmount(() => {
 }
 
 .ui-modal-shell__panel--lg {
-  max-width: 48rem;
+  max-width: 64rem;
 }
 
 .ui-modal-shell__panel--xl {
-  max-width: 60rem;
+  max-width: 75rem;
 }
 
 .ui-modal-shell__header,
