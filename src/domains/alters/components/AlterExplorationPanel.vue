@@ -563,7 +563,7 @@ const formatOptions = [
   </section>
 </template>
 
-<style scoped>
+<style>
 .alter-exploration {
   display: flex;
   min-height: 0;
@@ -896,17 +896,25 @@ const formatOptions = [
   border-collapse: collapse;
   margin: 8px 0;
   font-size: 12px;
+  width: 100%;
+  border: 1px solid var(--sb-input-border);
 }
 
 .alter-exploration__markdown th,
 .alter-exploration__markdown td {
   border: 1px solid var(--sb-input-border);
   padding: 4px 8px;
+  vertical-align: top;
+  text-align: left;
 }
 
 .alter-exploration__markdown th {
   background: var(--sb-code-bg);
   font-weight: 600;
+}
+
+.alter-exploration__markdown thead th {
+  background: var(--sb-code-bg);
 }
 
 .alter-exploration__synthesis {
