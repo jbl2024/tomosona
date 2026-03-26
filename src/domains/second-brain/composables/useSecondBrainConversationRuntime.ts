@@ -55,6 +55,9 @@ export type UseSecondBrainConversationRuntimeOptions = {
  * stream runtime.
  */
 export function useSecondBrainConversationRuntime(options: UseSecondBrainConversationRuntimeOptions) {
+  const COMPOSER_MIN_HEIGHT_PX = 34
+  const COMPOSER_MAX_HEIGHT_PX = 120
+
   const inputMessage = ref('')
   const copiedByMessageId = ref<Record<string, boolean>>({})
   const copyToast = ref<CopyToast>({
@@ -85,6 +88,22 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
   const canCopyConversation = computed(() =>
     Boolean(options.sessionId.value && !options.requestInFlight.value && (options.contextPaths.value.length > 0 || options.messages.value.length > 0))
   )
+
+  /**
+   * Keeps the composer textarea collapsed to one line until content needs more space.
+   *
+   * The height is clamped so the input grows naturally but never exceeds the
+   * current visual cap used by the surrounding layout.
+   */
+  function syncComposerHeight() {
+    const composer = composerRef.value
+    if (!composer) return
+
+    composer.style.height = 'auto'
+    const nextHeight = Math.min(Math.max(composer.scrollHeight, COMPOSER_MIN_HEIGHT_PX), COMPOSER_MAX_HEIGHT_PX)
+    composer.style.height = `${nextHeight}px`
+    composer.style.overflowY = composer.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? 'auto' : 'hidden'
+  }
 
   /**
    * Formats a workspace path for user-facing text and export output.
@@ -226,6 +245,7 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
   function onComposerInput(event: Event) {
     inputMessage.value = (event.target as HTMLTextAreaElement).value
     updateMentionTriggerFromComposer()
+    void nextTick(syncComposerHeight)
   }
 
   /**
@@ -474,6 +494,14 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
       void nextTick(() => composerRef.value?.focus())
     },
     { immediate: true }
+  )
+
+  watch(
+    [composerRef, inputMessage],
+    () => {
+      void nextTick(syncComposerHeight)
+    },
+    { immediate: true, flush: 'post' }
   )
 
   onBeforeUnmount(() => {

@@ -207,6 +207,52 @@ describe('SecondBrainView', () => {
     mounted.app.unmount()
   })
 
+  it('renders the top bar on one line without the alter badge chip', async () => {
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
+    await flushUi()
+
+    expect(mounted.root.querySelector('.sb-alter-badge')).toBeNull()
+    expect(mounted.root.querySelector('.sb-center-head-main')).toBeTruthy()
+
+    mounted.app.unmount()
+  })
+
+  it('keeps the composer at one line until content requires more height, then caps it', async () => {
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
+    await flushUi()
+    await flushUi()
+
+    const textarea = mounted.root.querySelector<HTMLTextAreaElement>('.sb-textarea')
+    expect(textarea).toBeTruthy()
+    if (!textarea) return
+
+    let measuredScrollHeight = 24
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      get: () => measuredScrollHeight
+    })
+
+    expect(textarea.style.height).toBe('34px')
+    expect(textarea.style.overflowY).toBe('hidden')
+
+    textarea.value = 'A short line'
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    expect(textarea.style.height).toBe('34px')
+    expect(textarea.style.overflowY).toBe('hidden')
+
+    measuredScrollHeight = 240
+    textarea.value = 'A much longer message that should exceed the current visible composer cap.'
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    expect(textarea.style.height).toBe('120px')
+    expect(textarea.style.overflowY).toBe('auto')
+
+    mounted.app.unmount()
+  })
+
   it('loads a grouped Pulse preset into the composer from the dropdown', async () => {
     const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     let trigger: HTMLButtonElement | null = null

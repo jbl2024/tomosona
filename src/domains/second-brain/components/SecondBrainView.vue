@@ -44,10 +44,8 @@ const emit = defineEmits<{
 }>()
 
 const {
-  activeAlterLabel,
   activePulseAction,
   addEchoesSuggestion,
-  alterSettings,
   applyMentionSuggestion,
   applySelectedAlter,
   availableAlters,
@@ -131,9 +129,8 @@ void threadRef
   <div class="sb-layout">
     <section class="sb-center">
       <header class="sb-center-head">
-        <div class="title-wrap">
+        <div class="sb-center-head-main">
           <h2>{{ sessionTitle }}</h2>
-          <p v-if="configError || sessionLoadError" class="sb-error">{{ configError || sessionLoadError }}</p>
           <div class="sb-alter-row">
             <label for="sb-alter-select">Alter</label>
             <select
@@ -147,7 +144,6 @@ void threadRef
                 {{ item.name }}
               </option>
             </select>
-            <span v-if="alterSettings.show_badge_in_chat" class="sb-alter-badge">{{ activeAlterLabel }}</span>
           </div>
         </div>
         <div class="sb-session-actions">
@@ -180,6 +176,7 @@ void threadRef
           />
         </div>
       </header>
+      <p v-if="configError || sessionLoadError" class="sb-error">{{ configError || sessionLoadError }}</p>
 
       <section ref="threadRef" class="sb-thread" @scroll.passive="onThreadScroll">
         <div v-if="!sessionId && !loading" class="sb-empty-state">
@@ -303,6 +300,7 @@ void threadRef
             ref="composerRef"
             :value="inputMessage"
             class="sb-textarea"
+            rows="1"
             :placeholder="`Ask a question, or guide Pulse before clicking ${activePulseAction?.label || 'an action'}...`"
             @input="onComposerInput"
             @keydown="onComposerKeydown"
@@ -373,8 +371,18 @@ void threadRef
 .sb-center-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sb-center-head-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  white-space: nowrap;
 }
 
 .sb-session-actions {
@@ -405,22 +413,18 @@ void threadRef
   cursor: not-allowed;
 }
 
-.title-wrap {
-  min-width: 0;
-}
-
 .sb-center-head h2 {
   margin: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.sb-error {
-  margin: 4px 0 0;
-  color: var(--sb-danger-text);
-  font-size: 12px;
+.sb-center-head .sb-error {
+  margin: 0 0 0 12px;
 }
 
 .sb-alter-row {
-  margin-top: 8px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -435,14 +439,6 @@ void threadRef
   background: var(--sb-input-bg);
   color: var(--sb-text);
   padding: 5px 8px;
-}
-
-.sb-alter-badge {
-  border: 1px solid var(--sb-button-border);
-  border-radius: 999px;
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  padding: 3px 8px;
 }
 
 .sb-thread {
@@ -783,11 +779,13 @@ void threadRef
   color: var(--sb-text-dim);
 }
 
-.sb-textarea {
+.sb-composer .sb-textarea {
   width: 100%;
-  min-height: 120px;
+  min-height: 34px;
+  max-height: 120px;
   padding: 8px 42px 8px 8px;
-  resize: vertical;
+  resize: none;
+  overflow-y: hidden;
   box-sizing: border-box;
   display: block;
   border: 1px solid var(--sb-input-border);
