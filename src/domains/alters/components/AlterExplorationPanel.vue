@@ -7,12 +7,13 @@
  * instead of a free-form chat log.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { ArrowPathIcon, DocumentTextIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline'
+import { ArrowPathIcon, DocumentTextIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import UiBadge from '../../../shared/components/ui/UiBadge.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiField from '../../../shared/components/ui/UiField.vue'
 import UiPanel from '../../../shared/components/ui/UiPanel.vue'
 import UiSelect from '../../../shared/components/ui/UiSelect.vue'
+import WorkspaceComposerActionButton from '../../../shared/components/workspace/WorkspaceComposerActionButton.vue'
 import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
 import WorkspaceSessionDropdown, { type WorkspaceSessionDropdownItem } from '../../../shared/components/workspace/WorkspaceSessionDropdown.vue'
 import { toWorkspaceRelativePath } from '../../explorer/lib/workspacePaths'
@@ -531,31 +532,19 @@ const formatOptions = [
               @select="applyMention($event)"
               @update:active-index="mentions.setActiveIndex"
             />
-            <div class="composer-action">
-              <button
-                v-if="running"
-                type="button"
-                class="send-icon-btn send-icon-btn-stop"
-                :disabled="!session"
-                title="Stop exploration"
-                aria-label="Stop exploration"
-                @click="void cancelExploration()"
-              >
-                <span class="sb-loader" aria-label="Thinking"></span>
-              </button>
-              <button
-                v-else
-                type="button"
-                class="send-icon-btn"
-                :disabled="!canStart || running"
-                title="Start exploration"
-                aria-label="Start exploration"
-                @click="void startExploration()"
-              >
-                <PaperAirplaneIcon class="h-4 w-4" />
-              </button>
-            </div>
           </div>
+
+          <WorkspaceComposerActionButton
+            :running="running"
+            :start-disabled="!canStart || running"
+            :stop-disabled="!session"
+            start-title="Start exploration"
+            start-aria-label="Start exploration"
+            stop-title="Stop exploration"
+            stop-aria-label="Stop exploration"
+            @start="void startExploration()"
+            @stop="void cancelExploration()"
+          />
         </footer>
       </div>
     </UiPanel>

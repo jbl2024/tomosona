@@ -6,11 +6,12 @@
  * stream, and composer behavior live in the domain composables.
  */
 import { computed, ref, watch } from 'vue'
-import { ClipboardDocumentIcon, PaperAirplaneIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { ClipboardDocumentIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
+import WorkspaceComposerActionButton from '../../../shared/components/workspace/WorkspaceComposerActionButton.vue'
 import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
 import WorkspaceSessionDropdown, { type WorkspaceSessionDropdownItem } from '../../../shared/components/workspace/WorkspaceSessionDropdown.vue'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
@@ -392,22 +393,17 @@ void threadRef
             @keyup="updateMentionTriggerFromComposer"
           ></textarea>
 
-          <div class="composer-action">
-            <button
-              v-if="sending"
-              type="button"
-              class="send-icon-btn send-icon-btn-stop"
-              :disabled="!requestInFlight"
-              title="Stop generation"
-              aria-label="Stop generation"
-              @click="onStopStreaming"
-            >
-              <span class="sb-loader" aria-label="Thinking"></span>
-            </button>
-            <button v-else type="button" class="send-icon-btn" :disabled="!sessionId || !inputMessage.trim() || requestInFlight" @click="onSendMessage">
-              <PaperAirplaneIcon class="h-4 w-4" />
-            </button>
-          </div>
+          <WorkspaceComposerActionButton
+            :running="sending"
+            :start-disabled="!sessionId || !inputMessage.trim() || requestInFlight"
+            :stop-disabled="!requestInFlight"
+            start-title="Send message"
+            start-aria-label="Send message"
+            stop-title="Stop generation"
+            stop-aria-label="Stop generation"
+            @start="onSendMessage"
+            @stop="onStopStreaming"
+          />
         </div>
 
         <div v-if="loading || sendError || mentionInfo" class="actions">
@@ -841,34 +837,6 @@ void threadRef
   background: var(--sb-input-bg);
   color: var(--sb-button-text);
   font-size: 12px;
-}
-
-.composer-action {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-}
-
-.send-icon-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--sb-button-border);
-  border-radius: 999px;
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sb-loader {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--sb-spinner-track);
-  border-top-color: var(--sb-spinner-head);
-  border-radius: 999px;
-  animation: sb-spin 0.8s linear infinite;
-  display: inline-block;
 }
 
 .actions {
