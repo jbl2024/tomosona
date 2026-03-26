@@ -878,7 +878,7 @@ const formatOptions = [
 .alter-exploration__reader-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.4rem;
   overflow-x: auto;
   padding-bottom: 0.05rem;
 }
@@ -887,13 +887,20 @@ const formatOptions = [
   min-width: 0;
   flex: 0 0 auto;
   display: grid;
-  gap: 0.1rem;
+  gap: 0.08rem;
   text-align: left;
   border: 1px solid var(--sb-border);
-  border-radius: 999px;
-  padding: 0.55rem 0.8rem;
-  background: var(--sb-thread-bg);
+  border-radius: 12px;
+  padding: 0.38rem 0.62rem;
+  background: color-mix(in srgb, var(--sb-thread-bg) 82%, transparent);
   color: var(--sb-text);
+  background-clip: padding-box;
+  box-shadow: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .alter-exploration__reader-nav-btn strong,
@@ -902,18 +909,26 @@ const formatOptions = [
 }
 
 .alter-exploration__reader-nav-btn strong {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.1;
 }
 
 .alter-exploration__reader-nav-btn span {
   color: var(--sb-text-dim);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
+  line-height: 1.1;
 }
 
 .alter-exploration__reader-nav-btn--active {
   border-color: var(--sb-active-border);
-  background: var(--sb-assistant-bg);
+  background: color-mix(in srgb, var(--sb-assistant-bg) 72%, var(--sb-thread-bg));
   color: var(--sb-active-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sb-active-border) 55%, transparent);
+}
+
+.alter-exploration__reader-nav-btn:hover {
+  border-color: var(--sb-active-border);
+  background: color-mix(in srgb, var(--sb-assistant-bg) 55%, var(--sb-thread-bg));
 }
 
 .alter-exploration__reader-content {
