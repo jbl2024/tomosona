@@ -113,6 +113,53 @@ const sessionDropdownItems = computed<WorkspaceSessionDropdownItem[]>(() =>
   }))
 )
 
+type ExplorationSection = 'synthesis' | number
+
+const setupExpanded = ref(true)
+const activeSection = ref<ExplorationSection>('synthesis')
+const hasSession = computed(() => Boolean(session.value))
+const activeRoundNumber = computed(() => {
+  if (typeof activeSection.value === 'number') return activeSection.value
+  return roundNumbers.value[0] ?? 1
+})
+const activeRoundResults = computed(() => splitRoundResults(activeRoundNumber.value))
+const activeRoundCountLabel = computed(() => `${activeRoundResults.value.length} response${activeRoundResults.value.length === 1 ? '' : 's'}`)
+const activeSectionLabel = computed(() => {
+  if (!session.value) return 'Reader'
+  if (activeSection.value === 'synthesis') return 'Final synthesis'
+  return `Round ${activeSection.value}`
+})
+const activeSectionSubtitle = computed(() => session.value?.subject.text?.trim() || 'Start an exploration to review the structured rounds here.')
+const activeSectionMetaLabel = computed(() => {
+  if (!session.value) return 'draft'
+  if (activeSection.value === 'synthesis') return session.value.output_format
+  return `${activeRoundResults.value.length} response${activeRoundResults.value.length === 1 ? '' : 's'}`
+})
+const setupSummaryLabel = computed(() => {
+  const altersLabel = `${selectedAlterIds.value.length} alters`
+  const modeLabel = session.value?.mode ?? mode.value
+  const roundsLabel = `${session.value?.rounds ?? rounds.value} rounds`
+  const formatLabel = session.value?.output_format ?? outputFormat.value
+  const notesLabel = `${selectedPromptPaths.value.length} notes`
+  return [altersLabel, modeLabel, roundsLabel, formatLabel, notesLabel].join(' · ')
+})
+const setupSummaryTitle = computed(() => session.value?.subject.text?.trim() || subjectText.value.trim() || 'Untitled prompt')
+const readerSectionItems = computed(() => {
+  if (!session.value) return []
+  return [
+    ...roundNumbers.value.map((roundNumber) => ({
+      id: roundNumber,
+      label: `Round ${roundNumber}`,
+      details: `${splitRoundResults(roundNumber).length} response${splitRoundResults(roundNumber).length === 1 ? '' : 's'}`
+    })),
+    {
+      id: 'synthesis' as const,
+      label: 'Synthesis',
+      details: session.value.final_synthesis?.trim() ? 'Final artifact' : 'Draft'
+    }
+  ]
+})
+
 function toRelativePath(path: string): string {
   return toWorkspaceRelativePath(props.workspacePath, path)
 }
@@ -127,6 +174,14 @@ function renderRoundContent(content: string): string {
 
 function renderFinalSynthesis(content: string | null | undefined): string {
   return renderSecondBrainMarkdownPreview(content ?? '')
+}
+
+function selectReaderSection(section: ExplorationSection) {
+  activeSection.value = section
+}
+
+function toggleSetupDetails() {
+  setupExpanded.value = !setupExpanded.value
 }
 
 function getPromptEchoesItems() {
@@ -167,6 +222,20 @@ onMounted(() => {
   void refreshSessions()
   void nextTick(syncPromptHeight)
 })
+
+watch(
+  session,
+  (next) => {
+    if (next) {
+      activeSection.value = 'synthesis'
+      setupExpanded.value = false
+      return
+    }
+    activeSection.value = 'synthesis'
+    setupExpanded.value = true
+  },
+  { immediate: true }
+)
 
 function queueMentionUpdate() {
   mentions.updateTrigger(subjectText.value, subjectTextareaRef.value?.selectionStart ?? null)
@@ -246,11 +315,15 @@ function resetSetupAndSession() {
   selectedPromptAnchorPath.value = ''
   mentions.close()
   resetSession()
+  setupExpanded.value = true
+  activeSection.value = 'synthesis'
 }
 
 function rerunWithDifferentAlters() {
   selectedAlterIds.value = []
   resetSession()
+  setupExpanded.value = true
+  activeSection.value = 'synthesis'
 }
 
 async function saveArtifactAndOpen(action: () => Promise<string | null>) {
@@ -309,182 +382,228 @@ const formatOptions = [
 
       <div class="alter-exploration__workspace">
         <div class="alter-exploration__scroll">
-          <section class="alter-exploration__card">
-            <div class="alter-exploration__section-head">
-              <div>
-                <p class="alter-exploration__kicker">Setup</p>
-                <h4 class="alter-exploration__section-title">Alters and execution mode</h4>
-              </div>
-              <UiBadge tone="neutral" size="sm">{{ selectedCountLabel }}</UiBadge>
-            </div>
-
-            <UiField label="Selected Alters" for-id="alter-exploration-alters">
-              <template #default>
-                <div class="alter-exploration__alters">
-                  <button
-                    v-for="item in props.availableAlters"
-                    :key="item.id"
-                    type="button"
-                    class="alter-exploration__alter-chip"
-                    :class="{ 'alter-exploration__alter-chip--active': selectedAlterIds.includes(item.id) }"
-                    @click="toggleAlterSelection(item.id)"
-                  >
-                    <span>{{ item.name }}</span>
-                    <small>{{ item.mission }}</small>
-                  </button>
-                </div>
-                <p class="alter-exploration__hint">{{ selectedCountLabel }}</p>
-                <p v-if="selectionLimitReached" class="alter-exploration__hint">
-                  Selection limit reached.
-                </p>
-                <p v-else-if="hasMinimumAlters" class="alter-exploration__hint">
-                  Ready to start.
-                </p>
-              </template>
-            </UiField>
-
-            <div class="alter-exploration__grid">
-              <UiField label="Mode" for-id="alter-exploration-mode">
-                <template #default>
-                  <UiSelect id="alter-exploration-mode" v-model="mode">
-                    <option v-for="option in modeOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </UiSelect>
-                </template>
-              </UiField>
-
-              <UiField label="Rounds" for-id="alter-exploration-rounds">
-                <template #default>
-                  <UiSelect
-                    id="alter-exploration-rounds"
-                    :model-value="String(rounds)"
-                    @update:modelValue="rounds = Number.parseInt($event, 10) || 2"
-                  >
-                    <option value="2">2 rounds</option>
-                    <option value="3">3 rounds</option>
-                  </UiSelect>
-                </template>
-              </UiField>
-
-              <UiField label="Output format" for-id="alter-exploration-format">
-                <template #default>
-                  <UiSelect id="alter-exploration-format" v-model="outputFormat">
-                    <option v-for="option in formatOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </UiSelect>
-                </template>
-              </UiField>
-            </div>
+          <section class="alter-exploration__context-strip">
+            <UiBadge tone="neutral" size="sm">{{ session?.state ?? 'draft' }}</UiBadge>
+            <UiBadge tone="neutral" size="sm">{{ selectedCountLabel }}</UiBadge>
+            <UiBadge tone="neutral" size="sm">{{ session?.mode ?? mode }}</UiBadge>
+            <UiBadge tone="neutral" size="sm">{{ `${session?.rounds ?? rounds} rounds` }}</UiBadge>
+            <UiBadge tone="neutral" size="sm">{{ session?.output_format ?? outputFormat }}</UiBadge>
           </section>
 
-          <section class="alter-exploration__card">
+          <section class="alter-exploration__card alter-exploration__setup-card">
             <div class="alter-exploration__section-head">
-              <div>
-                <p class="alter-exploration__kicker">Prompt</p>
-                <h4 class="alter-exploration__section-title">Round-by-round output</h4>
+              <div class="alter-exploration__section-copy">
+                <p class="alter-exploration__kicker">Setup</p>
+                <h4 class="alter-exploration__section-title">Alters and execution mode</h4>
+                <p v-if="session" class="alter-exploration__copy">{{ session.subject.text }}</p>
+                <p v-else class="alter-exploration__copy">Prepare the prompt, attach notes, and choose the alters that should take part.</p>
               </div>
-              <UiBadge tone="neutral" size="sm">
-                {{ session?.state ?? 'draft' }}
-              </UiBadge>
+              <div class="alter-exploration__section-head-actions">
+                <UiBadge tone="neutral" size="sm">{{ selectedCountLabel }}</UiBadge>
+                <UiButton v-if="hasSession" size="sm" variant="ghost" @click="toggleSetupDetails()">
+                  {{ setupExpanded ? 'Hide setup' : 'Show setup' }}
+                </UiButton>
+              </div>
             </div>
 
-            <div v-if="!session" class="alter-exploration__empty">
-              Start an exploration to see the structured rounds and synthesis here.
-            </div>
+            <template v-if="setupExpanded || !hasSession">
+              <UiField label="Selected Alters" for-id="alter-exploration-alters">
+                <template #default>
+                  <div class="alter-exploration__alters">
+                    <button
+                      v-for="item in props.availableAlters"
+                      :key="item.id"
+                      type="button"
+                      class="alter-exploration__alter-chip"
+                      :class="{ 'alter-exploration__alter-chip--active': selectedAlterIds.includes(item.id) }"
+                      @click="toggleAlterSelection(item.id)"
+                    >
+                      <span>{{ item.name }}</span>
+                      <small>{{ item.mission }}</small>
+                    </button>
+                  </div>
+                  <p class="alter-exploration__hint">{{ selectedCountLabel }}</p>
+                  <p v-if="selectionLimitReached" class="alter-exploration__hint">
+                    Selection limit reached.
+                  </p>
+                  <p v-else-if="hasMinimumAlters" class="alter-exploration__hint">
+                    Ready to start.
+                  </p>
+                </template>
+              </UiField>
+
+              <div class="alter-exploration__grid">
+                <UiField label="Mode" for-id="alter-exploration-mode">
+                  <template #default>
+                    <UiSelect id="alter-exploration-mode" v-model="mode">
+                      <option v-for="option in modeOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </UiSelect>
+                  </template>
+                </UiField>
+
+                <UiField label="Rounds" for-id="alter-exploration-rounds">
+                  <template #default>
+                    <UiSelect
+                      id="alter-exploration-rounds"
+                      :model-value="String(rounds)"
+                      @update:modelValue="rounds = Number.parseInt($event, 10) || 2"
+                    >
+                      <option value="2">2 rounds</option>
+                      <option value="3">3 rounds</option>
+                    </UiSelect>
+                  </template>
+                </UiField>
+
+                <UiField label="Output format" for-id="alter-exploration-format">
+                  <template #default>
+                    <UiSelect id="alter-exploration-format" v-model="outputFormat">
+                      <option v-for="option in formatOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </UiSelect>
+                  </template>
+                </UiField>
+              </div>
+            </template>
 
             <template v-else>
-              <section class="alter-exploration__subject">
-                <h4>{{ session.subject.text }}</h4>
-                <p class="alter-exploration__copy">
-                  {{ session.mode }} · {{ session.rounds }} rounds · {{ session.output_format }}
-                </p>
+              <div class="alter-exploration__setup-summary">
+                <p class="alter-exploration__setup-summary-title">{{ setupSummaryTitle }}</p>
+                <p class="alter-exploration__setup-summary-line">{{ setupSummaryLabel }}</p>
                 <div class="alter-exploration__subject-meta">
                   <UiBadge v-for="item in selectedAlters" :key="item.id" tone="neutral" size="xs">
                     {{ item.name }}
                   </UiBadge>
                 </div>
+              </div>
+            </template>
+          </section>
+
+          <section class="alter-exploration__card alter-exploration__reader-card">
+            <div class="alter-exploration__section-head">
+              <div class="alter-exploration__section-copy">
+                <p class="alter-exploration__kicker">Reader</p>
+                <h4 class="alter-exploration__section-title">{{ activeSectionLabel }}</h4>
+                <p class="alter-exploration__copy">{{ activeSectionSubtitle }}</p>
+              </div>
+              <UiBadge tone="neutral" size="sm">{{ activeSectionMetaLabel }}</UiBadge>
+            </div>
+
+            <div v-if="!session" class="alter-exploration__empty alter-exploration__reader-empty">
+              Start an exploration to review the structured rounds and final synthesis here.
+            </div>
+
+            <template v-else>
+              <nav class="alter-exploration__reader-nav" aria-label="Exploration rounds">
+                <button
+                  v-for="item in readerSectionItems"
+                  :key="String(item.id)"
+                  type="button"
+                  class="alter-exploration__reader-nav-btn"
+                  :class="{ 'alter-exploration__reader-nav-btn--active': activeSection === item.id }"
+                  @click="selectReaderSection(item.id)"
+                >
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.details }}</span>
+                </button>
+              </nav>
+
+              <section v-if="activeSection === 'synthesis'" class="alter-exploration__reader-content">
+                <div v-if="!session.final_synthesis?.trim()" class="alter-exploration__empty">
+                  No synthesis available yet.
+                </div>
+                <template v-else>
+                  <div class="alter-exploration__final-head">
+                    <UiBadge tone="accent" size="sm">{{ session.output_format }}</UiBadge>
+                    <UiBadge tone="neutral" size="sm">{{ session.alter_ids.length }} alters</UiBadge>
+                  </div>
+                  <div class="alter-exploration__synthesis">
+                    <div class="alter-exploration__markdown-frame">
+                      <div
+                        class="alter-exploration__markdown"
+                        v-html="renderFinalSynthesis(session.final_synthesis || 'No synthesis available yet.')"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div class="alter-exploration__final-actions">
+                    <UiButton
+                      size="sm"
+                      variant="secondary"
+                      :disabled="saving || !session?.final_synthesis"
+                      :loading="saving"
+                      @click="void saveArtifactAndOpen(saveSynthesisAsNote)"
+                    >
+                      <template #leading>
+                        <DocumentTextIcon class="alter-exploration__icon" />
+                      </template>
+                      Save as note
+                    </UiButton>
+                    <UiButton
+                      size="sm"
+                      variant="secondary"
+                      :disabled="saving || !session?.final_synthesis || !props.activeNotePath.trim()"
+                      :loading="saving"
+                      @click="void insertSynthesisIntoActiveNote()"
+                    >
+                      Insert into active note
+                    </UiButton>
+                    <UiButton
+                      size="sm"
+                      variant="secondary"
+                      :disabled="saving || !session?.final_synthesis"
+                      :loading="saving"
+                      @click="void saveArtifactAndOpen(convertSynthesisToPlan)"
+                    >
+                      Convert to plan
+                    </UiButton>
+                    <UiButton
+                      size="sm"
+                      variant="secondary"
+                      :disabled="saving || !session?.final_synthesis"
+                      :loading="saving"
+                      @click="void saveArtifactAndOpen(promoteSynthesisToDraft)"
+                    >
+                      Promote to draft
+                    </UiButton>
+                    <UiButton size="sm" variant="ghost" :disabled="running" @click="rerunWithDifferentAlters()">
+                      <template #leading>
+                        <PencilSquareIcon class="alter-exploration__icon" />
+                      </template>
+                      Rerun with different Alters
+                    </UiButton>
+                  </div>
+                </template>
               </section>
 
-              <section v-for="roundNumber in roundNumbers" :key="roundNumber" class="alter-exploration__round">
-                <div class="alter-exploration__round-header">
-                  <h4>Round {{ roundNumber }}</h4>
-                  <span>{{ splitRoundResults(roundNumber).length }} responses</span>
+              <section v-else class="alter-exploration__reader-content">
+                <div class="alter-exploration__round-summary">
+                  <UiBadge tone="neutral" size="sm">{{ activeRoundCountLabel }}</UiBadge>
                 </div>
-                <div class="alter-exploration__round-grid">
+                <div v-if="!activeRoundResults.length" class="alter-exploration__empty">
+                  No responses available for this round yet.
+                </div>
+                <div v-else class="alter-exploration__response-stack">
                   <article
-                    v-for="result in splitRoundResults(roundNumber)"
+                    v-for="result in activeRoundResults"
                     :key="`${result.round_number}-${result.alter_id}`"
-                    class="alter-exploration__result-card"
+                    class="alter-exploration__response-card"
                   >
                     <div class="alter-exploration__result-head">
-                      <strong>{{ result.alter_name ?? resolveAlterName(result.alter_id) }}</strong>
+                      <div class="alter-exploration__response-title">
+                        <strong>{{ result.alter_name ?? resolveAlterName(result.alter_id) }}</strong>
+                        <span>{{ result.references_alter_ids.length ? result.references_alter_ids.map(resolveAlterName).join(', ') : 'open' }}</span>
+                      </div>
                       <UiBadge tone="neutral" size="xs">
-                        {{ result.references_alter_ids.length ? result.references_alter_ids.map(resolveAlterName).join(', ') : 'open' }}
+                        {{ result.references_alter_ids.length ? `${result.references_alter_ids.length} refs` : 'open' }}
                       </UiBadge>
                     </div>
-                    <div class="alter-exploration__markdown" v-html="renderRoundContent(result.content)"></div>
+                    <div class="alter-exploration__markdown-frame">
+                      <div class="alter-exploration__markdown" v-html="renderRoundContent(result.content)"></div>
+                    </div>
                   </article>
-                </div>
-              </section>
-
-              <section class="alter-exploration__final">
-                <div class="alter-exploration__round-header">
-                  <h4>Final synthesis</h4>
-                  <UiBadge tone="accent" size="sm">{{ session.output_format }}</UiBadge>
-                </div>
-                <div
-                  class="alter-exploration__synthesis alter-exploration__markdown"
-                  v-html="renderFinalSynthesis(session.final_synthesis || 'No synthesis available yet.')"
-                ></div>
-
-                <div class="alter-exploration__final-actions">
-                  <UiButton
-                    size="sm"
-                    variant="secondary"
-                    :disabled="saving || !session?.final_synthesis"
-                    :loading="saving"
-                    @click="void saveArtifactAndOpen(saveSynthesisAsNote)"
-                  >
-                    <template #leading>
-                      <DocumentTextIcon class="alter-exploration__icon" />
-                    </template>
-                    Save as note
-                  </UiButton>
-                  <UiButton
-                    size="sm"
-                    variant="secondary"
-                    :disabled="saving || !session?.final_synthesis || !props.activeNotePath.trim()"
-                    :loading="saving"
-                    @click="void insertSynthesisIntoActiveNote()"
-                  >
-                    Insert into active note
-                  </UiButton>
-                  <UiButton
-                    size="sm"
-                    variant="secondary"
-                    :disabled="saving || !session?.final_synthesis"
-                    :loading="saving"
-                    @click="void saveArtifactAndOpen(convertSynthesisToPlan)"
-                  >
-                    Convert to plan
-                  </UiButton>
-                  <UiButton
-                    size="sm"
-                    variant="secondary"
-                    :disabled="saving || !session?.final_synthesis"
-                    :loading="saving"
-                    @click="void saveArtifactAndOpen(promoteSynthesisToDraft)"
-                  >
-                    Promote to draft
-                  </UiButton>
-                  <UiButton size="sm" variant="ghost" :disabled="running" @click="rerunWithDifferentAlters()">
-                    <template #leading>
-                      <PencilSquareIcon class="alter-exploration__icon" />
-                    </template>
-                    Rerun with different Alters
-                  </UiButton>
                 </div>
               </section>
             </template>
@@ -611,6 +730,14 @@ const formatOptions = [
   justify-content: flex-end;
 }
 
+.alter-exploration__context-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding-bottom: 0.1rem;
+}
+
 .alter-exploration__final-actions,
 .alter-exploration__composer-actions {
   display: flex;
@@ -681,12 +808,33 @@ const formatOptions = [
   gap: 1rem;
 }
 
+.alter-exploration__section-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 .alter-exploration__section-head--composer {
   padding-bottom: 0.15rem;
 }
 
 .alter-exploration__section-title {
   margin: 0;
+}
+
+.alter-exploration__section-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.alter-exploration__copy {
+  margin: 0;
+  color: var(--sb-text-dim);
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .alter-exploration__subject {
@@ -702,6 +850,130 @@ const formatOptions = [
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.alter-exploration__setup-card,
+.alter-exploration__reader-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.alter-exploration__setup-summary {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.alter-exploration__setup-summary-title {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.alter-exploration__setup-summary-line {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 0.9rem;
+}
+
+.alter-exploration__reader-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding-bottom: 0.05rem;
+}
+
+.alter-exploration__reader-nav-btn {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  background: var(--sb-thread-bg);
+  color: var(--sb-text);
+}
+
+.alter-exploration__reader-nav-btn strong,
+.alter-exploration__reader-nav-btn span {
+  display: block;
+}
+
+.alter-exploration__reader-nav-btn strong {
+  font-size: 0.8rem;
+}
+
+.alter-exploration__reader-nav-btn span {
+  color: var(--sb-text-dim);
+  font-size: 0.72rem;
+}
+
+.alter-exploration__reader-nav-btn--active {
+  border-color: var(--sb-active-border);
+  background: var(--sb-assistant-bg);
+  color: var(--sb-active-text);
+}
+
+.alter-exploration__reader-content {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.alter-exploration__round-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.alter-exploration__response-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.alter-exploration__response-card {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid var(--sb-border);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  background: var(--sb-assistant-bg);
+  min-width: 0;
+}
+
+.alter-exploration__response-title {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.alter-exploration__response-title strong {
+  font-size: 0.92rem;
+}
+
+.alter-exploration__response-title span {
+  color: var(--sb-text-dim);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alter-exploration__final-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.alter-exploration__reader-empty {
+  min-height: 11rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .alter-exploration__prompt-input-wrap {
@@ -808,6 +1080,7 @@ const formatOptions = [
   margin-top: 8px;
   font-size: 12px;
   line-height: 1.5;
+  min-width: 0;
 }
 
 .alter-exploration__markdown p {
@@ -895,6 +1168,7 @@ const formatOptions = [
   font-size: 12px;
   width: 100%;
   border: 1px solid var(--sb-input-border);
+  table-layout: fixed;
 }
 
 .alter-exploration__markdown th,
@@ -903,6 +1177,8 @@ const formatOptions = [
   padding: 4px 8px;
   vertical-align: top;
   text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .alter-exploration__markdown th {
@@ -920,6 +1196,14 @@ const formatOptions = [
   border: 1px solid var(--sb-input-border);
   background: var(--sb-input-bg);
   color: var(--sb-text);
+  min-width: 0;
+}
+
+.alter-exploration__markdown-frame {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .alter-exploration__history {

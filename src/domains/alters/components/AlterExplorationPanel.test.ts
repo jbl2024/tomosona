@@ -112,52 +112,37 @@ function mountPanel() {
 describe('AlterExplorationPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    const loadedSession = {
+      id: 'session-1',
+      workspace_id: 'workspace',
+      subject: { subject_type: 'prompt', text: 'Prompt', source_id: null },
+      alter_ids: ['alter-a', 'alter-b'],
+      mode: 'challenge',
+      rounds: 2,
+      output_format: 'summary',
+      state: 'completed',
+      round_results: [
+        {
+          round_number: 1,
+          alter_id: 'alter-a',
+          alter_name: 'Sober Architect',
+          content: '## Round 1\n\n- Item A\n- Item B',
+          references_alter_ids: ['alter-b']
+        }
+      ],
+      final_synthesis: '### Synthesis\n\n| Point | Value |\n| --- | --- |\n| One | Two |',
+      error_message: null,
+      created_at_ms: 1,
+      updated_at_ms: 1
+    }
     alterExplorationApi.fetchAlterExplorationSessions.mockResolvedValue([])
     alterExplorationApi.createWorkspaceAlterExplorationSession.mockResolvedValue({
-      id: 'session-1',
-      workspace_id: 'workspace',
-      subject: { subject_type: 'prompt', text: 'Prompt', source_id: null },
-      alter_ids: [],
-      mode: 'challenge',
-      rounds: 2,
-      output_format: 'summary',
+      ...loadedSession,
       state: 'draft',
-      round_results: [],
-      final_synthesis: null,
-      error_message: null,
-      created_at_ms: 1,
-      updated_at_ms: 1
+      final_synthesis: null
     })
-    alterExplorationApi.runWorkspaceAlterExplorationSession.mockResolvedValue({
-      id: 'session-1',
-      workspace_id: 'workspace',
-      subject: { subject_type: 'prompt', text: 'Prompt', source_id: null },
-      alter_ids: [],
-      mode: 'challenge',
-      rounds: 2,
-      output_format: 'summary',
-      state: 'completed',
-      round_results: [],
-      final_synthesis: 'Synthesis',
-      error_message: null,
-      created_at_ms: 1,
-      updated_at_ms: 1
-    })
-    alterExplorationApi.loadWorkspaceAlterExplorationSession.mockResolvedValue({
-      id: 'session-1',
-      workspace_id: 'workspace',
-      subject: { subject_type: 'prompt', text: 'Prompt', source_id: null },
-      alter_ids: [],
-      mode: 'challenge',
-      rounds: 2,
-      output_format: 'summary',
-      state: 'completed',
-      round_results: [],
-      final_synthesis: 'Synthesis',
-      error_message: null,
-      created_at_ms: 1,
-      updated_at_ms: 1
-    })
+    alterExplorationApi.runWorkspaceAlterExplorationSession.mockResolvedValue(loadedSession)
+    alterExplorationApi.loadWorkspaceAlterExplorationSession.mockResolvedValue(loadedSession)
   })
 
   afterEach(() => {
@@ -172,10 +157,29 @@ describe('AlterExplorationPanel', () => {
     expect(mounted.root.textContent).toContain('Prompt composer')
     expect(mounted.root.querySelector('label[for="alter-exploration-subject"]')).toBeFalsy()
     expect(mounted.root.textContent).not.toContain('Type `@` to add workspace notes')
-    expect(mounted.root.textContent).toContain('Round-by-round output')
+    expect(mounted.root.textContent).toContain('Reader')
+    expect(mounted.root.textContent).toContain('Setup')
     expect(mounted.root.textContent).not.toContain('Subject source')
     expect(mounted.root.querySelector('.send-icon-btn')).toBeTruthy()
     expect(mounted.root.querySelector('.sb-session-gear-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.alter-exploration__reader-nav')).toBeFalsy()
+
+    const panelState = (mounted.app as any)._instance?.subTree.component?.setupState
+    await panelState.showSession('session-markdown')
+    await nextTick()
+    await nextTick()
+
+    expect(mounted.root.textContent).toContain('Round 1')
+    expect(mounted.root.textContent).toContain('Synthesis')
+    expect(mounted.root.textContent).toContain('Show setup')
+    expect(mounted.root.querySelector('.alter-exploration__reader-nav')).toBeTruthy()
+    expect(mounted.root.querySelector('.alter-exploration__markdown table')).toBeTruthy()
+
+    mounted.root.querySelector<HTMLButtonElement>('.alter-exploration__reader-nav-btn')?.click()
+    await nextTick()
+
+    expect(mounted.root.querySelector('.alter-exploration__response-card')).toBeTruthy()
+    expect(mounted.root.textContent).toContain('Sober Architect')
 
     mounted.app.unmount()
   })
