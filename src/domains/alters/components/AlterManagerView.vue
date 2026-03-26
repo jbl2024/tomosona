@@ -1492,6 +1492,13 @@ onMounted(() => {
 /* ===== Wizard Styles ===== */
 :deep(.alter-wizard-modal) {
   max-width: min(74rem, calc(100vw - 2rem));
+  background: var(--index-modal-bg);
+  border: 1px solid color-mix(in srgb, var(--panel-border) 86%, transparent);
+  box-shadow:
+    0 28px 88px color-mix(in srgb, #000 18%, transparent),
+    0 2px 6px color-mix(in srgb, #000 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
 }
 
 .alter-wizard {
