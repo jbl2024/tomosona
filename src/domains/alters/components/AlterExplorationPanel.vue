@@ -7,13 +7,14 @@
  * instead of a free-form chat log.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { ArrowPathIcon, ClockIcon, DocumentTextIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline'
+import { ArrowPathIcon, DocumentTextIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline'
 import UiBadge from '../../../shared/components/ui/UiBadge.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiField from '../../../shared/components/ui/UiField.vue'
 import UiPanel from '../../../shared/components/ui/UiPanel.vue'
 import UiSelect from '../../../shared/components/ui/UiSelect.vue'
 import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
+import WorkspaceSessionDropdown, { type WorkspaceSessionDropdownItem } from '../../../shared/components/workspace/WorkspaceSessionDropdown.vue'
 import { toWorkspaceRelativePath } from '../../explorer/lib/workspacePaths'
 import SecondBrainAtMentionsMenu from '../../second-brain/components/SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from '../../second-brain/components/SecondBrainEchoesPanel.vue'
@@ -85,7 +86,6 @@ const {
 } = exploration
 
 const roundNumbers = computed<number[]>(() => roundGroups.value.map((group) => group.roundNumber))
-const sessionLabel = computed(() => session.value?.id ?? 'No exploration yet')
 const selectedPromptCountLabel = computed(() => {
   const count = selectedPromptPaths.value.length
   if (!count) return 'No context notes selected'
@@ -98,6 +98,17 @@ const mentions = useSecondBrainAtMentions({
   workspacePath: computed(() => props.workspacePath),
   allWorkspaceFiles: computed(() => props.allWorkspaceFiles)
 })
+
+const sessionDropdownItems = computed<WorkspaceSessionDropdownItem[]>(() =>
+  sessions.value.map((item) => ({
+    id: item.id,
+    label: item.subject_preview,
+    sessionId: item.id,
+    title: item.subject_preview,
+    updatedAtMs: item.updated_at_ms,
+    details: `${item.mode} · ${item.alter_count} Alters · ${item.state}`
+  }))
+)
 
 function toRelativePath(path: string): string {
   return toWorkspaceRelativePath(props.workspacePath, path)
@@ -258,14 +269,20 @@ const formatOptions = [
     <UiPanel tone="raised" class-name="alter-exploration__shell">
       <header class="alter-exploration__header">
         <div class="alter-exploration__header-copy">
-          <p class="alter-exploration__kicker">Alter Exploration</p>
-          <h3 class="alter-exploration__title">Structured roundtable</h3>
-          <p class="alter-exploration__copy">
-            Multiple Alters examine the same prompt through bounded rounds, cross-reference each other, and converge on a sharper artifact.
-          </p>
+          <h3 class="alter-exploration__title">Alter Exploration</h3>
         </div>
         <div class="alter-exploration__header-actions">
-          <UiBadge tone="neutral" size="sm">{{ sessionLabel }}</UiBadge>
+          <WorkspaceSessionDropdown
+            :sessions="sessionDropdownItems"
+            :active-session-id="session?.id ?? ''"
+            :loading="loadingSessions"
+            button-title="Manage exploration sessions"
+            button-aria-label="Manage exploration sessions"
+            filter-placeholder="Search explorations..."
+            empty-label="No exploration sessions yet"
+            :show-delete="false"
+            @select="void showSession($event)"
+          />
           <UiButton size="sm" variant="secondary" :disabled="running" @click="resetSetupAndSession()">
             <template #leading>
               <ArrowPathIcon class="alter-exploration__icon" />
@@ -274,35 +291,6 @@ const formatOptions = [
           </UiButton>
         </div>
       </header>
-
-      <div class="alter-exploration__session-toolbar">
-        <div class="alter-exploration__session-toolbar-copy">
-          <ClockIcon class="alter-exploration__icon" />
-          <div>
-            <strong>Sessions</strong>
-            <span>Open a previous exploration roundtable</span>
-          </div>
-        </div>
-        <div class="alter-exploration__session-strip">
-          <button
-            v-for="item in sessions"
-            :key="item.id"
-            type="button"
-            class="alter-exploration__session-chip"
-            :class="{ 'alter-exploration__session-chip--active': session?.id === item.id }"
-            @click="void showSession(item.id)"
-          >
-            <strong>{{ item.subject_preview }}</strong>
-            <span>{{ item.mode }} · {{ item.alter_count }} Alters · {{ item.state }}</span>
-          </button>
-          <span v-if="!sessions.length && !loadingSessions" class="alter-exploration__session-empty">
-            No exploration sessions yet.
-          </span>
-        </div>
-        <UiButton size="sm" variant="ghost" :disabled="loadingSessions" @click="void refreshSessions()">
-          Refresh
-        </UiButton>
-      </div>
 
       <div v-if="error" class="alter-exploration__error">
         {{ error }}
@@ -593,32 +581,31 @@ const formatOptions = [
 
 .alter-exploration__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex: 0 0 auto;
-}
-
-.alter-exploration__kicker {
-  margin: 0 0 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.72rem;
-  opacity: 0.7;
+  flex-wrap: nowrap;
 }
 
 .alter-exploration__title {
   margin: 0;
 }
 
-.alter-exploration__copy,
 .alter-exploration__hint,
 .alter-exploration__empty {
   margin: 0;
   opacity: 0.82;
 }
 
-.alter-exploration__header-actions,
+.alter-exploration__header-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .alter-exploration__final-actions,
 .alter-exploration__composer-actions {
   display: flex;
@@ -640,81 +627,6 @@ const formatOptions = [
   border-radius: 16px;
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
-}
-
-.alter-exploration__session-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  min-width: 0;
-  padding: 0.7rem 0.9rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  background: color-mix(in srgb, currentColor 4%, transparent);
-}
-
-.alter-exploration__session-toolbar-copy {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex: 0 0 auto;
-}
-
-.alter-exploration__session-toolbar-copy strong,
-.alter-exploration__session-toolbar-copy span {
-  display: block;
-}
-
-.alter-exploration__session-toolbar-copy span {
-  opacity: 0.72;
-  font-size: 0.8rem;
-}
-
-.alter-exploration__session-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  padding-bottom: 2px;
-}
-
-.alter-exploration__session-chip {
-  display: grid;
-  gap: 0.15rem;
-  flex: 0 0 auto;
-  min-width: 12rem;
-  text-align: left;
-  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-  background: transparent;
-  border-radius: 0.85rem;
-  padding: 0.65rem 0.75rem;
-}
-
-.alter-exploration__session-chip--active {
-  border-color: color-mix(in srgb, currentColor 38%, transparent);
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.alter-exploration__session-chip strong,
-.alter-exploration__session-chip span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.alter-exploration__session-chip span {
-  opacity: 0.72;
-  font-size: 0.78rem;
-}
-
-.alter-exploration__session-empty {
-  white-space: nowrap;
-  opacity: 0.72;
-  font-size: 0.85rem;
 }
 
 .alter-exploration__notice {

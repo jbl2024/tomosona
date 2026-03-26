@@ -137,12 +137,12 @@ describe('AlterExplorationPanel', () => {
 
     expect(mounted.root.textContent).toContain('Alter Exploration')
     expect(mounted.root.textContent).toContain('Prompt composer')
-    expect(mounted.root.textContent).toContain('Sessions')
     expect(mounted.root.querySelector('label[for="alter-exploration-subject"]')).toBeFalsy()
     expect(mounted.root.textContent).not.toContain('Type `@` to add workspace notes')
     expect(mounted.root.textContent).toContain('Round-by-round output')
     expect(mounted.root.textContent).not.toContain('Subject source')
     expect(mounted.root.querySelector('.send-icon-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.sb-session-gear-btn')).toBeTruthy()
 
     mounted.app.unmount()
   })

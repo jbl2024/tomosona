@@ -12,9 +12,9 @@ import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
+import WorkspaceSessionDropdown, { type WorkspaceSessionDropdownItem } from '../../../shared/components/workspace/WorkspaceSessionDropdown.vue'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
-import SecondBrainSessionDropdown from './SecondBrainSessionDropdown.vue'
 import { useSecondBrainViewState } from '../composables/useSecondBrainViewState'
 
 const props = withDefaults(defineProps<{
@@ -145,6 +145,17 @@ const alterDropdownItems = computed<AlterDropdownItem[]>(() => [
   }))
 ])
 
+const sessionDropdownItems = computed<WorkspaceSessionDropdownItem[]>(() =>
+  sessionsIndex.value.map((session) => ({
+    id: session.session_id,
+    label: session.title,
+    sessionId: session.session_id,
+    title: session.title,
+    updatedAtMs: session.updated_at_ms,
+    details: session.updated_at_ms ? new Date(session.updated_at_ms).toLocaleString() : ''
+  }))
+)
+
 function selectedAlterIndex(): number {
   if (!selectedAlterId.value) return 0
   const index = alterDropdownItems.value.findIndex((item) => item.alterId === selectedAlterId.value)
@@ -240,10 +251,15 @@ void threadRef
           >
             <PlusIcon class="h-4 w-4" />
           </button>
-          <SecondBrainSessionDropdown
-            :sessions="sessionsIndex"
+          <WorkspaceSessionDropdown
+            :sessions="sessionDropdownItems"
             :active-session-id="sessionId"
             :loading="loading || creatingSession"
+            button-title="Manage sessions"
+            button-aria-label="Manage sessions"
+            filter-placeholder="Search sessions..."
+            empty-label="No session found"
+            :show-delete="true"
             @select="loadSession"
             @delete="onDeleteSession"
           />
