@@ -638,13 +638,16 @@ const formatOptions = [
 .alter-exploration__composer {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
   margin-top: auto;
   position: sticky;
   bottom: 0;
   z-index: 1;
-  padding-top: 0.65rem;
-  background: linear-gradient(to top, color-mix(in srgb, currentColor 3%, transparent) 78%, transparent);
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
 }
 
 .alter-exploration__session-toolbar {
@@ -796,25 +799,24 @@ const formatOptions = [
 
 .alter-exploration__subject-input {
   width: 100%;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: 0.75rem;
-  padding: 0.5rem 0.8rem;
-  background: transparent;
-  color: inherit;
+  border: 1px solid var(--sb-input-border);
+  border-radius: 10px;
+  padding: 8px 42px 8px 8px;
+  background: var(--sb-input-bg);
+  color: var(--sb-button-text);
   resize: none;
   min-height: 34px;
   max-height: 120px;
   overflow-y: hidden;
   box-sizing: border-box;
   display: block;
-  font-size: 0.875rem;
-  line-height: 1.35;
+  font-size: 12px;
 }
 
 .alter-exploration__subject-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 12%, transparent);
+  border-color: var(--sb-input-border);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sb-input-border) 26%, transparent);
 }
 
 .alter-exploration__hint--composer {
@@ -822,7 +824,7 @@ const formatOptions = [
 }
 
 .alter-exploration__echoes {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
   max-height: 11rem;
   overflow: auto;
   padding-right: 0.1rem;

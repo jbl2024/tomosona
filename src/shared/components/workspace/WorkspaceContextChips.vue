@@ -72,8 +72,8 @@ const emit = defineEmits<{
   flex: 0 0 auto;
   align-items: center;
   gap: 5px;
-  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-  background: color-mix(in srgb, currentColor 4%, transparent);
+  border: 1px solid var(--sb-chip-border);
+  background: var(--sb-chip-bg);
   border-radius: 8px;
   padding: 3px 5px;
 }
@@ -90,7 +90,7 @@ const emit = defineEmits<{
 
 .workspace-context-chip__main.active strong,
 .workspace-context-chip__main.active span {
-  color: var(--sb-active-text, currentColor);
+  color: var(--sb-active-text);
 }
 
 .workspace-context-chip__main strong,
@@ -107,14 +107,14 @@ const emit = defineEmits<{
 }
 
 .workspace-context-chip__main span {
-  color: color-mix(in srgb, currentColor 66%, transparent);
+  color: var(--sb-chip-meta);
   font-size: 10px;
 }
 
 .workspace-context-chip__open {
-  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  color: inherit;
+  border: 1px solid var(--sb-button-border);
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
   border-radius: 999px;
   font-size: 10px;
   line-height: 1;
@@ -127,6 +127,6 @@ const emit = defineEmits<{
   background: transparent;
   font-size: 14px;
   line-height: 1;
-  color: color-mix(in srgb, currentColor 66%, transparent);
+  color: var(--sb-text-dim);
 }
 </style>
