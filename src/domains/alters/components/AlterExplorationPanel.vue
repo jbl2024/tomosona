@@ -745,16 +745,20 @@ const formatOptions = [
 .alter-exploration__composer {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: auto;
+  gap: 0.4rem;
+  margin-top: -0.2rem;
   position: sticky;
   bottom: 0;
   z-index: 1;
-  padding: 10px;
-  border: 1px solid var(--sb-input-border);
+  padding: 10px 10px 10px;
+  border: 1px solid color-mix(in srgb, var(--sb-input-border) 74%, transparent);
   border-radius: 16px;
-  background: var(--sb-input-bg);
-  box-shadow: var(--sb-composer-shadow);
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--sb-input-bg) 78%, transparent) 0%, var(--sb-input-bg) 42%),
+    var(--sb-input-bg);
+  box-shadow:
+    0 -10px 24px -22px color-mix(in srgb, var(--sb-text) 42%, transparent),
+    var(--sb-composer-shadow);
 }
 
 .alter-exploration__notice {
@@ -776,16 +780,18 @@ const formatOptions = [
   flex-direction: column;
   min-height: 0;
   flex: 1 1 auto;
-  gap: 0.85rem;
+  gap: 0.35rem;
 }
 
 .alter-exploration__scroll {
   display: grid;
-  gap: 0.85rem;
+  align-content: start;
+  gap: 0.6rem;
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
   padding-right: 0.1rem;
+  padding-bottom: 0.1rem;
 }
 
 .alter-exploration__card {
