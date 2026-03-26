@@ -998,32 +998,27 @@ onMounted(() => {
 
       <template #footer>
         <div class="alter-wizard__footer">
-          <div class="alter-wizard__footer-group alter-wizard__footer-group--left">
-            <UiButton size="sm" variant="ghost" @click="resetDraft()">Reset</UiButton>
-            <UiButton size="sm" variant="ghost" @click="closeWizard()">Cancel</UiButton>
-          </div>
-
-          <div class="alter-wizard__footer-group alter-wizard__footer-group--right">
-            <UiButton size="sm" variant="secondary" :disabled="wizardStep === 0" @click="previousStep()">Back</UiButton>
-            <UiButton
-              v-if="wizardStep < stepDefinitions.length - 1"
-              size="sm"
-              variant="primary"
-              @click="nextStep()"
-            >
-              Next
-            </UiButton>
-            <UiButton
-              v-else
-              size="sm"
-              variant="primary"
-              :disabled="saving || !canSaveDraft"
-              :loading="saving"
-              @click="void manager.saveDraft()"
-            >
-              Save Alter
-            </UiButton>
-          </div>
+          <UiButton size="sm" variant="ghost" @click="closeWizard()">Cancel</UiButton>
+          <UiButton size="sm" variant="danger" @click="resetDraft()">Reset</UiButton>
+          <UiButton size="sm" variant="secondary" :disabled="wizardStep === 0" @click="previousStep()">Back</UiButton>
+          <UiButton
+            v-if="wizardStep < stepDefinitions.length - 1"
+            size="sm"
+            variant="primary"
+            @click="nextStep()"
+          >
+            Next
+          </UiButton>
+          <UiButton
+            v-else
+            size="sm"
+            variant="primary"
+            :disabled="saving || !canSaveDraft"
+            :loading="saving"
+            @click="void manager.saveDraft()"
+          >
+            Save Alter
+          </UiButton>
         </div>
       </template>
     </UiModalShell>
@@ -1602,26 +1597,10 @@ onMounted(() => {
 
 .alter-wizard__footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 1rem;
   width: 100%;
-}
-
-.alter-wizard__footer-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.alter-wizard__footer-group--left {
-  flex: 0 1 auto;
-}
-
-.alter-wizard__footer-group--right {
-  flex: 0 0 auto;
-  margin-left: auto;
 }
 
 /* ===== Dropdown & Misc ===== */
