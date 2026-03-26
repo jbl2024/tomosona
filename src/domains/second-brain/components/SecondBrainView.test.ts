@@ -217,6 +217,23 @@ describe('SecondBrainView', () => {
     mounted.app.unmount()
   })
 
+  it('shows a filter input in the alter dropdown like the session selector', async () => {
+    const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
+    await flushUi()
+    await flushUi()
+
+    const alterTrigger = mounted.root.querySelector<HTMLButtonElement>('.sb-alter-trigger')
+    expect(alterTrigger).toBeTruthy()
+    alterTrigger?.click()
+    await flushUi()
+
+    const filterInput = mounted.root.querySelector<HTMLInputElement>('.sb-alter-dropdown .ui-filterable-dropdown-filter-input')
+    expect(filterInput).toBeTruthy()
+    expect(filterInput?.getAttribute('placeholder')).toBe('Filter alters...')
+
+    mounted.app.unmount()
+  })
+
   it('keeps the composer at one line until content requires more height, then caps it', async () => {
     const mounted = mountView({ requestedSessionId: 's1', requestedSessionNonce: 1 })
     await flushUi()
@@ -706,12 +723,17 @@ describe('SecondBrainView', () => {
       await flushUi()
     }
 
-    const select = mounted.root.querySelector<HTMLSelectElement>('#sb-alter-select')
-    expect(select).toBeTruthy()
-    if (!select) return
+    const alterTrigger = mounted.root.querySelector<HTMLButtonElement>('.sb-alter-trigger')
+    expect(alterTrigger).toBeTruthy()
+    if (!alterTrigger) return
 
-    select.value = 'alter-strategist'
-    select.dispatchEvent(new Event('change', { bubbles: true }))
+    alterTrigger.click()
+    await flushUi()
+
+    const alterOption = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.ui-filterable-dropdown-option'))
+      .find((button) => button.textContent?.includes('Strategist'))
+    expect(alterOption).toBeTruthy()
+    alterOption?.click()
     await flushUi()
 
     const createBtn = mounted.root.querySelector<HTMLButtonElement>('.sb-session-create-btn')

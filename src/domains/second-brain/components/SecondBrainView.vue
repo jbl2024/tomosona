@@ -5,11 +5,11 @@
  * This component owns layout and event wiring only; the actual session,
  * stream, and composer behavior live in the domain composables.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ClipboardDocumentIcon, PaperAirplaneIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
-import UiFilterableDropdown from '../../../shared/components/ui/UiFilterableDropdown.vue'
+import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import SecondBrainAtMentionsMenu from './SecondBrainAtMentionsMenu.vue'
 import SecondBrainEchoesPanel from './SecondBrainEchoesPanel.vue'
 import SecondBrainSessionDropdown from './SecondBrainSessionDropdown.vue'
@@ -44,6 +44,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+  activeAlterLabel,
   activePulseAction,
   addEchoesSuggestion,
   applyMentionSuggestion,
@@ -120,6 +121,54 @@ const {
   emitOpenNote: (path) => emit('open-note', path)
 })
 
+type AlterDropdownItem = FilterableDropdownItem & {
+  alterId: string
+}
+
+const alterDropdownOpen = ref(false)
+const alterDropdownQuery = ref('')
+const alterDropdownActiveIndex = ref(0)
+
+const alterDropdownItems = computed<AlterDropdownItem[]>(() => [
+  {
+    id: '',
+    label: 'Neutral',
+    alterId: ''
+  },
+  ...availableAlters.value.map((item) => ({
+    id: item.id,
+    label: item.name,
+    alterId: item.id
+  }))
+])
+
+function selectedAlterIndex(): number {
+  if (!selectedAlterId.value) return 0
+  const index = alterDropdownItems.value.findIndex((item) => item.alterId === selectedAlterId.value)
+  return index >= 0 ? index : 0
+}
+
+function syncAlterDropdownActiveIndex() {
+  alterDropdownActiveIndex.value = selectedAlterIndex()
+}
+
+function onAlterDropdownOpenChange(value: boolean) {
+  alterDropdownOpen.value = value
+  if (value) {
+    syncAlterDropdownActiveIndex()
+  }
+}
+
+function onAlterDropdownSelect(item: AlterDropdownItem) {
+  void applySelectedAlter(item.alterId)
+  alterDropdownOpen.value = false
+  alterDropdownQuery.value = ''
+}
+
+watch(selectedAlterId, () => {
+  syncAlterDropdownActiveIndex()
+}, { immediate: true })
+
 void composerRef
 void threadBottomSentinel
 void threadRef
@@ -131,20 +180,6 @@ void threadRef
       <header class="sb-center-head">
         <div class="sb-center-head-main">
           <h2>{{ sessionTitle }}</h2>
-          <div class="sb-alter-row">
-            <label for="sb-alter-select">Alter</label>
-            <select
-              id="sb-alter-select"
-              class="sb-alter-select"
-              :value="selectedAlterId"
-              @change="void applySelectedAlter(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">Neutral</option>
-              <option v-for="item in availableAlters" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </div>
         </div>
         <div class="sb-session-actions">
           <UiIconButton
@@ -157,6 +192,37 @@ void threadRef
           >
             <ClipboardDocumentIcon class="h-4 w-4" />
           </UiIconButton>
+          <UiFilterableDropdown
+            class="sb-alter-dropdown"
+            :items="alterDropdownItems"
+            :model-value="alterDropdownOpen"
+            :query="alterDropdownQuery"
+            :active-index="alterDropdownActiveIndex"
+            filter-placeholder="Filter alters..."
+            :show-filter="true"
+            :close-on-select="true"
+            :menu-mode="'overlay'"
+            :menu-class="'sb-alter-dropdown-menu'"
+            :disabled="loading || creatingSession"
+            @open-change="onAlterDropdownOpenChange"
+            @query-change="alterDropdownQuery = $event"
+            @active-index-change="alterDropdownActiveIndex = $event"
+            @select="onAlterDropdownSelect($event as AlterDropdownItem)"
+          >
+            <template #trigger="{ toggleMenu }">
+              <button
+                type="button"
+                class="sb-toolbar-btn sb-alter-trigger"
+                title="Change alter"
+                aria-label="Change alter"
+                :disabled="loading || creatingSession"
+                @click="toggleMenu"
+              >
+                <span class="sb-alter-trigger-label">{{ activeAlterLabel }}</span>
+                <span class="sb-alter-trigger-caret" aria-hidden="true">▾</span>
+              </button>
+            </template>
+          </UiFilterableDropdown>
           <button
             type="button"
             class="sb-session-create-btn"
@@ -395,6 +461,20 @@ void threadRef
   color: var(--sb-button-text);
 }
 
+.sb-alter-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sb-alter-dropdown :deep(.ui-filterable-dropdown-menu) {
+  position: absolute !important;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(280px, calc(100vw - 36px));
+  max-width: min(280px, calc(100vw - 36px));
+}
+
 .sb-session-create-btn {
   width: 32px;
   height: 32px;
@@ -424,21 +504,43 @@ void threadRef
   margin: 0 0 0 12px;
 }
 
-.sb-alter-row {
-  display: flex;
+.sb-toolbar-btn {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid var(--sb-button-border);
+  border-radius: 10px;
+  background: var(--sb-button-bg);
+  color: var(--sb-button-text);
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--sb-text-muted);
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
 }
 
-.sb-alter-select {
-  border: 1px solid var(--sb-input-border);
-  border-radius: 8px;
-  background: var(--sb-input-bg);
-  color: var(--sb-text);
-  padding: 5px 8px;
+.sb-alter-trigger {
+  min-width: 0;
+}
+
+.sb-alter-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16ch;
+}
+
+.sb-alter-trigger-caret {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--sb-text-dim);
+}
+
+.sb-alter-dropdown :deep(.ui-filterable-dropdown-option[data-active='true']) {
+  color: var(--sb-active-text);
+}
+
+.sb-alter-dropdown-menu {
+  min-width: 180px;
 }
 
 .sb-thread {
