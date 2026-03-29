@@ -23,7 +23,7 @@
     "nspell": "^2.1.5",
     "dictionary-en": "^4.0.0",
     "dictionary-fr": "^3.0.0",
-    "@tiptap/extension-code-block": "^3.20.1",
+    "@tiptap/extension-code-block": "^3.21.0",
     "@tiptap/extension-code-block-lowlight": "^3.20.4",
     "@tiptap/extension-drag-handle-vue-3": "^3.20.0",
     "@tiptap/extension-link": "^3.20.0",
