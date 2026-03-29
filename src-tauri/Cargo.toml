@@ -37,4 +37,4 @@ blake3 = "1.8.3"
 comrak = "0.50"
 mermaid-rs-renderer = { git = "https://github.com/1jehuang/mermaid-rs-renderer", tag = "v0.2.0", features = ["png"] }
 rdocx = "0.1.2"
-zip = "2"
+zip = "8"
