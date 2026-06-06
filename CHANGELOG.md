@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.39.1] - 2026-06-06
+
+### Changed
+- build(tauri): bump tauri tooling to 2.11.2 (65ece9c)
+
 ## [0.39.0] - 2026-05-11
 
 ### Changed
