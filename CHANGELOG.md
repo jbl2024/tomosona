@@ -18,6 +18,20 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.40.0] - 2026-07-09
+
+### Changed
+- chore: bump tiptap to v3.27.3 (c70a65c)
+- chore: bump tiptap version to 3.27.1 (f50647a)
+- chore(deps): bump serde_json from 1.0.149 to 1.0.150 in /src-tauri (#119) (98a94a0)
+- chore(deps): bump genai from 0.5.3 to 0.6.5 in /src-tauri (#121) (aea26a8)
+- chore(deps-dev): bump @vitejs/plugin-vue from 6.0.4 to 6.0.7 (#112) (b218ae6)
+- chore(deps): bump actions/checkout from 6 to 7 (#122) (2da0236)
+- chore(deps): bump actions/cache from 5 to 6 (#123) (8d63133)
+- chore(deps): bump fastembed from 5.13.4 to 5.16.0 in /src-tauri (#120) (21c12b2)
+- chore(deps): bump calamine from 0.34.0 to 0.35.0 in /src-tauri (#110) (5f7fb59)
+- chore(deps): bump open from 5.3.4 to 5.3.5 in /src-tauri (#108) (4306a61)
+
 ## [0.39.1] - 2026-06-06
 
 ### Changed
