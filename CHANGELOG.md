@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [0.40.1] - 2026-07-09
+
+### Fixed
+- fix(window): patch tao wayland decorations (5716408)
+
 ## [0.40.0] - 2026-07-09
 
 ### Changed
