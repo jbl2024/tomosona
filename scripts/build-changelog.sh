@@ -12,7 +12,7 @@ usage() {
 Usage: $0 --version <version> [options]
 
 Options:
-  --version <version>   Release version (X.Y.Z or vX.Y.Z)
+  --version <version>   Release version (YYYYMMDD.N or vYYYYMMDD.N)
   --date <YYYY-MM-DD>  Override release date (default: today)
   --from-tag <tag>      Use explicit lower-bound tag
   --changelog <path>    Changelog path (default: CHANGELOG.md)
@@ -61,8 +61,8 @@ if [ -z "$VERSION" ]; then
 fi
 
 VERSION="${VERSION#v}"
-if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "Invalid version '$VERSION'. Expected format: X.Y.Z (optionally prefixed with v)."
+if ! echo "$VERSION" | grep -Eq '^[0-9]{8}\.[1-9][0-9]*$'; then
+  echo "Invalid version '$VERSION'. Expected format: YYYYMMDD.N (optionally prefixed with v)."
   exit 1
 fi
 
@@ -86,7 +86,7 @@ fi
 if [ -n "$FROM_TAG" ]; then
   PREV_TAG="$FROM_TAG"
 else
-  PREV_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
+  PREV_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*' 2>/dev/null || true)"
 fi
 
 LOG_ARGS=(--pretty=format:'%h%x09%s')

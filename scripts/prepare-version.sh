@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
   echo "Usage: $0 <version>"
-  echo "Example: $0 0.1.6"
+  echo "Example: $0 20260712.1"
 }
 
 if [ "$#" -ne 1 ]; then
@@ -16,25 +16,29 @@ fi
 RAW_VERSION="$1"
 VERSION="${RAW_VERSION#v}"
 
-if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "Invalid version '$RAW_VERSION'. Expected format: X.Y.Z (optionally prefixed with v)."
+if ! echo "$VERSION" | grep -Eq '^[0-9]{8}\.[1-9][0-9]*$'; then
+  echo "Invalid version '$RAW_VERSION'. Expected format: YYYYMMDD.N (optionally prefixed with v)."
   exit 1
 fi
 
+# Cargo and Tauri require a three-component SemVer even though the public
+# release identifier intentionally uses the shorter YYYYMMDD.N format.
+BUILD_VERSION="$VERSION.0"
+
 cd "$ROOT_DIR"
 
-node -e 'const fs=require("fs");const p="package.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
+node -e 'const fs=require("fs");const p="package.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$BUILD_VERSION"
 
 if [ -f package-lock.json ]; then
-  node -e 'const fs=require("fs");const p="package-lock.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];if(d.packages&&d.packages[""]){d.packages[""].version=process.argv[1];}fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
+  node -e 'const fs=require("fs");const p="package-lock.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];if(d.packages&&d.packages[""]){d.packages[""].version=process.argv[1];}fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$BUILD_VERSION"
 fi
 
-node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$VERSION"
+node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const d=JSON.parse(fs.readFileSync(p,"utf8"));d.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(d,null,2)+"\n");' "$BUILD_VERSION"
 
 node -e 'const fs=require("fs");const p="index.html";const source=fs.readFileSync(p,"utf8");const next=source.replace(/<div class="startup-brand-meta">v[^<]+<\/div>/, `<div class="startup-brand-meta">v${process.argv[1]}</div>`);if(next===source){throw new Error("Could not update startup splash version in index.html");}fs.writeFileSync(p,next);' "$VERSION"
 
 tmp_file="$(mktemp)"
-awk -v v="$VERSION" '
+awk -v v="$BUILD_VERSION" '
   BEGIN { in_pkg=0 }
   /^\[package\]$/ { in_pkg=1 }
   /^\[/ { if ($0 != "[package]") in_pkg=0 }
@@ -44,7 +48,7 @@ awk -v v="$VERSION" '
 mv "$tmp_file" src-tauri/Cargo.toml
 
 tmp_file="$(mktemp)"
-awk -v v="$VERSION" '
+awk -v v="$BUILD_VERSION" '
   BEGIN { in_pkg=0; is_tomosona=0 }
   /^\[\[package\]\]$/ { in_pkg=1; is_tomosona=0 }
   in_pkg && /^name = "tomosona"$/ { is_tomosona=1 }
@@ -58,7 +62,7 @@ awk -v v="$VERSION" '
 mv "$tmp_file" src-tauri/Cargo.lock
 
 if [ -f package-lock.json ]; then
-  echo "Updated versions to $VERSION in package.json, package-lock.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+  echo "Updated release display to $VERSION and build metadata to $BUILD_VERSION in package.json, package-lock.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
 else
-  echo "Updated versions to $VERSION in package.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
+  echo "Updated release display to $VERSION and build metadata to $BUILD_VERSION in package.json, index.html, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, and src-tauri/Cargo.lock"
 fi

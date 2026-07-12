@@ -22,7 +22,7 @@ help:
 	@echo "  make clean-frontend  Remove dist/"
 	@echo "  make clean-tauri  Remove src-tauri/target/"
 	@echo "  make clean-deps   Remove node_modules/"
-	@echo "  make prepare-release VERSION=X.Y.Z  Update app versions and build changelog release entry"
+	@echo "  make prepare-release  Infer today's next version and build the changelog release entry"
 
 install:
 	npm install
@@ -76,17 +76,10 @@ clean-deps:
 	rm -rf node_modules
 
 prepare-release:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "Usage: make prepare-release VERSION=X.Y.Z"; \
-		exit 1; \
-	fi
-	@if ! echo "$(VERSION)" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		echo "Invalid VERSION '$(VERSION)'. Expected format: X.Y.Z (or vX.Y.Z)"; \
-		exit 1; \
-	fi
-	@./scripts/prepare-version.sh "$(VERSION)"
-	@./scripts/build-changelog.sh --version "$(VERSION)"
-	@VERSION_NO_V="$(VERSION)"; VERSION_NO_V=$${VERSION_NO_V#v}; \
+	@VERSION_NO_V=$$(./scripts/next-version.sh); \
+	echo "Preparing release v$$VERSION_NO_V"; \
+	./scripts/prepare-version.sh "$$VERSION_NO_V"; \
+	./scripts/build-changelog.sh --version "$$VERSION_NO_V"; \
 	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
 	echo ""; \
 	echo "Release files are prepared. Review changes before committing:"; \
