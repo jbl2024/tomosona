@@ -88,6 +88,21 @@ describe('useEditorTiptapSetup', () => {
     expect(options.getAssetBrowserItems).toHaveBeenCalled()
   })
 
+  it('stores imported assets relative to the current note', async () => {
+    const importAssetFiles = vi.fn(async () => [
+      '/vault/assets/Capture écran.png',
+      '/vault/assets/report.pdf'
+    ])
+    const { setup } = createSetup({ importAssetFiles })
+    const editorOptions = setup.createEditorOptions('/vault/notes/projects/current.md') as any
+    const assetExtension = (editorOptions.extensions ?? []).find((extension: { name?: string }) => extension.name === 'assetBlock')
+
+    await expect(assetExtension?.options?.importAssetFiles?.()).resolves.toEqual([
+      '../../assets/Capture écran.png',
+      '../../assets/report.pdf'
+    ])
+  })
+
   it('dispatches update/selection/transaction callbacks', () => {
     const { setup, options } = createSetup()
     const editorOptions = setup.createEditorOptions('a.md') as any

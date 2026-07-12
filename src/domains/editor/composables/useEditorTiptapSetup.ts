@@ -148,6 +148,30 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
       : `${base.prefix}${segments.join('/')}`
   }
 
+  function makeAssetPathRelativeToNote(notePath: string, assetPath: string): string {
+    const note = splitPath(notePath)
+    const asset = splitPath(decodeWorkspacePathSegments(assetPath))
+    if (!note || !asset || note.prefix.toLowerCase() !== asset.prefix.toLowerCase()) {
+      return assetPath
+    }
+
+    const noteDir = note.segments.slice(0, -1)
+    let commonLength = 0
+    while (
+      commonLength < noteDir.length
+      && commonLength < asset.segments.length
+      && noteDir[commonLength] === asset.segments[commonLength]
+    ) {
+      commonLength += 1
+    }
+
+    const relativeSegments = [
+      ...Array(noteDir.length - commonLength).fill('..'),
+      ...asset.segments.slice(commonLength)
+    ]
+    return relativeSegments.join('/') || assetPath
+  }
+
   function resolveRelativeMarkdownTarget(notePath: string, href: string): string | null {
     const parsed = parseRelativeMarkdownHref(href)
     if (!parsed) return null
@@ -394,6 +418,9 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           openPreview: options.openAssetPreview,
           getAssetBrowserItems: options.getAssetBrowserItems,
           importAssetFiles: options.importAssetFiles
+            ? async () => (await options.importAssetFiles!())
+              .map((assetPath) => makeAssetPathRelativeToNote(path, assetPath))
+            : undefined
         }),
         MermaidNode.configure({
           confirmReplace: options.requestMermaidReplaceConfirm,
