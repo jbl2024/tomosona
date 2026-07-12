@@ -45,6 +45,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
+  minimapVisible?: boolean
   activeDocumentPath: string
   cosmos: AppShellCosmosViewModel
   alters?: AppShellAltersViewModel
@@ -214,6 +215,7 @@ defineExpose<EditorSurfaceExposed>({
     :savePropertyTypeSchema="savePropertyTypeSchema"
     :openLinkTarget="openLinkTarget"
     :spellcheckEnabled="spellcheckEnabled"
+    :minimap-visible="minimapVisible"
     @status="emit('status', $event)"
     @path-renamed="emit('path-renamed', $event)"
     @outline="emit('outline', $event)"

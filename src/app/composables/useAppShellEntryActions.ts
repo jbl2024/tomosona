@@ -60,6 +60,7 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     zoomOutFromPalette: () => false,
     resetZoomFromPalette: () => false,
     toggleSpellcheckFromPalette: () => false,
+    toggleEditorMinimapFromPalette: () => false,
     openSpellcheckDictionaryFromPalette: () => false,
     openThemePickerFromPalette: () => false,
     setThemeFromPalette: () => false,

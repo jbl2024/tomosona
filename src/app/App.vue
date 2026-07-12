@@ -161,6 +161,7 @@ import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
 import { useAppQuickOpen } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
+import { useAppEditorMinimapPreference } from './composables/useAppEditorMinimapPreference'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from '../domains/editor/composables/useEditorState'
 import { useEchoesDiscoverability } from '../domains/echoes/composables/useEchoesDiscoverability'
@@ -222,6 +223,12 @@ const {
   loadSpellcheckPreference,
   toggleSpellcheckEnabled
 } = useAppSpellcheckPreference()
+const {
+  editorMinimapVisible,
+  loadEditorMinimapPreference,
+  toggleEditorMinimapVisible
+} = useAppEditorMinimapPreference()
+loadEditorMinimapPreference()
 const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent)
 
 const quickOpenVisible = ref(false)
@@ -801,7 +808,8 @@ const { paletteActions } = useAppShellPaletteActions({
     activeFilePath,
     quickOpenQuery,
     hasWorkspace: filesystem.hasWorkspace,
-    spellcheckEnabled
+    spellcheckEnabled,
+    editorMinimapVisible
   },
   documentPort: {
     isMarkdownPath
@@ -1624,6 +1632,7 @@ entryActions.bindShellPaletteActionPort({
   zoomOutFromPalette,
   resetZoomFromPalette,
   toggleSpellcheckFromPalette: () => rootWorkflow.toggleSpellcheckFromPalette(),
+  toggleEditorMinimapFromPalette: () => toggleEditorMinimapVisible(),
   openTodayNote,
   openYesterdayNote,
   openSpecificDateNote,
@@ -2083,6 +2092,7 @@ useAppShellKeyboard({
             return { persisted: true }
           }"
           :spellcheck-enabled="spellcheckEnabled"
+          :minimap-visible="editorMinimapVisible"
           :get-status="editorState.getStatus"
           :readNoteSnapshot="readNoteSnapshot"
           :saveNoteBuffer="saveNoteBuffer"

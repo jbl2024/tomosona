@@ -29,6 +29,7 @@ import EditorContextOverlays from './editor/EditorContextOverlays.vue'
 import EditorFindToolbar from './editor/EditorFindToolbar.vue'
 import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorLargeDocOverlay from './editor/EditorLargeDocOverlay.vue'
+import EditorMinimap from './editor/EditorMinimap.vue'
 import EditorAtOverlay from './editor/EditorAtOverlay.vue'
 import EditorMermaidPreviewDialog from './editor/EditorMermaidPreviewDialog.vue'
 import EditorAssetPreviewDialog from './editor/EditorAssetPreviewDialog.vue'
@@ -86,6 +87,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
+  minimapVisible?: boolean
 }>()
 
 const emit = defineEmits([
@@ -413,6 +415,7 @@ const currentPath = documentRuntime.currentPath
 const currentTitle = documentRuntime.currentTitle
 const renderPaths = documentRuntime.renderPaths
 const renderedEditorsByPath = documentRuntime.renderedEditorsByPath
+const activeRichTextEditor = computed(() => renderedEditorsByPath.value[currentPath.value] ?? null)
 const isActiveMountedPath = documentRuntime.isActiveMountedPath
 const isSourceSurface = computed(() => Boolean(currentPath.value && sourceMode.isSourceMode(currentPath.value)))
 const isMarkdownNote = computed(() => Boolean(currentPath.value && isMarkdownPath(currentPath.value)))
@@ -1306,6 +1309,11 @@ defineExpose({
           @close="findToolbar.closeToolbar({ focusEditor: true })"
         />
           </div>
+        <EditorMinimap
+          v-if="!isSourceSurface && minimapVisible"
+          :editor="activeRichTextEditor"
+          :scroll-element="holder"
+        />
       </div>
     </div>
 

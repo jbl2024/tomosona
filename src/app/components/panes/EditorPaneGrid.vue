@@ -100,6 +100,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
+  minimapVisible?: boolean
   cosmos: AppShellCosmosViewModel
   alters: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
@@ -486,6 +487,7 @@ onBeforeUnmount(() => {
         :savePropertyTypeSchema="savePropertyTypeSchema"
         :openLinkTarget="openLinkTarget"
         :spellcheck-enabled="spellcheckEnabled"
+        :minimap-visible="minimapVisible"
         @status="emit('status', $event)"
         @path-renamed="emit('path-renamed', $event)"
         @outline="emit('outline', $event)"
