@@ -18,6 +18,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260712.2] - 2026-07-12
+
+### Added
+- feat(editor): add document minimap (2092334)
+
 ## [20260712.1] - 2026-07-12
 
 ### Added

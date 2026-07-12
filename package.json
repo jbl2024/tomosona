@@ -1,7 +1,7 @@
 {
   "name": "tomosona",
   "private": true,
-  "version": "20260712.1.0",
+  "version": "26.7.12001",
   "type": "module",
   "scripts": {
     "dev": "vite",

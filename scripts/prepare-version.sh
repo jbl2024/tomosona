@@ -21,9 +21,26 @@ if ! echo "$VERSION" | grep -Eq '^[0-9]{8}\.[1-9][0-9]*$'; then
   exit 1
 fi
 
-# Cargo and Tauri require a three-component SemVer even though the public
-# release identifier intentionally uses the shorter YYYYMMDD.N format.
-BUILD_VERSION="$VERSION.0"
+# Cargo requires three SemVer components, while WiX additionally limits the
+# major/minor fields to 255. Encode 20260712.1 as 26.7.12001 internally:
+# (year - 2000).month.(day * 1000 + daily sequence).
+date_part="${VERSION%%.*}"
+sequence="${VERSION#*.}"
+year=$((10#${date_part:0:4}))
+month=$((10#${date_part:4:2}))
+day=$((10#${date_part:6:2}))
+
+if [ "$year" -lt 2000 ] || [ "$year" -gt 2255 ] || [ "$month" -lt 1 ] || [ "$month" -gt 12 ] || [ "$day" -lt 1 ] || [ "$day" -gt 31 ]; then
+  echo "Invalid calendar date in version '$RAW_VERSION'."
+  exit 1
+fi
+
+if [ "$sequence" -gt 999 ]; then
+  echo "Invalid sequence in version '$RAW_VERSION'. At most 999 releases per day are supported."
+  exit 1
+fi
+
+BUILD_VERSION="$((year - 2000)).$month.$((day * 1000 + sequence))"
 
 cd "$ROOT_DIR"
 
