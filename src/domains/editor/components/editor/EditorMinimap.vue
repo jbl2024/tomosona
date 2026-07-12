@@ -48,15 +48,21 @@ function rebuildLines() {
 
   const scrollerRect = scroller.getBoundingClientRect()
   const nextLines: MinimapLine[] = []
-  Array.from(root.children).forEach((node) => {
-    const element = node as HTMLElement
+  const blockElements = Array.from(
+    root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6, p, li, pre, blockquote')
+  ).filter((element) => {
+    // A blockquote owns nested paragraphs; rendering both would duplicate its preview.
+    return element.tagName === 'BLOCKQUOTE' || !element.closest('blockquote')
+  })
+
+  blockElements.forEach((element) => {
     const rect = element.getBoundingClientRect()
     const textLength = (element.textContent ?? '').trim().length
     const documentTop = Math.max(0, rect.top - scrollerRect.top + scroller.scrollTop)
     const tag = element.tagName
     const kind: MinimapLine['kind'] = /^H[1-6]$/.test(tag)
       ? 'heading'
-      : /^(UL|OL)$/.test(tag)
+      : tag === 'LI'
         ? 'list'
         : tag === 'PRE'
           ? 'code'

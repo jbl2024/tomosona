@@ -8,7 +8,7 @@ describe('EditorMinimap', () => {
     const root = document.createElement('div')
     const scroller = document.createElement('div')
     const editorRoot = document.createElement('div')
-    editorRoot.innerHTML = `<h2>Heading</h2><p>${'Body text '.repeat(20)}</p>`
+    editorRoot.innerHTML = `<div><h2>Heading</h2><p>${'Body text '.repeat(20)}</p><ul><li>Nested item</li></ul></div>`
     vi.spyOn(editorRoot.querySelector('p')!, 'getBoundingClientRect').mockReturnValue({
       x: 0, y: 20, top: 20, right: 600, bottom: 92, left: 0, width: 600, height: 72,
       toJSON: () => ({})
@@ -34,6 +34,7 @@ describe('EditorMinimap', () => {
     const initialLineCount = root.querySelectorAll('.editor-minimap-line').length
     expect(initialLineCount).toBeGreaterThan(2)
     expect(root.querySelector('.editor-minimap-line--heading')).toBeTruthy()
+    expect(root.querySelector('.editor-minimap-line--list')).toBeTruthy()
 
     editorRoot.appendChild(document.createElement('p'))
     handlers.get('update')?.()
