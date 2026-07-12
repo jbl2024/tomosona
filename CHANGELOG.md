@@ -18,6 +18,22 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260712.1] - 2026-07-12
+
+### Added
+- feat(release): automate date-based version generation (49a759c)
+
+### Changed
+- chore(deps): bump tauri-build from 2.6.2 to 2.6.3 in /src-tauri (#128) (f42c1f5)
+- chore(deps): bump rusqlite from 0.39.0 to 0.40.1 in /src-tauri (#126) (57834ca)
+- chore(deps): bump @floating-ui/vue from 1.1.11 to 2.0.1 (#124) (66eddfa)
+- chore(deps): bump fastembed from 5.16.0 to 5.17.2 in /src-tauri (#125) (d64dccb)
+- chore(deps): bump calamine from 0.35.0 to 0.36.0 in /src-tauri (#127) (9d7d439)
+- chore(deps): bump open from 5.3.5 to 5.3.6 in /src-tauri (#129) (74b5d41)
+
+### Fixed
+- fix(build): pin sqlite dependencies to stable-compatible versions (0973c16)
+
 ## [0.40.1] - 2026-07-09
 
 ### Fixed
