@@ -9,6 +9,7 @@ export type AssetNodeExtensionOptions = {
   resolvePreviewSrc?: (src: string) => string | null
   openPreview?: (payload: AssetPreviewPayload) => void
   getAssetBrowserItems?: () => AssetBrowserDropdownItem[]
+  importAssetFiles?: () => Promise<string[]>
 }
 
 export const AssetNode = Node.create<AssetNodeExtensionOptions>({

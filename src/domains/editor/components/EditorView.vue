@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Bars3Icon } from '@heroicons/vue/24/outline'
-import { createExtractedNote, openExternalUrl } from '../../../shared/api/workspaceApi'
+import { createExtractedNote, importAssetFiles, openExternalUrl } from '../../../shared/api/workspaceApi'
 import type {
   NoteHistoryEntry,
   ReadNoteSnapshotResult,
@@ -342,7 +342,8 @@ interactionRuntime = useEditorInteractionRuntime({
       await interactionRuntime.openLinkTargetWithAutosave(noteTarget)
     },
     restoreEmbeddedNoteInline: embeddedNoteActions.restoreEmbeddedNoteInline,
-    getAssetBrowserItems: () => assetBrowserItems.value
+    getAssetBrowserItems: () => assetBrowserItems.value,
+    importAssetFiles
   }
 })
 

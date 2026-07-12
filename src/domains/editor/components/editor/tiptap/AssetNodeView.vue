@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { PhotoIcon } from '@heroicons/vue/24/outline'
+import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import type { AssetNodeExtensionOptions } from '../../../lib/tiptap/extensions/AssetNode'
 import type { AssetPreviewPayload } from '../../../composables/useAssetPreviewDialog'
@@ -31,6 +31,7 @@ const showFields = ref(false)
 const showMediaBrowser = ref(false)
 const mediaBrowserQuery = ref('')
 const mediaBrowserActiveIndex = ref(0)
+const uploadPending = ref(false)
 let previewRequestToken = 0
 
 function sanitizeBrowserSafeAssetSrc(raw: string): string | null {
@@ -110,6 +111,22 @@ function onMediaBrowserSelect(item: FilterableDropdownItem) {
   void nextTick().then(() => {
     focusSrcInput()
   })
+}
+
+async function uploadAssets() {
+  const importer = props.extension?.options?.importAssetFiles
+  if (!importer || uploadPending.value) return
+  uploadPending.value = true
+  try {
+    const imported = await importer()
+    if (imported[0]) {
+      props.updateAttributes({ src: imported[0] })
+    }
+  } catch (error) {
+    console.warn('[editor] asset-upload failed', error)
+  } finally {
+    uploadPending.value = false
+  }
 }
 
 async function refreshPreview() {
@@ -301,6 +318,18 @@ onMounted(() => {
                   placeholder="Image path"
                   @input="onInput('src', $event)"
                 >
+                <UiIconButton
+                  class-name="tomosona-asset-upload-btn"
+                  variant="ghost"
+                  size="sm"
+                  :disabled="uploadPending || !props.extension?.options?.importAssetFiles"
+                  aria-label="Upload files to assets"
+                  :title="uploadPending ? 'Uploading...' : 'Upload files to assets'"
+                  @mousedown.prevent
+                  @click.stop="uploadAssets"
+                >
+                  <ArrowUpTrayIcon />
+                </UiIconButton>
                 <UiIconButton
                   class-name="tomosona-asset-src-browser-btn"
                   variant="ghost"

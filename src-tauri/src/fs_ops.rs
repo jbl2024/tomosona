@@ -535,6 +535,34 @@ pub fn select_working_folder(app_handle: tauri::AppHandle) -> Result<Option<Stri
 }
 
 #[tauri::command]
+pub fn import_asset_files() -> Result<Vec<String>> {
+    let root = active_workspace_root()?;
+    let Some(sources) = FileDialog::new().pick_files() else {
+        return Ok(Vec::new());
+    };
+
+    let assets_dir = root.join("assets");
+    fs::create_dir_all(&assets_dir)?;
+    let mut imported = Vec::with_capacity(sources.len());
+
+    for source in sources {
+        if !source.is_file() {
+            continue;
+        }
+        let file_name = source.file_name().ok_or(AppError::InvalidPath)?;
+        let destination = resolve_destination(
+            assets_dir.join(file_name),
+            ConflictStrategy::Rename,
+            false,
+        )?;
+        fs::copy(&source, &destination)?;
+        imported.push(destination.to_string_lossy().to_string());
+    }
+
+    Ok(imported)
+}
+
+#[tauri::command]
 pub fn clear_working_folder() -> Result<()> {
     workspace_watch::stop_workspace_watcher()?;
     clear_active_workspace()

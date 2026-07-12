@@ -19,6 +19,11 @@ export async function selectWorkingFolder(): Promise<string | null> {
   return await invoke('select_working_folder')
 }
 
+/** Selects external files and copies them into the active workspace assets directory. */
+export async function importAssetFiles(): Promise<string[]> {
+  return await invoke('import_asset_files')
+}
+
 /** Clears the active workspace on the backend. */
 export async function clearWorkingFolder(): Promise<void> {
   await invoke('clear_working_folder')

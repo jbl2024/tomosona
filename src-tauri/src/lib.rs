@@ -39,7 +39,7 @@ use docx::convert_markdown_to_docx;
 use editor_sync::{read_note_snapshot, save_note_buffer};
 use fs_ops::{
     clear_working_folder, copy_entry, create_entry, create_extracted_note, duplicate_entry,
-    list_children, list_markdown_files, move_entry, open_external_url, open_path_external,
+    import_asset_files, list_children, list_markdown_files, move_entry, open_external_url, open_path_external,
     path_exists, read_file_metadata, read_image_data_url, read_pdf_data_url, read_text_file,
     is_text_file,
     rename_entry,
@@ -391,6 +391,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             select_working_folder,
+            import_asset_files,
             clear_working_folder,
             set_working_folder,
             list_children,

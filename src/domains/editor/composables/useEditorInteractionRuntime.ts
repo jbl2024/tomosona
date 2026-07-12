@@ -91,6 +91,7 @@ export type EditorInteractionRuntimeIoPort = {
   openEmbeddedNote: (target: string) => Promise<void>
   restoreEmbeddedNoteInline: (target: string, editor: Editor, getPos: () => number) => Promise<void>
   getAssetBrowserItems?: () => AssetBrowserDropdownItem[]
+  importAssetFiles?: () => Promise<string[]>
 }
 
 /** Editor-specific callbacks that interaction owns but does not persist itself. */
@@ -322,6 +323,7 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
     openMermaidPreview: editorPort.openMermaidPreview,
     openAssetPreview: editorPort.openAssetPreview,
     getAssetBrowserItems: ioPort.getAssetBrowserItems ?? (() => []),
+    importAssetFiles: ioPort.importAssetFiles,
     getWikilinkCandidates,
     openLinkTargetWithAutosave,
     loadEmbeddedNotePreview: ioPort.loadEmbeddedNotePreview,

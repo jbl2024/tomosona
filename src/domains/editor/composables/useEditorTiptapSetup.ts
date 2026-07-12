@@ -60,6 +60,7 @@ export type UseEditorTiptapSetupOptions = {
   openMermaidPreview: (payload: MermaidPreviewPayload) => void
   openAssetPreview: (payload: AssetPreviewPayload) => void
   getAssetBrowserItems?: () => AssetBrowserDropdownItem[]
+  importAssetFiles?: () => Promise<string[]>
   getWikilinkCandidates: (query: string) => Promise<WikilinkCandidate[]>
   openLinkTargetWithAutosave: (target: string) => Promise<void>
   loadEmbeddedNotePreview: (target: string) => Promise<{ path: string; html: string } | null>
@@ -391,7 +392,8 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
         AssetNode.configure({
           resolvePreviewSrc: (src: string) => resolveAssetPreviewSrc(path, src),
           openPreview: options.openAssetPreview,
-          getAssetBrowserItems: options.getAssetBrowserItems
+          getAssetBrowserItems: options.getAssetBrowserItems,
+          importAssetFiles: options.importAssetFiles
         }),
         MermaidNode.configure({
           confirmReplace: options.requestMermaidReplaceConfirm,

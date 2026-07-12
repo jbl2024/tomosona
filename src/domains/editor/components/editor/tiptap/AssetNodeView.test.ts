@@ -27,6 +27,7 @@ function mountHarness(options?: {
   mediaItems?: Array<{ id: string; label: string; meta: string; path: string }>
   resolvePreviewSrc?: (src: string) => string | null
   openPreview?: (payload: { src: string; alt: string; title: string; previewSrc: string | null }) => void
+  importAssetFiles?: () => Promise<string[]>
 }) {
   const root = document.createElement('div')
   document.body.appendChild(root)
@@ -53,7 +54,8 @@ function mountHarness(options?: {
           options: {
             resolvePreviewSrc: options?.resolvePreviewSrc,
             openPreview: options?.openPreview,
-            getAssetBrowserItems: () => options?.mediaItems ?? []
+            getAssetBrowserItems: () => options?.mediaItems ?? [],
+            importAssetFiles: options?.importAssetFiles
           }
         }
       })
@@ -158,6 +160,28 @@ describe('AssetNodeView', () => {
 
     const browseButton = harness.root.querySelector<HTMLButtonElement>('button[aria-label="Browse media"]')
     expect(browseButton?.disabled).toBe(true)
+
+    harness.app.unmount()
+  })
+
+  it('uploads files into assets and selects the first imported file', async () => {
+    const importAssetFiles = vi.fn(async () => [
+      '/vault/assets/photo.png',
+      '/vault/assets/report.pdf'
+    ])
+    const harness = mountHarness({ initialSrc: '', importAssetFiles })
+    await flush()
+
+    const editButton = Array.from(harness.root.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Edit') as HTMLButtonElement
+    editButton.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    await flush()
+
+    harness.root.querySelector<HTMLButtonElement>('button[aria-label="Upload files to assets"]')?.click()
+    await flush()
+
+    expect(importAssetFiles).toHaveBeenCalledOnce()
+    expect(harness.updateAttributes).toHaveBeenCalledWith({ src: '/vault/assets/photo.png' })
+    expect(harness.src.value).toBe('/vault/assets/photo.png')
 
     harness.app.unmount()
   })
