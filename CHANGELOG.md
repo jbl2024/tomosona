@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260712.5] - 2026-07-12
+
+### Added
+- feat(assets): upload files into workspace assets directory (3c0e948)
+
+### Fixed
+- fix(assets): store imported file paths relative to notes (bd0f0b6)
+
 ## [20260712.4] - 2026-07-12
 
 ### Fixed
