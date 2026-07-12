@@ -25,6 +25,7 @@ const clientHeight = ref(1)
 let resizeObserver: ResizeObserver | null = null
 let boundEditor: Editor | null = null
 let boundScrollElement: HTMLElement | null = null
+let rebuildFrame = 0
 
 const viewportStyle = computed(() => ({
   top: `${(scrollTop.value / scrollHeight.value) * 100}%`,
@@ -57,7 +58,13 @@ function rebuildLines() {
 
   blockElements.forEach((element) => {
     const rect = element.getBoundingClientRect()
-    const textLength = (element.textContent ?? '').trim().length
+    const ownText = element.tagName === 'LI'
+      ? Array.from(element.childNodes)
+          .filter((node) => !(node instanceof HTMLElement && /^(UL|OL)$/.test(node.tagName)))
+          .map((node) => node.textContent ?? '')
+          .join(' ')
+      : element.textContent ?? ''
+    const textLength = ownText.trim().length
     const documentTop = Math.max(0, rect.top - scrollerRect.top + scroller.scrollTop)
     const tag = element.tagName
     const kind: MinimapLine['kind'] = /^H[1-6]$/.test(tag)
@@ -88,6 +95,15 @@ function rebuildLines() {
   syncScrollMetrics()
 }
 
+function scheduleRebuild() {
+  if (typeof window === 'undefined') {
+    rebuildLines()
+    return
+  }
+  window.cancelAnimationFrame(rebuildFrame)
+  rebuildFrame = window.requestAnimationFrame(rebuildLines)
+}
+
 function scrollFromPointer(event: PointerEvent) {
   const scroller = props.scrollElement
   const target = event.currentTarget as HTMLElement
@@ -110,22 +126,23 @@ function bind() {
   const editor = props.editor
   const scroller = props.scrollElement
   if (!editor || !scroller) return
-  editor.on('update', rebuildLines)
+  editor.on('update', scheduleRebuild)
   scroller.addEventListener('scroll', syncScrollMetrics, { passive: true })
   boundEditor = editor
   boundScrollElement = scroller
-  resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(rebuildLines)
+  resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRebuild)
   resizeObserver?.observe(scroller)
-  void nextTick(rebuildLines)
+  void nextTick(scheduleRebuild)
 }
 
 function unbind() {
-  boundEditor?.off('update', rebuildLines)
+  boundEditor?.off('update', scheduleRebuild)
   boundScrollElement?.removeEventListener('scroll', syncScrollMetrics)
   boundEditor = null
   boundScrollElement = null
   resizeObserver?.disconnect()
   resizeObserver = null
+  if (typeof window !== 'undefined') window.cancelAnimationFrame(rebuildFrame)
 }
 
 watch(() => [props.editor, props.scrollElement], (_value, _oldValue, onCleanup) => {

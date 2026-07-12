@@ -29,7 +29,7 @@ describe('EditorMinimap', () => {
     const app = createApp(Harness)
     app.mount(root)
     await nextTick()
-    await nextTick()
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
 
     const initialLineCount = root.querySelectorAll('.editor-minimap-line').length
     expect(initialLineCount).toBeGreaterThan(2)
@@ -38,7 +38,7 @@ describe('EditorMinimap', () => {
 
     editorRoot.appendChild(document.createElement('p'))
     handlers.get('update')?.()
-    await nextTick()
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
     expect(root.querySelectorAll('.editor-minimap-line')).toHaveLength(initialLineCount + 1)
 
     app.unmount()

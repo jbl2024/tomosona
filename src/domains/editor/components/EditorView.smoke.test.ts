@@ -6,6 +6,7 @@ async function flushUi() {
   await nextTick()
   await Promise.resolve()
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
   await nextTick()
 }
 

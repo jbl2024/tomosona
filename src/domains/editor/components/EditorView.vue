@@ -1311,6 +1311,7 @@ defineExpose({
           </div>
         <EditorMinimap
           v-if="!isSourceSurface && minimapVisible"
+          :key="`editor-minimap:${currentPath}`"
           :editor="activeRichTextEditor"
           :scroll-element="holder"
         />
