@@ -35,6 +35,8 @@ describe('EditorMinimap', () => {
     expect(initialLineCount).toBeGreaterThan(2)
     expect(root.querySelector('.editor-minimap-line--heading')).toBeTruthy()
     expect(root.querySelector('.editor-minimap-line--list')).toBeTruthy()
+    expect((root.querySelector('.editor-minimap-line--heading') as HTMLElement).style.left).toBe('0px')
+    expect((root.querySelector('.editor-minimap-line--list') as HTMLElement).style.left).toBe('10px')
 
     editorRoot.appendChild(document.createElement('p'))
     handlers.get('update')?.()

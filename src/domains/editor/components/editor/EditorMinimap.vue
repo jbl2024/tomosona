@@ -173,7 +173,7 @@ onBeforeUnmount(unbind)
         :key="index"
         class="editor-minimap-line"
         :class="`editor-minimap-line--${line.kind}`"
-        :style="{ top: `${line.topPercent}%`, right: `${line.indent}px`, width: `calc(${line.width}% - ${line.indent}px)` }"
+        :style="{ top: `${line.topPercent}%`, left: `${line.indent}px`, width: `calc(${line.width}% - ${line.indent}px)` }"
       />
     </div>
     <span class="editor-minimap-viewport" :style="viewportStyle" />
@@ -202,7 +202,7 @@ onBeforeUnmount(unbind)
 
 .editor-minimap-line {
   position: absolute;
-  right: 0;
+  left: 0;
   height: 2px;
   border-radius: 1px;
   background: color-mix(in srgb, var(--text-main) 52%, transparent);
