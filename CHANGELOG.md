@@ -18,6 +18,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260712.3] - 2026-07-12
+
+### Added
+- feat(editor): add document minimap (2092334)
+
+### Fixed
+- fix(release): encode date versions within WiX limits (98b6fd5)
+
 ## [20260712.2] - 2026-07-12
 
 ### Added
