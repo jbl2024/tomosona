@@ -18,6 +18,13 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260712.4] - 2026-07-12
+
+### Fixed
+- fix(editor): left-align minimap content (1093295)
+- fix(editor): stabilize minimap across document sessions (4c34780)
+- fix(editor): render nested document blocks in minimap (d2d0ec2)
+
 ## [20260712.3] - 2026-07-12
 
 ### Added
