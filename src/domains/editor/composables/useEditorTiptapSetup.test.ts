@@ -49,6 +49,45 @@ function createSetup(overrides: Partial<Parameters<typeof useEditorTiptapSetup>[
 }
 
 describe('useEditorTiptapSetup', () => {
+  it('keeps text typed after a pasted URL outside the link', () => {
+    const OriginalClipboardEvent = globalThis.ClipboardEvent
+    const OriginalDataTransfer = globalThis.DataTransfer
+    class TestDataTransfer {
+      private data = new Map<string, string>()
+      getData(type: string) { return this.data.get(type) ?? '' }
+      setData(type: string, value: string) { this.data.set(type, value) }
+    }
+    class TestClipboardEvent extends Event {
+      clipboardData: TestDataTransfer | null
+      constructor(type: string, init?: { clipboardData?: TestDataTransfer }) {
+        super(type)
+        this.clipboardData = init?.clipboardData ?? null
+      }
+    }
+    vi.stubGlobal('DataTransfer', TestDataTransfer)
+    vi.stubGlobal('ClipboardEvent', TestClipboardEvent)
+    const { setup } = createSetup()
+    const editor = setup.createSessionEditor('a.md')
+
+    try {
+      editor.commands.insertContent('https://example.com', { applyPasteRules: true })
+      editor.commands.insertContent(' suite')
+
+      const content = editor.getJSON().content?.[0]?.content
+      expect(content).toHaveLength(2)
+      expect(content?.[0]).toMatchObject({
+        type: 'text',
+        marks: [{ type: 'link', attrs: { href: 'https://example.com' } }],
+        text: 'https://example.com'
+      })
+      expect(content?.[1]).toEqual({ type: 'text', text: ' suite' })
+    } finally {
+      editor.destroy()
+      vi.stubGlobal('ClipboardEvent', OriginalClipboardEvent)
+      vi.stubGlobal('DataTransfer', OriginalDataTransfer)
+    }
+  })
+
   it('exposes expected extension contract', () => {
     const { setup } = createSetup()
     const editorOptions = setup.createEditorOptions('a.md') as any
