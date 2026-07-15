@@ -18,6 +18,12 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260715.1] - 2026-07-15
+
+### Fixed
+- fix(editor): preserve empty markdown bullet items (68e32e7)
+- fix(editor): keep typed text outside pasted links (0b60805)
+
 ## [20260712.5] - 2026-07-12
 
 ### Added
