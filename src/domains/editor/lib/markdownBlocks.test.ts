@@ -481,6 +481,51 @@ describe('nested lists', () => {
 })
 
 describe('robust list parsing', () => {
+  it('keeps a terminal empty bullet inside the preceding unordered list', () => {
+    const markdown = `
+Ceci est un test
+
+- a
+- b
+- c
+- d
+-
+`.trim()
+
+    const parsed = markdownToEditorData(markdown)
+
+    expect(parsed.blocks).toEqual([
+      {
+        type: 'paragraph',
+        data: { text: 'Ceci est un test' }
+      },
+      {
+        type: 'list',
+        data: {
+          style: 'unordered',
+          items: [
+            { content: 'a', items: [] },
+            { content: 'b', items: [] },
+            { content: 'c', items: [] },
+            { content: 'd', items: [] },
+            { content: '', items: [] }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('round-trips empty unordered items without accepting a dash-prefixed word', () => {
+    const parsed = markdownToEditorData('- first\n- \n  -\n- last')
+    const output = editorDataToMarkdown(parsed)
+
+    expect(output).toBe('- first\n-\n  -\n- last\n')
+    expect(markdownToEditorData(output).blocks).toEqual(parsed.blocks)
+    expect(markdownToEditorData('-not-a-list').blocks).toEqual([
+      { type: 'paragraph', data: { text: '-not-a-list' } }
+    ])
+  })
+
   it('parses simple task lists and preserves checked state', () => {
     const markdown = `
 - [x] done

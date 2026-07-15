@@ -21,7 +21,8 @@ export type EditorDocument = {
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/
 const ORDERED_LIST_RE = /^\s*\d+\.\s+(.+)$/
-const UNORDERED_LIST_RE = /^\s*[-*+]\s+(.+)$/
+// Detect populated and empty bullet items, for example: `- note` and `-`.
+const UNORDERED_LIST_RE = /^\s*[-*+](?:\s+.*)?$/
 const TASK_LIST_RE = /^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/
 const HR_RE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/
 const FENCE_START_RE = /^```\s*([^`]*)$/
@@ -905,9 +906,9 @@ function parseListLine(
     }
   }
 
-  const match = line.match(/^(\s*)[-*+]\s+(?!\[[ xX]\]\s*)(.*)$/)
+  const match = line.match(/^(\s*)[-*+](?:\s+(?!\[[ xX]\]\s*)(.*))?$/)
   if (!match) return null
-  return { indent: indentWidth(match[1]), content: match[2].trim() }
+  return { indent: indentWidth(match[1]), content: (match[2] ?? '').trim() }
 }
 
 function isListContinuationLine(line: string, currentIndent: number): boolean {
