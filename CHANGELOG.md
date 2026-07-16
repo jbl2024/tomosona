@@ -9,6 +9,7 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 ### Added
 
 ### Changed
+- feat(editor): replace the document minimap with a signal navigation ruler and status summary
 
 ### Deprecated
 

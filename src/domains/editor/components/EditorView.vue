@@ -29,7 +29,7 @@ import EditorContextOverlays from './editor/EditorContextOverlays.vue'
 import EditorFindToolbar from './editor/EditorFindToolbar.vue'
 import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorLargeDocOverlay from './editor/EditorLargeDocOverlay.vue'
-import EditorMinimap from './editor/EditorMinimap.vue'
+import EditorRuler from './editor/EditorRuler.vue'
 import EditorAtOverlay from './editor/EditorAtOverlay.vue'
 import EditorMermaidPreviewDialog from './editor/EditorMermaidPreviewDialog.vue'
 import EditorAssetPreviewDialog from './editor/EditorAssetPreviewDialog.vue'
@@ -49,6 +49,12 @@ import { isMarkdownPath } from '../../../app/lib/appShellPaths'
 import { buildNewNoteTemplateItems } from '../../../app/lib/newNoteTemplates'
 import { useEditorSourceMode } from '../composables/useEditorSourceMode'
 import { useSourceEditorRuntime } from '../composables/useSourceEditorRuntime'
+import {
+  EMPTY_EDITOR_SIGNAL_SUMMARY,
+  type EditorSignalDirection,
+  type EditorSignalKind,
+  type EditorSignalSummary
+} from '../lib/editorSignals'
 
 type HeadingNode = { text: string; level: number; id?: string }
 type CorePropertyOption = { key: string; label?: string; description?: string }
@@ -87,7 +93,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
-  minimapVisible?: boolean
+  rulerVisible?: boolean
 }>()
 
 const emit = defineEmits([
@@ -95,6 +101,7 @@ const emit = defineEmits([
   'path-renamed',
   'outline',
   'properties',
+  'signal-summary',
   'pulse-state-change',
   'pulse-open-second-brain',
   'external-reload'
@@ -117,6 +124,10 @@ function emitProperties(payload: { path: string; items: Array<{ key: string; val
   emit('properties', payload)
 }
 
+function emitSignalSummary(payload: EditorSignalSummary) {
+  emit('signal-summary', payload)
+}
+
 function emitPulseOpenSecondBrain(payload: { contextPaths: string[]; prompt?: string }) {
   emit('pulse-open-second-brain', payload)
 }
@@ -133,6 +144,7 @@ const holder = ref<HTMLDivElement | null>(null)
 const contentShell = ref<HTMLDivElement | null>(null)
 const blockGutterEl = ref<HTMLDivElement | null>(null)
 const pulsePanelWrap = ref<HTMLDivElement | null>(null)
+const rulerRef = ref<InstanceType<typeof EditorRuler> | null>(null)
 const blockGutterWidth = ref(72)
 let blockGutterResizeObserver: ResizeObserver | null = null
 
@@ -500,6 +512,11 @@ watch([currentPath, isSourceSurface], async ([path, next]) => {
   const requestId = next ? sourceRuntime.nextRequestId() : documentRuntime.nextRequestId()
   await loadVisibleDocument(path, requestId)
 }, { immediate: true })
+
+watch([currentPath, isSourceSurface], ([path, sourceSurface]) => {
+  if (!sourceSurface) return
+  emitSignalSummary({ ...EMPTY_EDITOR_SIGNAL_SUMMARY, path })
+})
 
 function onSpellcheckMenuEl(element: HTMLDivElement | null) {
   spellcheckFloatingEl.value = element
@@ -948,6 +965,10 @@ async function setMarkdownSourceSurfaceEnabled(enabled: boolean) {
   sourceMode.setMarkdownSourceMode(currentPath.value || path, enabled)
 }
 
+function navigateSignal(kind: EditorSignalKind, direction: EditorSignalDirection) {
+  rulerRef.value?.navigateSignal(kind, direction)
+}
+
 defineExpose({
   saveNow: async () => {
     if (isSourceSurface.value) {
@@ -973,6 +994,7 @@ defineExpose({
   revealSnippet,
   revealOutlineHeading,
   revealAnchor,
+  navigateSignal,
   zoomIn: () => zoomEditorBy(0.1),
   zoomOut: () => zoomEditorBy(-0.1),
   resetZoom: () => resetEditorZoom(),
@@ -1310,11 +1332,16 @@ defineExpose({
           @close="findToolbar.closeToolbar({ focusEditor: true })"
         />
           </div>
-        <EditorMinimap
-          v-if="!isSourceSurface && minimapVisible"
-          :key="`editor-minimap:${currentPath}`"
+        <EditorRuler
+          v-if="!isSourceSurface"
+          ref="rulerRef"
+          :key="`editor-ruler:${currentPath}`"
           :editor="activeRichTextEditor"
+          :path="currentPath"
           :scroll-element="holder"
+          :visible="rulerVisible !== false"
+          :spellcheck-enabled="Boolean(spellcheckEnabled)"
+          @signal-summary="emitSignalSummary($event)"
         />
       </div>
     </div>

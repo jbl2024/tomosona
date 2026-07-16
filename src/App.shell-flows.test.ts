@@ -490,12 +490,12 @@ describe('App shell flows', () => {
     const mounted = mountApp()
     await flushUi()
 
-    expect(mounted.root.textContent).toContain('workspace: /vault')
+    expect(mounted.root.textContent).not.toContain('No workspace selected')
 
     await runPaletteCommand(mounted.root, '>close workspace')
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('workspace: none')
+    expect(mounted.root.textContent).toContain('No workspace selected')
 
     mounted.app.unmount()
   })
@@ -516,7 +516,7 @@ describe('App shell flows', () => {
     await runPaletteCommand(mounted.root, '>close workspace')
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('workspace: none')
+    expect(mounted.root.textContent).toContain('No workspace selected')
 
     mounted.app.unmount()
   })
@@ -536,7 +536,7 @@ describe('App shell flows', () => {
     await flushUi()
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('workspace: none')
+    expect(mounted.root.textContent).toContain('No workspace selected')
 
     mounted.app.unmount()
   })
@@ -562,7 +562,7 @@ describe('App shell flows', () => {
     await flushUi()
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('workspace: none')
+    expect(mounted.root.textContent).toContain('No workspace selected')
 
     mounted.app.unmount()
   })
@@ -582,7 +582,7 @@ describe('App shell flows', () => {
     await flushUi()
 
     expect(workspaceApi.clearWorkingFolder).toHaveBeenCalled()
-    expect(mounted.root.textContent).toContain('workspace: none')
+    expect(mounted.root.textContent).toContain('No workspace selected')
 
     mounted.app.unmount()
   })

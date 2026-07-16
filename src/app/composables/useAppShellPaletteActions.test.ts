@@ -8,7 +8,7 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
   const quickOpenQuery = ref('query')
   const hasWorkspace = ref(true)
   const spellcheckEnabled = ref(false)
-  const editorMinimapVisible = ref(false)
+  const editorRulerVisible = ref(false)
   const availableThemes: readonly AppThemeDefinition[] = [
     { id: 'tomosona-light', label: 'Tomosona Light', colorScheme: 'light', group: 'official' },
     { id: 'tokyo-night', label: 'Tokyo Night', colorScheme: 'dark', group: 'community' }
@@ -34,7 +34,7 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
     zoomOutFromPalette: vi.fn(() => false),
     resetZoomFromPalette: vi.fn(() => false),
     toggleSpellcheckFromPalette: vi.fn(() => false),
-    toggleEditorMinimapFromPalette: vi.fn(() => false),
+    toggleEditorRulerFromPalette: vi.fn(() => false),
     openSpellcheckDictionaryFromPalette: vi.fn(() => false),
     openThemePickerFromPalette: vi.fn(() => false),
     setThemeFromPalette: vi.fn(() => false),
@@ -69,7 +69,7 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
       quickOpenQuery,
       hasWorkspace,
       spellcheckEnabled,
-      editorMinimapVisible
+      editorRulerVisible
     },
     documentPort,
     favoritesPort,
@@ -87,7 +87,7 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
     quickOpenQuery,
     hasWorkspace,
     spellcheckEnabled,
-    editorMinimapVisible,
+    editorRulerVisible,
     availableThemes,
     documentPort,
     favoritesPort,
@@ -113,7 +113,7 @@ describe('useAppShellPaletteActions', () => {
     expect(actionIds.indexOf('theme-system')).toBeLessThan(actionIds.indexOf('theme-tomosona-light'))
     expect(actionIds).toContain('convert-to-word')
     expect(actionIds).toContain('toggle-spellcheck')
-    expect(actionIds).toContain('toggle-editor-minimap')
+    expect(actionIds).toContain('toggle-editor-ruler')
     expect(actionIds).toContain('manage-spellcheck-dictionary')
     expect(actionIds[actionIds.length - 2]).toBe('open-file')
     expect(actionIds[actionIds.length - 1]).toBe('reveal-in-explorer')
@@ -149,12 +149,12 @@ describe('useAppShellPaletteActions', () => {
     enabledHarness.scope.stop()
   })
 
-  it('labels the minimap toggle according to the global preference', () => {
+  it('labels the ruler toggle according to the global preference', () => {
     const harness = createHarness()
-    const findToggle = () => harness.api.paletteActions.value.find((item) => item.id === 'toggle-editor-minimap')
-    expect(findToggle()?.label).toBe('Show Editor Minimap')
-    harness.editorMinimapVisible.value = true
-    expect(findToggle()?.label).toBe('Hide Editor Minimap')
+    const findToggle = () => harness.api.paletteActions.value.find((item) => item.id === 'toggle-editor-ruler')
+    expect(findToggle()?.label).toBe('Show Editor Ruler')
+    harness.editorRulerVisible.value = true
+    expect(findToggle()?.label).toBe('Hide Editor Ruler')
     harness.scope.stop()
   })
 
@@ -165,7 +165,7 @@ describe('useAppShellPaletteActions', () => {
     const openFile = api.paletteActions.value.find((item) => item.id === 'open-file')
     const convertToWord = api.paletteActions.value.find((item) => item.id === 'convert-to-word')
     const toggleSpellcheck = api.paletteActions.value.find((item) => item.id === 'toggle-spellcheck')
-    const toggleMinimap = api.paletteActions.value.find((item) => item.id === 'toggle-editor-minimap')
+    const toggleRuler = api.paletteActions.value.find((item) => item.id === 'toggle-editor-ruler')
     const manageSpellcheckDictionary = api.paletteActions.value.find((item) => item.id === 'manage-spellcheck-dictionary')
     const themeSelect = api.paletteActions.value.find((item) => item.id === 'theme-select')
 
@@ -173,7 +173,7 @@ describe('useAppShellPaletteActions', () => {
     expect(openFile).toBeTruthy()
     expect(convertToWord).toBeTruthy()
     expect(toggleSpellcheck).toBeTruthy()
-    expect(toggleMinimap).toBeTruthy()
+    expect(toggleRuler).toBeTruthy()
     expect(manageSpellcheckDictionary).toBeTruthy()
     expect(themeSelect).toBeTruthy()
 
@@ -188,8 +188,8 @@ describe('useAppShellPaletteActions', () => {
 
     expect(toggleSpellcheck?.run()).toBe(false)
     expect(actionPort.toggleSpellcheckFromPalette).toHaveBeenCalledTimes(1)
-    expect(toggleMinimap?.run()).toBe(false)
-    expect(actionPort.toggleEditorMinimapFromPalette).toHaveBeenCalledTimes(1)
+    expect(toggleRuler?.run()).toBe(false)
+    expect(actionPort.toggleEditorRulerFromPalette).toHaveBeenCalledTimes(1)
 
     expect(manageSpellcheckDictionary?.run()).toBe(false)
     expect(actionPort.openSpellcheckDictionaryFromPalette).toHaveBeenCalledTimes(1)

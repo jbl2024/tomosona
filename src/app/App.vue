@@ -161,7 +161,13 @@ import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
 import { useAppQuickOpen } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
-import { useAppEditorMinimapPreference } from './composables/useAppEditorMinimapPreference'
+import { useAppEditorRulerPreference } from './composables/useAppEditorRulerPreference'
+import {
+  resolveActiveEditorSignalSummary,
+  type EditorSignalDirection,
+  type EditorSignalKind,
+  type EditorSignalSummary
+} from '../domains/editor/lib/editorSignals'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from '../domains/editor/composables/useEditorState'
 import { useEchoesDiscoverability } from '../domains/echoes/composables/useEchoesDiscoverability'
@@ -224,11 +230,11 @@ const {
   toggleSpellcheckEnabled
 } = useAppSpellcheckPreference()
 const {
-  editorMinimapVisible,
-  loadEditorMinimapPreference,
-  toggleEditorMinimapVisible
-} = useAppEditorMinimapPreference()
-loadEditorMinimapPreference()
+  editorRulerVisible,
+  loadEditorRulerPreference,
+  toggleEditorRulerVisible
+} = useAppEditorRulerPreference()
+loadEditorRulerPreference()
 const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent)
 
 const quickOpenVisible = ref(false)
@@ -279,6 +285,7 @@ const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
 const persistedMultiPane = readPersistedMultiPaneLayout(MULTI_PANE_STORAGE_KEY)
 const multiPane = useMultiPaneWorkspaceState(persistedMultiPane ?? createInitialLayout())
+const editorSignalSummariesByPane = ref<Record<string, EditorSignalSummary>>({})
 const shellPersistence = useAppShellPersistence({
   theme: {
     themePreference,
@@ -305,6 +312,13 @@ let shellOpenFlow: ReturnType<typeof useAppShellOpenFlow> | null = null
 
 const paneCount = computed(() => Object.keys(multiPane.layout.value.panesById).length)
 const activeFilePath = computed(() => multiPane.getActiveDocumentPath())
+const activeEditorSignalSummary = computed(() => {
+  return resolveActiveEditorSignalSummary(
+    editorSignalSummariesByPane.value,
+    multiPane.layout.value.activePaneId,
+    activeFilePath.value
+  )
+})
 const activeStatus = computed(() => editorState.getStatus(activeFilePath.value))
 const activeNoteTitle = computed(() => activeFilePath.value ? noteTitleFromPath(activeFilePath.value) : 'No active note')
 const activeNoteSourceToggleLabel = computed(() => {
@@ -321,6 +335,17 @@ const activeStateLabel = computed(() => (
         ? 'editing'
         : 'saved'
 ))
+
+function onEditorSignalSummary(payload: { paneId: string; summary: EditorSignalSummary }) {
+  editorSignalSummariesByPane.value = {
+    ...editorSignalSummariesByPane.value,
+    [payload.paneId]: payload.summary
+  }
+}
+
+function navigateActiveEditorSignal(kind: EditorSignalKind, direction: EditorSignalDirection) {
+  editorRef.value?.navigateSignal(kind, direction)
+}
 const noteEchoes = useEchoesPack(activeFilePath, {
   limit: 5,
   enabled: echoesEnabled,
@@ -809,7 +834,7 @@ const { paletteActions } = useAppShellPaletteActions({
     quickOpenQuery,
     hasWorkspace: filesystem.hasWorkspace,
     spellcheckEnabled,
-    editorMinimapVisible
+    editorRulerVisible
   },
   documentPort: {
     isMarkdownPath
@@ -1632,7 +1657,7 @@ entryActions.bindShellPaletteActionPort({
   zoomOutFromPalette,
   resetZoomFromPalette,
   toggleSpellcheckFromPalette: () => rootWorkflow.toggleSpellcheckFromPalette(),
-  toggleEditorMinimapFromPalette: () => toggleEditorMinimapVisible(),
+  toggleEditorRulerFromPalette: () => toggleEditorRulerVisible(),
   openTodayNote,
   openYesterdayNote,
   openSpecificDateNote,
@@ -2092,7 +2117,7 @@ useAppShellKeyboard({
             return { persisted: true }
           }"
           :spellcheck-enabled="spellcheckEnabled"
-          :minimap-visible="editorMinimapVisible"
+          :ruler-visible="editorRulerVisible"
           :get-status="editorState.getStatus"
           :readNoteSnapshot="readNoteSnapshot"
           :saveNoteBuffer="saveNoteBuffer"
@@ -2139,6 +2164,7 @@ useAppShellKeyboard({
           @path-renamed="onEditorPathRenamed"
           @outline="onEditorOutline"
           @properties="onEditorProperties"
+          @signal-summary="onEditorSignalSummary($event)"
           @launchpad-open-workspace="void workspaceRouting.openWorkspacePicker()"
           @launchpad-open-wizard="void workspaceRouting.openWorkspaceSetupWizard()"
           @launchpad-open-command-palette="void launchpad.openCommandPaletteFromLaunchpad()"
@@ -2158,10 +2184,9 @@ useAppShellKeyboard({
       :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
       :index-state-label="indexStateLabel"
       :index-state-class="indexStateClass"
-      :spellcheck-enabled="spellcheckEnabled"
-      :workspace-label="filesystem.workingFolderPath.value || 'none'"
+      :signal-summary="activeEditorSignalSummary"
       @open-index-status="openIndexStatusModal"
-      @toggle-spellcheck="toggleSpellcheckEnabled"
+      @navigate-signal="navigateActiveEditorSignal($event.kind, $event.direction)"
     />
 
     <AppShellOverlays

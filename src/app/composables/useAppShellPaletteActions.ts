@@ -20,7 +20,7 @@ export type AppShellPaletteStatePort = {
   quickOpenQuery: Ref<string>
   hasWorkspace: Readonly<Ref<boolean>>
   spellcheckEnabled: Readonly<Ref<boolean>>
-  editorMinimapVisible: Readonly<Ref<boolean>>
+  editorRulerVisible: Readonly<Ref<boolean>>
 }
 
 /** Groups the document helpers required by the palette catalog. */
@@ -59,7 +59,7 @@ export type AppShellPaletteActionPort = {
   zoomOutFromPalette: () => boolean | Promise<boolean>
   resetZoomFromPalette: () => boolean | Promise<boolean>
   toggleSpellcheckFromPalette: () => boolean | Promise<boolean>
-  toggleEditorMinimapFromPalette: () => boolean | Promise<boolean>
+  toggleEditorRulerFromPalette: () => boolean | Promise<boolean>
   openSpellcheckDictionaryFromPalette: () => boolean | Promise<boolean>
   openThemePickerFromPalette: () => boolean | Promise<boolean>
   setThemeFromPalette: (next: ThemePreference) => boolean | Promise<boolean>
@@ -118,7 +118,7 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'convert-to-word': 15.5,
   'show-shortcuts': 16,
   'toggle-spellcheck': 16.5,
-  'toggle-editor-minimap': 16.6,
+  'toggle-editor-ruler': 16.6,
   'manage-spellcheck-dictionary': 16.75,
   'create-new-file': 17,
   'close-other-tabs': 18,
@@ -238,9 +238,9 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       run: () => options.actionPort.toggleSpellcheckFromPalette()
     }),
     createPaletteAction('view', {
-      id: 'toggle-editor-minimap',
-      label: options.statePort.editorMinimapVisible.value ? 'Hide Editor Minimap' : 'Show Editor Minimap',
-      run: () => options.actionPort.toggleEditorMinimapFromPalette()
+      id: 'toggle-editor-ruler',
+      label: options.statePort.editorRulerVisible.value ? 'Hide Editor Ruler' : 'Show Editor Ruler',
+      run: () => options.actionPort.toggleEditorRulerFromPalette()
     }),
     ...(
       options.statePort.hasWorkspace.value

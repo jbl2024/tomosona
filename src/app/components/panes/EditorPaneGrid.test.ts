@@ -24,6 +24,7 @@ const harnessState = vi.hoisted(() => ({
         revealSnippet: ReturnType<typeof vi.fn>
         revealOutlineHeading: ReturnType<typeof vi.fn>
         revealAnchor: ReturnType<typeof vi.fn>
+        navigateSignal: ReturnType<typeof vi.fn>
         zoomIn: ReturnType<typeof vi.fn>
         zoomOut: ReturnType<typeof vi.fn>
         resetZoom: ReturnType<typeof vi.fn>
@@ -104,6 +105,7 @@ vi.mock('./PaneSurfaceHost.vue', () => ({
         revealSnippet: vi.fn(async () => {}),
         revealOutlineHeading: vi.fn(async () => {}),
         revealAnchor: vi.fn(async () => true),
+        navigateSignal: vi.fn(),
         zoomIn: vi.fn(() => 2),
         zoomOut: vi.fn(() => 0.5),
         resetZoom: vi.fn(() => 1),
@@ -362,6 +364,7 @@ describe('EditorPaneGrid', () => {
     await gridRef.value?.revealSnippet('snippet')
     await gridRef.value?.revealOutlineHeading(2)
     expect(await gridRef.value?.revealAnchor({} as never)).toBe(true)
+    gridRef.value?.navigateSignal('link', -1)
     expect(gridRef.value?.zoomIn()).toBe(2)
     expect(gridRef.value?.zoomOut()).toBe(0.5)
     expect(gridRef.value?.resetZoom()).toBe(1)
@@ -375,6 +378,7 @@ describe('EditorPaneGrid', () => {
     expect(activeSurfaceMethods?.revealSnippet).toHaveBeenCalledWith('snippet')
     expect(activeSurfaceMethods?.revealOutlineHeading).toHaveBeenCalledWith(2)
     expect(activeSurfaceMethods?.revealAnchor).toHaveBeenCalledTimes(1)
+    expect(activeSurfaceMethods?.navigateSignal).toHaveBeenCalledWith('link', -1)
     expect(activeSurfaceMethods?.zoomIn).toHaveBeenCalledTimes(1)
     expect(activeSurfaceMethods?.zoomOut).toHaveBeenCalledTimes(1)
     expect(activeSurfaceMethods?.resetZoom).toHaveBeenCalledTimes(1)

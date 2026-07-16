@@ -10,6 +10,11 @@ import type { PulseActionId } from '../../../shared/api/apiTypes'
 import type { PulseApplyMode } from '../../../domains/pulse/lib/pulse'
 import { createClosedPulseDrawerState, type PulseDrawerState } from '../../../domains/pulse/lib/pulseDrawer'
 import type {
+  EditorSignalDirection,
+  EditorSignalKind,
+  EditorSignalSummary
+} from '../../../domains/editor/lib/editorSignals'
+import type {
   AppShellCosmosViewModel,
   AppShellAltersViewModel,
   AppShellLaunchpadViewModel,
@@ -43,6 +48,7 @@ export type EditorPaneGridExposed = {
   revealSnippet: (snippet: string) => Promise<void>
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
+  navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -69,6 +75,7 @@ type EditorViewExposed = {
   revealSnippet: (snippet: string) => Promise<void>
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
+  navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -100,7 +107,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
-  minimapVisible?: boolean
+  rulerVisible?: boolean
   cosmos: AppShellCosmosViewModel
   alters: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
@@ -120,6 +127,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'signal-summary': [payload: { paneId: string; summary: EditorSignalSummary }]
   'pulse-state-change': [payload: PulseDrawerState]
   'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
   'external-reload': [payload: { path: string }]
@@ -367,6 +375,10 @@ async function revealAnchor(anchor: WikilinkAnchor): Promise<boolean> {
   return await ensureCall((editor) => editor.revealAnchor(anchor), Promise.resolve(false))
 }
 
+function navigateSignal(kind: EditorSignalKind, direction: EditorSignalDirection) {
+  ensureCall((editor) => editor.navigateSignal(kind, direction), undefined)
+}
+
 function zoomIn() {
   return ensureCall((editor) => editor.zoomIn(), 1)
 }
@@ -411,6 +423,7 @@ defineExpose<EditorPaneGridExposed>({
   revealSnippet,
   revealOutlineHeading,
   revealAnchor,
+  navigateSignal,
   zoomIn,
   zoomOut,
   resetZoom,
@@ -487,11 +500,12 @@ onBeforeUnmount(() => {
         :savePropertyTypeSchema="savePropertyTypeSchema"
         :openLinkTarget="openLinkTarget"
         :spellcheck-enabled="spellcheckEnabled"
-        :minimap-visible="minimapVisible"
+        :ruler-visible="rulerVisible"
         @status="emit('status', $event)"
         @path-renamed="emit('path-renamed', $event)"
         @outline="emit('outline', $event)"
         @properties="emit('properties', $event)"
+        @signal-summary="emit('signal-summary', { paneId: pane.id, summary: $event })"
         @pulse-state-change="onPanePulseStateChange(pane.id, $event)"
         @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
         @external-reload="emit('external-reload', $event)"

@@ -21,6 +21,11 @@ import type {
 import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import type { PulseApplyMode } from '../../../domains/pulse/lib/pulse'
 import { createClosedPulseDrawerState, type PulseDrawerState } from '../../../domains/pulse/lib/pulseDrawer'
+import type {
+  EditorSignalDirection,
+  EditorSignalKind,
+  EditorSignalSummary
+} from '../../../domains/editor/lib/editorSignals'
 
 const props = defineProps<{
   paneId: string
@@ -45,7 +50,7 @@ const props = defineProps<{
   savePropertyTypeSchema: (schema: Record<string, string>) => Promise<void>
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
-  minimapVisible?: boolean
+  rulerVisible?: boolean
   activeDocumentPath: string
   cosmos: AppShellCosmosViewModel
   alters?: AppShellAltersViewModel
@@ -61,6 +66,7 @@ const emit = defineEmits<{
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
+  'signal-summary': [payload: EditorSignalSummary]
   'pulse-state-change': [payload: PulseDrawerState]
   'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
   'external-reload': [payload: { path: string }]
@@ -114,6 +120,7 @@ type EditorSurfaceExposed = {
   revealSnippet: (snippet: string) => Promise<void>
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
+  navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -187,6 +194,7 @@ defineExpose<EditorSurfaceExposed>({
   revealSnippet: async (snippet: string) => await withEditor((editor) => editor.revealSnippet(snippet), Promise.resolve()),
   revealOutlineHeading: async (index: number) => await withEditor((editor) => editor.revealOutlineHeading(index), Promise.resolve()),
   revealAnchor: async (anchor: WikilinkAnchor) => await withEditor((editor) => editor.revealAnchor(anchor), Promise.resolve(false)),
+  navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => withEditor((editor) => editor.navigateSignal(kind, direction), undefined),
   zoomIn: () => withEditor((editor) => editor.zoomIn(), 1),
   zoomOut: () => withEditor((editor) => editor.zoomOut(), 1),
   resetZoom: () => withEditor((editor) => editor.resetZoom(), 1),
@@ -215,11 +223,12 @@ defineExpose<EditorSurfaceExposed>({
     :savePropertyTypeSchema="savePropertyTypeSchema"
     :openLinkTarget="openLinkTarget"
     :spellcheckEnabled="spellcheckEnabled"
-    :minimap-visible="minimapVisible"
+    :ruler-visible="rulerVisible"
     @status="emit('status', $event)"
     @path-renamed="emit('path-renamed', $event)"
     @outline="emit('outline', $event)"
     @properties="emit('properties', $event)"
+    @signal-summary="emit('signal-summary', $event)"
     @pulse-state-change="emit('pulse-state-change', $event)"
     @pulse-open-second-brain="emit('pulse-open-second-brain', $event)"
     @external-reload="emit('external-reload', $event)"

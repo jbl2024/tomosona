@@ -3,24 +3,31 @@
  * WorkspaceStatusBar
  *
  * Purpose:
- * - Render the compact app status footer, including global app toggles.
+ * - Render document state on the left and navigable editor signals on the right.
  */
 
-import { ShieldCheckIcon } from '@heroicons/vue/24/outline'
+import type {
+  EditorSignalDirection,
+  EditorSignalKind,
+  EditorSignalSummary
+} from '../../../domains/editor/lib/editorSignals'
 
 defineProps<{
   activeFileLabel: string
   activeStateLabel: string
   indexStateLabel: string
   indexStateClass: string
-  workspaceLabel: string
-  spellcheckEnabled: boolean
+  signalSummary: EditorSignalSummary
 }>()
 
 const emit = defineEmits<{
   'open-index-status': []
-  'toggle-spellcheck': []
+  'navigate-signal': [payload: { kind: EditorSignalKind; direction: EditorSignalDirection }]
 }>()
+
+function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
+  emit('navigate-signal', { kind, direction: event.shiftKey ? -1 : 1 })
+}
 </script>
 
 <template>
@@ -31,18 +38,34 @@ const emit = defineEmits<{
       <span class="status-dot" :class="indexStateClass"></span>
       <span>index: {{ indexStateLabel }}</span>
     </button>
-    <button
-      type="button"
-      class="status-item status-item-spellcheck status-trigger"
-      :class="{ 'status-item-spellcheck--on': spellcheckEnabled }"
-      :aria-pressed="spellcheckEnabled"
-      aria-label="Toggle spellcheck"
-      @click="emit('toggle-spellcheck')"
-    >
-      <ShieldCheckIcon class="status-spellcheck-icon" :class="{ 'status-spellcheck-icon--on': spellcheckEnabled }" aria-hidden="true" />
-      <span>spellcheck: {{ spellcheckEnabled ? 'on' : 'off' }}</span>
-    </button>
-    <span class="status-item">workspace: {{ workspaceLabel }}</span>
+    <div v-if="signalSummary.path" class="status-signals" aria-label="Document signals">
+      <button
+        v-if="signalSummary.spellcheckEnabled"
+        type="button"
+        class="status-signal status-signal--spellcheck"
+        title="Next spelling issue (Shift+click: previous)"
+        @click="navigateSignal('spellcheck', $event)"
+      >
+        {{ signalSummary.spellcheckCount }} {{ signalSummary.spellcheckCount === 1 ? 'faute' : 'fautes' }}
+      </button>
+      <button
+        v-if="signalSummary.findActive"
+        type="button"
+        class="status-signal status-signal--find"
+        title="Next search result (Shift+click: previous)"
+        @click="navigateSignal('find', $event)"
+      >
+        {{ signalSummary.findCount }} {{ signalSummary.findCount === 1 ? 'résultat' : 'résultats' }}
+      </button>
+      <button
+        type="button"
+        class="status-signal status-signal--link"
+        title="Next link (Shift+click: previous)"
+        @click="navigateSignal('link', $event)"
+      >
+        {{ signalSummary.linkCount }} {{ signalSummary.linkCount === 1 ? 'lien' : 'liens' }}
+      </button>
+    </div>
   </footer>
 </template>
 
@@ -89,11 +112,6 @@ const emit = defineEmits<{
   gap: 6px;
 }
 
-.status-item-spellcheck {
-  gap: 6px;
-  color: var(--footer-text);
-}
-
 .status-dot {
   width: 8px;
   height: 8px;
@@ -115,18 +133,46 @@ const emit = defineEmits<{
   background: var(--warning);
 }
 
-.status-spellcheck-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.status-spellcheck-icon--on {
-  color: var(--success);
-}
-
 .status-item + .status-item {
   border-left: 1px solid var(--footer-divider);
 }
+
+.status-signals {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-left: auto;
+  padding: 0 6px;
+}
+
+.status-signal {
+  height: 100%;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.status-signal:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.status-signal:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -2px;
+}
+
+.status-signal + .status-signal::before {
+  margin-right: 6px;
+  color: var(--footer-text);
+  content: '·';
+}
+
+.status-signal--spellcheck { color: var(--editor-signal-spellcheck); }
+.status-signal--find { color: var(--editor-signal-find); }
+.status-signal--link { color: var(--editor-signal-link); }
 
 @keyframes statusPulse {
   0%,

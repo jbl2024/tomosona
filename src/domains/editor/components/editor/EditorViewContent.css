@@ -40,6 +40,11 @@
   }
 }
 
+.editor-holder .ProseMirror a {
+  border-radius: 0.2rem;
+  background: var(--editor-signal-link-soft);
+}
+
 .editor-holder a.wikilink {
   color: var(--tomosona-link-color);
   text-decoration: underline;

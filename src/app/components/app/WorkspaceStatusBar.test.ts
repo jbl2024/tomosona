@@ -2,7 +2,7 @@ import { createApp, defineComponent, h } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import WorkspaceStatusBar from './WorkspaceStatusBar.vue'
 
-function mountHarness(spellcheckEnabled = false) {
+function mountHarness() {
   const root = document.createElement('div')
   document.body.appendChild(root)
   const events: string[] = []
@@ -15,10 +15,16 @@ function mountHarness(spellcheckEnabled = false) {
           activeStateLabel: 'saved',
           indexStateLabel: 'indexed',
           indexStateClass: 'status-item-indexed',
-          workspaceLabel: '/workspace',
-          spellcheckEnabled,
+          signalSummary: {
+            path: 'notes/test.md',
+            spellcheckEnabled: true,
+            findActive: true,
+            spellcheckCount: 2,
+            findCount: 3,
+            linkCount: 1
+          },
           onOpenIndexStatus: () => events.push('open-index-status'),
-          onToggleSpellcheck: () => events.push('toggle-spellcheck')
+          onNavigateSignal: (payload: { kind: string; direction: number }) => events.push(`${payload.kind}:${payload.direction}`)
         })
     }
   }))
@@ -32,28 +38,28 @@ describe('WorkspaceStatusBar', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders the global spellcheck toggle and emits clicks', () => {
-    const mounted = mountHarness(false)
-    const spellcheckButton = mounted.root.querySelector<HTMLButtonElement>('[aria-label="Toggle spellcheck"]')
+  it('renders signal counters and advances on click', () => {
+    const mounted = mountHarness()
+    const spellingButton = mounted.root.querySelector<HTMLButtonElement>('.status-signal--spellcheck')
+    const findButton = mounted.root.querySelector<HTMLButtonElement>('.status-signal--find')
+    const linkButton = mounted.root.querySelector<HTMLButtonElement>('.status-signal--link')
 
-    expect(spellcheckButton).toBeTruthy()
-    expect(spellcheckButton?.textContent).toContain('spellcheck: off')
-    expect(spellcheckButton?.querySelector('svg')).toBeTruthy()
+    expect(spellingButton?.textContent).toContain('2 fautes')
+    expect(findButton?.textContent).toContain('3 résultats')
+    expect(linkButton?.textContent).toContain('1 lien')
 
-    spellcheckButton?.click()
-
-    expect(mounted.events).toEqual(['toggle-spellcheck'])
+    spellingButton?.click()
+    expect(mounted.events).toEqual(['spellcheck:1'])
 
     mounted.app.unmount()
   })
 
-  it('shows the enabled state with a pulsing accent', () => {
-    const mounted = mountHarness(true)
-    const spellcheckButton = mounted.root.querySelector<HTMLButtonElement>('[aria-label="Toggle spellcheck"]')
+  it('moves backward on shift-click', () => {
+    const mounted = mountHarness()
+    mounted.root.querySelector<HTMLButtonElement>('.status-signal--link')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
 
-    expect(spellcheckButton?.textContent).toContain('spellcheck: on')
-    expect(spellcheckButton?.classList.contains('status-item-spellcheck--on')).toBe(true)
-    expect(spellcheckButton?.querySelector('.status-spellcheck-icon--on')).toBeTruthy()
+    expect(mounted.events).toEqual(['link:-1'])
 
     mounted.app.unmount()
   })

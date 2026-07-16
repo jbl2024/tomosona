@@ -273,3 +273,16 @@ export function stepEditorFindMatch(editor: Editor | null, direction: 1 | -1): E
 
   return getEditorFindState(editor)
 }
+
+/** Activates one known find match without changing the current query. */
+export function setEditorFindActiveMatch(editor: Editor | null, activeIndex: number): EditorFindPluginState {
+  const state = getEditorFindState(editor)
+  if (!editor || !state.matches.length) return state
+  editor.view.dispatch(
+    editor.state.tr.setMeta(EDITOR_FIND_PLUGIN_KEY, {
+      type: 'set-active-index',
+      activeIndex
+    })
+  )
+  return getEditorFindState(editor)
+}

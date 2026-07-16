@@ -75,7 +75,7 @@ describe('EditorView smoke wiring', () => {
             loadPropertyTypeSchema: async () => ({}),
             savePropertyTypeSchema: async () => {},
             openLinkTarget: async () => true,
-            minimapVisible: true,
+            rulerVisible: true,
             onStatus: () => {},
             onOutline: () => {},
             onProperties: () => {},
@@ -93,7 +93,7 @@ describe('EditorView smoke wiring', () => {
     expect(root.querySelector('.ProseMirror .editor-title-field')).toBeFalsy()
     expect(root.querySelector('.editor-holder .properties-panel')).toBeTruthy()
     expect(root.querySelector('.editor-shell > .properties-panel')).toBeFalsy()
-    expect(root.querySelector('.editor-minimap')).toBeTruthy()
+    expect(root.querySelector('.editor-ruler')).toBeTruthy()
 
     app.unmount()
   })

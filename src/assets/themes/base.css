@@ -263,6 +263,10 @@
 
   /* Domain tokens: editor, explorer, properties, command surfaces, and feature views. */
   --editor-link: #2563eb;
+  --editor-signal-spellcheck: #b91c1c;
+  --editor-signal-find: #a15c00;
+  --editor-signal-link: #6957c8;
+  --editor-signal-link-soft: rgb(124 110 230 / 0.14);
   --editor-body-text: #000000;
   --editor-code-bg: rgb(241 245 249);
   --editor-heading-4: #3f4754;
@@ -576,6 +580,10 @@ html.dark {
   --tab-hover-bg: var(--color-surface-4);
   --tab-hover-text: var(--text-main);
   --editor-link: #60a5fa;
+  --editor-signal-spellcheck: #f87171;
+  --editor-signal-find: #fbbf24;
+  --editor-signal-link: #a99cf4;
+  --editor-signal-link-soft: rgb(169 156 244 / 0.18);
   --editor-body-text: #abb2bf;
   --editor-code-bg: #2c313a;
   --editor-heading-4: #c8d0dc;
