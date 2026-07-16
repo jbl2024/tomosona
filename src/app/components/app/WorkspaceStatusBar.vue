@@ -59,11 +59,12 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
       </button>
       <button
         type="button"
+        v-if="signalSummary.linkCount > 0"
         class="status-signal status-signal--link"
         title="Next link (Shift+click: previous)"
         @click="navigateSignal('link', $event)"
       >
-        {{ signalSummary.linkCount }} {{ signalSummary.linkCount === 1 ? 'link' : 'links' }}
+        {{ signalSummary.linkCount }} {{ signalSummary.linkCount <= 1 ? 'link' : 'links' }}
       </button>
     </div>
   </footer>
