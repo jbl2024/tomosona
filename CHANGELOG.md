@@ -19,6 +19,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260716.1] - 2026-07-16
+
+### Added
+- feat(editor): replace minimap with signal navigation ruler (53bb88f)
+
 ## [20260715.1] - 2026-07-15
 
 ### Fixed
