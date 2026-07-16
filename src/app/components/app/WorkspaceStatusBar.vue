@@ -63,7 +63,7 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
         title="Next link (Shift+click: previous)"
         @click="navigateSignal('link', $event)"
       >
-        {{ signalSummary.linkCount }} {{ signalSummary.linkCount === 1 ? 'lien' : 'liens' }}
+        {{ signalSummary.linkCount }} {{ signalSummary.linkCount === 1 ? 'link' : 'links' }}
       </button>
     </div>
   </footer>

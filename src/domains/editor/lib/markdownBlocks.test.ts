@@ -759,9 +759,9 @@ describe('underline formatting', () => {
 
 describe('inline links with surrounding emphasis', () => {
   it('renders bold around markdown links', () => {
-    const html = inlineTextToHtml('**[liens](https://google.com)**')
+    const html = inlineTextToHtml('**[links](https://google.com)**')
     expect(html).toContain('<strong><a href="https://google.com"')
-    expect(html).toContain('>liens</a></strong>')
+    expect(html).toContain('>links</a></strong>')
   })
 
   it('renders bold around wikilinks', () => {
