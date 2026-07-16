@@ -1,5 +1,5 @@
-import { createApp, defineComponent, h, nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { createApp, defineComponent, h, nextTick, reactive } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import EditorPaneTabs from './EditorPaneTabs.vue'
 import type { PaneState } from '../../composables/useMultiPaneWorkspaceState'
 
@@ -35,7 +35,44 @@ function mountTabs(pane: PaneState) {
 
 describe('EditorPaneTabs', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     document.body.innerHTML = ''
+  })
+
+  it('scrolls the active tab into view when document navigation changes it', async () => {
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => {})
+    const pane = reactive<PaneState>({
+      id: 'pane-1',
+      activeTabId: 'doc-1',
+      openTabs: [
+        { id: 'doc-1', type: 'document', path: '/vault/a.md', pinned: false },
+        { id: 'doc-2', type: 'document', path: '/vault/b.md', pinned: false },
+        { id: 'doc-3', type: 'document', path: '/vault/c.md', pinned: false }
+      ],
+      activePath: '/vault/a.md'
+    })
+    const mounted = mountTabs(pane)
+    await nextTick()
+    await nextTick()
+    scrollIntoView.mockClear()
+
+    pane.activeTabId = 'doc-3'
+    pane.activePath = '/vault/c.md'
+    await nextTick()
+    await nextTick()
+
+    const activeTab = mounted.root.querySelectorAll<HTMLElement>('.pane-tab-item')[2]
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.instances[0]).toBe(activeTab)
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: 'auto'
+    })
+
+    mounted.app.unmount()
   })
 
   it('opens a context menu for common close actions', async () => {

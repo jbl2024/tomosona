@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { DocumentIcon, HomeIcon } from '@heroicons/vue/24/outline'
 import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import {
@@ -59,6 +59,7 @@ const tabs = computed(() => props.pane.openTabs.map((tab) => {
 const contextMenuTabId = ref('')
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const wrapRef = ref<HTMLElement | null>(null)
+const tabRefs = new Map<string, HTMLElement>()
 const contextMenuItemRefs = ref<Array<HTMLButtonElement | null>>([])
 const contextMenuActiveIndex = ref<number | null>(null)
 
@@ -160,6 +161,26 @@ function selectTab(tabId: string) {
   emit('tab-click', { paneId: props.pane.id, tabId })
 }
 
+function setTabRef(tabId: string, element: HTMLElement | null) {
+  if (element) {
+    tabRefs.set(tabId, element)
+    return
+  }
+  tabRefs.delete(tabId)
+}
+
+async function revealActiveTab() {
+  const activeTabId = props.pane.activeTabId
+  if (!activeTabId) return
+
+  await nextTick()
+  tabRefs.get(activeTabId)?.scrollIntoView({
+    block: 'nearest',
+    inline: 'nearest',
+    behavior: 'auto'
+  })
+}
+
 function onTabAuxClick(tabId: string, event: MouseEvent) {
   if (event.button !== 1) return
   event.preventDefault()
@@ -238,6 +259,11 @@ function onDocumentKeydown(event: KeyboardEvent) {
   }
 }
 
+watch(() => props.pane.activeTabId, revealActiveTab, {
+  immediate: true,
+  flush: 'post'
+})
+
 onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown, true)
@@ -255,6 +281,7 @@ onBeforeUnmount(() => {
       <div
         v-for="tab in tabs"
         :key="tab.id"
+        :ref="(element) => setTabRef(tab.id, element as HTMLElement | null)"
         role="button"
         tabindex="0"
         class="pane-tab-item"
@@ -348,6 +375,12 @@ onBeforeUnmount(() => {
   align-items: stretch;
   gap: 0;
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pane-tabs-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .pane-tab-item {
