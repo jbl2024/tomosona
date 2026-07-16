@@ -19,6 +19,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260716.3] - 2026-07-16
+
+### Fixed
+- fix(tabs): reveal the active document tab (3f6e42b)
+
 ## [20260716.2] - 2026-07-16
 
 ### Fixed
