@@ -46,7 +46,7 @@ describe('WorkspaceStatusBar', () => {
 
     expect(spellingButton?.textContent).toContain('2 fautes')
     expect(findButton?.textContent).toContain('3 résultats')
-    expect(linkButton?.textContent).toContain('1 lien')
+    expect(linkButton?.textContent).toContain('1 link')
 
     spellingButton?.click()
     expect(mounted.events).toEqual(['spellcheck:1'])
