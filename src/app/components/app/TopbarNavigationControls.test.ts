@@ -78,6 +78,7 @@ describe('TopbarNavigationControls', () => {
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Back (Alt+Left)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('.history-menu-item')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home (Cmd+Shift+H)"]')?.click()
+    mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Search or type a command (Cmd+Shift+P)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Cosmos view"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Second Brain"]')?.click()
@@ -87,6 +88,7 @@ describe('TopbarNavigationControls', () => {
       'toggle-sidebar',
       'history:back',
       'target:1',
+      'home',
       'home',
       'command-palette',
       'cosmos',

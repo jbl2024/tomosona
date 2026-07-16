@@ -243,6 +243,15 @@ defineExpose({
           <UiIconButton
             class-name="toolbar-icon-btn"
             :disabled="!hasWorkspace"
+            title="Home"
+            aria-label="Home"
+            @click="emit('openToday')"
+          >
+            <HomeIcon />
+          </UiIconButton>
+          <UiIconButton
+            class-name="toolbar-icon-btn"
+            :disabled="!hasWorkspace"
             title="Cosmos view"
             aria-label="Cosmos view"
             @click="emit('openCosmos')"

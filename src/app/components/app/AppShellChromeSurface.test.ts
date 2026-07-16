@@ -83,6 +83,7 @@ describe('AppShellChromeSurface', () => {
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Hide sidebar"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Back (Alt+Left)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('.history-menu-item')?.click()
+    mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Search or type a command (Cmd+P)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="View options"]')?.click()
 
@@ -90,6 +91,7 @@ describe('AppShellChromeSurface', () => {
       'toggle-sidebar',
       'history:back',
       'target:1',
+      'today',
       'open-command-palette',
       'toggle-overflow'
     ])
