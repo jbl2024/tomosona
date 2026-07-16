@@ -19,6 +19,11 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260716.2] - 2026-07-16
+
+### Fixed
+- fix(ci): force apt downloads over IPv4 (2df0b44)
+
 ## [20260716.1] - 2026-07-16
 
 ### Added
