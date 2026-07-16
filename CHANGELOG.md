@@ -19,6 +19,18 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260716.4] - 2026-07-16
+
+### Added
+- feat(navigation): add Home button to top-right toolbar (1327a22)
+
+### Changed
+- chore: i18n (df80179)
+
+### Fixed
+- fix: tests (7173546)
+- fix(status-bar): conditionally render link count button and improve pluralization (53fb5bb)
+
 ## [20260716.3] - 2026-07-16
 
 ### Fixed
