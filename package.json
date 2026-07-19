@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
-    "@tauri-apps/cli": "2.11.2",
+    "@tauri-apps/cli": "2.11.4",
     "@types/nspell": "^2.1.6",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.2",
