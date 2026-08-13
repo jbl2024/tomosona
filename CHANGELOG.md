@@ -19,6 +19,19 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260813.1] - 2026-08-13
+
+### Changed
+- chore(deps): bump mermaid-rs-renderer in /src-tauri (#140) (41ee74b)
+- chore(deps-dev): bump @tauri-apps/cli from 2.11.2 to 2.11.4 (#131) (8dbad93)
+- chore(deps): bump thiserror from 2.0.18 to 2.0.19 in /src-tauri (#133) (bcdea83)
+- chore(deps): bump futures-util from 0.3.32 to 0.3.33 in /src-tauri (#139) (dff5a12)
+- chore(deps): bump open from 5.3.6 to 5.4.0 in /src-tauri (#138) (bb9a099)
+- chore(deps): bump ignore from 0.4.25 to 0.4.30 in /src-tauri (#137) (e6de29c)
+- chore(deps-dev): bump vite from 8.1.3 to 8.1.5 (#134) (4eee162)
+- chore(deps-dev): bump autoprefixer from 10.5.2 to 10.5.4 (#132) (4185ac3)
+- chore(deps): bump actions/setup-node from 6 to 7 (#130) (1046cce)
+
 ## [20260716.4] - 2026-07-16
 
 ### Added
