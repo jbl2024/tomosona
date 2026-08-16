@@ -33,7 +33,7 @@
     "@tiptap/pm": "3.27.3",
     "@tiptap/starter-kit": "3.27.3",
     "@tiptap/suggestion": "3.27.3",
-    "@tiptap/vue-3": "3.27.3",
+    "@tiptap/vue-3": "3.30.0",
     "@vue-dnd-kit/core": "^2.4.4",
     "codemirror": "^6.0.2",
     "dictionary-en": "^4.0.0",
