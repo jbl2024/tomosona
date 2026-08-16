@@ -37,7 +37,7 @@ atomicwrites = "0.4.4"
 blake3 = "1.8.5"
 comrak = "0.52"
 mermaid-rs-renderer = { git = "https://github.com/1jehuang/mermaid-rs-renderer", tag = "v0.3.1", features = ["png"] }
-rdocx = "0.1.2"
+rdocx = "0.4.1"
 calamine = "0.36.0"
 zip = "8"
 
