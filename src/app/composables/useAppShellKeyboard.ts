@@ -5,6 +5,7 @@ export type AppShellKeyboardHistoryMenuSide = 'back' | 'forward'
 /** Groups the shell visibility refs that affect global keyboard routing. */
 export type AppShellKeyboardStatePort = {
   quickOpenVisible: Readonly<Ref<boolean>>
+  terminalVisible: Readonly<Ref<boolean>>
   quickOpenIsActionMode: Readonly<Ref<boolean>>
   themePickerVisible: Readonly<Ref<boolean>>
   historyMenuOpen: Readonly<Ref<AppShellKeyboardHistoryMenuSide | null>>
@@ -48,12 +49,14 @@ export type AppShellKeyboardActionsPort = {
   closeHistoryMenu: () => void
   closeOverflowMenu: () => void
   closeQuickOpen: () => void
+  closeIntegratedTerminal: () => void
   goBackInHistory: () => boolean | void | Promise<boolean | void>
   goForwardInHistory: () => boolean | void | Promise<boolean | void>
   closeActiveTab: () => void
   createNewFileFromActiveDirectory: () => boolean | void | Promise<boolean | void>
   openQuickOpen: () => boolean | void | Promise<boolean | void>
   openCommandPalette: () => void
+  openIntegratedTerminal: () => boolean | void | Promise<boolean | void>
   openTodayNote: () => boolean | void | Promise<boolean | void>
   openHomeView: () => boolean | void | Promise<boolean | void>
   splitPane: (axis: 'row' | 'column') => boolean | void | Promise<boolean | void>
@@ -80,7 +83,7 @@ export type UseAppShellKeyboardOptions = {
  * Owns shell-global keyboard routing and priority ordering.
  *
  * Invariants:
- * - `Escape` closes the top-most shell modal before any global shortcut runs.
+ * - `Escape` closes the top-most shell modal, then toggles the terminal when no modal is open.
  * - `Mod+W` is always intercepted to avoid native window-close behavior.
  * - Domain behavior stays outside this controller; it only invokes injected shell intents.
  */
@@ -152,6 +155,11 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       consume(event)
       return true
     }
+    if (options.statePort.terminalVisible.value) {
+      consume(event)
+      options.actionsPort.closeIntegratedTerminal()
+      return true
+    }
 
     if (options.statePort.historyMenuOpen.value) {
       consume(event)
@@ -169,7 +177,13 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       return true
     }
 
-    return false
+    // A modal outside this controller (for example spellcheck) keeps ownership
+    // of Escape; never let it accidentally open the terminal behind itself.
+    if (options.guardsPort.hasBlockingModalOpen()) return false
+
+    consume(event)
+    void options.actionsPort.openIntegratedTerminal()
+    return true
   }
 
   function handleQuickOpenNavigation(event: KeyboardEvent): boolean {
@@ -242,6 +256,14 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     }
 
     if (options.guardsPort.hasBlockingModalOpen()) return
+
+    // The command palette remains available from focused native inputs such
+    // as xterm's hidden textarea, while other shell shortcuts stay local.
+    if (isMod && key === 'p') {
+      event.preventDefault()
+      options.actionsPort.openCommandPalette()
+      return
+    }
     if (options.guardsPort.shouldBlockGlobalShortcutsFromTarget(event.target)) return
 
     if (isBackHistoryShortcut) {
@@ -256,19 +278,15 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     }
     if (!isMod) return
 
-    if (key === 'p' && !event.shiftKey) {
+    if (key === '`' && !event.shiftKey) {
       event.preventDefault()
-      void options.actionsPort.openQuickOpen()
+      void options.actionsPort.openIntegratedTerminal()
       return
     }
+
     if (key === 'n' && !event.shiftKey) {
       event.preventDefault()
       void options.actionsPort.createNewFileFromActiveDirectory()
-      return
-    }
-    if (key === 'p' && event.shiftKey) {
-      event.preventDefault()
-      options.actionsPort.openCommandPalette()
       return
     }
     if (key === 'd') {

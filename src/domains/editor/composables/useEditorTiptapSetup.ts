@@ -19,6 +19,7 @@ import { TableCellAlign } from '../lib/tiptap/extensions/TableCellAlign'
 import { EditorFindExtension } from '../lib/tiptap/extensions/EditorFind'
 import { SpellcheckExtension, refreshSpellcheckDecorations } from '../lib/tiptap/extensions/Spellcheck'
 import { PastedLinkBoundary } from '../lib/tiptap/extensions/PastedLinkBoundary'
+import { AdjacentListNormalizer } from '../lib/tiptap/extensions/AdjacentListNormalizer'
 import { adjustHeadingLevelFromTab, adjustListLevelFromTab } from '../lib/editorInteractions'
 import { decodeWorkspacePathSegments, isAbsoluteWorkspacePath, normalizeWorkspacePath } from '../../explorer/lib/workspacePaths'
 import { parseRelativeMarkdownHref } from '../lib/markdownBlocks'
@@ -403,6 +404,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           }
         }),
         PastedLinkBoundary,
+        AdjacentListNormalizer,
         ListKit.configure({
           taskItem: {
             nested: true

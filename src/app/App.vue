@@ -5,6 +5,7 @@ import AppShellChromeSurface, { type AppShellChromeSurfaceExposed } from './comp
 import AppShellWorkspaceSurface, { type AppShellWorkspaceSurfaceExposed } from './components/app/AppShellWorkspaceSurface.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import AppShellOverlays from './components/app/AppShellOverlays.vue'
+import IntegratedTerminalPanel from './components/app/IntegratedTerminalPanel.vue'
 import { useDocumentHistory } from '../domains/editor/composables/useDocumentHistory'
 import {
   clearWorkingFolder,
@@ -238,6 +239,7 @@ loadEditorRulerPreference()
 const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent)
 
 const quickOpenVisible = ref(false)
+const terminalVisible = ref(false)
 const quickOpenQuery = ref('')
 const quickOpenActiveIndex = ref(0)
 const themePickerVisible = ref(false)
@@ -283,6 +285,19 @@ const cosmosCommandLoadingVisible = ref(false)
 const cosmosCommandLoadingLabel = ref('Loading graph...')
 const shortcutsFilterQuery = ref('')
 const previousNonCosmosMode = ref<SidebarMode>('explorer')
+
+function openIntegratedTerminal() {
+  if (!filesystem.hasWorkspace.value) {
+    filesystem.notifyInfo('Open a workspace before starting the terminal.')
+    return false
+  }
+  terminalVisible.value = true
+  return true
+}
+
+function closeIntegratedTerminal() {
+  terminalVisible.value = false
+}
 const persistedMultiPane = readPersistedMultiPaneLayout(MULTI_PANE_STORAGE_KEY)
 const multiPane = useMultiPaneWorkspaceState(persistedMultiPane ?? createInitialLayout())
 const editorSignalSummariesByPane = ref<Record<string, EditorSignalSummary>>({})
@@ -1638,6 +1653,7 @@ entryActions.bindLaunchpadActionPort({
   openAltersView: () => openAltersViewFromPalette()
 })
 entryActions.bindShellPaletteActionPort({
+  openIntegratedTerminal,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
   openCosmosViewFromPalette,
@@ -1891,6 +1907,7 @@ useAppShellKeyboard({
   isMacOs,
   statePort: {
     quickOpenVisible,
+    terminalVisible,
     quickOpenIsActionMode,
     themePickerVisible,
     historyMenuOpen,
@@ -1930,12 +1947,14 @@ useAppShellKeyboard({
     closeHistoryMenu,
     closeOverflowMenu,
     closeQuickOpen,
+    closeIntegratedTerminal,
     goBackInHistory,
     goForwardInHistory,
     closeActiveTab,
     createNewFileFromActiveDirectory,
     openQuickOpen,
     openCommandPalette,
+    openIntegratedTerminal,
     openTodayNote,
     openHomeView: openHomeViewFromPalette,
     splitPane: splitPaneFromPalette,
@@ -2008,6 +2027,7 @@ useAppShellKeyboard({
       @open-theme-picker="openThemePickerFromOverflow"
     />
 
+    <main class="workspace-stack">
     <AppShellWorkspaceSurface
       ref="explorerRef"
       :sidebar-visible="workspace.sidebarVisible.value"
@@ -2177,7 +2197,17 @@ useAppShellKeyboard({
           @launchpad-quick-start="void launchpad.launchQuickStart($event)"
         />
       </template>
+      <template #terminal>
+        <IntegratedTerminalPanel
+          :visible="terminalVisible"
+          :workspace-path="filesystem.workingFolderPath.value"
+          :current-file-path="activeFilePath"
+          :color-scheme="activeColorScheme"
+          @close="closeIntegratedTerminal"
+        />
+      </template>
     </AppShellWorkspaceSurface>
+    </main>
 
     <WorkspaceStatusBar
       :active-file-label="activeFilePath ? toRelativePath(activeFilePath) : 'No file'"
@@ -2314,6 +2344,14 @@ useAppShellKeyboard({
   flex-direction: column;
   background: var(--app-bg);
   color: var(--text-main);
+}
+
+.workspace-stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .tabs-row {

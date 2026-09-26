@@ -21,6 +21,7 @@ mod wikilink_graph;
 mod workspace_paths;
 mod workspace_runtime;
 mod workspace_watch;
+mod terminal;
 
 // Tauri command surface for workspace I/O, index/search, and graph data used by Cosmos view.
 use std::{
@@ -445,6 +446,10 @@ pub fn run() {
             read_property_type_schema,
             write_property_type_schema,
             write_clipboard_text,
+            terminal::start_terminal_session,
+            terminal::write_terminal_session,
+            terminal::resize_terminal_session,
+            terminal::close_terminal_session,
             favorites::list_favorites,
             favorites::add_favorite,
             favorites::remove_favorite,

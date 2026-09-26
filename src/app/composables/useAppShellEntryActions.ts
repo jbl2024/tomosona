@@ -52,6 +52,7 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     addActiveNoteToFavoritesFromPalette: () => false,
     removeActiveNoteFromFavoritesFromPalette: () => false,
     openSettingsFromPalette: () => false,
+    openIntegratedTerminal: () => false,
     openNoteInCosmosFromPalette: () => false,
     openWorkspaceFromPalette: () => false,
     closeWorkspaceFromPalette: () => false,

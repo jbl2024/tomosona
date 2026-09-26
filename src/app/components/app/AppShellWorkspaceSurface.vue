@@ -311,6 +311,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           @pulse-apply="emit('pulseApply', $event)"
         />
       </div>
+      <slot name="terminal" />
     </section>
   </div>
 </template>

@@ -533,9 +533,7 @@ html[data-theme='tomosona-light'] {
 }
 
 /* Dark mode overrides foundations first, then the few domain tokens that need direct tuning. */
-html[data-theme='tomosona-dark'],
-html[data-color-scheme='dark'],
-html.dark {
+html[data-theme='tomosona-dark'] {
   color-scheme: dark;
 
   --color-surface-0: #282c34;

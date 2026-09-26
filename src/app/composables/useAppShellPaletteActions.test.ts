@@ -26,6 +26,7 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
     removeActiveNoteFromFavoritesFromPalette: vi.fn(async () => true),
     convertMarkdownToWord: vi.fn(async () => true),
     openSettingsFromPalette: vi.fn(async () => true),
+    openIntegratedTerminal: vi.fn(async () => true),
     openNoteInCosmosFromPalette: vi.fn(async () => true),
     openWorkspaceFromPalette: vi.fn(async () => true),
     closeWorkspaceFromPalette: vi.fn(async () => true),
@@ -115,6 +116,7 @@ describe('useAppShellPaletteActions', () => {
     expect(actionIds).toContain('toggle-spellcheck')
     expect(actionIds).toContain('toggle-editor-ruler')
     expect(actionIds).toContain('manage-spellcheck-dictionary')
+    expect(actionIds).toContain('open-integrated-terminal')
     expect(actionIds[actionIds.length - 2]).toBe('open-file')
     expect(actionIds[actionIds.length - 1]).toBe('reveal-in-explorer')
     expect(api.paletteActionPriority['open-file']).toBe(0)

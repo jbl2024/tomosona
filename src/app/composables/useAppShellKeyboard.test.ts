@@ -5,6 +5,7 @@ import { useAppShellKeyboard } from './useAppShellKeyboard'
 function createKeyboard() {
   const state = {
     quickOpenVisible: ref(false),
+    terminalVisible: ref(false),
     themePickerVisible: ref(false),
     historyMenuOpen: ref<null | 'back' | 'forward'>(null),
     overflowMenuOpen: ref(false),
@@ -43,12 +44,14 @@ function createKeyboard() {
     closeHistoryMenu: vi.fn(),
     closeOverflowMenu: vi.fn(),
     closeQuickOpen: vi.fn(),
+    closeIntegratedTerminal: vi.fn(),
     goBackInHistory: vi.fn(),
     goForwardInHistory: vi.fn(),
     closeActiveTab: vi.fn(),
     createNewFileFromActiveDirectory: vi.fn(),
     openQuickOpen: vi.fn(),
     openCommandPalette: vi.fn(),
+    openIntegratedTerminal: vi.fn(),
     openTodayNote: vi.fn(),
     openHomeView: vi.fn(),
     splitPane: vi.fn(),
@@ -93,6 +96,46 @@ describe('useAppShellKeyboard', () => {
     expect(actions.closeSettingsModal).toHaveBeenCalledTimes(1)
     expect(actions.closeQuickOpen).not.toHaveBeenCalled()
     expect(event.defaultPrevented).toBe(true)
+    scope.stop()
+  })
+
+  it('closes the integrated terminal on Escape', () => {
+    const { scope, state, actions } = createKeyboard()
+    state.terminalVisible.value = true
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+
+    expect(actions.closeIntegratedTerminal).toHaveBeenCalledTimes(1)
+    scope.stop()
+  })
+
+  it('opens the integrated terminal on Escape outside a modal', () => {
+    const { scope, actions } = createKeyboard()
+
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    window.dispatchEvent(event)
+
+    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(true)
+    scope.stop()
+  })
+
+  it('does not open the terminal behind a blocking modal', () => {
+    const { scope, guards, actions } = createKeyboard()
+    guards.hasBlockingModalOpen.mockReturnValue(true)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+
+    expect(actions.openIntegratedTerminal).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('opens the integrated terminal with Mod+backtick', () => {
+    const { scope, actions } = createKeyboard()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '`', ctrlKey: true, bubbles: true, cancelable: true }))
+
+    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
     scope.stop()
   })
 
@@ -149,12 +192,16 @@ describe('useAppShellKeyboard', () => {
     scope.stop()
   })
 
-  it('ignores shell shortcuts for blocked targets but still allows history shortcuts otherwise', () => {
+  it('opens the command palette from a blocked terminal-like target', () => {
     const { scope, guards, actions } = createKeyboard()
     guards.shouldBlockGlobalShortcutsFromTarget.mockReturnValue(true)
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true }))
-    expect(actions.openQuickOpen).not.toHaveBeenCalled()
+    const terminalInput = document.createElement('textarea')
+    document.body.appendChild(terminalInput)
+    const event = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true })
+    terminalInput.dispatchEvent(event)
+    expect(actions.openCommandPalette).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(true)
 
     guards.shouldBlockGlobalShortcutsFromTarget.mockReturnValue(false)
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true, cancelable: true }))

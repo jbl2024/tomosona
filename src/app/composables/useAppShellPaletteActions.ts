@@ -51,6 +51,7 @@ export type AppShellPaletteActionPort = {
   removeActiveNoteFromFavoritesFromPalette: () => boolean | Promise<boolean>
   convertMarkdownToWord: (path: string) => boolean | Promise<boolean>
   openSettingsFromPalette: () => boolean | Promise<boolean>
+  openIntegratedTerminal: () => boolean | Promise<boolean>
   openNoteInCosmosFromPalette: () => boolean | Promise<boolean>
   openWorkspaceFromPalette: () => boolean | Promise<boolean>
   closeWorkspaceFromPalette: () => boolean | Promise<boolean>
@@ -113,6 +114,7 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'add-active-note-to-favorites': 11,
   'remove-active-note-from-favorites': 12,
   'open-settings': 13,
+  'open-integrated-terminal': 13.5,
   'open-note-in-cosmos': 14,
   'reveal-in-explorer': 15,
   'convert-to-word': 15.5,
@@ -232,6 +234,14 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       run: () => options.actionPort.openSettingsFromPalette(),
       closeBeforeRun: true
     }),
+    ...(options.statePort.hasWorkspace.value
+      ? [createPaletteAction('utilities', {
+          id: 'open-integrated-terminal',
+          label: 'Open Integrated Terminal',
+          run: () => options.actionPort.openIntegratedTerminal(),
+          closeBeforeRun: true
+        })]
+      : []),
     createPaletteAction('utilities', {
       id: 'toggle-spellcheck',
       label: options.statePort.spellcheckEnabled.value ? 'Disable Spellcheck' : 'Enable Spellcheck',
