@@ -49,7 +49,7 @@ Primary owner modules:
 
 ### Shell
 
-The shell keeps the single `workspace://fs-changed` listener and relays those changes to mounted editor panes after workspace/favorites/cosmos bookkeeping has run.
+The shell keeps the single `workspace://fs-changed` listener and relays those changes to mounted editor panes after workspace/favorites bookkeeping has run.
 
 ## File Version Model
 

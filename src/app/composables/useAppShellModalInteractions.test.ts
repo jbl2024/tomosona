@@ -20,7 +20,6 @@ function createHarness() {
       label: 'Open Settings',
       family: 'utilities',
       closeBeforeRun: true,
-      loadingLabel: 'Loading settings...',
       run: vi.fn(async () => true)
     },
     {
@@ -49,8 +48,6 @@ function createHarness() {
   const focusQuickOpenInput = vi.fn()
   const focusThemePickerInput = vi.fn()
   const scrollThemePickerActiveItemIntoView = vi.fn()
-  const showLoadingState = vi.fn()
-  const hideLoadingState = vi.fn()
   const setErrorMessage = vi.fn()
   const applyTheme = vi.fn()
   const applyThemePreview = vi.fn()
@@ -87,8 +84,6 @@ function createHarness() {
       focusQuickOpenInput,
       focusThemePickerInput,
       scrollThemePickerActiveItemIntoView,
-      showLoadingState,
-      hideLoadingState,
       setErrorMessage,
       canRestoreEditorFocusAfterAction: () => true,
       applyTheme,
@@ -107,8 +102,6 @@ function createHarness() {
     focusQuickOpenInput,
     focusThemePickerInput,
     scrollThemePickerActiveItemIntoView,
-    showLoadingState,
-    hideLoadingState,
     setErrorMessage,
     applyTheme,
     applyThemePreview,
@@ -136,16 +129,14 @@ describe('useAppShellModalInteractions', () => {
     document.body.innerHTML = ''
   })
 
-  it('runs a quick-open action with loading and focus restoration', async () => {
-    const { api, scope, closeQuickOpen, showLoadingState, hideLoadingState, focusEditor } = createHarness()
+  it('runs a quick-open action and restores editor focus', async () => {
+    const { api, scope, closeQuickOpen, focusEditor } = createHarness()
 
     api.runQuickOpenAction('open-settings')
     await Promise.resolve()
     await Promise.resolve()
 
     expect(closeQuickOpen).toHaveBeenCalledWith(false)
-    expect(showLoadingState).toHaveBeenCalledWith('Loading settings...')
-    expect(hideLoadingState).toHaveBeenCalled()
     expect(focusEditor).toHaveBeenCalled()
     scope.stop()
   })

@@ -30,7 +30,6 @@ function createController(options: {
       dirty.value = false
     }
   })
-  const applyCosmosHistorySnapshot = vi.fn(async () => true)
   const openSecondBrainHistorySnapshot = vi.fn(async () => true)
   const openHomeHistorySnapshot = vi.fn(async () => true)
 
@@ -91,18 +90,6 @@ function createController(options: {
     },
     historyPort: {
       documentHistory,
-      cosmos: {
-        read: (payload) => payload as never,
-        current: () => ({
-          query: 'graph',
-          selectedNodeId: 'node-1',
-          focusMode: false,
-          focusDepth: 2
-        }),
-        stateKey: (snapshot) => JSON.stringify(snapshot),
-        label: (snapshot) => `Cosmos: ${snapshot.query}`,
-        apply: applyCosmosHistorySnapshot
-      },
       secondBrain: {
         read: (payload) => payload as never,
         current: () => ({ surface: 'chat' }),
@@ -130,7 +117,6 @@ function createController(options: {
     recordRecentNote,
     focusEditor,
     ensureAllFilesLoaded,
-    applyCosmosHistorySnapshot,
     openSecondBrainHistorySnapshot,
     openHomeHistorySnapshot,
     controller,
@@ -195,18 +181,6 @@ describe('useAppNavigationController', () => {
 
     expect(openedDocument).toBe(true)
     expect(opened).toEqual([{ path: '/vault/app.ts', paneId: undefined, reveal: false }])
-  })
-
-  it('records a debounced cosmos history snapshot', () => {
-    vi.useFakeTimers()
-    const { controller, documentHistory, setActiveTabType } = createController()
-
-    setActiveTabType('cosmos')
-    controller.scheduleCosmosHistorySnapshot()
-    vi.advanceTimersByTime(260)
-
-    expect(documentHistory.currentEntry.value?.kind).toBe('cosmos')
-    expect(documentHistory.currentEntry.value?.label).toBe('Cosmos: graph')
   })
 
   it('records a home history snapshot', () => {

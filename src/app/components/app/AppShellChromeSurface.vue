@@ -50,7 +50,6 @@ const emit = defineEmits<{
   historyLongPressCancel: []
   historyTargetClick: [targetIndex: number]
   openToday: []
-  openCosmos: []
   openSecondBrain: []
   openAlterExploration: []
   splitRight: []
@@ -127,7 +126,6 @@ defineExpose<AppShellChromeSurfaceExposed>({
       @history-long-press-cancel="emit('historyLongPressCancel')"
       @history-target-click="emit('historyTargetClick', $event)"
       @open-today="emit('openToday')"
-      @open-cosmos="emit('openCosmos')"
       @open-second-brain="emit('openSecondBrain')"
       @open-alter-exploration="emit('openAlterExploration')"
       @split-right="emit('splitRight')"

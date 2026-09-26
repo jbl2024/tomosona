@@ -44,7 +44,7 @@ Notes are stored as `.md` files, with frontmatter support for properties. UI met
 
 ### 3. Navigation through links and context
 
-The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, the Cosmos graph, hybrid search, and contextual suggestions.
+The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, hybrid search, and contextual suggestions.
 
 ### 4. AI in service of the workspace
 
@@ -59,7 +59,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - a workspace setup wizard with starter structures for knowledge bases, journals, and project-oriented workspaces;
 - a new note modal with a workspace template picker sourced from `_templates/`;
 - navigation history, command palette, quick open, and built-in keyboard shortcuts;
-- a multi-pane layout for opening multiple notes, Cosmos, and Second Brain side by side.
+- a multi-pane layout for opening multiple notes and Second Brain side by side.
 
 ### Markdown editor
 
@@ -106,20 +106,6 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - local semantic search with hybrid lexical + semantic reranking;
 - index rebuild flows and indexing status in the UI;
 - reindexing on save and graph refresh integration.
-
-### Cosmos
-
-- an interactive graph view of notes and their relationships;
-- explicit links from wikilinks;
-- inferred semantic links when embeddings are available;
-- search, focus, recentering, and neighborhood exploration;
-- open a note from the graph or send graph context into Second Brain.
-
-### Echoes
-
-- contextual note suggestions to surface relevant related material;
-- built from backlinks, semantic neighbors, recency, and structural signals;
-- available in the editor and in Second Brain to enrich context without manual searching.
 
 ### Second Brain
 
@@ -284,4 +270,4 @@ The project is evolving quickly. Recent notable additions include:
 - Echoes contextual suggestions;
 - Codex model discovery in settings;
 - inline find in the editor;
-- the multi-pane shell and tighter Cosmos / Second Brain integration.
+- the multi-pane shell and tighter Second Brain integration.

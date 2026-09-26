@@ -537,31 +537,3 @@ export type SecondBrainStreamEvent = {
   done: boolean
   error: string | null
 }
-
-export type WikilinkGraphNode = {
-  id: string
-  path: string
-  label: string
-  degree: number
-  tags: string[]
-  cluster: number | null
-}
-
-/**
- * Graph edge returned by backend Cosmos payload.
- *
- * - `wikilink`: explicit markdown link.
- * - `semantic`: inferred nearest-neighbor link from note embeddings.
- */
-export type WikilinkGraphEdge = {
-  source: string
-  target: string
-  type: 'wikilink' | 'semantic'
-  score?: number | null
-}
-
-export type WikilinkGraph = {
-  nodes: WikilinkGraphNode[]
-  edges: WikilinkGraphEdge[]
-  generated_at_ms: number
-}

@@ -12,7 +12,6 @@ import type { Ref } from 'vue'
 export type UseAppModalControllerOptions = {
   quickOpenVisible: Readonly<Ref<boolean>>
   themePickerVisible: Readonly<Ref<boolean>>
-  cosmosCommandLoadingVisible: Readonly<Ref<boolean>>
   indexStatusModalVisible: Readonly<Ref<boolean>>
   newFileModalVisible: Readonly<Ref<boolean>>
   newFolderModalVisible: Readonly<Ref<boolean>>
@@ -47,7 +46,6 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
 
   /** Returns the selector for the top-most blocking modal currently visible. */
   function activeModalSelector(): string | null {
-    if (options.cosmosCommandLoadingVisible.value) return '[data-modal="cosmos-command-loading"]'
     if (options.indexStatusModalVisible.value) return '[data-modal="index-status"]'
     if (options.shortcutsModalVisible.value) return '[data-modal="shortcuts"]'
     if (options.aboutModalVisible.value) return '[data-modal="about"]'

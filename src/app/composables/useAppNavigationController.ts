@@ -1,23 +1,6 @@
 import { nextTick, ref, type Ref } from 'vue'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 
-/**
- * Module: useAppNavigationController
- *
- * Purpose:
- * - Own app-shell document navigation flows and history orchestration.
- * - Keep `App.vue` focused on wiring UI events instead of coordinating tab
- *   switches, autosave guards, and pane-native history snapshots.
- */
-
-/** Snapshot stored in history for the pane-native Cosmos surface. */
-export type CosmosHistorySnapshot = {
-  query: string
-  selectedNodeId: string
-  focusMode: boolean
-  focusDepth: number
-}
-
 /** Snapshot stored in history for the pane-native Second Brain surface. */
 export type SecondBrainHistorySnapshot = {
   surface: 'chat'
@@ -77,8 +60,8 @@ export type AppNavigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => void
   revealDocumentInPane: (path: string, paneId?: string) => void
   setActivePathInPane: (paneId: string, path: string) => void
-  openSurfaceInPane: (type: 'home' | 'cosmos' | 'second-brain-chat' | 'alters', paneId?: string) => void
-  findPaneContainingSurface: (type: 'home' | 'cosmos' | 'second-brain-chat' | 'alters') => string | null
+  openSurfaceInPane: (type: 'home' | 'second-brain-chat' | 'alters', paneId?: string) => void
+  findPaneContainingSurface: (type: 'home' | 'second-brain-chat' | 'alters') => string | null
 }
 
 /**
@@ -95,13 +78,6 @@ export type AppNavigationHistoryPort = {
     goForwardEntry: () => DocumentHistoryEntry | null
     jumpToEntry: (index: number) => DocumentHistoryEntry | null
     currentIndex: Ref<number>
-  }
-  cosmos: {
-    read: (payload: unknown) => CosmosHistorySnapshot | null
-    current: () => CosmosHistorySnapshot
-    stateKey: (snapshot: CosmosHistorySnapshot) => string
-    label: (snapshot: CosmosHistorySnapshot) => string
-    apply: (snapshot: CosmosHistorySnapshot) => Promise<boolean>
   }
   secondBrain: {
     read: (payload: unknown) => SecondBrainHistorySnapshot | null
@@ -133,7 +109,6 @@ export type UseAppNavigationControllerOptions = {
  */
 export function useAppNavigationController(options: UseAppNavigationControllerOptions) {
   const isApplyingHistoryNavigation = ref(false)
-  let cosmosHistoryDebounceTimer: ReturnType<typeof setTimeout> | null = null
   const { workspacePort, editorPort, panePort, historyPort } = options
 
   async function openSurfaceHistoryEntry<T>(
@@ -154,7 +129,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
 
   /** Formats a history entry label for the back/forward menus. */
   function historyTargetLabel(entry: DocumentHistoryEntry): string {
-    if (entry.kind === 'cosmos') return entry.label
     if (entry.kind === 'second-brain') return entry.label || 'Second Brain'
     if (entry.kind === 'home') return entry.label || 'Home'
     return workspacePort.toRelativePath(entry.path)
@@ -188,35 +162,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
       stateKey: historyPort.secondBrain.stateKey(snapshot),
       payload: snapshot
     })
-  }
-
-  /** Records the current Cosmos surface state into linear document history. */
-  function recordCosmosHistorySnapshot() {
-    if (isApplyingHistoryNavigation.value) return
-    const active = panePort.getActiveTab()
-    if (!active || active.type !== 'cosmos') return
-    const snapshot = historyPort.cosmos.current()
-    historyPort.documentHistory.recordEntry({
-      kind: 'cosmos',
-      path: 'cosmos',
-      label: historyPort.cosmos.label(snapshot),
-      stateKey: historyPort.cosmos.stateKey(snapshot),
-      payload: snapshot
-    })
-  }
-
-  /**
-   * Debounces Cosmos history snapshots so search and graph interactions do not
-   * flood the linear history timeline.
-   */
-  function scheduleCosmosHistorySnapshot() {
-    if (cosmosHistoryDebounceTimer) {
-      clearTimeout(cosmosHistoryDebounceTimer)
-      cosmosHistoryDebounceTimer = null
-    }
-    cosmosHistoryDebounceTimer = setTimeout(() => {
-      recordCosmosHistorySnapshot()
-    }, 260)
   }
 
   /** Saves the active document before a tab switch when it still has unsaved changes. */
@@ -315,12 +260,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
 
   /** Replays a history entry regardless of whether it targets a note or a pane-native surface. */
   async function openHistoryEntry(entry: DocumentHistoryEntry): Promise<boolean> {
-    if (entry.kind === 'cosmos') {
-      return await openSurfaceHistoryEntry(entry.payload, {
-        read: historyPort.cosmos.read,
-        open: historyPort.cosmos.apply
-      })
-    }
     if (entry.kind === 'second-brain') {
       return await openSurfaceHistoryEntry(entry.payload, {
         read: historyPort.secondBrain.read,
@@ -385,21 +324,11 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     return await setActiveTabWithAutosave(nextPath)
   }
 
-  /** Clears timers owned by the navigation controller. */
-  function dispose() {
-    if (cosmosHistoryDebounceTimer) {
-      clearTimeout(cosmosHistoryDebounceTimer)
-      cosmosHistoryDebounceTimer = null
-    }
-  }
-
   return {
     isApplyingHistoryNavigation,
     historyTargetLabel,
     recordHomeHistorySnapshot,
     recordSecondBrainHistorySnapshot,
-    recordCosmosHistorySnapshot,
-    scheduleCosmosHistorySnapshot,
     ensureActiveTabSavedBeforeSwitch,
     openTabWithAutosave,
     setActiveTabWithAutosave,
@@ -407,7 +336,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     openHistoryEntry,
     goBackInHistory,
     goForwardInHistory,
-    openNextTabWithAutosave,
-    dispose
+    openNextTabWithAutosave
   }
 }

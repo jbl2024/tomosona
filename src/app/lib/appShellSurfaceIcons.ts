@@ -1,7 +1,6 @@
 import {
   AdjustmentsHorizontalIcon,
   ClockIcon,
-  ShareIcon,
   SparklesIcon,
   UserGroupIcon
 } from '@heroicons/vue/24/outline'
@@ -15,5 +14,4 @@ import {
 export const SECOND_BRAIN_SURFACE_ICON = SparklesIcon
 export const ALTER_EXPLORATION_SURFACE_ICON = UserGroupIcon
 export const ALTERS_SURFACE_ICON = AdjustmentsHorizontalIcon
-export const COSMOS_SURFACE_ICON = ShareIcon
 export const WORKSPACE_SESSION_ICON = ClockIcon

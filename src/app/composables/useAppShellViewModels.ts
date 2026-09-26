@@ -3,35 +3,14 @@ import type { FileMetadata, SemanticLink } from '../../shared/api/apiTypes'
 import type { AppSettingsAlters } from '../../shared/api/apiTypes'
 import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
-import type { CosmosGraph, CosmosGraphNode } from '../../domains/cosmos/lib/graphIndex'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
-import type { AppShellCosmosViewModel, AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, AppShellAltersViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
+import type { AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, AppShellAltersViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
 import { basenameLabel, buildMetadataRows, buildShortcutSections, buildSystemThemeLabel, buildThemePickerItems, type ShellSurfaceType, type ThemePickerItem } from '../lib/appShellPresentation'
 
 type ShortcutSection = {
   title: string
   items: Array<{ keys: string; action: string }>
-}
-
-type ViewModelCosmosState = {
-  graph: Ref<CosmosGraph>
-  loading: Ref<boolean>
-  error: Ref<string>
-  selectedNodeId: Ref<string>
-  focusMode: Ref<boolean>
-  focusDepth: Ref<number>
-  summary: Ref<{ nodes: number; edges: number }>
-  query: Ref<string>
-  queryMatches: Ref<CosmosGraphNode[]>
-  showSemanticEdges: Ref<boolean>
-  selectedNode: Ref<CosmosGraphNode | null>
-  selectedLinkCount: Ref<number>
-  preview: Ref<string>
-  previewLoading: Ref<boolean>
-  previewError: Ref<string>
-  outgoingNodes: Ref<CosmosGraphNode[]>
-  incomingNodes: Ref<CosmosGraphNode[]>
 }
 
 type ViewModelOptions = {
@@ -69,7 +48,6 @@ type ViewModelOptions = {
       pinnedItems: Ref<ConstitutedContextItem[]>
     }
   }
-  cosmos: ViewModelCosmosState
   launchpad: {
     recentWorkspaces: Ref<LaunchpadRecentWorkspace[]>
     recentViewedNotes: Ref<LaunchpadRecentNote[]>
@@ -116,8 +94,6 @@ export type AppShellViewModels = {
   localContextItems: ComputedRef<ConstitutedContextItem[]>
   pinnedContextItems: ComputedRef<ConstitutedContextItem[]>
   noteEchoesForPanel: ComputedRef<Array<EchoesItem & { isInContext: boolean }>>
-  cosmosSelectedNodeForPanel: ComputedRef<CosmosGraphNode | null>
-  cosmosPaneViewModel: ComputedRef<AppShellCosmosViewModel>
   secondBrainPaneViewModel: ComputedRef<AppShellSecondBrainViewModel>
   altersPaneViewModel: ComputedRef<AppShellAltersViewModel>
   launchpadPaneViewModel: ComputedRef<AppShellLaunchpadViewModel>
@@ -209,32 +185,6 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
       isInContext: options.context.constitutedContext.contains(item.path)
     }))
   )
-  const cosmosSelectedNodeForPanel = computed(() => {
-    if (!options.cosmos.selectedNode.value) return null
-    return {
-      ...options.cosmos.selectedNode.value,
-      path: options.workspace.toRelativePath(options.cosmos.selectedNode.value.path)
-    }
-  })
-  const cosmosPaneViewModel = computed<AppShellCosmosViewModel>(() => ({
-    graph: options.cosmos.graph.value,
-    loading: options.cosmos.loading.value,
-    error: options.cosmos.error.value,
-    selectedNodeId: options.cosmos.selectedNodeId.value,
-    focusMode: options.cosmos.focusMode.value,
-    focusDepth: options.cosmos.focusDepth.value,
-    summary: options.cosmos.summary.value,
-    query: options.cosmos.query.value,
-    matches: options.cosmos.queryMatches.value,
-    showSemanticEdges: options.cosmos.showSemanticEdges.value,
-    selectedNode: cosmosSelectedNodeForPanel.value,
-    selectedLinkCount: options.cosmos.selectedLinkCount.value,
-    preview: options.cosmos.preview.value,
-    previewLoading: options.cosmos.previewLoading.value,
-    previewError: options.cosmos.previewError.value,
-    outgoingNodes: options.cosmos.outgoingNodes.value,
-    incomingNodes: options.cosmos.incomingNodes.value
-  }))
   const secondBrainPaneViewModel = computed<AppShellSecondBrainViewModel>(() => ({
     workspacePath: options.secondBrain.workspacePath.value,
     allWorkspaceFiles: options.secondBrain.allWorkspaceFiles.value,
@@ -295,8 +245,6 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
     localContextItems,
     pinnedContextItems,
     noteEchoesForPanel,
-    cosmosSelectedNodeForPanel,
-    cosmosPaneViewModel,
     secondBrainPaneViewModel,
     altersPaneViewModel,
     launchpadPaneViewModel,

@@ -78,7 +78,6 @@ html[data-theme='xcode-light'] {
   --explorer-row-indicator: #2f6fbd;
   --explorer-toolbar-hover-bg: rgba(47, 111, 189, 0.08);
   --properties-accent: #2f6fbd;
-  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #f2f6fb 100%);
   --sb-layout-bg: linear-gradient(135deg, #ffffff, #f2f6fb 45%, #e2ebf5);
   --sb-user-bg: #f3f7fb;
   --sb-assistant-bg: #dce9f8;

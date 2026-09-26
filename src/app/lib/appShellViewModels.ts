@@ -1,4 +1,4 @@
-import type { CosmosGraph, CosmosGraphNode } from '../../domains/cosmos/lib/graphIndex'
+
 import type { AppSettingsAlters } from '../../shared/api/apiTypes'
 
 /** Launchpad row shown for a recently opened workspace. */
@@ -15,27 +15,6 @@ export type LaunchpadRecentNote = {
   title: string
   relativePath: string
   recencyLabel: string
-}
-
-/** View-model consumed by pane-native Cosmos surfaces. */
-export type AppShellCosmosViewModel = {
-  graph: CosmosGraph
-  loading: boolean
-  error: string
-  selectedNodeId: string
-  focusMode: boolean
-  focusDepth: number
-  summary: { nodes: number; edges: number }
-  query: string
-  matches: CosmosGraphNode[]
-  showSemanticEdges: boolean
-  selectedNode: CosmosGraphNode | null
-  selectedLinkCount: number
-  preview: string
-  previewLoading: boolean
-  previewError: string
-  outgoingNodes: CosmosGraphNode[]
-  incomingNodes: CosmosGraphNode[]
 }
 
 /** View-model consumed by pane-native Second Brain surfaces. */

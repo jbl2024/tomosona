@@ -20,15 +20,6 @@ vi.mock('../../../domains/editor/components/EditorView.vue', () => ({
   })
 }))
 
-vi.mock('../../../domains/cosmos/components/CosmosPaneSurface.vue', () => ({
-  default: defineComponent({
-    name: 'CosmosPaneSurfaceStub',
-    setup() {
-      return () => h('div', { class: 'cosmos-pane-stub' }, 'cosmos')
-    }
-  })
-}))
-
 vi.mock('../../../domains/second-brain/components/SecondBrainPaneSurface.vue', () => ({
   default: defineComponent({
     name: 'SecondBrainPaneSurfaceStub',
@@ -85,25 +76,6 @@ describe('PaneSurfaceHost', () => {
           loadPropertyTypeSchema: async () => ({}),
           savePropertyTypeSchema: async () => {},
           openLinkTarget: async () => true,
-          cosmos: {
-            graph: { nodes: [], edges: [], generated_at_ms: 0 },
-            loading: false,
-            error: '',
-            selectedNodeId: '',
-            focusMode: false,
-            focusDepth: 1,
-            summary: { nodes: 0, edges: 0 },
-            query: '',
-            matches: [],
-            showSemanticEdges: false,
-            selectedNode: null,
-            selectedLinkCount: 0,
-            preview: '',
-            previewLoading: false,
-            previewError: '',
-            outgoingNodes: [],
-            incomingNodes: []
-          },
           secondBrain: {
             workspacePath: '/vault',
             allWorkspaceFiles: ['/vault/a.md'],
@@ -174,25 +146,6 @@ describe('PaneSurfaceHost', () => {
           loadPropertyTypeSchema: async () => ({}),
           savePropertyTypeSchema: async () => {},
           openLinkTarget: async () => true,
-          cosmos: {
-            graph: { nodes: [], edges: [], generated_at_ms: 0 },
-            loading: false,
-            error: '',
-            selectedNodeId: '',
-            focusMode: false,
-            focusDepth: 1,
-            summary: { nodes: 0, edges: 0 },
-            query: '',
-            matches: [],
-            showSemanticEdges: false,
-            selectedNode: null,
-            selectedLinkCount: 0,
-            preview: '',
-            previewLoading: false,
-            previewError: '',
-            outgoingNodes: [],
-            incomingNodes: []
-          },
           secondBrain: {
             workspacePath: '',
             allWorkspaceFiles: [],

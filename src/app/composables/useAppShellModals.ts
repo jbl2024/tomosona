@@ -6,7 +6,6 @@ export type AppShellModalsStatePort = {
   quickOpenQuery: Ref<string>
   quickOpenActiveIndex: Ref<number>
   quickOpenItemCount: Readonly<Ref<number>>
-  cosmosCommandLoadingVisible: Ref<boolean>
   newFileModalVisible: Ref<boolean>
   newFilePathInput: Ref<string>
   newFileModalError: Ref<string>
@@ -47,7 +46,6 @@ export type AppShellModalsDomPort = {
   focusOpenDateInput: () => void
   focusNewFileInput: () => void
   focusNewFolderInput: () => void
-  focusCosmosLoadingModal: () => void
   scrollQuickOpenActiveItemIntoView: () => void
 }
 
@@ -273,13 +271,6 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
   watch(statePort.quickOpenVisible, (visible) => {
     if (!visible) return
     domPort.scrollQuickOpenActiveItemIntoView()
-  })
-
-  watch(statePort.cosmosCommandLoadingVisible, (visible) => {
-    if (!visible) return
-    void nextTick(() => {
-      domPort.focusCosmosLoadingModal()
-    })
   })
 
   watch(statePort.newFilePathInput, () => {

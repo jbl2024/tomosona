@@ -33,7 +33,6 @@ function createLaunchpadActionPort(): UseAppShellLaunchpadActionPort {
     openQuickOpen: async () => false,
     openCommandPalette: async () => false,
     openTodayNote: async () => false,
-    openCosmosView: async () => false,
     openSecondBrainView: async () => false,
     openAlterExplorationView: async () => false,
     openAltersView: async () => false
@@ -44,7 +43,6 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
   return {
     openHomeViewFromPalette: () => false,
     openFavoritesPanelFromPalette: () => false,
-    openCosmosViewFromPalette: () => false,
     openSecondBrainViewFromPalette: () => false,
     openAlterExplorationViewFromPalette: () => false,
     openAltersViewFromPalette: () => false,
@@ -53,7 +51,6 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     removeActiveNoteFromFavoritesFromPalette: () => false,
     openSettingsFromPalette: () => false,
     openIntegratedTerminal: () => false,
-    openNoteInCosmosFromPalette: () => false,
     openWorkspaceFromPalette: () => false,
     closeWorkspaceFromPalette: () => false,
     openShortcutsFromPalette: () => false,

@@ -40,7 +40,6 @@
     "codemirror": "^6.0.2",
     "dictionary-en": "^4.0.0",
     "dictionary-fr": "^3.0.0",
-    "force-graph": "^1.51.1",
     "lowlight": "^3.3.0",
     "marked": "^18.0.3",
     "mermaid": "^11.14.0",

@@ -128,14 +128,6 @@ pub(crate) fn has_hidden_dir_component(root: &Path, path: &Path) -> bool {
     false
 }
 
-pub(crate) fn note_label_from_workspace_path(path: &str) -> String {
-    let without_md = path
-        .strip_suffix(".md")
-        .or_else(|| path.strip_suffix(".markdown"))
-        .unwrap_or(path);
-    without_md.replace('\\', "/")
-}
-
 pub(crate) fn normalize_note_key_from_workspace_path(
     root: &Path,
     stored_path: &str,

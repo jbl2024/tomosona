@@ -47,7 +47,6 @@ export type UseAppShellLaunchpadActionPort = {
   openQuickOpen: (initialQuery?: string) => boolean | Promise<boolean | void> | void
   openCommandPalette: () => boolean | Promise<boolean | void> | void
   openTodayNote: () => boolean | Promise<boolean | void> | void
-  openCosmosView: () => boolean | Promise<boolean | void> | void
   openSecondBrainView: () => boolean | Promise<boolean | void> | void
   openAlterExplorationView: () => boolean | Promise<boolean | void> | void
   openAltersView: () => boolean | Promise<boolean | void> | void
@@ -222,17 +221,13 @@ export function useAppShellLaunchpad(options: UseAppShellLaunchpadOptions) {
     return true
   }
 
-  async function launchQuickStart(kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette' | 'alters') {
+  async function launchQuickStart(kind: 'today' | 'second-brain' | 'command-palette' | 'alters') {
     if (kind === 'today') {
       await options.actionPort.openTodayNote()
       return true
     }
     if (kind === 'second-brain') {
       await options.actionPort.openSecondBrainView()
-      return true
-    }
-    if (kind === 'cosmos') {
-      await options.actionPort.openCosmosView()
       return true
     }
     if (kind === 'alters') {

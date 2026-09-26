@@ -1,5 +1,4 @@
-//! Tauri command surface for local filesystem, lexical search, semantic search,
-//! and Cosmos graph payload generation.
+//! Tauri command surface for local filesystem, lexical search and semantic search.
 
 mod alters;
 mod alter_exploration;
@@ -23,7 +22,7 @@ mod workspace_runtime;
 mod workspace_watch;
 mod terminal;
 
-// Tauri command surface for workspace I/O, index/search, and graph data used by Cosmos view.
+// Tauri command surface for workspace I/O and index/search.
 use std::{
     collections::{HashMap, VecDeque},
     io::Write,
@@ -84,17 +83,17 @@ use search_index::{
     write_property_type_schema as write_property_type_schema_impl, Hit,
 };
 use wikilink_graph::{
-    backlinks_for_path as backlinks_for_path_impl, get_wikilink_graph as get_wikilink_graph_impl,
+    backlinks_for_path as backlinks_for_path_impl,
     semantic_links_for_path as semantic_links_for_path_impl,
     update_wikilinks_for_path_moves as update_wikilinks_for_path_moves_impl,
     update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, PathMoveInput,
-    PathMoveRewriteResult, SemanticLink, WikilinkGraphDto, WikilinkRewriteResult,
+    PathMoveRewriteResult, SemanticLink, WikilinkRewriteResult,
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
     normalize_note_key_from_workspace_path, normalize_workspace_path,
     normalize_workspace_relative_from_input, normalize_workspace_relative_path, note_key_basename,
-    note_label_from_workspace_path, note_link_target, rewrite_wikilinks_for_note,
+    note_link_target, rewrite_wikilinks_for_note,
     workspace_absolute_path,
 };
 pub(crate) use workspace_runtime::{
@@ -258,15 +257,6 @@ fn read_property_keys(limit: Option<usize>) -> Result<Vec<String>> {
 #[tauri::command]
 fn read_index_overview_stats() -> Result<IndexOverviewStats> {
     read_index_overview_stats_impl()
-}
-
-/// Returns a workspace wikilink graph for the Cosmos view.
-///
-/// The graph is built from indexed wikilinks, while node existence is validated
-/// against markdown files currently present in the workspace.
-#[tauri::command]
-fn get_wikilink_graph() -> Result<WikilinkGraphDto> {
-    get_wikilink_graph_impl()
 }
 
 #[tauri::command]
@@ -442,7 +432,6 @@ pub fn run() {
             semantic_links_for_path,
             update_wikilinks_for_rename,
             update_wikilinks_for_path_moves,
-            get_wikilink_graph,
             read_property_type_schema,
             write_property_type_schema,
             write_clipboard_text,
@@ -889,109 +878,6 @@ mod tests {
         assert_eq!(set, active);
 
         fs::remove_dir_all(&temp).expect("cleanup");
-    }
-
-    #[test]
-    fn get_wikilink_graph_builds_expected_nodes_edges_and_tags() {
-        let _guard = workspace_test_guard();
-        let workspace = create_temp_workspace("tomosona-graph-test");
-        let root = workspace.to_string_lossy().to_string();
-
-        fs::write(workspace.join("a.md"), "# A\n[[b]]").expect("write a");
-        fs::write(workspace.join("b.md"), "# B\n[[a]]").expect("write b");
-        fs::write(workspace.join("c.md"), "# C").expect("write c");
-
-        set_active_workspace(&root).expect("set workspace");
-        init_db().expect("init db");
-
-        let conn = open_db().expect("open db");
-        conn.execute(
-            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
-            params!["a.md", "b"],
-        )
-        .expect("insert edge a->b");
-        conn.execute(
-            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
-            params!["b.md", "a"],
-        )
-        .expect("insert edge b->a");
-        conn.execute(
-            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
-            params!["a.md", "missing/note"],
-        )
-        .expect("insert unresolved edge");
-        conn.execute(
-            "INSERT INTO note_properties(path, key, kind, value_text) VALUES (?1, 'tags', 'list', ?2)",
-            params!["a.md", "dev"],
-        )
-        .expect("insert tags");
-
-        let graph = get_wikilink_graph().expect("build graph");
-        let node_by_name = graph
-            .nodes
-            .iter()
-            .map(|node| {
-                (
-                    Path::new(&node.path)
-                        .file_name()
-                        .and_then(|v| v.to_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    node,
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        assert_eq!(graph.nodes.len(), 3);
-        assert_eq!(graph.edges.len(), 2);
-        assert!(graph.edges.iter().all(|edge| edge.edge_type.eq("wikilink")));
-        assert!(graph.generated_at_ms > 0);
-
-        let a = node_by_name.get("a.md").expect("node a");
-        assert!(a.path.ends_with("/a.md"));
-        assert_eq!(a.degree, 2);
-        assert_eq!(a.tags, vec!["dev".to_string()]);
-
-        let b = node_by_name.get("b.md").expect("node b");
-        assert!(b.path.ends_with("/b.md"));
-        assert_eq!(b.degree, 2);
-
-        let c = node_by_name.get("c.md").expect("node c");
-        assert!(c.path.ends_with("/c.md"));
-        assert_eq!(c.degree, 0);
-
-        clear_active_workspace().expect("clear workspace");
-        fs::remove_dir_all(&workspace).expect("cleanup workspace");
-    }
-
-    #[test]
-    fn get_wikilink_graph_resolves_unique_basename_targets() {
-        let _guard = workspace_test_guard();
-        let workspace = create_temp_workspace("tomosona-graph-basename-test");
-        let root = workspace.to_string_lossy().to_string();
-
-        fs::create_dir_all(workspace.join("notes")).expect("create notes dir");
-        fs::write(workspace.join("a.md"), "# A\n[[nested]]").expect("write a");
-        fs::write(workspace.join("notes/nested.md"), "# Nested").expect("write nested");
-
-        set_active_workspace(&root).expect("set workspace");
-        init_db().expect("init db");
-
-        let conn = open_db().expect("open db");
-        conn.execute(
-            "INSERT INTO note_links(source_path, target_key) VALUES (?1, ?2)",
-            params!["a.md", "nested"],
-        )
-        .expect("insert edge a->nested");
-
-        let graph = get_wikilink_graph().expect("build graph");
-        assert!(graph
-            .edges
-            .iter()
-            .any(|edge| edge.source == "a.md" && edge.target == "notes/nested.md"));
-
-        clear_active_workspace().expect("clear workspace");
-        fs::remove_dir_all(&workspace).expect("cleanup workspace");
     }
 
     #[test]

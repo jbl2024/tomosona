@@ -61,8 +61,6 @@ function mountHarness() {
           themePickerItems: [],
           themePickerActiveIndex: 0,
           themePreference: 'system',
-          cosmosCommandLoadingVisible: false,
-          cosmosCommandLoadingLabel: '',
           newFileModalVisible: false,
           newFilePathInput: '',
           newFileModalError: '',

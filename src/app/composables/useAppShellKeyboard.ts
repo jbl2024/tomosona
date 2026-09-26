@@ -19,7 +19,6 @@ export type AppShellKeyboardStatePort = {
   shortcutsModalVisible: Readonly<Ref<boolean>>
   workspaceSetupWizardVisible: Readonly<Ref<boolean>>
   indexStatusModalVisible: Readonly<Ref<boolean>>
-  cosmosCommandLoadingVisible: Readonly<Ref<boolean>>
 }
 
 /** Groups the shell-level guards that decide whether shortcuts should be ignored. */
@@ -149,10 +148,6 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     if (options.statePort.themePickerVisible.value) {
       consume(event)
       options.actionsPort.closeThemePickerModal()
-      return true
-    }
-    if (options.statePort.cosmosCommandLoadingVisible.value) {
-      consume(event)
       return true
     }
 

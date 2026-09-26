@@ -42,7 +42,6 @@ export type AppShellPaletteThemePort = {
 export type AppShellPaletteActionPort = {
   openHomeViewFromPalette: () => boolean | Promise<boolean>
   openFavoritesPanelFromPalette: () => boolean | Promise<boolean>
-  openCosmosViewFromPalette: () => boolean | Promise<boolean>
   openSecondBrainViewFromPalette: () => boolean | Promise<boolean>
   openAlterExplorationViewFromPalette: () => boolean | Promise<boolean>
   openAltersViewFromPalette: () => boolean | Promise<boolean>
@@ -52,7 +51,6 @@ export type AppShellPaletteActionPort = {
   convertMarkdownToWord: (path: string) => boolean | Promise<boolean>
   openSettingsFromPalette: () => boolean | Promise<boolean>
   openIntegratedTerminal: () => boolean | Promise<boolean>
-  openNoteInCosmosFromPalette: () => boolean | Promise<boolean>
   openWorkspaceFromPalette: () => boolean | Promise<boolean>
   closeWorkspaceFromPalette: () => boolean | Promise<boolean>
   openShortcutsFromPalette: () => boolean | Promise<boolean>
@@ -106,7 +104,6 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'open-today': 4,
   'open-yesterday': 5,
   'open-specific-date': 6,
-  'open-cosmos-view': 7,
   'open-second-brain-view': 8,
   'open-alter-exploration-view': 9,
   'open-alters-view': 10,
@@ -115,7 +112,6 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'remove-active-note-from-favorites': 12,
   'open-settings': 13,
   'open-integrated-terminal': 13.5,
-  'open-note-in-cosmos': 14,
   'reveal-in-explorer': 15,
   'convert-to-word': 15.5,
   'show-shortcuts': 16,

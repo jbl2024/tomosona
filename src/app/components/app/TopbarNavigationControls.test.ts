@@ -32,7 +32,6 @@ function mountHarness() {
           onHistoryButtonClick: (side: 'back' | 'forward') => events.push(`history:${side}`),
           onHistoryTargetClick: (index: number) => events.push(`target:${index}`),
           onOpenToday: () => events.push('home'),
-          onOpenCosmos: () => events.push('cosmos'),
           onOpenSecondBrain: () => events.push('second-brain'),
           onToggleSidebar: () => events.push('toggle-sidebar'),
           onToggleRightPane: () => events.push('toggle-right'),
@@ -80,7 +79,6 @@ describe('TopbarNavigationControls', () => {
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home (Cmd+Shift+H)"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="Search or type a command (Cmd+Shift+P)"]')?.click()
-    expect(mounted.root.querySelector('[aria-label="Cosmos view"]')).toBeNull()
     expect(mounted.root.querySelector('[aria-label="Second Brain"]')).toBeNull()
     mounted.root.querySelector<HTMLButtonElement>('[aria-label="View options"]')?.click()
 

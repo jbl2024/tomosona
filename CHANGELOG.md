@@ -14,6 +14,8 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Removed
 
+- Cosmos graph view, navigation/history integrations, graph IPC/export, theme tokens, and the force-graph dependency.
+
 - Pulse transformation engine, editor AI macros, interface integrations, IPC commands, and dedicated styles/tests.
 
 ### Fixed

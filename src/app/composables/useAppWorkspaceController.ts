@@ -65,8 +65,6 @@ export type AppWorkspaceDocumentPort = {
 export type AppWorkspaceEffectsPort = {
   enqueueMarkdownReindex?: (path: string) => void
   removeMarkdownFromIndexInBackground?: (path: string) => void
-  refreshCosmosGraph?: () => Promise<void>
-  hasCosmosSurface?: () => boolean
 }
 
 /** Declares the cohesive ports required by the workspace controller. */
@@ -289,13 +287,11 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
     const activePath = workspaceShellPort.activeFilePath.value
     const activePathKey = activePath ? workspaceDocumentPort.normalizePathKey(activePath) : ''
     let shouldRefreshActiveMetadata = false
-    let shouldRefreshCosmos = false
 
     for (const change of changes) {
       if (change.kind === 'removed' && change.path) {
         removeWorkspaceFilePath(change.path)
         if (workspaceDocumentPort.isMarkdownPath(change.path)) {
-          shouldRefreshCosmos = true
           workspaceEffectsPort?.removeMarkdownFromIndexInBackground?.(change.path)
         }
         if (activePathKey && workspaceDocumentPort.normalizePathKey(change.path) === activePathKey) {
@@ -308,7 +304,6 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
         if (change.old_path && change.new_path) {
           replaceWorkspaceFilePath(change.old_path, change.new_path)
           if (workspaceDocumentPort.isMarkdownPath(change.old_path) || workspaceDocumentPort.isMarkdownPath(change.new_path)) {
-            shouldRefreshCosmos = true
             if (workspaceDocumentPort.isMarkdownPath(change.old_path)) {
               workspaceEffectsPort?.removeMarkdownFromIndexInBackground?.(change.old_path)
             }
@@ -319,13 +314,11 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
         } else if (change.old_path) {
           removeWorkspaceFilePath(change.old_path)
           if (workspaceDocumentPort.isMarkdownPath(change.old_path)) {
-            shouldRefreshCosmos = true
             workspaceEffectsPort?.removeMarkdownFromIndexInBackground?.(change.old_path)
           }
         } else if (!change.is_dir && change.new_path) {
           upsertWorkspaceFilePath(change.new_path)
           if (workspaceDocumentPort.isMarkdownPath(change.new_path)) {
-            shouldRefreshCosmos = true
             workspaceEffectsPort?.enqueueMarkdownReindex?.(change.new_path)
           }
         }
@@ -343,7 +336,6 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
       if ((change.kind === 'created' || change.kind === 'modified') && !change.is_dir && change.path) {
         upsertWorkspaceFilePath(change.path)
         if (workspaceDocumentPort.isMarkdownPath(change.path)) {
-          shouldRefreshCosmos = true
           workspaceEffectsPort?.enqueueMarkdownReindex?.(change.path)
         }
         if (activePathKey && workspaceDocumentPort.normalizePathKey(change.path) === activePathKey) {
@@ -354,9 +346,6 @@ export function useAppWorkspaceController(options: UseAppWorkspaceControllerOpti
 
     if (shouldRefreshActiveMetadata && activePath) {
       void refreshActiveFileMetadata(activePath)
-    }
-    if (shouldRefreshCosmos && workspaceEffectsPort?.hasCosmosSurface?.()) {
-      void workspaceEffectsPort.refreshCosmosGraph?.()
     }
   }
 

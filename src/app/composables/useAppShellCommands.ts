@@ -4,14 +4,13 @@ import { documentPathsForPane } from '../lib/appShellPane'
 
 type PaneAxis = 'row' | 'column'
 type PaneDirection = 'next' | 'previous'
-type SurfaceType = 'home' | 'cosmos' | 'second-brain-chat' | 'alter-exploration' | 'alters'
+type SurfaceType = 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters'
 
 /** Groups shell workspace state and shell-owned UI persistence used by commands. */
 export type AppShellCommandsWorkspacePort = {
   hasWorkspace: Readonly<Ref<boolean>>
   activeFilePath: Readonly<Ref<string>>
   allWorkspaceFiles: Readonly<Ref<string[]>>
-  previousNonCosmosMode: Ref<SidebarMode>
   setSidebarMode: (mode: SidebarMode) => void
   notifyError: (message: string) => void
   notifySuccess: (message: string) => void
@@ -56,7 +55,6 @@ export type AppShellCommandsNavigationPort = {
   openTabWithAutosave: (path: string) => Promise<boolean>
   recordHomeHistorySnapshot: () => void
   recordSecondBrainHistorySnapshot: () => void
-  recordCosmosHistorySnapshot: () => void
 }
 
 /** Groups favorites-domain APIs consumed by shell commands. */
@@ -64,14 +62,6 @@ export type AppShellCommandsFavoritesPort = {
   isFavorite: (path: string) => boolean
   addFavorite: (path: string) => Promise<unknown>
   removeFavorite: (path: string) => Promise<void>
-}
-
-/** Groups Cosmos-domain APIs needed for shell orchestration. */
-export type AppShellCommandsCosmosPort = {
-  graph: Readonly<Ref<{ nodes: Array<{ id: string; path: string }> }>>
-  error: Readonly<Ref<string>>
-  refreshGraph: () => Promise<void>
-  selectNode: (nodeId: string) => void
 }
 
 /** Groups cross-domain actions already implemented elsewhere and reused by commands. */
@@ -88,7 +78,6 @@ export type AppShellCommandsActionPort = {
   convertMarkdownToWord: (path: string) => Promise<string>
   closeOverflowMenu: () => void
   focusSearchInput: () => void
-  scheduleCosmosNodeFocus: (nodeId: string) => void
 }
 
 /** Declares the dependencies required by the shell command controller. */
@@ -98,7 +87,6 @@ export type UseAppShellCommandsOptions = {
   panePort: AppShellCommandsPanePort
   navigationPort: AppShellCommandsNavigationPort
   favoritesPort: AppShellCommandsFavoritesPort
-  cosmosPort: AppShellCommandsCosmosPort
   actionPort: AppShellCommandsActionPort
 }
 
@@ -112,22 +100,7 @@ export type UseAppShellCommandsOptions = {
  */
 export function useAppShellCommands(options: UseAppShellCommandsOptions) {
   function persistSidebarModeSelection(mode: SidebarMode) {
-    options.workspacePort.previousNonCosmosMode.value = mode
     options.workspacePort.setSidebarMode(mode)
-  }
-
-  async function openCosmosViewFromPalette() {
-    if (!options.workspacePort.hasWorkspace.value) {
-      options.workspacePort.notifyError('Open a workspace first.')
-      return false
-    }
-
-    options.panePort.openSurfaceInPane('cosmos')
-    if (!options.cosmosPort.graph.value.nodes.length) {
-      await options.cosmosPort.refreshGraph()
-    }
-    options.navigationPort.recordCosmosHistorySnapshot()
-    return true
   }
 
   async function openSecondBrainViewFromPalette() {
@@ -233,43 +206,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
 
   async function openSettingsFromPalette() {
     await options.actionPort.openSettingsModal()
-    return true
-  }
-
-  async function openNoteInCosmosFromPalette() {
-    const activePath = options.workspacePort.activeFilePath.value
-    if (!activePath) {
-      options.workspacePort.notifyError('No active note to open in Cosmos.')
-      return false
-    }
-
-    const opened = await openCosmosViewFromPalette()
-    if (!opened) return false
-
-    const targetKey = options.documentPort.normalizePathKey(activePath.trim())
-    let match = options.cosmosPort.graph.value.nodes.find((node) =>
-      options.documentPort.normalizePathKey(node.path) === targetKey ||
-      options.documentPort.normalizePathKey(node.id) === targetKey
-    )
-    if (!match) {
-      await options.cosmosPort.refreshGraph()
-      match = options.cosmosPort.graph.value.nodes.find((node) =>
-        options.documentPort.normalizePathKey(node.path) === targetKey ||
-        options.documentPort.normalizePathKey(node.id) === targetKey
-      )
-    }
-    if (!match) {
-      if (options.cosmosPort.error.value) {
-        options.workspacePort.notifyError(options.cosmosPort.error.value)
-        return false
-      }
-      options.workspacePort.notifyError('Active note is not available in the current graph index.')
-      return true
-    }
-
-    options.cosmosPort.selectNode(match.id)
-    options.actionPort.scheduleCosmosNodeFocus(match.id)
-    options.navigationPort.recordCosmosHistorySnapshot()
     return true
   }
 
@@ -393,7 +329,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
   }
 
   return {
-    openCosmosViewFromPalette,
     openSecondBrainViewFromPalette,
     openAlterExplorationViewFromPalette,
     openHomeViewFromPalette,
@@ -405,7 +340,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     removeFavoriteFromList,
     toggleActiveNoteFavoriteFromRightPane,
     openSettingsFromPalette,
-    openNoteInCosmosFromPalette,
     openSearchPanel,
     openFavoriteFromSidebar,
     revealActiveInExplorer,

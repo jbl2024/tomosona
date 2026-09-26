@@ -38,7 +38,6 @@ function mountHarness() {
           onHistoryLongPressCancel: () => events.push('cancel-long-press'),
           onHistoryTargetClick: (index: number) => events.push(`target:${index}`),
           onOpenToday: () => events.push('today'),
-          onOpenCosmos: () => events.push('cosmos'),
           onOpenSecondBrain: () => events.push('second-brain'),
           onSplitRight: () => events.push('split-right'),
           onSplitDown: () => events.push('split-down'),

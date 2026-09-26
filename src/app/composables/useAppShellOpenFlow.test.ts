@@ -23,7 +23,6 @@ function createDeferred<T>() {
 function createHarness() {
   const workingFolderPath = ref('/vault')
   const sidebarVisible = ref(true)
-  const previousNonCosmosMode = ref<'explorer' | 'favorites' | 'search'>('explorer')
   const errorMessage = ref('')
   const activeFilePath = ref('')
   const virtualDocs = ref<Record<string, { content: string; titleLine: string }>>({})
@@ -32,8 +31,6 @@ function createHarness() {
   const focusEditor = vi.fn()
   const revealSnippet = vi.fn(async () => {})
   const revealAnchor = vi.fn(async () => true)
-  const resetCosmosView = vi.fn()
-  const focusCosmosNodeById = vi.fn(() => true)
   const revealPathInView = vi.fn(async () => {})
 
   const editorState = {
@@ -52,8 +49,6 @@ function createHarness() {
     focusEditor,
     revealSnippet,
     revealAnchor,
-    resetCosmosView,
-    focusCosmosNodeById
   })
 
   const explorerRef = ref({
@@ -96,7 +91,6 @@ function createHarness() {
   const openDailyNote = vi.fn(async (date: string, openPath: (path: string) => Promise<boolean>) => {
     return await openPath(dailyNotePath(workingFolderPath.value, date))
   })
-  const recordCosmosHistorySnapshot = vi.fn()
   const closeQuickOpen = vi.fn()
   const resetForAnchor = vi.fn()
 
@@ -105,9 +99,7 @@ function createHarness() {
     workspacePort: {
       workingFolderPath,
       sidebarVisible,
-      previousNonCosmosMode,
-      setSidebarMode: vi.fn((mode: 'explorer' | 'favorites' | 'search') => {
-        previousNonCosmosMode.value = mode
+      setSidebarMode: vi.fn(() => {
         sidebarVisible.value = true
       }),
       errorMessage
@@ -137,7 +129,6 @@ function createHarness() {
     navigationPort: {
       openTabWithAutosave,
       openDailyNote,
-      recordCosmosHistorySnapshot
     },
     uiPort: {
       closeQuickOpen
@@ -150,7 +141,6 @@ function createHarness() {
     scope,
     workingFolderPath,
     sidebarVisible,
-    previousNonCosmosMode,
     errorMessage,
     activeFilePath,
     virtualDocs,
@@ -165,14 +155,11 @@ function createHarness() {
     extractHeadingsFromMarkdown,
     openTabWithAutosave,
     openDailyNote,
-    recordCosmosHistorySnapshot,
     closeQuickOpen,
     resetForAnchor,
     focusEditor,
     revealSnippet,
     revealAnchor,
-    resetCosmosView,
-    focusCosmosNodeById,
     revealPathInView
   }
 }

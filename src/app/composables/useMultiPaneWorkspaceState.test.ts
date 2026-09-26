@@ -40,14 +40,13 @@ describe('useMultiPaneWorkspaceState', () => {
 
   it('keeps special surfaces unique across panes', () => {
     const store = useMultiPaneWorkspaceState()
-    store.openSurfaceInPane('cosmos')
+    store.openSurfaceInPane('home')
     store.openSurfaceInPane('alter-exploration')
     const pane2 = store.splitPane('pane-1', 'row')
-    store.openSurfaceInPane('cosmos', pane2!)
+    store.openSurfaceInPane('home', pane2!)
     store.openSurfaceInPane('alter-exploration', pane2!)
 
     expect(store.layout.value.activePaneId).toBe('pane-1')
-    expect(store.findPaneContainingSurface('cosmos')).toBe('pane-1')
     expect(store.findPaneContainingSurface('alter-exploration')).toBe('pane-1')
   })
 
@@ -158,7 +157,7 @@ describe('useMultiPaneWorkspaceState', () => {
   it('joins panes and keeps mixed unique tabs', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')
-    store.openSurfaceInPane('cosmos')
+    store.openSurfaceInPane('home')
     const pane2 = store.splitPane('pane-1', 'row')
     store.openDocumentInPane('/vault/b.md', pane2!)
     store.openSurfaceInPane('second-brain-chat', pane2!)
@@ -168,13 +167,13 @@ describe('useMultiPaneWorkspaceState', () => {
 
     const tabs = store.layout.value.panesById['pane-1'].openTabs
     expect(store.paneOrder.value).toEqual(['pane-1'])
-    expect(tabs.map((tab) => tab.type)).toEqual(['document', 'cosmos', 'document', 'second-brain-chat'])
+    expect(tabs.map((tab) => tab.type)).toEqual(['document', 'home', 'document', 'second-brain-chat'])
   })
 
   it('serializes and hydrates current layout', () => {
     const store = useMultiPaneWorkspaceState()
     store.openDocumentInPane('/vault/a.md')
-    store.openSurfaceInPane('cosmos')
+    store.openSurfaceInPane('home')
 
     const payload = serializeLayout(store.layout.value)
     const hydrated = hydrateLayout(payload)
@@ -186,6 +185,42 @@ describe('useMultiPaneWorkspaceState', () => {
   it('rejects invalid layouts', () => {
     expect(hydrateLayout(null)).toBeNull()
     expect(hydrateLayout({})).toBeNull()
+  })
+
+  it('ignores removed Cosmos tabs when restoring a workspace', () => {
+    const hydrated = hydrateLayout({
+      root: { kind: 'pane', paneId: 'pane-1' },
+      activePaneId: 'pane-1',
+      panesById: {
+        'pane-1': {
+          id: 'pane-1',
+          activeTabId: 'surface:cosmos',
+          openTabs: [
+            { id: 'surface:cosmos', type: 'cosmos', pinned: true },
+            { id: 'doc:/vault/a.md', type: 'document', path: '/vault/a.md', pinned: false }
+          ]
+        }
+      }
+    })
+    expect(hydrated?.panesById['pane-1'].openTabs).toEqual([
+      { id: 'doc:/vault/a.md', type: 'document', path: '/vault/a.md', pinned: false }
+    ])
+    expect(hydrated?.panesById['pane-1'].activeTabId).toBe('doc:/vault/a.md')
+  })
+
+  it('keeps a pane valid when its only saved tab was Cosmos', () => {
+    const hydrated = hydrateLayout({
+      root: { kind: 'pane', paneId: 'pane-1' },
+      activePaneId: 'pane-1',
+      panesById: {
+        'pane-1': {
+          id: 'pane-1', activeTabId: 'surface:cosmos',
+          openTabs: [{ id: 'surface:cosmos', type: 'cosmos', pinned: false }]
+        }
+      }
+    })
+    expect(hydrated?.panesById['pane-1'].openTabs).toEqual([])
+    expect(hydrated?.panesById['pane-1'].activeTabId).toBe('')
   })
 
   it('hydrates legacy second-brain sessions surface as chat', () => {

@@ -10,7 +10,6 @@ import type { SidebarMode } from '../composables/useWorkspaceState'
 
 export type AppShellStorageKeys = {
   sidebarMode: string
-  previousNonCosmosMode: string
   editorZoom: string
   multiPane: string
 }

@@ -1,18 +1,18 @@
 # Design Document
 
-Editor.js as a Structured Markdown Editor  
-Local-First Knowledge Environment  
+Editor.js as a Structured Markdown Editor
+Local-First Knowledge Environment
 (Tauri 2 + Vue 3)
 
 ## 1. Vision
 
 This project is a local-first professional knowledge environment.
 
-It stores files as Markdown on disk.  
-It uses a block-based internal editing model.  
+It stores files as Markdown on disk.
+It uses a block-based internal editing model.
 It rewrites Markdown files in a normalized, deterministic format.
 
-The editor is the primary interface.  
+The editor is the primary interface.
 Markdown files remain readable and portable.
 
 The goal is long-term stability, clarity, and reliability.
@@ -85,7 +85,7 @@ Normalization rules:
 - Consistent line endings
 - Deterministic serialization
 
-Opening and saving a file may reformat it once.  
+Opening and saving a file may reformat it once.
 Subsequent saves remain stable.
 
 ## 5. Supported Block Types (v1)
@@ -201,7 +201,7 @@ This architecture gives you:
 
 And most importantly:
 
-You are not building a toy.  
+You are not building a toy.
 You are building a tool you can rely on.
 
 ## 12. Semantic Retrieval Addendum
@@ -211,13 +211,7 @@ The runtime now supports hybrid lexical + semantic retrieval:
 - Lexical candidate retrieval still uses SQLite FTS5/BM25.
 - Semantic vectors are generated locally in Rust with `fastembed`.
 - Search results are reranked by blending lexical and semantic relevance.
-- Cosmos graph supports two edge types:
-  - `wikilink`: explicit links from markdown content
-  - `semantic`: inferred nearest-neighbor links from note embeddings
 
 Semantic behavior is best-effort and non-blocking:
 
 - If model initialization fails, indexing/search fall back to lexical-only mode.
-- If sqlite-vec extension is unavailable, Cosmos keeps wikilink-only edges and regular search still works.
-
-See `docs/design/05_semantic_search_and_cosmos.md` for details.

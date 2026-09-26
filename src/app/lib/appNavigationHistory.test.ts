@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildCosmosHistorySnapshot,
   buildHomeHistorySnapshot,
   buildSecondBrainHistorySnapshot,
-  cosmosHistoryLabel,
-  cosmosSnapshotStateKey,
   homeHistoryLabel,
   homeSnapshotStateKey,
-  readCosmosHistorySnapshot,
   readHomeHistorySnapshot,
   readSecondBrainHistorySnapshot,
   secondBrainHistoryLabel,
@@ -15,61 +11,6 @@ import {
 } from './appNavigationHistory'
 
 describe('appNavigationHistory', () => {
-  it('reads and normalizes cosmos snapshots', () => {
-    expect(
-      readCosmosHistorySnapshot({
-        query: '  graph  ',
-        selectedNodeId: 'node-1',
-        focusMode: true,
-        focusDepth: 12
-      })
-    ).toEqual({
-      query: 'graph',
-      selectedNodeId: 'node-1',
-      focusMode: true,
-      focusDepth: 8
-    })
-
-    expect(
-      readCosmosHistorySnapshot({
-        query: '  graph  ',
-        selectedNodeId: 'node-1',
-        focusMode: true,
-        focusDepth: 3
-      })
-    ).toEqual(
-      buildCosmosHistorySnapshot({
-        query: 'graph',
-        selectedNodeId: 'node-1',
-        focusMode: true,
-        focusDepth: 3
-      })
-    )
-
-    expect(readCosmosHistorySnapshot({ query: 'x' })).toBeNull()
-  })
-
-  it('builds stable cosmos snapshots and labels', () => {
-    const snapshot = buildCosmosHistorySnapshot({
-      query: '  graph  ',
-      selectedNodeId: 'node-1',
-      focusMode: false,
-      focusDepth: 3
-    })
-
-    expect(snapshot).toEqual({
-      query: 'graph',
-      selectedNodeId: 'node-1',
-      focusMode: false,
-      focusDepth: 3
-    })
-    expect(cosmosSnapshotStateKey(snapshot)).toBe(JSON.stringify(snapshot))
-    expect(cosmosHistoryLabel(snapshot, () => null)).toBe('Cosmos: graph')
-    expect(cosmosHistoryLabel({ ...snapshot, query: '', selectedNodeId: 'node-1' }, (id) => (id === 'node-1' ? 'Node label' : null))).toBe(
-      'Cosmos: Node label'
-    )
-    expect(cosmosHistoryLabel({ ...snapshot, query: '', selectedNodeId: '' }, () => null)).toBe('Cosmos')
-  })
 
   it('reads and labels home and second brain snapshots', () => {
     expect(readHomeHistorySnapshot({ surface: 'hub' })).toEqual({ surface: 'hub' })

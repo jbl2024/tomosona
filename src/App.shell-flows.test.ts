@@ -47,7 +47,6 @@ const hoisted = vi.hoisted(() => {
     openPathExternal: vi.fn(async () => {}),
     revealInFileManager: vi.fn(async () => {}),
     listenWorkspaceFsChanged: vi.fn(async () => () => {}),
-    getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() }))
   }
 })
 
@@ -125,7 +124,6 @@ vi.mock('./shared/api/indexApi', () => ({
   readIndexLogs: vi.fn(async () => []),
   readPropertyTypeSchema: vi.fn(async () => ({})),
   writePropertyTypeSchema: vi.fn(async () => {}),
-  getWikilinkGraph: hoisted.getWikilinkGraph,
   computeEchoesPack: indexApi.computeEchoesPack
 }))
 
@@ -207,8 +205,6 @@ vi.mock('./app/components/panes/MultiPaneToolbarMenu.vue', () => ({
 
 vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/explorer/components/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./domains/cosmos/components/CosmosView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./domains/cosmos/components/CosmosSidebarPanel.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/second-brain/components/SecondBrainView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 
 import App from './app/App.vue'
@@ -270,7 +266,6 @@ describe('App shell flows', () => {
     window.sessionStorage.clear()
     hoisted.resetWorkspaceState()
     vi.clearAllMocks()
-    hoisted.getWikilinkGraph.mockResolvedValue({ nodes: [], edges: [], generated_at_ms: Date.now() })
   })
 
   it('opens the New Note modal from the command palette and creates a workspace file', async () => {
@@ -386,7 +381,6 @@ describe('App shell flows', () => {
       .map(item => item.textContent).join(' ')
     expect(actions).toContain('Open Home')
     expect(actions).not.toMatch(/Pulse|Cosmos|Second Brain|Alter/)
-    expect(document.querySelector('[data-modal="cosmos-command-loading"]')).toBeNull()
 
     mounted.app.unmount()
   })

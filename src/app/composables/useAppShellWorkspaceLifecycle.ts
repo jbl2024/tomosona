@@ -28,7 +28,6 @@ export type AppShellWorkspaceLifecycleUiPort = {
   activePaneId: Readonly<Ref<string>>
   resetToSinglePane: () => void
   closeAllTabsInPane: (paneId: string) => void
-  findPaneContainingSurface: (type: 'cosmos') => string | null
   resetDocumentHistory: () => void
   resetActiveOutline: () => void
   resetSearchState: () => void
@@ -50,12 +49,6 @@ export type AppShellWorkspaceLifecycleFavoritesPort = {
   renameFavorite: (fromPath: string, toPath: string) => Promise<void>
 }
 
-/** Groups Cosmos-domain integrations required by workspace lifecycle boot and restore. */
-export type AppShellWorkspaceLifecycleCosmosPort = {
-  clearState: () => void
-  refreshGraph: () => Promise<void>
-}
-
 /** Filesystem entry points used only by the shell lifecycle. */
 export type AppShellWorkspaceLifecycleFsPort = {
   selectWorkingFolder: () => Promise<string | null>
@@ -67,7 +60,6 @@ export type UseAppShellWorkspaceLifecycleOptions = {
   controllerPort: AppShellWorkspaceLifecycleControllerPort
   uiPort: AppShellWorkspaceLifecycleUiPort
   favoritesPort: AppShellWorkspaceLifecycleFavoritesPort
-  cosmosPort: AppShellWorkspaceLifecycleCosmosPort
   fsPort: AppShellWorkspaceLifecycleFsPort
 }
 
@@ -121,7 +113,6 @@ export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifec
     options.uiPort.resetSearchState()
     options.uiPort.resetInspectorPanels()
     options.favoritesPort.reset()
-    options.cosmosPort.clearState()
     options.uiPort.resetWorkspaceRecentState()
     await options.controllerPort.closeWorkspaceInternal()
     options.uiPort.closeOverflowMenu()
@@ -145,10 +136,6 @@ export function useAppShellWorkspaceLifecycle(options: UseAppShellWorkspaceLifec
       await options.favoritesPort.loadFavorites()
     } catch (err) {
       options.shellPort.notifyError(err instanceof Error ? err.message : 'Could not load favorites.')
-    }
-
-    if (options.uiPort.findPaneContainingSurface('cosmos') !== null) {
-      await options.cosmosPort.refreshGraph()
     }
 
     if (

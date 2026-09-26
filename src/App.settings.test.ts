@@ -127,7 +127,6 @@ vi.mock('./shared/api/indexApi', () => ({
   readIndexLogs: vi.fn(async () => []),
   readPropertyTypeSchema: vi.fn(async () => ({})),
   writePropertyTypeSchema: vi.fn(async () => {}),
-  getWikilinkGraph: vi.fn(async () => ({ nodes: [], edges: [], generated_at_ms: Date.now() })),
   computeEchoesPack: vi.fn(async () => ({ anchorPath: '/Users/test/a.md', generatedAtMs: 1, items: [] }))
 }))
 
@@ -177,9 +176,7 @@ vi.mock('./app/components/panes/MultiPaneToolbarMenu.vue', () => ({
 
 vi.mock('./domains/editor/components/EditorRightPane.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/explorer/components/ExplorerTree.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./domains/cosmos/components/CosmosView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 vi.mock('./domains/second-brain/components/SecondBrainView.vue', () => ({ default: defineComponent(() => () => h('div')) }))
-vi.mock('./domains/cosmos/components/CosmosSidebarPanel.vue', () => ({ default: defineComponent(() => () => h('div')) }))
 
 import App from './app/App.vue'
 

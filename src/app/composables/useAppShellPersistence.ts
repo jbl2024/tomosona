@@ -4,7 +4,6 @@ import type { SidebarMode } from './useWorkspaceState'
 import type { ThemePreference } from './useAppTheme'
 import {
   clampEditorZoom,
-  normalizeSidebarMode,
   readPersistedEditorZoom,
   readPersistedSidebarMode,
   type AppShellStorageKeys
@@ -27,7 +26,6 @@ export type UseAppShellPersistenceThemePort = {
 
 export type UseAppShellPersistenceWorkspacePort = {
   sidebarMode: Ref<SidebarMode>
-  previousNonCosmosMode: Ref<SidebarMode>
 }
 
 export type UseAppShellPersistenceOptions = {
@@ -47,10 +45,6 @@ export function useAppShellPersistence(options: UseAppShellPersistenceOptions) {
     const mode = readPersistedSidebarMode(options.storageKeys.sidebarMode)
     if (mode) {
       options.workspace.sidebarMode.value = mode
-    }
-    const previousMode = normalizeSidebarMode(window.sessionStorage.getItem(options.storageKeys.previousNonCosmosMode))
-    if (previousMode) {
-      options.workspace.previousNonCosmosMode.value = previousMode
     }
   }
 
@@ -83,8 +77,6 @@ export function useAppShellPersistence(options: UseAppShellPersistenceOptions) {
     (mode) => {
       if (typeof window === 'undefined') return
       window.sessionStorage.setItem(options.storageKeys.sidebarMode, mode)
-      options.workspace.previousNonCosmosMode.value = mode
-      window.sessionStorage.setItem(options.storageKeys.previousNonCosmosMode, mode)
     }
   )
 

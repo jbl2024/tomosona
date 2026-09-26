@@ -12,7 +12,6 @@ import type {
   EditorSignalSummary
 } from '../../../domains/editor/lib/editorSignals'
 import type {
-  AppShellCosmosViewModel,
   AppShellAltersViewModel,
   AppShellLaunchpadViewModel,
   AppShellSecondBrainViewModel
@@ -41,8 +40,6 @@ export type EditorPaneGridExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
-  resetCosmosView: () => void
-  focusCosmosNodeById: (nodeId: string) => boolean
 }
 
 type EditorViewExposed = {
@@ -59,8 +56,6 @@ type EditorViewExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
-  resetCosmosView: () => void
-  focusCosmosNodeById: (nodeId: string) => boolean
   isSourceSurface: () => boolean
   setMarkdownSourceSurfaceEnabled: (enabled: boolean) => Promise<void>
 }
@@ -87,7 +82,6 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
-  cosmos: AppShellCosmosViewModel
   alters: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
   launchpad: AppShellLaunchpadViewModel
@@ -108,18 +102,6 @@ const emit = defineEmits<{
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
   'signal-summary': [payload: { paneId: string; summary: EditorSignalSummary }]
   'external-reload': [payload: { path: string }]
-  'cosmos-query-update': [value: string]
-  'cosmos-search-enter': []
-  'cosmos-select-match': [nodeId: string]
-  'cosmos-toggle-focus-mode': [value: boolean]
-  'cosmos-toggle-semantic-edges': [value: boolean]
-  'cosmos-expand-neighborhood': []
-  'cosmos-jump-related': [nodeId: string]
-  'cosmos-open-selected': []
-  'cosmos-locate-selected': []
-  'cosmos-reset-view': []
-  'cosmos-select-node': [nodeId: string]
-  'cosmos-add-to-context': [path: string]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -130,7 +112,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette' | 'alters']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette' | 'alters']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
   'second-brain-open-alter-exploration': []
@@ -315,14 +297,6 @@ function getZoom() {
   return ensureCall((editor) => editor.getZoom(), 1)
 }
 
-function resetCosmosView() {
-  ensureCall((editor) => editor.resetCosmosView(), undefined)
-}
-
-function focusCosmosNodeById(nodeId: string): boolean {
-  return ensureCall((editor) => editor.focusCosmosNodeById(nodeId), false)
-}
-
 defineExpose<EditorPaneGridExposed>({
   saveNow,
   reloadCurrent,
@@ -339,8 +313,6 @@ defineExpose<EditorPaneGridExposed>({
   zoomOut,
   resetZoom,
   getZoom,
-  resetCosmosView,
-  focusCosmosNodeById
 })
 
 onBeforeUnmount(() => {
@@ -396,7 +368,6 @@ onBeforeUnmount(() => {
           recentUpdatedNotes: launchpad.recentUpdatedNotes,
           showWizardAction: launchpad.showWizardAction
         }"
-        :cosmos="cosmos"
         :alters="alters"
         :second-brain="secondBrain"
         :get-status="getStatus"
@@ -418,18 +389,6 @@ onBeforeUnmount(() => {
         @properties="emit('properties', $event)"
         @signal-summary="emit('signal-summary', { paneId: pane.id, summary: $event })"
         @external-reload="emit('external-reload', $event)"
-        @cosmos-query-update="emit('cosmos-query-update', $event)"
-        @cosmos-search-enter="emit('cosmos-search-enter')"
-        @cosmos-select-match="emit('cosmos-select-match', $event)"
-        @cosmos-toggle-focus-mode="emit('cosmos-toggle-focus-mode', $event)"
-        @cosmos-toggle-semantic-edges="emit('cosmos-toggle-semantic-edges', $event)"
-        @cosmos-expand-neighborhood="emit('cosmos-expand-neighborhood')"
-        @cosmos-jump-related="emit('cosmos-jump-related', $event)"
-        @cosmos-open-selected="emit('cosmos-open-selected')"
-        @cosmos-locate-selected="emit('cosmos-locate-selected')"
-        @cosmos-reset-view="emit('cosmos-reset-view')"
-        @cosmos-select-node="emit('cosmos-select-node', $event)"
-        @cosmos-add-to-context="emit('cosmos-add-to-context', $event)"
         @open-note="emit('open-note', $event)"
         @launchpad-open-workspace="emit('launchpad-open-workspace')"
         @launchpad-open-wizard="emit('launchpad-open-wizard')"

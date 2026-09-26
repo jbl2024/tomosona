@@ -28,8 +28,6 @@ const harnessState = vi.hoisted(() => ({
         zoomOut: ReturnType<typeof vi.fn>
         resetZoom: ReturnType<typeof vi.fn>
         getZoom: ReturnType<typeof vi.fn>
-        resetCosmosView: ReturnType<typeof vi.fn>
-        focusCosmosNodeById: ReturnType<typeof vi.fn>
       }
     }>,
   emittedStatus: [] as Array<{ path: string; dirty: boolean; saving: boolean; saveError: string }>,
@@ -96,8 +94,6 @@ vi.mock('./PaneSurfaceHost.vue', () => ({
         zoomOut: vi.fn(() => 0.5),
         resetZoom: vi.fn(() => 1),
         getZoom: vi.fn(() => 1),
-        resetCosmosView: vi.fn(),
-        focusCosmosNodeById: vi.fn(() => true)
       }
 
       harnessState.surfaceProps.push({
@@ -191,8 +187,8 @@ describe('EditorPaneGrid', () => {
         },
         'pane-3': {
           id: 'pane-3',
-          activeTabId: 'cosmos-1',
-          openTabs: [{ id: 'cosmos-1', type: 'cosmos', pinned: false }],
+          activeTabId: 'home-1',
+          openTabs: [{ id: 'home-1', type: 'home', pinned: false }],
           activePath: ''
         },
         'pane-4': {
@@ -229,25 +225,6 @@ describe('EditorPaneGrid', () => {
             loadPropertyTypeSchema: async () => ({}),
             savePropertyTypeSchema: async () => {},
             openLinkTarget: async () => true,
-            cosmos: {
-              graph: { nodes: [], edges: [], generated_at_ms: 0 },
-              loading: false,
-              error: '',
-              selectedNodeId: '',
-              focusMode: false,
-              focusDepth: 1,
-              summary: { nodes: 0, edges: 0 },
-              query: '',
-              matches: [],
-              showSemanticEdges: false,
-              selectedNode: null,
-              selectedLinkCount: 0,
-              preview: '',
-              previewLoading: false,
-              previewError: '',
-              outgoingNodes: [],
-              incomingNodes: []
-            },
             alters: {
               workspacePath: '',
               settings: {
@@ -318,7 +295,7 @@ describe('EditorPaneGrid', () => {
         openDocumentPaths: [],
         launchpadMode: 'workspace-launchpad',
         showExperience: false,
-        activeTabId: 'cosmos-1'
+        activeTabId: 'home-1'
       },
       {
         paneId: 'pane-4',
@@ -355,8 +332,6 @@ describe('EditorPaneGrid', () => {
     expect(gridRef.value?.zoomOut()).toBe(0.5)
     expect(gridRef.value?.resetZoom()).toBe(1)
     expect(gridRef.value?.getZoom()).toBe(1)
-    gridRef.value?.resetCosmosView()
-    expect(gridRef.value?.focusCosmosNodeById('node-1')).toBe(true)
 
     const activeSurfaceMethods = harnessState.surfaceMethods[0]?.methods
     expect(activeSurfaceMethods?.reloadCurrent).toHaveBeenCalledTimes(1)
@@ -369,8 +344,6 @@ describe('EditorPaneGrid', () => {
     expect(activeSurfaceMethods?.zoomOut).toHaveBeenCalledTimes(1)
     expect(activeSurfaceMethods?.resetZoom).toHaveBeenCalledTimes(1)
     expect(activeSurfaceMethods?.getZoom).toHaveBeenCalledTimes(1)
-    expect(activeSurfaceMethods?.resetCosmosView).toHaveBeenCalledTimes(1)
-    expect(activeSurfaceMethods?.focusCosmosNodeById).toHaveBeenCalledWith('node-1')
 
     layout.value.activePaneId = 'missing-pane'
     await nextTick()
@@ -458,25 +431,6 @@ describe('EditorPaneGrid', () => {
             loadPropertyTypeSchema: async () => ({}),
             savePropertyTypeSchema: async () => {},
             openLinkTarget: async () => true,
-            cosmos: {
-              graph: { nodes: [], edges: [], generated_at_ms: 0 },
-              loading: false,
-              error: '',
-              selectedNodeId: '',
-              focusMode: false,
-              focusDepth: 1,
-              summary: { nodes: 0, edges: 0 },
-              query: '',
-              matches: [],
-              showSemanticEdges: false,
-              selectedNode: null,
-              selectedLinkCount: 0,
-              preview: '',
-              previewLoading: false,
-              previewError: '',
-              outgoingNodes: [],
-              incomingNodes: []
-            },
             alters: {
               workspacePath: '',
               settings: {

@@ -51,10 +51,6 @@ function createLifecycle() {
     applyWorkspaceFsChanges: vi.fn(),
     renameFavorite: vi.fn(async () => {})
   }
-  const cosmosPort = {
-    clearState: vi.fn(),
-    refreshGraph: vi.fn(async () => {})
-  }
   const fsPort = {
     selectWorkingFolder: vi.fn(async () => '/vault')
   }
@@ -65,7 +61,6 @@ function createLifecycle() {
     controllerPort,
     uiPort,
     favoritesPort,
-    cosmosPort,
     fsPort
   }))
   if (!api) throw new Error('Expected workspace lifecycle')
@@ -77,7 +72,6 @@ function createLifecycle() {
     controllerPort,
     uiPort,
     favoritesPort,
-    cosmosPort,
     fsPort
   }
 }
@@ -98,7 +92,7 @@ describe('useAppShellWorkspaceLifecycle', () => {
   })
 
   it('closes the workspace and resets shell-owned cross-domain state', async () => {
-    const { api, scope, shellPort, uiPort, favoritesPort, cosmosPort, controllerPort } = createLifecycle()
+    const { api, scope, shellPort, uiPort, favoritesPort, controllerPort } = createLifecycle()
     shellPort.hasWorkspace.value = true
     shellPort.workingFolderPath.value = '/vault'
 
@@ -109,7 +103,6 @@ describe('useAppShellWorkspaceLifecycle', () => {
     expect(uiPort.resetSearchState).toHaveBeenCalled()
     expect(uiPort.resetInspectorPanels).toHaveBeenCalled()
     expect(favoritesPort.reset).toHaveBeenCalled()
-    expect(cosmosPort.clearState).toHaveBeenCalled()
     expect(controllerPort.closeWorkspaceInternal).toHaveBeenCalled()
     expect(uiPort.closeOverflowMenu).toHaveBeenCalled()
     scope.stop()

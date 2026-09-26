@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import EditorView from '../../../domains/editor/components/EditorView.vue'
-import CosmosPaneSurface from '../../../domains/cosmos/components/CosmosPaneSurface.vue'
 import SecondBrainPaneSurface from '../../../domains/second-brain/components/SecondBrainPaneSurface.vue'
 import AlterExplorationPaneSurface from '../../../domains/alters/components/AlterExplorationPaneSurface.vue'
 import AlterManagerView from '../../../domains/alters/components/AlterManagerView.vue'
@@ -13,7 +12,6 @@ import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
 import type { DocumentSession } from '../../../domains/editor/composables/useDocumentEditorSessions'
 import type { ReadNoteSnapshotResult, SaveNoteResult, WorkspaceFsChange } from '../../../shared/api/apiTypes'
 import type {
-  AppShellCosmosViewModel,
   AppShellAltersViewModel,
   AppShellLaunchpadViewModel,
   AppShellSecondBrainViewModel
@@ -50,7 +48,6 @@ const props = defineProps<{
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
   activeDocumentPath: string
-  cosmos: AppShellCosmosViewModel
   alters?: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
   launchpad: AppShellLaunchpadViewModel & {
@@ -66,18 +63,6 @@ const emit = defineEmits<{
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
   'signal-summary': [payload: EditorSignalSummary]
   'external-reload': [payload: { path: string }]
-  'cosmos-query-update': [value: string]
-  'cosmos-search-enter': []
-  'cosmos-select-match': [nodeId: string]
-  'cosmos-toggle-focus-mode': [value: boolean]
-  'cosmos-toggle-semantic-edges': [value: boolean]
-  'cosmos-expand-neighborhood': []
-  'cosmos-jump-related': [nodeId: string]
-  'cosmos-open-selected': []
-  'cosmos-locate-selected': []
-  'cosmos-reset-view': []
-  'cosmos-select-node': [nodeId: string]
-  'cosmos-add-to-context': [path: string]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -88,7 +73,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette' | 'alters']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette' | 'alters']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
   'second-brain-open-alter-exploration': []
@@ -112,17 +97,12 @@ type EditorSurfaceExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
-  resetCosmosView: () => void
-  focusCosmosNodeById: (nodeId: string) => boolean
 }
 
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
-const cosmosSurfaceRef = ref<{ resetView: () => void; focusNodeById: (nodeId: string) => boolean } | null>(null)
-const hasCosmosTab = computed(() => props.openTabs.some((tab) => tab.type === 'cosmos'))
 const hasSecondBrainTab = computed(() => props.openTabs.some((tab) => tab.type === 'second-brain-chat'))
 const hasAlterExplorationTab = computed(() => props.openTabs.some((tab) => tab.type === 'alter-exploration'))
 const hasAltersTab = computed(() => props.openTabs.some((tab) => tab.type === 'alters'))
-const showCosmosSurface = computed(() => props.activeTab?.type === 'cosmos')
 const showSecondBrainSurface = computed(() => props.activeTab?.type === 'second-brain-chat')
 const showAlterExplorationSurface = computed(() => props.activeTab?.type === 'alter-exploration')
 const showAltersSurface = computed(() => props.activeTab?.type === 'alters')
@@ -177,8 +157,6 @@ defineExpose<EditorSurfaceExposed>({
   zoomOut: () => withEditor((editor) => editor.zoomOut(), 1),
   resetZoom: () => withEditor((editor) => editor.resetZoom(), 1),
   getZoom: () => withEditor((editor) => editor.getZoom(), 1),
-  resetCosmosView: () => cosmosSurfaceRef.value?.resetView(),
-  focusCosmosNodeById: (nodeId: string) => cosmosSurfaceRef.value?.focusNodeById(nodeId) ?? false
 })
 </script>
 
@@ -234,41 +212,6 @@ defineExpose<EditorSurfaceExposed>({
     @create-note="emit('launchpad-create-note')"
     @open-recent-note="emit('launchpad-open-recent-note', $event)"
     @quick-start="emit('launchpad-quick-start', $event)"
-  />
-
-  <CosmosPaneSurface
-    v-if="hasCosmosTab"
-    v-show="showCosmosSurface"
-    ref="cosmosSurfaceRef"
-    :graph="cosmos.graph"
-    :loading="cosmos.loading"
-    :error="cosmos.error"
-    :selected-node-id="cosmos.selectedNodeId"
-    :focus-mode="cosmos.focusMode"
-    :focus-depth="cosmos.focusDepth"
-    :summary="cosmos.summary"
-    :query="cosmos.query"
-    :matches="cosmos.matches"
-    :show-semantic-edges="cosmos.showSemanticEdges"
-    :selected-node="cosmos.selectedNode"
-    :selected-link-count="cosmos.selectedLinkCount"
-    :preview="cosmos.preview"
-    :preview-loading="cosmos.previewLoading"
-    :preview-error="cosmos.previewError"
-    :outgoing-nodes="cosmos.outgoingNodes"
-    :incoming-nodes="cosmos.incomingNodes"
-    @update:query="emit('cosmos-query-update', $event)"
-    @search-enter="emit('cosmos-search-enter')"
-    @select-match="emit('cosmos-select-match', $event)"
-    @toggle-focus-mode="emit('cosmos-toggle-focus-mode', $event)"
-    @toggle-semantic-edges="emit('cosmos-toggle-semantic-edges', $event)"
-    @expand-neighborhood="emit('cosmos-expand-neighborhood')"
-    @jump-related="emit('cosmos-jump-related', $event)"
-    @open-selected="emit('cosmos-open-selected')"
-    @locate-selected="emit('cosmos-locate-selected')"
-    @reset-view="emit('cosmos-reset-view')"
-    @select-node="emit('cosmos-select-node', $event)"
-    @add-to-context="emit('cosmos-add-to-context', $event)"
   />
 
   <SecondBrainPaneSurface

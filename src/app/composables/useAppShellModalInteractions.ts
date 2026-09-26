@@ -50,8 +50,6 @@ export type UseAppShellModalInteractionsOptions = {
   focusQuickOpenInput: () => void
   focusThemePickerInput: () => void
   scrollThemePickerActiveItemIntoView: () => void
-  showLoadingState: (label: string) => void
-  hideLoadingState: () => void
   setErrorMessage: (message: string) => void
   canRestoreEditorFocusAfterAction: () => boolean
   applyTheme: () => void
@@ -72,12 +70,8 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     const action = options.quickOpenPort.paletteActions.value.find((item) => item.id === id)
     if (!action) return
     const closesBeforeRun = Boolean(action.closeBeforeRun)
-    const hasLoadingModal = Boolean(action.loadingLabel)
     if (closesBeforeRun && options.quickOpenPort.quickOpenVisible.value) {
       options.closeQuickOpen(false)
-    }
-    if (hasLoadingModal) {
-      options.showLoadingState(action.loadingLabel ?? 'Loading graph...')
     }
     void (async () => {
       try {
@@ -95,10 +89,6 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
         options.setErrorMessage(err instanceof Error ? err.message : 'Command failed.')
         if (!closesBeforeRun) {
           options.closeQuickOpen()
-        }
-      } finally {
-        if (hasLoadingModal) {
-          options.hideLoadingState()
         }
       }
     })()

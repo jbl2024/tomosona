@@ -70,7 +70,6 @@ Use an integration test when the behavior crosses multiple boundaries:
 Typical examples:
 
 - “Add active note to Second Brain, then reopen the pane and keep the session”
-- “Open a Cosmos note, then move focus and keep the graph selection”
 - “Open a workspace, then restore recent note state”
 
 Examples in this repo:

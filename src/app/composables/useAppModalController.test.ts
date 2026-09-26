@@ -12,7 +12,6 @@ function createController() {
   const controller = useAppModalController({
     quickOpenVisible,
     themePickerVisible,
-    cosmosCommandLoadingVisible: ref(false),
     indexStatusModalVisible: ref(false),
     newFileModalVisible,
     newFolderModalVisible: ref(false),

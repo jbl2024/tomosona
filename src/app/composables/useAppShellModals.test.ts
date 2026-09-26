@@ -8,7 +8,6 @@ function createModals() {
     quickOpenQuery: ref(''),
     quickOpenActiveIndex: ref(0),
     quickOpenItemCount: ref(0),
-    cosmosCommandLoadingVisible: ref(false),
     newFileModalVisible: ref(false),
     newFilePathInput: ref(''),
     newFileModalError: ref(''),
@@ -48,7 +47,6 @@ function createModals() {
     focusOpenDateInput: vi.fn(),
     focusNewFileInput: vi.fn(),
     focusNewFolderInput: vi.fn(),
-    focusCosmosLoadingModal: vi.fn(),
     scrollQuickOpenActiveItemIntoView: vi.fn()
   }
 
@@ -161,17 +159,6 @@ describe('useAppShellModals', () => {
     statePort.quickOpenQuery.value = 'abc'
     await nextTick()
     expect(statePort.quickOpenActiveIndex.value).toBe(0)
-    scope.stop()
-  })
-
-  it('focuses the Cosmos loading modal when it becomes visible', async () => {
-    const { scope, statePort, domPort } = createModals()
-
-    statePort.cosmosCommandLoadingVisible.value = true
-    await nextTick()
-    await nextTick()
-
-    expect(domPort.focusCosmosLoadingModal).toHaveBeenCalled()
     scope.stop()
   })
 

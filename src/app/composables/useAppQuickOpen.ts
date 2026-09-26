@@ -41,7 +41,6 @@ export type PaletteAction = {
   family: PaletteActionFamily
   run: () => boolean | Promise<boolean>
   closeBeforeRun?: boolean
-  loadingLabel?: string
 }
 
 /** Represents a grouped command-palette section in action mode. */

@@ -17,7 +17,6 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
   const actionPort = {
     openHomeViewFromPalette: vi.fn(async () => true),
     openFavoritesPanelFromPalette: vi.fn(async () => true),
-    openCosmosViewFromPalette: vi.fn(async () => true),
     openSecondBrainViewFromPalette: vi.fn(async () => true),
     openAlterExplorationViewFromPalette: vi.fn(async () => true),
     openAltersViewFromPalette: vi.fn(async () => true),
@@ -27,7 +26,6 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
     convertMarkdownToWord: vi.fn(async () => true),
     openSettingsFromPalette: vi.fn(async () => true),
     openIntegratedTerminal: vi.fn(async () => true),
-    openNoteInCosmosFromPalette: vi.fn(async () => true),
     openWorkspaceFromPalette: vi.fn(async () => true),
     closeWorkspaceFromPalette: vi.fn(async () => true),
     openShortcutsFromPalette: vi.fn(async () => true),
@@ -109,7 +107,6 @@ describe('useAppShellPaletteActions', () => {
       'open-settings'
     ])
     expect(actionIds).not.toContain('open-alters-view')
-    expect(actionIds.some(id => /pulse|cosmos|second-brain|alter/.test(id))).toBe(false)
     expect(actionIds).toContain('theme-select')
     expect(actionIds).toContain('theme-system')
     expect(actionIds.indexOf('theme-system')).toBeLessThan(actionIds.indexOf('theme-tomosona-light'))

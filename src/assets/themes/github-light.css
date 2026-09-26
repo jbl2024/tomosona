@@ -36,7 +36,6 @@ html[data-theme='github-light'] {
   --explorer-row-active-text: #0550ae;
   --explorer-row-indicator: #0969da;
   --properties-accent: #0969da;
-  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #f6f8fa 100%);
   --sb-layout-bg: linear-gradient(135deg, #ffffff, #f6f8fa 45%, #eef2ff);
   --sb-user-bg: #f6f8fa;
   --sb-assistant-bg: #ddf4ff;

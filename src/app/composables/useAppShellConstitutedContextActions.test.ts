@@ -45,14 +45,6 @@ describe('useAppShellConstitutedContextActions', () => {
         setSecondBrainAlterId: vi.fn(),
         openSecondBrainViewFromPalette: vi.fn(async () => true)
       },
-      cosmos: {
-        graph: ref({ nodes: [] }),
-        error: ref(''),
-        refreshGraph: vi.fn(async () => {}),
-        selectNode: vi.fn(),
-        openCosmosViewFromPalette: vi.fn(async () => true),
-        recordCosmosHistorySnapshot: vi.fn()
-      }
     })
 
     api.addPathToConstitutedContext('/vault/alpha.md')
@@ -73,18 +65,13 @@ describe('useAppShellConstitutedContextActions', () => {
     expect(removeLocal).toHaveBeenCalledWith('/vault/local.md')
     expect(removePinned).toHaveBeenCalledWith('/vault/pinned.md')
   })
-
-  it('routes constituted context into Second Brain and Cosmos', async () => {
+  it('routes constituted context into Second Brain', async () => {
     const activeFilePath = ref('/vault/active.md')
     const contextActionLoading = ref(false)
     const notifyError = vi.fn()
     const replaceSessionContext = vi.fn(async () => {})
     const resolveSecondBrainSessionForPath = vi.fn(async () => 'session-1')
     const openSecondBrainViewFromPalette = vi.fn(async () => true)
-    const openCosmosViewFromPalette = vi.fn(async () => true)
-    const selectNode = vi.fn()
-    const recordCosmosHistorySnapshot = vi.fn()
-    const refreshGraph = vi.fn(async () => {})
     const filesystem = {
       hasWorkspace: ref(true),
       workingFolderPath: ref('/vault'),
@@ -116,14 +103,6 @@ describe('useAppShellConstitutedContextActions', () => {
         setSecondBrainAlterId: vi.fn(),
         openSecondBrainViewFromPalette
       },
-      cosmos: {
-        graph: ref({ nodes: [{ id: 'context-md', path: '/vault/context.md' }] }),
-        error: ref(''),
-        refreshGraph,
-        selectNode,
-        openCosmosViewFromPalette,
-        recordCosmosHistorySnapshot
-      }
     })
 
     await expect(api.openConstitutedContextInSecondBrain('Prompt')).resolves.toBe(true)
@@ -131,11 +110,6 @@ describe('useAppShellConstitutedContextActions', () => {
     expect(resolveSecondBrainSessionForPath).toHaveBeenCalledWith('/vault/context.md')
     expect(replaceSessionContext).toHaveBeenCalledWith('session-1', ['/vault/context.md'])
     expect(openSecondBrainViewFromPalette).toHaveBeenCalled()
-
-    await expect(api.openConstitutedContextInCosmos()).resolves.toBe(true)
-    expect(openCosmosViewFromPalette).toHaveBeenCalled()
-    expect(selectNode).toHaveBeenCalledWith('context-md')
-    expect(recordCosmosHistorySnapshot).toHaveBeenCalled()
 
     await expect(api.openAlterInSecondBrain('alter-1')).resolves.toBe(true)
   })

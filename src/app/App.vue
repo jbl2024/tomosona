@@ -33,7 +33,6 @@ import {
 import { moveNoteHistoryEntries } from '../shared/api/noteHistoryApi'
 import {
   ftsSearch,
-  getWikilinkGraph,
   initDb,
   readIndexLogs,
   readIndexOverviewStats,
@@ -54,7 +53,6 @@ import type { AppSettingsAlters } from '../shared/api/apiTypes'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
 import { type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
-import { buildCosmosGraph } from '../domains/cosmos/lib/graphIndex'
 import {
   createDeliberationSession,
   loadDeliberationSession,
@@ -113,19 +111,14 @@ import { useAppIndexingController } from './composables/useAppIndexingController
 import { useWorkspaceMutationEffects } from './composables/useWorkspaceMutationEffects'
 import {
   useAppNavigationController,
-  type CosmosHistorySnapshot,
   type HomeHistorySnapshot,
   type SecondBrainHistorySnapshot
 } from './composables/useAppNavigationController'
 import {
-  buildCosmosHistorySnapshot,
   buildHomeHistorySnapshot,
   buildSecondBrainHistorySnapshot,
-  cosmosHistoryLabel,
-  cosmosSnapshotStateKey,
   homeHistoryLabel,
   homeSnapshotStateKey,
-  readCosmosHistorySnapshot,
   readHomeHistorySnapshot,
   readSecondBrainHistorySnapshot,
   secondBrainHistoryLabel,
@@ -172,7 +165,6 @@ import { useEditorState } from '../domains/editor/composables/useEditorState'
 import { useEchoesDiscoverability } from '../domains/echoes/composables/useEchoesDiscoverability'
 import { useEchoesPack } from '../domains/echoes/composables/useEchoesPack'
 import { useConstitutedContext } from '../domains/editor/composables/useConstitutedContext'
-import { useCosmosController } from '../domains/cosmos/composables/useCosmosController'
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
 import { useFavoritesController } from '../domains/favorites/composables/useFavoritesController'
@@ -206,7 +198,6 @@ const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
 const RECENT_WORKSPACES_STORAGE_KEY = 'tomosona:recent-workspaces'
 const MULTI_PANE_STORAGE_KEY = 'tomosona:editor:multi-pane'
 const VIEW_MODE_STORAGE_KEY = 'tomosona:view:active'
-const PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY = 'tomosona:view:last-non-cosmos'
 
 const workspace = useWorkspaceState()
 const editorState = useEditorState()
@@ -279,10 +270,7 @@ const shortcutsModalVisible = ref(false)
 const aboutModalVisible = ref(false)
 const workspaceSetupWizardVisible = ref(false)
 const workspaceSetupWizardBusy = ref(false)
-const cosmosCommandLoadingVisible = ref(false)
-const cosmosCommandLoadingLabel = ref('Loading graph...')
 const shortcutsFilterQuery = ref('')
-const previousNonCosmosMode = ref<SidebarMode>('explorer')
 
 function openIntegratedTerminal() {
   if (!filesystem.hasWorkspace.value) {
@@ -309,13 +297,11 @@ const shellPersistence = useAppShellPersistence({
   },
   workspace: {
     sidebarMode: workspace.sidebarMode,
-    previousNonCosmosMode
   },
   layout: multiPane.layout,
   editorZoom,
   storageKeys: {
     sidebarMode: VIEW_MODE_STORAGE_KEY,
-    previousNonCosmosMode: PREVIOUS_NON_COSMOS_VIEW_MODE_STORAGE_KEY,
     editorZoom: EDITOR_ZOOM_STORAGE_KEY,
     multiPane: MULTI_PANE_STORAGE_KEY
   }
@@ -377,15 +363,6 @@ const constitutedContext = useConstitutedContext({
   })
 })
 const contextActionLoading = ref(false)
-const cosmos = useCosmosController({
-  workingFolderPath: filesystem.workingFolderPath,
-  activeTabPath: activeFilePath,
-  getWikilinkGraph,
-  reindexMarkdownFile: reindexMarkdownFileLexical,
-  readTextFile: async (path: string) => await readTextFile(path),
-  ftsSearch,
-  buildCosmosGraph
-})
 const workspaceControllerShellPort = {
   workingFolderPath: filesystem.workingFolderPath,
   hasWorkspace: filesystem.hasWorkspace,
@@ -424,8 +401,6 @@ const workspaceControllerDocumentPort = {
 const workspaceControllerEffectsPort = {
   enqueueMarkdownReindex: (path: string) => indexing.enqueueMarkdownReindex(path),
   removeMarkdownFromIndexInBackground: (path: string) => indexing.removeMarkdownFromIndexInBackground(path),
-  refreshCosmosGraph: () => cosmos.refreshGraph(),
-  hasCosmosSurface: () => multiPane.findPaneContainingSurface('cosmos') !== null
 }
 
 const workspaceController = useAppWorkspaceController({
@@ -528,8 +503,6 @@ const indexingControllerDocumentPort = {
 
 const indexingControllerSurfacePort = {
   refreshBacklinks: (options?: RefreshBacklinksOptions) => shellOpenFlow?.refreshBacklinks(options) ?? Promise.resolve(),
-  refreshCosmosGraph: () => cosmos.refreshGraph(),
-  hasCosmosSurface: () => multiPane.findPaneContainingSurface('cosmos') !== null
 }
 
 const indexingControllerUiEffectsPort = {
@@ -669,7 +642,6 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
 const modalController = useAppModalController({
   quickOpenVisible,
   themePickerVisible,
-  cosmosCommandLoadingVisible,
   indexStatusModalVisible,
   newFileModalVisible,
   newFolderModalVisible,
@@ -751,14 +723,6 @@ const constitutedContextActions = useAppShellConstitutedContextActions({
     setSecondBrainAlterId,
     openSecondBrainViewFromPalette: () => openSecondBrainViewFromPalette()
   },
-  cosmos: {
-    graph: cosmos.graph,
-    error: cosmos.error,
-    refreshGraph: () => cosmos.refreshGraph(),
-    selectNode: (nodeId) => cosmos.selectNode(nodeId),
-    openCosmosViewFromPalette: () => openCosmosViewFromPalette(),
-    recordCosmosHistorySnapshot: () => recordCosmosHistorySnapshot()
-  }
 })
 const {
   addPathToConstitutedContext,
@@ -767,7 +731,6 @@ const {
   removePinnedPathFromConstitutedContext,
   toggleActiveNoteInConstitutedContext,
   openConstitutedContextInSecondBrain,
-  openConstitutedContextInCosmos,
   openAlterInSecondBrain
 } = constitutedContextActions
 
@@ -859,7 +822,6 @@ const shellModals = useAppShellModals({
     quickOpenQuery,
     quickOpenActiveIndex,
     quickOpenItemCount,
-    cosmosCommandLoadingVisible,
     newFileModalVisible,
     newFilePathInput,
     newFileModalError,
@@ -911,9 +873,6 @@ const shellModals = useAppShellModals({
     },
     focusNewFolderInput: () => {
       document.querySelector<HTMLInputElement>('[data-new-folder-input="true"]')?.focus()
-    },
-    focusCosmosLoadingModal: () => {
-      document.querySelector<HTMLElement>('[data-modal="cosmos-command-loading"]')?.focus()
     },
     scrollQuickOpenActiveItemIntoView: () => {
       if (!quickOpenVisible.value) return
@@ -1047,48 +1006,12 @@ const navigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => multiPane.openInspectorInPane(path, paneId),
   revealDocumentInPane: (path: string, paneId?: string) => multiPane.revealDocumentInPane(path, paneId),
   setActivePathInPane: (paneId: string, path: string) => multiPane.setActivePathInPane(paneId, path),
-  openSurfaceInPane: (type: 'home' | 'cosmos' | 'second-brain-chat' | 'alter-exploration' | 'alters', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
-  findPaneContainingSurface: (type: 'home' | 'cosmos' | 'second-brain-chat' | 'alter-exploration' | 'alters') => multiPane.findPaneContainingSurface(type)
+  openSurfaceInPane: (type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
+  findPaneContainingSurface: (type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters') => multiPane.findPaneContainingSurface(type)
 }
 
 const navigationHistoryPort = {
   documentHistory,
-  cosmos: {
-    read: readCosmosHistorySnapshot,
-    current: () => buildCosmosHistorySnapshot({
-      query: cosmos.query.value.trim(),
-      selectedNodeId: cosmos.selectedNodeId.value,
-      focusMode: cosmos.focusMode.value,
-      focusDepth: cosmos.focusDepth.value
-    }),
-    stateKey: cosmosSnapshotStateKey,
-    label: (snapshot: CosmosHistorySnapshot) =>
-      cosmosHistoryLabel(snapshot, (nodeId) => {
-        const node = cosmos.graph.value.nodes.find((item) => item.id === nodeId)
-        return node ? node.displayLabel || node.label : null
-      }),
-    apply: async (snapshot: CosmosHistorySnapshot): Promise<boolean> => {
-      if (!filesystem.hasWorkspace.value) return false
-
-      multiPane.openSurfaceInPane('cosmos')
-
-      // History replay may happen before the graph is ready, so restoration needs
-      // to rebuild enough domain state before selection/focus is applied.
-      if (!cosmos.graph.value.nodes.length) {
-        await cosmos.refreshGraph()
-      }
-
-      cosmos.query.value = snapshot.query
-      cosmos.focusMode.value = snapshot.focusMode
-      cosmos.focusDepth.value = snapshot.focusDepth
-      cosmos.selectedNodeId.value = snapshot.selectedNodeId
-
-      if (snapshot.selectedNodeId) {
-        scheduleCosmosNodeFocus(snapshot.selectedNodeId)
-      }
-      return true
-    }
-  },
   home: {
     read: readHomeHistorySnapshot,
     current: () => buildHomeHistorySnapshot(),
@@ -1122,8 +1045,6 @@ const {
   historyTargetLabel,
   recordHomeHistorySnapshot,
   recordSecondBrainHistorySnapshot,
-  recordCosmosHistorySnapshot,
-  scheduleCosmosHistorySnapshot,
   openTabWithAutosave,
   setActiveTabWithAutosave,
   openNoteFromSecondBrain,
@@ -1131,13 +1052,11 @@ const {
   goBackInHistory,
   goForwardInHistory,
   openNextTabWithAutosave,
-  dispose: disposeNavigationController
 } = navigation
 shellOpenFlow = useAppShellOpenFlow({
   workspacePort: {
     workingFolderPath: filesystem.workingFolderPath,
     sidebarVisible: workspace.sidebarVisible,
-    previousNonCosmosMode,
     setSidebarMode: (mode) => workspace.setSidebarMode(mode),
     errorMessage: filesystem.errorMessage
   },
@@ -1166,7 +1085,6 @@ shellOpenFlow = useAppShellOpenFlow({
   navigationPort: {
     openTabWithAutosave,
     openDailyNote: (date, openPath) => openDailyNote(date, openPath),
-    recordCosmosHistorySnapshot
   },
   uiPort: {
     closeQuickOpen: () => closeQuickOpen()
@@ -1182,7 +1100,6 @@ const {
   openYesterdayNote,
   showExplorerForActiveFile,
   openWikilinkTarget,
-  onCosmosOpenNode,
   loadWikilinkHeadings,
   openQuickResult,
   onSearchResultOpen,
@@ -1195,10 +1112,8 @@ const paneRuntime = useAppShellPaneRuntime({
   multiPane,
   editorState,
   editorRef,
-  cosmos,
   workspace: {
     sidebarMode: workspace.sidebarMode,
-    previousNonCosmosMode,
     setSidebarMode: (mode) => workspace.setSidebarMode(mode),
     toggleSidebar: () => workspace.toggleSidebar()
   },
@@ -1206,9 +1121,6 @@ const paneRuntime = useAppShellPaneRuntime({
     selectGlobalSearchMode: (mode) => selectGlobalSearchMode(mode)
   },
   setActiveTabWithAutosave,
-  scheduleCosmosHistorySnapshot,
-  recordCosmosHistorySnapshot,
-  onCosmosOpenNode,
   propertiesPreview,
   propertyParseErrorCount
 })
@@ -1224,20 +1136,8 @@ const {
   onEditorOutline,
   onEditorProperties,
   setSidebarMode,
-  onCosmosResetView,
-  onCosmosQueryUpdate,
-  onCosmosToggleFocusMode,
-  onCosmosToggleSemanticEdges,
-  onCosmosSelectNode,
-  onCosmosSearchEnter,
-  onCosmosMatchClick,
-  onCosmosExpandNeighborhood,
-  onCosmosJumpToRelatedNode,
-  onCosmosLocateSelectedNode,
-  onCosmosOpenSelectedNode,
   onGlobalSearchModeSelect,
   saveActiveTab,
-  scheduleCosmosNodeFocus
 } = paneRuntime
 
 const shellViewModels = useAppShellViewModels({
@@ -1270,25 +1170,6 @@ const shellViewModels = useAppShellViewModels({
   },
   context: {
     constitutedContext
-  },
-  cosmos: {
-    graph: cosmos.graph,
-    loading: cosmos.loading,
-    error: cosmos.error,
-    selectedNodeId: cosmos.selectedNodeId,
-    focusMode: cosmos.focusMode,
-    focusDepth: cosmos.focusDepth,
-    summary: cosmos.summary,
-    query: cosmos.query,
-    queryMatches: cosmos.queryMatches,
-    showSemanticEdges: cosmos.showSemanticEdges,
-    selectedNode: cosmos.selectedNode,
-    selectedLinkCount: cosmos.selectedLinkCount,
-    preview: cosmos.preview,
-    previewLoading: cosmos.previewLoading,
-    previewError: cosmos.previewError,
-    outgoingNodes: cosmos.outgoingNodes,
-    incomingNodes: cosmos.incomingNodes
   },
   launchpad: {
     recentWorkspaces: launchpadRecentWorkspaces,
@@ -1334,7 +1215,6 @@ const {
   localContextItems,
   pinnedContextItems,
   noteEchoesForPanel,
-  cosmosPaneViewModel,
   secondBrainPaneViewModel,
   altersPaneViewModel,
   launchpadPaneViewModel,
@@ -1388,13 +1268,6 @@ const shellModalInteractions = useAppShellModalInteractions({
       activeItem?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' })
     })
   },
-  showLoadingState: (label: string) => {
-    cosmosCommandLoadingLabel.value = label
-    cosmosCommandLoadingVisible.value = true
-  },
-  hideLoadingState: () => {
-    cosmosCommandLoadingVisible.value = false
-  },
   setErrorMessage: (message: string) => {
     filesystem.errorMessage.value = message
   },
@@ -1406,8 +1279,7 @@ const shellModalInteractions = useAppShellModalInteractions({
     !designSystemDebugVisible.value &&
     !shortcutsModalVisible.value &&
     !themePickerVisible.value &&
-    !workspaceSetupWizardVisible.value &&
-    !cosmosCommandLoadingVisible.value,
+    !workspaceSetupWizardVisible.value,
   applyTheme,
   applyThemePreview
 })
@@ -1497,7 +1369,6 @@ const commands = useAppShellCommands({
     hasWorkspace: filesystem.hasWorkspace,
     activeFilePath,
     allWorkspaceFiles,
-    previousNonCosmosMode,
     setSidebarMode: (mode) => workspace.setSidebarMode(mode),
     notifyError: (message) => filesystem.notifyError(message),
     notifySuccess: (message) => filesystem.notifySuccess(message)
@@ -1530,18 +1401,11 @@ const commands = useAppShellCommands({
     openTabWithAutosave,
     recordHomeHistorySnapshot,
     recordSecondBrainHistorySnapshot,
-    recordCosmosHistorySnapshot
   },
   favoritesPort: {
     isFavorite: (path) => favorites.isFavorite(path),
     addFavorite: (path) => favorites.addFavorite(path),
     removeFavorite: (path) => favorites.removeFavorite(path)
-  },
-  cosmosPort: {
-    graph: cosmos.graph,
-    error: cosmos.error,
-    refreshGraph: () => cosmos.refreshGraph(),
-    selectNode: (nodeId) => cosmos.selectNode(nodeId)
   },
   actionPort: {
     loadAllFiles,
@@ -1558,11 +1422,9 @@ const commands = useAppShellCommands({
     focusSearchInput: () => {
       document.querySelector<HTMLInputElement>('[data-search-input="true"]')?.focus()
     },
-    scheduleCosmosNodeFocus
   }
 })
 const {
-  openCosmosViewFromPalette,
   openSecondBrainViewFromPalette,
   openAlterExplorationViewFromPalette,
   openHomeViewFromPalette,
@@ -1574,7 +1436,6 @@ const {
   removeFavoriteFromList,
   toggleActiveNoteFavoriteFromRightPane,
   openSettingsFromPalette,
-  openNoteInCosmosFromPalette,
   openSearchPanel,
   openFavoriteFromSidebar,
   revealActiveInExplorer,
@@ -1598,7 +1459,6 @@ entryActions.bindLaunchpadActionPort({
   openQuickOpen: (initialQuery = '') => openQuickOpen(initialQuery),
   openCommandPalette: () => openCommandPalette(),
   openTodayNote: () => openTodayNote(),
-  openCosmosView: () => openCosmosViewFromPalette(),
   openSecondBrainView: () => openSecondBrainViewFromPalette(),
   openAlterExplorationView: () => openAlterExplorationViewFromPalette(),
   openAltersView: () => openAltersViewFromPalette()
@@ -1607,7 +1467,6 @@ entryActions.bindShellPaletteActionPort({
   openIntegratedTerminal,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
-  openCosmosViewFromPalette,
   openSecondBrainViewFromPalette,
   openAlterExplorationViewFromPalette,
   openAltersViewFromPalette,
@@ -1616,7 +1475,6 @@ entryActions.bindShellPaletteActionPort({
   removeActiveNoteFromFavoritesFromPalette,
   openSettingsFromPalette,
   openSpellcheckDictionaryFromPalette: () => rootWorkflow.openSpellcheckDictionaryFromPalette(),
-  openNoteInCosmosFromPalette,
   openWorkspaceFromPalette,
   closeWorkspaceFromPalette,
   openShortcutsFromPalette,
@@ -1672,7 +1530,6 @@ const workspaceLifecycle = useAppShellWorkspaceLifecycle({
     activePaneId: computed(() => multiPane.layout.value.activePaneId),
     resetToSinglePane: () => multiPane.resetToSinglePane(),
     closeAllTabsInPane: (paneId) => multiPane.closeAllTabsInPane(paneId),
-    findPaneContainingSurface: () => multiPane.findPaneContainingSurface('cosmos'),
     resetDocumentHistory: () => documentHistory.reset(),
     resetActiveOutline: () => editorState.setActiveOutline([]),
     resetSearchState,
@@ -1696,10 +1553,6 @@ const workspaceLifecycle = useAppShellWorkspaceLifecycle({
     reset: () => favorites.reset(),
     applyWorkspaceFsChanges: (changes) => favorites.applyWorkspaceFsChanges(changes),
     renameFavorite: (fromPath, toPath) => favorites.renameFavorite(fromPath, toPath)
-  },
-  cosmosPort: {
-    clearState: () => cosmos.clearState(),
-    refreshGraph: () => cosmos.refreshGraph()
   },
   fsPort: {
     selectWorkingFolder
@@ -1790,7 +1643,6 @@ const rootWorkflow = useAppShellRootWorkflow({
     disposeShellLaunchpad,
     disposeIndexingController,
     disposeShellSearch,
-    disposeNavigationController,
     disposeHistoryUi
   ]
 })
@@ -1872,7 +1724,6 @@ useAppShellKeyboard({
     shortcutsModalVisible,
     workspaceSetupWizardVisible,
     indexStatusModalVisible,
-    cosmosCommandLoadingVisible
   },
   guardsPort: {
     hasBlockingModalOpen,
@@ -1951,7 +1802,6 @@ useAppShellKeyboard({
       @history-long-press-cancel="cancelHistoryLongPress"
       @history-target-click="onHistoryTargetClick"
       @open-today="void openHomeViewFromPalette()"
-      @open-cosmos="void openCosmosViewFromPalette()"
       @open-second-brain="void openSecondBrainViewFromPalette()"
       @open-alter-exploration="void openAlterExplorationViewFromPalette()"
       @split-right="splitPaneFromPalette('row')"
@@ -2045,7 +1895,6 @@ useAppShellKeyboard({
       @active-note-toggle-source-mode="void toggleActiveNoteSourceMode()"
       @active-note-add-to-context="toggleActiveNoteInConstitutedContext()"
       @active-note-remove-from-context="toggleActiveNoteInConstitutedContext()"
-      @active-note-open-cosmos="void openNoteInCosmosFromPalette()"
       @echoes-open="void onBacklinkOpen($event)"
       @echoes-add-to-context="addPathToConstitutedContext($event)"
       @echoes-remove-from-context="removePathFromConstitutedContext($event)"
@@ -2059,7 +1908,6 @@ useAppShellKeyboard({
       @context-clear-local="constitutedContext.clearLocal()"
       @context-clear-pinned="constitutedContext.clearPinned()"
       @context-open-second-brain="void openConstitutedContextInSecondBrain()"
-      @context-open-cosmos="void openConstitutedContextInCosmos()"
       @active-note-open-history="void openActiveNoteHistory()"
     >
       <template #center>
@@ -2085,7 +1933,6 @@ useAppShellKeyboard({
           :loadPropertyTypeSchema="loadPropertyTypeSchema"
           :savePropertyTypeSchema="savePropertyTypeSchema"
           :openLinkTarget="openWikilinkTarget"
-          :cosmos="cosmosPaneViewModel"
           :alters="altersPaneViewModel"
           :second-brain="secondBrainPaneViewModel"
           :launchpad="launchpadPaneViewModel"
@@ -2104,18 +1951,6 @@ useAppShellKeyboard({
           @second-brain-open-alter-exploration="void openAlterExplorationViewFromPalette()"
           @alter-exploration-notify="onAlterExplorationNotify"
           @alter-open-second-brain="void openAlterInSecondBrain($event)"
-          @cosmos-query-update="onCosmosQueryUpdate"
-          @cosmos-search-enter="onCosmosSearchEnter"
-          @cosmos-select-match="onCosmosMatchClick"
-          @cosmos-toggle-focus-mode="onCosmosToggleFocusMode"
-          @cosmos-toggle-semantic-edges="onCosmosToggleSemanticEdges"
-          @cosmos-expand-neighborhood="onCosmosExpandNeighborhood"
-          @cosmos-jump-related="onCosmosJumpToRelatedNode"
-          @cosmos-open-selected="void onCosmosOpenSelectedNode()"
-          @cosmos-locate-selected="onCosmosLocateSelectedNode"
-          @cosmos-reset-view="onCosmosResetView"
-          @cosmos-select-node="onCosmosSelectNode"
-          @cosmos-add-to-context="addPathToConstitutedContext($event)"
           @status="onEditorStatus"
           @path-renamed="onEditorPathRenamed"
           @outline="onEditorOutline"
@@ -2207,8 +2042,6 @@ useAppShellKeyboard({
       :theme-picker-items="themePickerItems"
       :theme-picker-active-index="themePickerActiveIndex"
       :theme-preference="themePreference"
-      :cosmos-command-loading-visible="cosmosCommandLoadingVisible"
-      :cosmos-command-loading-label="cosmosCommandLoadingLabel"
       :new-file-modal-visible="newFileModalVisible"
       :new-file-path-input="newFilePathInput"
       :new-file-modal-error="newFileModalError"
@@ -2344,12 +2177,6 @@ useAppShellKeyboard({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.tab-cosmos-icon {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 auto;
 }
 
 .tab-state {
@@ -2582,10 +2409,6 @@ useAppShellKeyboard({
   width: min(560px, calc(100vw - 32px));
 }
 
-.cosmos-command-loading-modal {
-  width: min(460px, calc(100vw - 32px));
-}
-
 .settings-modal {
   width: min(960px, calc(100vw - 32px));
 }
@@ -2627,35 +2450,6 @@ useAppShellKeyboard({
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.cosmos-command-loading-track {
-  margin-top: 6px;
-  height: 8px;
-  width: 100%;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--editor-progress-track);
-}
-
-.cosmos-command-loading-bar {
-  height: 100%;
-  width: 42%;
-  border-radius: 999px;
-  background-image: linear-gradient(90deg, var(--editor-progress-fill) 0%, var(--editor-progress-fill-2) 50%, var(--editor-progress-fill) 100%);
-  background-size: 200% 100%;
-  animation: cosmos-command-loading-slide 1.05s linear infinite;
-}
-
-@keyframes cosmos-command-loading-slide {
-  from {
-    transform: translateX(-120%);
-    background-position: 0% 0%;
-  }
-  to {
-    transform: translateX(260%);
-    background-position: 100% 0%;
-  }
 }
 
 .confirm-title {

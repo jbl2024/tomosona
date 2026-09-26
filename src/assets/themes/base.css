@@ -8,7 +8,7 @@
  * - Region tokens (`--topbar-*`, `--left-sidebar-*`, `--right-pane-*`, etc.)
  *   describe a specific shell surface and should be the default choice in
  *   component styles when the UI region is clearly identifiable.
- * - Domain tokens (`--editor-*`, `--cosmos-*`, `--sb-*`) stay scoped to
+ * - Domain tokens (`--editor-*`, `--sb-*`) stay scoped to
  *   feature areas that have their own visual language.
  *
  * When adding a new theme:
@@ -386,40 +386,6 @@
   --modal-disabled-bg: #f4f4f1;
   --modal-disabled-text: #a0a098;
   --modal-danger-text: var(--danger-strong);
-  --cosmos-panel-bg: var(--surface-muted);
-  --cosmos-card-bg: var(--surface-subtle);
-  --cosmos-text-primary: var(--text-main);
-  --cosmos-text-secondary: var(--text-soft);
-  --cosmos-text-muted: var(--text-dim);
-  --cosmos-border: var(--border-strong);
-  --cosmos-input-bg: var(--surface-bg);
-  --cosmos-input-text: var(--text-main);
-  --cosmos-button-bg: var(--surface-bg);
-  --cosmos-button-hover: var(--surface-muted);
-  --cosmos-link-accent: var(--accent);
-  --cosmos-chip-bg: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface-raised));
-  --cosmos-preview-bg: color-mix(in srgb, var(--surface-bg) 48%, transparent);
-  --cosmos-error: var(--danger-strong);
-  --cosmos-chip-active-bg: var(--accent-soft);
-  --cosmos-search-clear-hover: color-mix(in srgb, var(--cosmos-text-muted) 18%, transparent);
-  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
-  --cosmos-view-state-bg: rgb(255 255 255 / 86%);
-  --cosmos-view-state-border: rgb(203 213 225 / 85%);
-  --cosmos-view-state-text: #334155;
-  --cosmos-view-state-error-bg: rgb(254 242 242 / 92%);
-  --cosmos-view-state-error-border: rgb(254 202 202 / 90%);
-  --cosmos-view-state-error-text: #b91c1c;
-  --cosmos-canvas-bg: #ffffff;
-  --cosmos-node-selected: #b58900;
-  --cosmos-node-hover: #334155;
-  --cosmos-node-focus: #7a8ea3;
-  --cosmos-node-default-stroke: rgba(255, 255, 255, 0.7);
-  --cosmos-label-selected: #7a5700;
-  --cosmos-label-hover: #1f2937;
-  --cosmos-label-text: #4b5563;
-  --cosmos-label-outline: rgba(255, 255, 255, 0.92);
-  --cosmos-resizer: color-mix(in srgb, var(--cosmos-border), transparent 20%);
-  --cosmos-resizer-hover: color-mix(in srgb, var(--cosmos-link-accent) 55%, transparent 20%);
   --sb-surface: var(--surface-bg);
   --sb-surface-muted: var(--surface-subtle);
   --sb-surface-strong: var(--surface-raised);
@@ -709,24 +675,6 @@ html[data-theme='tomosona-dark'] {
   --modal-muted-btn-hover: #3e4451;
   --modal-disabled-bg: #21252b;
   --modal-disabled-text: #7d8595;
-  --cosmos-preview-bg: rgb(32 37 43 / 92%);
-  --cosmos-chip-active-bg: rgba(96, 165, 250, 0.14);
-  --cosmos-view-bg: linear-gradient(165deg, #282c34 0%, #21252b 100%);
-  --cosmos-view-state-bg: rgb(40 44 52 / 88%);
-  --cosmos-view-state-border: rgb(62 68 81 / 94%);
-  --cosmos-view-state-text: #abb2bf;
-  --cosmos-view-state-error-bg: rgb(69 45 52 / 92%);
-  --cosmos-view-state-error-border: rgb(122 76 88 / 95%);
-  --cosmos-view-state-error-text: #fecaca;
-  --cosmos-canvas-bg: #282c34;
-  --cosmos-node-selected: #f2cc60;
-  --cosmos-node-hover: #d7dce5;
-  --cosmos-node-focus: #9fb3c8;
-  --cosmos-node-default-stroke: rgba(0, 0, 0, 0.35);
-  --cosmos-label-selected: #f2cc60;
-  --cosmos-label-hover: #d7dce5;
-  --cosmos-label-text: #abb2bf;
-  --cosmos-label-outline: rgba(33, 37, 43, 0.9);
   --sb-layout-bg: linear-gradient(135deg, #0b1220, #0f172a 45%, #111827);
   --sb-center-bg: #0b1220;
   --sb-thread-bg: #0f172a;

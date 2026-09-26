@@ -18,7 +18,6 @@ function createKeyboard(isMacOs = false) {
     shortcutsModalVisible: ref(false),
     workspaceSetupWizardVisible: ref(false),
     indexStatusModalVisible: ref(false),
-    cosmosCommandLoadingVisible: ref(false)
   }
   const guards = {
     hasBlockingModalOpen: vi.fn(() => false),

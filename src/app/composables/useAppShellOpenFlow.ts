@@ -17,8 +17,6 @@ type EditorSurfacePort = {
   focusEditor: () => void
   revealSnippet: (snippet: string) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
-  resetCosmosView: () => void
-  focusCosmosNodeById: (nodeId: string) => boolean
 }
 
 type ExplorerSurfacePort = {
@@ -43,7 +41,6 @@ type ExplorerSurfacePort = {
 export type AppShellOpenFlowWorkspacePort = {
   workingFolderPath: Readonly<Ref<string>>
   sidebarVisible: Readonly<Ref<boolean>>
-  previousNonCosmosMode: Ref<SidebarMode>
   setSidebarMode: (mode: SidebarMode) => void
   errorMessage: Ref<string>
 }
@@ -80,7 +77,6 @@ export type AppShellOpenFlowWorkspaceDataPort = {
 export type AppShellOpenFlowNavigationPort = {
   openTabWithAutosave: (path: string, options?: { recordHistory?: boolean; targetPaneId?: string; revealInTargetPane?: boolean }) => Promise<boolean>
   openDailyNote: (date: string, openPath: (path: string) => Promise<boolean>) => Promise<boolean>
-  recordCosmosHistorySnapshot: () => void
 }
 
 export type AppShellOpenFlowUiPort = {
@@ -104,12 +100,6 @@ export type RefreshBacklinksOptions = {
 export type SearchHit = {
   path: string
   snippet: string
-}
-
-function resolvedNoteNavigationFallback(previousNonCosmosMode: Ref<SidebarMode>): SidebarMode {
-  const current = previousNonCosmosMode.value
-  if (current === 'search' || current === 'favorites' || current === 'explorer') return current
-  return 'explorer'
 }
 
 function splitWorkspacePath(path: string): { prefix: string; segments: string[] } | null {
@@ -405,22 +395,6 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     return await revealAnchor()
   }
 
-  async function onCosmosOpenNode(path: string) {
-    options.navigationPort.recordCosmosHistorySnapshot()
-    const root = options.workspacePort.workingFolderPath.value
-    const targetPath = root && !path.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(path)
-      ? `${root}/${path}`
-      : path
-    const opened = await options.navigationPort.openTabWithAutosave(targetPath)
-    if (!opened) return
-    const fallback = resolvedNoteNavigationFallback(options.workspacePort.previousNonCosmosMode)
-    options.workspacePort.setSidebarMode(fallback)
-    await nextTick()
-    if (fallback === 'explorer') {
-      await showExplorerForActiveFile()
-    }
-  }
-
   async function loadWikilinkHeadings(target: string): Promise<string[]> {
     const root = options.workspacePort.workingFolderPath.value
     if (!root) return []
@@ -552,7 +526,6 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     openYesterdayNote,
     showExplorerForActiveFile,
     openWikilinkTarget,
-    onCosmosOpenNode,
     loadWikilinkHeadings,
     openQuickResult,
     onSearchResultOpen,

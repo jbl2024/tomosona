@@ -19,7 +19,6 @@ function createController() {
   const indexingState = ref<'idle' | 'indexing' | 'indexed' | 'out_of_sync'>('indexed')
   const errorMessage = ref('')
   const selectedCount = ref(0)
-  const refreshCosmosGraph = vi.fn(async () => {})
   const removeMarkdownFromIndexInBackground = vi.fn()
   const enqueueMarkdownReindex = vi.fn()
   const resetIndexingState = vi.fn()
@@ -95,8 +94,6 @@ function createController() {
     workspaceEffectsPort: {
       enqueueMarkdownReindex,
       removeMarkdownFromIndexInBackground,
-      refreshCosmosGraph,
-      hasCosmosSurface: () => true
     }
   })
 
@@ -119,7 +116,6 @@ function createController() {
     writePropertyTypeSchema,
     createEntry,
     writeTextFile,
-    refreshCosmosGraph,
     removeMarkdownFromIndexInBackground,
     enqueueMarkdownReindex,
     controller
@@ -195,7 +191,6 @@ describe('useAppWorkspaceController', () => {
       controller,
       enqueueMarkdownReindex,
       removeMarkdownFromIndexInBackground,
-      refreshCosmosGraph
     } = createController()
 
     controller.allWorkspaceFiles.value = ['/vault/notes/a.md', '/vault/notes/b.md']
@@ -211,7 +206,6 @@ describe('useAppWorkspaceController', () => {
     expect(controller.allWorkspaceFiles.value).toEqual(['/vault/journal/a.md', '/vault/notes/b.md'])
     expect(removeMarkdownFromIndexInBackground).toHaveBeenCalledWith('/vault/notes/a.md')
     expect(enqueueMarkdownReindex).toHaveBeenCalledWith('/vault/journal/a.md')
-    expect(refreshCosmosGraph).toHaveBeenCalled()
   })
 
   it('loads a workspace and persists its canonical path', async () => {
@@ -344,68 +338,6 @@ describe('useAppWorkspaceController', () => {
       created_at_ms: 11,
       updated_at_ms: 22
     }))
-  })
-
-  it('refreshes cosmos only when the surface is mounted', () => {
-    const state = createController()
-    state.controller.applyWorkspaceFsChanges([
-      { kind: 'created', path: '/vault/notes/b.md', is_dir: false }
-    ])
-    expect(state.refreshCosmosGraph).toHaveBeenCalledTimes(1)
-
-    state.refreshCosmosGraph.mockClear()
-    const controllerWithoutCosmos = useAppWorkspaceController({
-      workspaceShellPort: {
-        workingFolderPath: state.workingFolderPath,
-        hasWorkspace: state.hasWorkspace,
-        activeFilePath: state.activeFilePath,
-        indexingState: state.indexingState,
-        errorMessage: state.errorMessage,
-        selectedCount: state.selectedCount,
-        storageKey: 'tomosona.test.workspace',
-        setWorkspacePath: (path) => {
-          state.workingFolderPath.value = path
-          state.hasWorkspace.value = Boolean(path)
-        },
-        clearWorkspacePath: () => {
-          state.workingFolderPath.value = ''
-          state.hasWorkspace.value = false
-        },
-        resetIndexingState: state.resetIndexingState
-      },
-      workspaceFsPort: {
-        setWorkingFolder: state.setWorkingFolder,
-        clearWorkingFolder: state.clearWorkingFolder,
-        initDb: state.initDb,
-        readFileMetadata: state.readFileMetadata,
-        pathExists: state.pathExists,
-        listChildren: state.listChildren,
-        listMarkdownFiles: state.listMarkdownFiles,
-        createEntry: state.createEntry,
-        writeTextFile: state.writeTextFile
-      },
-      workspaceDocumentPort: {
-        readPropertyTypeSchema: state.readPropertyTypeSchema,
-        writePropertyTypeSchema: state.writePropertyTypeSchema,
-        normalizePath: (path) => path.replace(/\\/g, '/'),
-        normalizePathKey: (path) => path.replace(/\\/g, '/').toLowerCase(),
-        isMarkdownPath: (path) => path.endsWith('.md'),
-        isIsoDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
-        dailyNotePath: (root, date) => `${root}/journal/${date.slice(0, 4)}/${date.slice(5, 7)}/${date}.md`
-      },
-      workspaceEffectsPort: {
-        enqueueMarkdownReindex: state.enqueueMarkdownReindex,
-        removeMarkdownFromIndexInBackground: state.removeMarkdownFromIndexInBackground,
-        refreshCosmosGraph: state.refreshCosmosGraph,
-        hasCosmosSurface: () => false
-      }
-    })
-
-    controllerWithoutCosmos.applyWorkspaceFsChanges([
-      { kind: 'created', path: '/vault/notes/c.md', is_dir: false }
-    ])
-
-    expect(state.refreshCosmosGraph).not.toHaveBeenCalled()
   })
 
   it('handles rename events with only old_path by removing and deindexing markdown files', () => {

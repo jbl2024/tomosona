@@ -34,7 +34,6 @@ html[data-theme='catppuccin-latte'] {
   --explorer-row-active-text: #1e66f5;
   --explorer-row-indicator: #1e66f5;
   --properties-accent: #7287fd;
-  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #eff1f5 100%);
   --sb-layout-bg: linear-gradient(135deg, #ffffff, #eff1f5 45%, #e0e6fb);
   --sb-user-bg: #eef1f9;
   --sb-assistant-bg: #dde4ff;

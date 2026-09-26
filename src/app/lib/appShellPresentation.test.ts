@@ -66,7 +66,7 @@ describe('appShellPresentation', () => {
       activeFilePath: '',
       activeStatus: { dirty: false, saving: false },
       virtualDocExists: false,
-      activeTab: { type: 'cosmos' },
+      activeTab: { type: 'home' },
       activeFileMetadata: null,
       workspacePath: '/vault',
       toRelativePath: (path) => path.replace('/vault/', ''),
@@ -74,7 +74,7 @@ describe('appShellPresentation', () => {
     })
 
     expect(surfaceRows).toEqual([
-      { label: 'Surface', value: 'Cosmos' },
+      { label: 'Surface', value: 'Home' },
       { label: 'Metadata', value: 'No document metadata for this surface' }
     ])
 

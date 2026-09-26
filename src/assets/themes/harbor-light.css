@@ -71,7 +71,6 @@ html[data-theme='harbor-light'] {
   --explorer-toolbar-hover-bg: rgba(24, 77, 125, 0.08);
 
   --properties-accent: #1f5f9b;
-  --cosmos-view-bg: linear-gradient(165deg, #ffffff 0%, #edf3f9 100%);
   --sb-layout-bg: linear-gradient(135deg, #ffffff, #edf3f9 45%, #dde8f5);
   --sb-user-bg: #eef4fb;
   --sb-assistant-bg: #deebf8;

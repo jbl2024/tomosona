@@ -35,7 +35,6 @@ describe('useAppShellPersistence', () => {
     const themePersist = vi.fn()
     const themeApply = vi.fn()
     const sidebarMode = ref<'explorer' | 'favorites' | 'search'>('explorer')
-    const previousNonCosmosMode = ref<'explorer' | 'favorites' | 'search'>('explorer')
     const editorZoom = ref(1)
     const layout = useMultiPaneWorkspaceState(createInitialLayout()).layout
 
@@ -49,13 +48,11 @@ describe('useAppShellPersistence', () => {
       },
       workspace: {
         sidebarMode,
-        previousNonCosmosMode
       },
       layout,
       editorZoom,
       storageKeys: {
         sidebarMode: 'shell:sidebar',
-        previousNonCosmosMode: 'shell:previous',
         editorZoom: 'shell:zoom',
         multiPane: 'shell:layout'
       }
@@ -65,7 +62,6 @@ describe('useAppShellPersistence', () => {
     expect(themeLoad).toHaveBeenCalled()
     expect(themePreference.value).toBe('tomosona-dark')
     expect(sidebarMode.value).toBe('favorites')
-    expect(previousNonCosmosMode.value).toBe('search')
     expect(editorZoom.value).toBe(1.25)
     expect(themeApply).toHaveBeenCalled()
 

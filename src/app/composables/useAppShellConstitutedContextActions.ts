@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
  *
  * Purpose:
  * - Own the shell actions that operate on constituted context and route that
- *   context into Second Brain or Cosmos.
+ *   context into Second Brain.
  *
  * Boundary:
  * - Keeps context-to-workflow glue out of `App.vue`.
@@ -36,15 +36,6 @@ export type ContextActionSecondBrainPort = {
   openSecondBrainViewFromPalette: () => Promise<boolean>
 }
 
-export type ContextActionCosmosPort = {
-  graph: Ref<{ nodes: Array<{ id: string; path: string }> }>
-  error: Ref<string>
-  refreshGraph: () => Promise<void>
-  selectNode: (nodeId: string) => void
-  openCosmosViewFromPalette: () => Promise<boolean>
-  recordCosmosHistorySnapshot: () => void
-}
-
 export type UseAppShellConstitutedContextActionsOptions = {
   activeFilePath: Ref<string>
   constitutedContext: ConstitutedContextLike
@@ -53,7 +44,6 @@ export type UseAppShellConstitutedContextActionsOptions = {
   noteTitleFromPath: (path: string) => string
   normalizeContextPathsForUpdate: (workspacePath: string, paths: string[]) => string[]
   secondBrain: ContextActionSecondBrainPort
-  cosmos: ContextActionCosmosPort
 }
 
 export function useAppShellConstitutedContextActions(options: UseAppShellConstitutedContextActionsOptions) {
@@ -120,36 +110,6 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     }
   }
 
-  async function openConstitutedContextInCosmos() {
-    if (!options.constitutedContext.paths.value.length) return false
-    const opened = await options.cosmos.openCosmosViewFromPalette()
-    if (!opened) return false
-
-    const targetPath = options.constitutedContext.paths.value[0]
-    const targetKey = targetPath.trim().toLowerCase()
-    let match = options.cosmos.graph.value.nodes.find((node) =>
-      node.path.trim().toLowerCase() === targetKey || node.id.trim().toLowerCase() === targetKey
-    )
-    if (!match) {
-      await options.cosmos.refreshGraph()
-      match = options.cosmos.graph.value.nodes.find((node) =>
-        node.path.trim().toLowerCase() === targetKey || node.id.trim().toLowerCase() === targetKey
-      )
-    }
-    if (!match) {
-      if (options.cosmos.error.value) {
-        options.filesystem.notifyError(options.cosmos.error.value)
-        return false
-      }
-      options.filesystem.notifyError('Context anchor is not available in the current graph index.')
-      return true
-    }
-
-    options.cosmos.selectNode(match.id)
-    options.cosmos.recordCosmosHistorySnapshot()
-    return true
-  }
-
   async function openAlterInSecondBrain(alterId: string) {
     if (!options.filesystem.hasWorkspace.value) {
       options.filesystem.errorMessage.value = 'Open a workspace first.'
@@ -167,7 +127,6 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     removePinnedPathFromConstitutedContext,
     toggleActiveNoteInConstitutedContext,
     openConstitutedContextInSecondBrain,
-    openConstitutedContextInCosmos,
     openAlterInSecondBrain
   }
 }

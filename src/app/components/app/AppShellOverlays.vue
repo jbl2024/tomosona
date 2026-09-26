@@ -83,8 +83,6 @@ defineProps<{
   themePickerItems: ThemePickerItem[]
   themePickerActiveIndex: number
   themePreference: ThemePreference
-  cosmosCommandLoadingVisible: boolean
-  cosmosCommandLoadingLabel: string
   newFileModalVisible: boolean
   newFilePathInput: string
   newFileModalError: string
@@ -243,24 +241,6 @@ const emit = defineEmits<{
     @keydown="emit('themePickerKeydown', $event)"
     @set-active-index="emit('themePickerSetActiveIndex', $event)"
   />
-
-  <div v-if="cosmosCommandLoadingVisible" class="modal-overlay">
-    <div
-      class="modal confirm-modal cosmos-command-loading-modal"
-      data-modal="cosmos-command-loading"
-      role="dialog"
-      aria-modal="true"
-      aria-live="polite"
-      aria-labelledby="cosmos-command-loading-title"
-      tabindex="-1"
-    >
-      <h3 id="cosmos-command-loading-title" class="confirm-title">Opening Cosmos</h3>
-      <p class="confirm-text">{{ cosmosCommandLoadingLabel }}</p>
-      <div class="cosmos-command-loading-track">
-        <div class="cosmos-command-loading-bar"></div>
-      </div>
-    </div>
-  </div>
 
   <WorkspaceEntryModals
     :new-file-visible="newFileModalVisible"

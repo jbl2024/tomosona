@@ -11,7 +11,6 @@ import {
   buildThemePickerItems
 } from '../lib/appShellPresentation'
 import { useAppShellViewModels } from './useAppShellViewModels'
-import type { CosmosGraph, CosmosGraphNode } from '../../domains/cosmos/lib/graphIndex'
 import type { LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
 
 describe('useAppShellViewModels', () => {
@@ -61,44 +60,6 @@ describe('useAppShellViewModels', () => {
       localItems: ref([{ path: '/vault/notes/alpha.md', title: 'Alpha' }]),
       pinnedItems: ref([{ path: '/vault/notes/pinned.md', title: 'Pinned' }])
     }
-    const cosmosSelectedNode = ref<CosmosGraphNode>({
-      id: 'n1',
-      path: '/vault/notes/alpha.md',
-      label: 'Alpha',
-      degree: 1,
-      tags: [],
-      cluster: 0,
-      importance: 1,
-      opacityHint: 1,
-      showLabelByDefault: false,
-      displayLabel: 'Alpha',
-      folderKey: 'vault',
-      fullLabel: 'Alpha'
-    })
-    const cosmosGraph = ref<CosmosGraph>({
-      nodes: [cosmosSelectedNode.value],
-      edges: [],
-      generated_at_ms: 0
-    })
-    const cosmos = {
-      graph: cosmosGraph,
-      loading: ref(false),
-      error: ref(''),
-      selectedNodeId: ref('n1'),
-      focusMode: ref(false),
-      focusDepth: ref(0),
-      summary: ref({ nodes: 0, edges: 0 }),
-      query: ref(''),
-      queryMatches: ref<CosmosGraphNode[]>([]),
-      showSemanticEdges: ref(false),
-      selectedNode: cosmosSelectedNode,
-      selectedLinkCount: ref(0),
-      preview: ref(''),
-      previewLoading: ref(false),
-      previewError: ref(''),
-      outgoingNodes: ref([]),
-      incomingNodes: ref([])
-    }
 
     const viewModels = useAppShellViewModels({
       theme: {
@@ -131,7 +92,6 @@ describe('useAppShellViewModels', () => {
       context: {
         constitutedContext
       },
-      cosmos,
       launchpad: {
         recentWorkspaces: ref<LaunchpadRecentWorkspace[]>([]),
         recentViewedNotes: ref<LaunchpadRecentNote[]>([]),
@@ -182,12 +142,6 @@ describe('useAppShellViewModels', () => {
     expect(viewModels.backlinkCount.value).toBe(1)
     expect(viewModels.semanticLinkCount.value).toBe(1)
     expect(viewModels.activeNoteInContext.value).toBe(true)
-    const selectedNode = viewModels.cosmosSelectedNodeForPanel.value
-    expect(selectedNode).toBeTruthy()
-    if (!selectedNode) throw new Error('Expected selected Cosmos node')
-    expect(selectedNode.id).toBe('n1')
-    expect(selectedNode.path).toBe('notes/alpha.md')
-    expect(selectedNode.label).toBe('Alpha')
     expect(viewModels.backShortcutLabel.value).toBe('Alt+Left')
     expect(viewModels.primaryModLabel.value).toBe('Ctrl')
     expect(viewModels.zoomPercentLabel.value).toBe('125%')

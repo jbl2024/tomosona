@@ -24,7 +24,6 @@ function createController() {
   const hasWorkspace = ref(true)
   const indexingState = ref<'idle' | 'indexing' | 'indexed' | 'out_of_sync'>('indexed')
   const refreshBacklinks = vi.fn(async () => {})
-  const refreshCosmosGraph = vi.fn(async () => {})
   const readIndexLogs = vi.fn(async (): Promise<IndexLogEntry[]> => [])
   const readIndexOverviewStats = vi.fn(async () => ({
     semantic_links_count: 71,
@@ -68,7 +67,6 @@ function createController() {
     refreshSemanticEdgesCacheNow,
     removeMarkdownFileFromIndex,
     refreshBacklinks,
-    refreshCosmosGraph,
     readIndexOverviewStats,
     confirmStopCurrentOperation,
     notifyInfo,
@@ -98,8 +96,6 @@ function createController() {
       },
       indexingSurfacePort: {
         refreshBacklinks,
-        refreshCosmosGraph,
-        hasCosmosSurface: () => false
       },
       indexingUiEffectsPort: {
         confirmStopCurrentOperation,

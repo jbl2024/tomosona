@@ -39,7 +39,7 @@ describe('Shell dark theme contracts', () => {
   it('keeps remaining shell globals on theme tokens', () => {
     expect(appSource).toContain('var(--shell-splitter)')
     expect(appSource).toContain('var(--toast-error-bg)')
-    expect(appSource).toContain('var(--editor-progress-track)')
+    expect(appSource).not.toContain('cosmos-command-loading')
     expect(appSource).not.toContain('.ide-root.dark .splitter')
     expect(appSource).not.toContain('.ide-root.dark .toast-error')
   })

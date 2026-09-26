@@ -312,7 +312,6 @@ const codeSample = computed(() => [
             <UiPanel class-name="ds-nav-panel">
               <div class="ds-tab-row">
                 <button type="button" class="ds-tab ds-tab--active">Editor</button>
-                <button type="button" class="ds-tab">Cosmos</button>
                 <button type="button" class="ds-tab">Second Brain</button>
               </div>
               <div class="ds-card-copy">Tabs should read as shell chrome, not as giant primary actions.</div>

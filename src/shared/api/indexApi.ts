@@ -7,7 +7,6 @@ import type {
   PathMove,
   PathMoveRewriteResult,
   SemanticLink,
-  WikilinkGraph
 } from './apiTypes'
 
 type ComputeEchoesPackPayload = {
@@ -58,11 +57,6 @@ export async function backlinksForPath(path: string): Promise<Array<{ path: stri
 /** Returns semantic relations for a given workspace note path. */
 export async function semanticLinksForPath(path: string): Promise<SemanticLink[]> {
   return await invoke('semantic_links_for_path', { path })
-}
-
-/** Fetches the indexed wikilink graph payload used by Cosmos view. */
-export async function getWikilinkGraph(): Promise<WikilinkGraph> {
-  return await invoke('get_wikilink_graph')
 }
 
 /** Updates workspace wikilinks after a note rename. */

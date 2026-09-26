@@ -14,7 +14,7 @@ Small presentational components in this folder own repeated UI contracts such as
 Higher-level shared shells such as fields, modal shells, and menus compose primitives into reusable structures with accessibility baked in. Create a pattern when multiple features repeat the same structure, not just the same color.
 
 4. Domains
-Editor, cosmos, explorer, and second-brain components should compose primitives and patterns while keeping their own behavior and layout decisions. Domain-specific layouts can stay local if the structure is not broadly reusable.
+Editor, explorer, and second-brain components should compose primitives and patterns while keeping their own behavior and layout decisions. Domain-specific layouts can stay local if the structure is not broadly reusable.
 
 ## Naming rules
 

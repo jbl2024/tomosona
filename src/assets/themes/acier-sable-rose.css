@@ -82,7 +82,6 @@ html[data-theme='acier-sable-rose'] {
 
   --properties-accent: #c88758;
   --right-pane-bg: #f0ece6;
-  --cosmos-view-bg: linear-gradient(165deg, #fbfaf7 0%, #f3ede6 100%);
   --sb-layout-bg: linear-gradient(135deg, #fbfaf7, #f3ede6 45%, #e6edf4);
   --sb-user-bg: #f4efe9;
   --sb-assistant-bg: #f0ddcf;

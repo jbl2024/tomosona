@@ -56,8 +56,6 @@ export type AppIndexingDocumentPort = {
 /** Derived surfaces that need refreshes after indexing work completes. */
 export type AppIndexingSurfacePort = {
   refreshBacklinks: () => Promise<void>
-  refreshCosmosGraph: () => Promise<void>
-  hasCosmosSurface: () => boolean
 }
 
 /** UI-side effects triggered by indexing flows. */
@@ -130,13 +128,9 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
 
   async function refreshIndexedViews(): Promise<number> {
     indexFinalizeCompleted.value = 0
-    indexFinalizeTotal.value = indexingSurfacePort.hasCosmosSurface() ? 2 : 1
+    indexFinalizeTotal.value = 1
     await indexingSurfacePort.refreshBacklinks()
     indexFinalizeCompleted.value = 1
-    if (indexingSurfacePort.hasCosmosSurface()) {
-      await indexingSurfacePort.refreshCosmosGraph()
-      indexFinalizeCompleted.value = 2
-    }
     return indexFinalizeCompleted.value
   }
 
@@ -147,7 +141,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     return false
   }
 
-  /** Coalesces repeated backlinks/cosmos refresh requests so background indexing does not thrash the UI. */
+  /** Coalesces repeated backlink refresh requests so background indexing does not thrash the UI. */
   async function refreshIndexedViewsDeferred(): Promise<number> {
     indexedViewRefreshRequestVersion += 1
     if (indexedViewRefreshInFlight) return indexedViewRefreshInFlight
@@ -719,9 +713,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     scheduleSemanticReindexTimer()
     void indexingApiPort.removeMarkdownFileFromIndex(path).then(() => {
       console.info('[index] background:remove:done', { path })
-      if (indexingSurfacePort.hasCosmosSurface()) {
-        void indexingSurfacePort.refreshCosmosGraph()
-      }
       void indexingSurfacePort.refreshBacklinks()
     }).catch((err) => {
       console.warn('[index] background:remove:error', {

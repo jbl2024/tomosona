@@ -7,17 +7,16 @@ import { clearEditorStatusForPaths, documentPathsForPane } from '../lib/appShell
  * Module: useAppShellPaneRuntime
  *
  * Purpose:
- * - Own the shell event handlers for pane tabs, editor status updates, and
- *   Cosmos pane interactions.
+ * - Own the shell event handlers for pane tabs and editor status updates.
  *
  * Boundary:
- * - Keeps pane/editor/cosmos glue out of `App.vue`.
+ * - Keeps pane/editor glue out of `App.vue`.
  * - Does not own domain state; it only coordinates the existing shell ports.
  */
 type PaneTab =
   | { id: string; type: 'document'; path: string }
   | { id: string; type: 'file-inspector'; path: string }
-  | { id: string; type: 'home' | 'cosmos' | 'second-brain-chat' | 'alter-exploration' | 'alters'; pinned?: boolean }
+  | { id: string; type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters'; pinned?: boolean }
 
 type PaneState = {
   activeTabId: string
@@ -45,31 +44,12 @@ type EditorStatePort = {
 
 type EditorRefPort = Ref<{
   saveNow: () => Promise<void>
-  resetCosmosView: () => void
-  focusCosmosNodeById: (nodeId: string) => void
   revealAnchor: (payload: { heading: string }) => Promise<boolean | void> | boolean | void
   revealOutlineHeading: (index: number) => Promise<void> | void
 } | null>
 
-type CosmosPort = {
-  selectedNodeId: Ref<string>
-  focusMode: Ref<boolean>
-  showSemanticEdges: Ref<boolean>
-  query: Ref<string>
-  selectedNode: Ref<{ id: string } | null>
-  searchEnter: () => string | null
-  focusMatch: (nodeId: string) => void
-  expandNeighborhood: () => void
-  jumpToRelated: (nodeId: string) => void
-  openSelected: () => { path: string } | null
-  selectNode: (nodeId: string) => void
-  refreshGraph: () => Promise<void>
-  error: Ref<string>
-}
-
 type WorkspacePort = {
   sidebarMode: Ref<SidebarMode>
-  previousNonCosmosMode: Ref<SidebarMode>
   setSidebarMode: (mode: SidebarMode) => void
   toggleSidebar: () => void
 }
@@ -83,32 +63,14 @@ type Options = {
   multiPane: MultiPanePort
   editorState: EditorStatePort
   editorRef: EditorRefPort
-  cosmos: CosmosPort
   workspace: WorkspacePort
   search: SearchPort
   setActiveTabWithAutosave: (path: string) => Promise<boolean>
-  scheduleCosmosHistorySnapshot: () => void
-  recordCosmosHistorySnapshot: () => void
-  onCosmosOpenNode: (path: string) => Promise<void>
   propertiesPreview: Ref<Array<{ key: string; value: string }>>
   propertyParseErrorCount: Ref<number>
 }
 
 export function useAppShellPaneRuntime(options: Options) {
-  function scheduleCosmosNodeFocus(nodeId: string, remainingAttempts = 12) {
-    if (!nodeId || remainingAttempts <= 0) return
-
-    void nextTick(() => {
-      if (options.editorRef.value) {
-        options.editorRef.value.focusCosmosNodeById(nodeId)
-        return
-      }
-
-      requestAnimationFrame(() => {
-        scheduleCosmosNodeFocus(nodeId, remainingAttempts - 1)
-      })
-    })
-  }
 
   async function onPaneTabClick(payload: { paneId: string; tabId: string }) {
     options.multiPane.setActivePane(payload.paneId)
@@ -194,71 +156,7 @@ export function useAppShellPaneRuntime(options: Options) {
       options.workspace.toggleSidebar()
       return
     }
-    options.workspace.previousNonCosmosMode.value = target
     options.workspace.setSidebarMode(target)
-  }
-
-  function onCosmosResetView() {
-    options.cosmos.selectedNodeId.value = ''
-    options.cosmos.focusMode.value = false
-    options.editorRef.value?.resetCosmosView()
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosQueryUpdate(value: string) {
-    options.cosmos.query.value = value
-    options.scheduleCosmosHistorySnapshot()
-  }
-
-  function onCosmosToggleFocusMode(value: boolean) {
-    options.cosmos.focusMode.value = value
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosToggleSemanticEdges(value: boolean) {
-    options.cosmos.showSemanticEdges.value = value
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosSelectNode(nodeId: string) {
-    options.cosmos.selectNode(nodeId)
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosSearchEnter() {
-    const nodeId = options.cosmos.searchEnter()
-    if (!nodeId) return
-    options.editorRef.value?.focusCosmosNodeById(nodeId)
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosMatchClick(nodeId: string) {
-    options.cosmos.focusMatch(nodeId)
-    options.editorRef.value?.focusCosmosNodeById(nodeId)
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosExpandNeighborhood() {
-    options.cosmos.expandNeighborhood()
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosJumpToRelatedNode(nodeId: string) {
-    options.cosmos.jumpToRelated(nodeId)
-    options.editorRef.value?.focusCosmosNodeById(nodeId)
-    options.recordCosmosHistorySnapshot()
-  }
-
-  function onCosmosLocateSelectedNode() {
-    const selected = options.cosmos.selectedNode.value
-    if (!selected) return
-    options.editorRef.value?.focusCosmosNodeById(selected.id)
-  }
-
-  async function onCosmosOpenSelectedNode() {
-    const selected = options.cosmos.openSelected()
-    if (!selected) return
-    await options.onCosmosOpenNode(selected.path)
   }
 
   function onGlobalSearchModeSelect(mode: SearchMode) {
@@ -287,19 +185,7 @@ export function useAppShellPaneRuntime(options: Options) {
     onEditorOutline,
     onEditorProperties,
     setSidebarMode,
-    onCosmosResetView,
-    onCosmosQueryUpdate,
-    onCosmosToggleFocusMode,
-    onCosmosToggleSemanticEdges,
-    onCosmosSelectNode,
-    onCosmosSearchEnter,
-    onCosmosMatchClick,
-    onCosmosExpandNeighborhood,
-    onCosmosJumpToRelatedNode,
-    onCosmosLocateSelectedNode,
-    onCosmosOpenSelectedNode,
     onGlobalSearchModeSelect,
     saveActiveTab,
-    scheduleCosmosNodeFocus
   }
 }
