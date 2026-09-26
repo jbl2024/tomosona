@@ -3,7 +3,6 @@ import type { Ref } from 'vue'
 import type { ReadNoteSnapshotResult } from '../../../shared/api/apiTypes'
 import { parseWikilinkTarget } from '../lib/wikilinks'
 import { embeddedNoteMarkdownToTiptapDoc, resolveEmbeddedNoteMarkdown } from '../lib/embeddedNoteRestoration'
-import { renderSecondBrainMarkdownPreview } from '../../second-brain/lib/secondBrainMarkdownPreview'
 
 /**
  * Embedded note action helpers.
@@ -78,7 +77,7 @@ export function useEmbeddedNoteActions(options: EmbeddedNoteActionsOptions) {
 
     return {
       path: snapshot.path,
-      html: renderSecondBrainMarkdownPreview(resolvedMarkdown)
+      html: resolvedMarkdown
     }
   }
 

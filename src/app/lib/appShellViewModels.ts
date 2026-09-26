@@ -16,18 +16,6 @@ export type LaunchpadRecentNote = {
   recencyLabel: string
 }
 
-/** View-model consumed by pane-native Second Brain surfaces. */
-export type AppShellSecondBrainViewModel = {
-  workspacePath: string
-  allWorkspaceFiles: string[]
-  requestedSessionId: string
-  requestedSessionNonce: number
-  requestedPrompt: string
-  requestedPromptNonce: number
-  activeNotePath: string
-  echoesRefreshToken: number
-}
-
 /** View-model consumed by Home/Launchpad pane surfaces. */
 export type AppShellLaunchpadViewModel = {
   workspaceLabel: string

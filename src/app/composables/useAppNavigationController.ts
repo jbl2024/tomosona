@@ -1,11 +1,6 @@
 import { nextTick, ref, type Ref } from 'vue'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 
-/** Snapshot stored in history for the pane-native Second Brain surface. */
-export type SecondBrainHistorySnapshot = {
-  surface: 'chat'
-}
-
 /** Snapshot stored in history for the pane-native Home surface. */
 export type HomeHistorySnapshot = {
   surface: 'hub'
@@ -60,8 +55,8 @@ export type AppNavigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => void
   revealDocumentInPane: (path: string, paneId?: string) => void
   setActivePathInPane: (paneId: string, path: string) => void
-  openSurfaceInPane: (type: 'home' | 'second-brain-chat', paneId?: string) => void
-  findPaneContainingSurface: (type: 'home' | 'second-brain-chat') => string | null
+  openSurfaceInPane: (type: 'home', paneId?: string) => void
+  findPaneContainingSurface: (type: 'home') => string | null
 }
 
 /**
@@ -78,13 +73,6 @@ export type AppNavigationHistoryPort = {
     goForwardEntry: () => DocumentHistoryEntry | null
     jumpToEntry: (index: number) => DocumentHistoryEntry | null
     currentIndex: Ref<number>
-  }
-  secondBrain: {
-    read: (payload: unknown) => SecondBrainHistorySnapshot | null
-    current: () => SecondBrainHistorySnapshot
-    stateKey: (snapshot: SecondBrainHistorySnapshot) => string
-    label: (snapshot: SecondBrainHistorySnapshot) => string
-    open: (snapshot: SecondBrainHistorySnapshot) => Promise<boolean>
   }
   home: {
     read: (payload: unknown) => HomeHistorySnapshot | null
@@ -129,7 +117,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
 
   /** Formats a history entry label for the back/forward menus. */
   function historyTargetLabel(entry: DocumentHistoryEntry): string {
-    if (entry.kind === 'second-brain') return entry.label || 'Second Brain'
     if (entry.kind === 'home') return entry.label || 'Home'
     return workspacePort.toRelativePath(entry.path)
   }
@@ -145,21 +132,6 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
       path: '__tomosona_home_view__',
       label: historyPort.home.label(snapshot),
       stateKey: historyPort.home.stateKey(snapshot),
-      payload: snapshot
-    })
-  }
-
-  /** Records the current Second Brain surface into linear document history. */
-  function recordSecondBrainHistorySnapshot() {
-    if (isApplyingHistoryNavigation.value) return
-    const active = panePort.getActiveTab()
-    if (!active || active.type !== 'second-brain-chat') return
-    const snapshot = historyPort.secondBrain.current()
-    historyPort.documentHistory.recordEntry({
-      kind: 'second-brain',
-      path: '__tomosona_second_brain_view__',
-      label: historyPort.secondBrain.label(snapshot),
-      stateKey: historyPort.secondBrain.stateKey(snapshot),
       payload: snapshot
     })
   }
@@ -243,30 +215,8 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     return true
   }
 
-  /** Opens a note from the Second Brain surface into another pane when available. */
-  async function openNoteFromSecondBrain(path: string): Promise<void> {
-    const sourcePaneId = panePort.findPaneContainingSurface('second-brain-chat')
-    const paneOrder = panePort.getPaneOrder()
-    const targetPaneId = sourcePaneId
-      ? paneOrder.find((paneId) => paneId !== sourcePaneId) ?? sourcePaneId
-      : panePort.getActivePaneId()
-
-    await openTabWithAutosave(path, {
-      targetPaneId,
-      revealInTargetPane: Boolean(targetPaneId),
-      recordHistory: true
-    })
-  }
-
   /** Replays a history entry regardless of whether it targets a note or a pane-native surface. */
   async function openHistoryEntry(entry: DocumentHistoryEntry): Promise<boolean> {
-    if (entry.kind === 'second-brain') {
-      return await openSurfaceHistoryEntry(entry.payload, {
-        read: historyPort.secondBrain.read,
-        open: historyPort.secondBrain.open,
-        ensureWorkspaceFiles: true
-      })
-    }
     if (entry.kind === 'home') {
       return await openSurfaceHistoryEntry(entry.payload, {
         read: historyPort.home.read,
@@ -328,11 +278,9 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     isApplyingHistoryNavigation,
     historyTargetLabel,
     recordHomeHistorySnapshot,
-    recordSecondBrainHistorySnapshot,
     ensureActiveTabSavedBeforeSwitch,
     openTabWithAutosave,
     setActiveTabWithAutosave,
-    openNoteFromSecondBrain,
     openHistoryEntry,
     goBackInHistory,
     goForwardInHistory,

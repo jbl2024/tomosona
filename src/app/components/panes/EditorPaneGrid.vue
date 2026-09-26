@@ -11,10 +11,7 @@ import type {
   EditorSignalKind,
   EditorSignalSummary
 } from '../../../domains/editor/lib/editorSignals'
-import type {
-  AppShellLaunchpadViewModel,
-  AppShellSecondBrainViewModel
-} from '../../lib/appShellViewModels'
+import type { AppShellLaunchpadViewModel } from '../../lib/appShellViewModels'
 import {
   collectPaneIds,
   computeSplitRatio,
@@ -81,7 +78,7 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
-  secondBrain: AppShellSecondBrainViewModel
+  workspacePath: string
   launchpad: AppShellLaunchpadViewModel
 }>()
 
@@ -110,9 +107,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette']
-  'second-brain-context-changed': [paths: string[]]
-  'second-brain-session-changed': [sessionId: string]
+  'launchpad-quick-start': [kind: 'today' | 'command-palette']
 }>()
 
 // Keep instance refs out of Vue reactivity to avoid render-feedback loops.
@@ -356,14 +351,14 @@ onBeforeUnmount(() => {
         :open-externally="openExternally"
         :launchpad="{
           showExperience: pane.id === layout.activePaneId,
-          mode: secondBrain.workspacePath ? 'workspace-launchpad' : 'no-workspace',
+          mode: workspacePath ? 'workspace-launchpad' : 'no-workspace',
           workspaceLabel: launchpad.workspaceLabel,
           recentWorkspaces: launchpad.recentWorkspaces,
           recentViewedNotes: launchpad.recentViewedNotes,
           recentUpdatedNotes: launchpad.recentUpdatedNotes,
           showWizardAction: launchpad.showWizardAction
         }"
-        :second-brain="secondBrain"
+        :workspace-path="workspacePath"
         :get-status="getStatus"
         :open-file="openFile"
         :save-file="saveFile"
@@ -394,8 +389,6 @@ onBeforeUnmount(() => {
         @launchpad-create-note="emit('launchpad-create-note')"
         @launchpad-open-recent-note="emit('launchpad-open-recent-note', $event)"
         @launchpad-quick-start="emit('launchpad-quick-start', $event)"
-        @second-brain-context-changed="emit('second-brain-context-changed', $event)"
-        @second-brain-session-changed="emit('second-brain-session-changed', $event)"
       />
     </section>
 

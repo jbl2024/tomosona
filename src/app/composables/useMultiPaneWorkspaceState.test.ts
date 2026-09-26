@@ -38,13 +38,11 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(store.layout.value.panesById['pane-2'].openTabs).toEqual([])
   })
 
-  it('keeps special surfaces unique across panes', () => {
+  it('keeps the home surface unique across panes', () => {
     const store = useMultiPaneWorkspaceState()
     store.openSurfaceInPane('home')
-    store.openSurfaceInPane('second-brain-chat')
     const pane2 = store.splitPane('pane-1', 'row')
     store.openSurfaceInPane('home', pane2!)
-    store.openSurfaceInPane('second-brain-chat', pane2!)
 
     expect(store.layout.value.activePaneId).toBe('pane-1')
   })
@@ -159,14 +157,13 @@ describe('useMultiPaneWorkspaceState', () => {
     store.openSurfaceInPane('home')
     const pane2 = store.splitPane('pane-1', 'row')
     store.openDocumentInPane('/vault/b.md', pane2!)
-    store.openSurfaceInPane('second-brain-chat', pane2!)
     store.setActivePane(pane2!)
 
     store.joinAllPanes()
 
     const tabs = store.layout.value.panesById['pane-1'].openTabs
     expect(store.paneOrder.value).toEqual(['pane-1'])
-    expect(tabs.map((tab) => tab.type)).toEqual(['document', 'home', 'document', 'second-brain-chat'])
+    expect(tabs.map((tab) => tab.type)).toEqual(['document', 'home', 'document'])
   })
 
   it('serializes and hydrates current layout', () => {
@@ -222,7 +219,7 @@ describe('useMultiPaneWorkspaceState', () => {
     expect(hydrated?.panesById['pane-1'].activeTabId).toBe('')
   })
 
-  it('hydrates legacy second-brain sessions surface as chat', () => {
+  it('ignores removed legacy surfaces when restoring a layout', () => {
     const hydrated = hydrateLayout({
       root: { kind: 'pane', paneId: 'pane-1' },
       panesById: {
@@ -239,8 +236,7 @@ describe('useMultiPaneWorkspaceState', () => {
     })
 
     expect(hydrated).toBeTruthy()
-    expect(hydrated?.panesById['pane-1'].openTabs[0].type).toBe('second-brain-chat')
-    expect(hydrated?.panesById['pane-1'].openTabs[0].id).toBe('surface:second-brain-chat')
+    expect(hydrated?.panesById['pane-1'].openTabs).toEqual([])
   })
 
   it('creates a valid initial layout helper', () => {

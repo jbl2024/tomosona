@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import EditorView from '../../../domains/editor/components/EditorView.vue'
-import SecondBrainPaneSurface from '../../../domains/second-brain/components/SecondBrainPaneSurface.vue'
 import FileInspectorPaneSurface from './FileInspectorPaneSurface.vue'
 import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
@@ -9,10 +8,7 @@ import type { FileEditorStatus } from './EditorPaneTabs.vue'
 import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
 import type { DocumentSession } from '../../../domains/editor/composables/useDocumentEditorSessions'
 import type { ReadNoteSnapshotResult, SaveNoteResult, WorkspaceFsChange } from '../../../shared/api/apiTypes'
-import type {
-  AppShellLaunchpadViewModel,
-  AppShellSecondBrainViewModel
-} from '../../lib/appShellViewModels'
+import type { AppShellLaunchpadViewModel } from '../../lib/appShellViewModels'
 import type {
   EditorSignalDirection,
   EditorSignalKind,
@@ -44,7 +40,7 @@ const props = defineProps<{
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
   activeDocumentPath: string
-  secondBrain: AppShellSecondBrainViewModel
+  workspacePath: string
   launchpad: AppShellLaunchpadViewModel & {
     showExperience: boolean
     mode: 'no-workspace' | 'workspace-launchpad'
@@ -68,9 +64,7 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette']
-  'second-brain-context-changed': [paths: string[]]
-  'second-brain-session-changed': [sessionId: string]
+  'launchpad-quick-start': [kind: 'today' | 'command-palette']
 }>()
 
 type EditorSurfaceExposed = {
@@ -92,24 +86,12 @@ type EditorSurfaceExposed = {
 }
 
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
-const hasSecondBrainTab = computed(() => props.openTabs.some((tab) => tab.type === 'second-brain-chat'))
-const showSecondBrainSurface = computed(() => props.activeTab?.type === 'second-brain-chat')
 const activeInspectorTab = computed(() => props.activeTab?.type === 'file-inspector' ? props.activeTab : null)
 const activeInspectorPath = computed(() => activeInspectorTab.value?.path ?? '')
 const openActiveInspectorExternally = () => {
   if (!activeInspectorTab.value || !props.openExternally) return
   void props.openExternally(activeInspectorTab.value.path)
 }
-const secondBrainViewModel = computed(() => ({
-  workspacePath: props.secondBrain.workspacePath,
-  allWorkspaceFiles: props.secondBrain.allWorkspaceFiles,
-  requestedSessionId: props.secondBrain.requestedSessionId,
-  requestedSessionNonce: props.secondBrain.requestedSessionNonce,
-  requestedPrompt: props.secondBrain.requestedPrompt,
-  requestedPromptNonce: props.secondBrain.requestedPromptNonce,
-  activeNotePath: props.secondBrain.activeNotePath,
-  echoesRefreshToken: props.secondBrain.echoesRefreshToken
-}))
 
 function withEditor<T>(run: (editor: EditorSurfaceExposed) => T, fallback: T): T {
   const editor = editorSurfaceRef.value
@@ -141,7 +123,7 @@ defineExpose<EditorSurfaceExposed>({
     v-if="activeTab?.type === 'document'"
     ref="editorSurfaceRef"
     :path="activeTab.path"
-    :workspace-path="secondBrain.workspacePath"
+    :workspace-path="workspacePath"
     :openPaths="openDocumentPaths"
     :all-workspace-files="allWorkspaceFiles"
     :openFile="openFile"
@@ -188,22 +170,6 @@ defineExpose<EditorSurfaceExposed>({
     @create-note="emit('launchpad-create-note')"
     @open-recent-note="emit('launchpad-open-recent-note', $event)"
     @quick-start="emit('launchpad-quick-start', $event)"
-  />
-
-  <SecondBrainPaneSurface
-    v-if="hasSecondBrainTab"
-    v-show="showSecondBrainSurface"
-    :workspace-path="secondBrainViewModel.workspacePath"
-    :all-workspace-files="secondBrainViewModel.allWorkspaceFiles"
-    :requested-session-id="secondBrainViewModel.requestedSessionId"
-    :requested-session-nonce="secondBrainViewModel.requestedSessionNonce"
-    :requested-prompt="secondBrainViewModel.requestedPrompt"
-    :requested-prompt-nonce="secondBrainViewModel.requestedPromptNonce"
-    :active-note-path="secondBrainViewModel.activeNotePath"
-    :echoes-refresh-token="secondBrainViewModel.echoesRefreshToken"
-    @open-note="emit('open-note', $event)"
-    @context-changed="emit('second-brain-context-changed', $event)"
-    @session-changed="emit('second-brain-session-changed', $event)"
   />
 
   <WorkspaceLaunchpad

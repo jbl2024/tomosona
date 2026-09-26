@@ -16,7 +16,6 @@ export type UseAppModalControllerOptions = {
   newFileModalVisible: Readonly<Ref<boolean>>
   newFolderModalVisible: Readonly<Ref<boolean>>
   openDateModalVisible: Readonly<Ref<boolean>>
-  settingsModalVisible: Readonly<Ref<boolean>>
   spellcheckDictionaryModalVisible: Readonly<Ref<boolean>>
   shortcutsModalVisible: Readonly<Ref<boolean>>
   aboutModalVisible: Readonly<Ref<boolean>>
@@ -50,7 +49,6 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
     if (options.shortcutsModalVisible.value) return '[data-modal="shortcuts"]'
     if (options.aboutModalVisible.value) return '[data-modal="about"]'
     if (options.workspaceSetupWizardVisible.value) return '[data-modal="workspace-setup-wizard"]'
-    if (options.settingsModalVisible.value) return '[data-modal="settings"]'
     if (options.spellcheckDictionaryModalVisible.value) return '[data-modal="spellcheck-dictionary"]'
     if (options.openDateModalVisible.value) return '[data-modal="open-date"]'
     if (options.newFolderModalVisible.value) return '[data-modal="new-folder"]'

@@ -312,7 +312,7 @@ const codeSample = computed(() => [
             <UiPanel class-name="ds-nav-panel">
               <div class="ds-tab-row">
                 <button type="button" class="ds-tab ds-tab--active">Editor</button>
-                <button type="button" class="ds-tab">Second Brain</button>
+                <button type="button" class="ds-tab">Home</button>
               </div>
               <div class="ds-card-copy">Tabs should read as shell chrome, not as giant primary actions.</div>
             </UiPanel>
@@ -320,7 +320,7 @@ const codeSample = computed(() => [
               <UiMenuList>
                 <button type="button" class="ui-menu-item">Command palette</button>
                 <button type="button" class="ui-menu-item" data-active="true">Theme / Dark</button>
-                <button type="button" class="ui-menu-item">Settings</button>
+                <button type="button" class="ui-menu-item">About</button>
               </UiMenuList>
               <UiSeparator />
               <UiMenuList>

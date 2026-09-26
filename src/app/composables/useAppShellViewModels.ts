@@ -4,7 +4,7 @@ import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
-import type { AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
+import type { AppShellLaunchpadViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
 import { basenameLabel, buildMetadataRows, buildShortcutSections, buildSystemThemeLabel, buildThemePickerItems, type ShellSurfaceType, type ThemePickerItem } from '../lib/appShellPresentation'
 
 type ShortcutSection = {
@@ -53,15 +53,6 @@ type ViewModelOptions = {
     recentUpdatedNotes: Ref<LaunchpadRecentNote[]>
     showWizardAction: Ref<boolean>
   }
-  secondBrain: {
-    workspacePath: Ref<string>
-    allWorkspaceFiles: Ref<string[]>
-    requestedSessionId: Ref<string>
-    requestedSessionNonce: Ref<number>
-    requestedPrompt: Ref<string>
-    requestedPromptNonce: Ref<number>
-    echoesRefreshToken: Ref<number>
-  }
   labels: {
     formatTimestamp: (value: number | null | undefined) => string
   }
@@ -90,7 +81,6 @@ export type AppShellViewModels = {
   localContextItems: ComputedRef<ConstitutedContextItem[]>
   pinnedContextItems: ComputedRef<ConstitutedContextItem[]>
   noteEchoesForPanel: ComputedRef<Array<EchoesItem & { isInContext: boolean }>>
-  secondBrainPaneViewModel: ComputedRef<AppShellSecondBrainViewModel>
   launchpadPaneViewModel: ComputedRef<AppShellLaunchpadViewModel>
   backShortcutLabel: ComputedRef<string>
   forwardShortcutLabel: ComputedRef<string>
@@ -180,16 +170,6 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
       isInContext: options.context.constitutedContext.contains(item.path)
     }))
   )
-  const secondBrainPaneViewModel = computed<AppShellSecondBrainViewModel>(() => ({
-    workspacePath: options.secondBrain.workspacePath.value,
-    allWorkspaceFiles: options.secondBrain.allWorkspaceFiles.value,
-    requestedSessionId: options.secondBrain.requestedSessionId.value,
-    requestedSessionNonce: options.secondBrain.requestedSessionNonce.value,
-    requestedPrompt: options.secondBrain.requestedPrompt.value,
-    requestedPromptNonce: options.secondBrain.requestedPromptNonce.value,
-    activeNotePath: options.workspace.activeFilePath.value,
-    echoesRefreshToken: options.secondBrain.echoesRefreshToken.value
-  }))
   const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
     workspaceLabel: options.workspace.workingFolderPath.value
       ? options.libs.basenameLabel(options.workspace.workingFolderPath.value)
@@ -233,7 +213,6 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
     localContextItems,
     pinnedContextItems,
     noteEchoesForPanel,
-    secondBrainPaneViewModel,
     launchpadPaneViewModel,
     backShortcutLabel,
     forwardShortcutLabel,

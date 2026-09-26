@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bars3Icon, Cog8ToothIcon, SwatchIcon } from '@heroicons/vue/24/outline'
+import { Bars3Icon, SwatchIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
@@ -30,7 +30,6 @@ const emit = defineEmits<{
   openCommandPalette: []
   openShortcuts: []
   openAbout: []
-  openSettings: []
   openDesignSystemDebug: []
   rebuildIndex: []
   closeWorkspace: []
@@ -79,12 +78,6 @@ defineExpose({
       <button type="button" class="ui-menu-item overflow-item" @click="emit('openAbout')">
         <span class="ui-menu-item-icon-spacer" aria-hidden="true"></span>
         About
-      </button>
-      <button type="button" class="ui-menu-item overflow-item" @click="emit('openSettings')">
-        <span class="ui-menu-item-icon overflow-item-icon" aria-hidden="true">
-          <Cog8ToothIcon />
-        </span>
-        Open Settings
       </button>
       <button v-if="showDebugTools" type="button" class="ui-menu-item overflow-item" @click="emit('openDesignSystemDebug')">
         <span class="ui-menu-item-icon-spacer" aria-hidden="true"></span>

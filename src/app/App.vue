@@ -53,16 +53,6 @@ import { parseSearchSnippet } from '../shared/lib/searchSnippets'
 import { type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
 import {
-  createDeliberationSession,
-  loadDeliberationSession,
-  replaceSessionContext
-} from '../domains/second-brain/lib/secondBrainApi'
-import {
-  normalizeContextPathsForUpdate,
-  toAbsoluteWorkspacePath,
-  workspaceScopedSecondBrainSessionKey
-} from '../domains/second-brain/lib/secondBrainContextPaths'
-import {
   dailyNotePath,
   formatIsoDate,
   formatTimestamp,
@@ -110,18 +100,13 @@ import { useAppIndexingController } from './composables/useAppIndexingController
 import { useWorkspaceMutationEffects } from './composables/useWorkspaceMutationEffects'
 import {
   useAppNavigationController,
-  type HomeHistorySnapshot,
-  type SecondBrainHistorySnapshot
+  type HomeHistorySnapshot
 } from './composables/useAppNavigationController'
 import {
   buildHomeHistorySnapshot,
-  buildSecondBrainHistorySnapshot,
   homeHistoryLabel,
   homeSnapshotStateKey,
   readHomeHistorySnapshot,
-  readSecondBrainHistorySnapshot,
-  secondBrainHistoryLabel,
-  secondBrainSnapshotStateKey
 } from './lib/appNavigationHistory'
 import { useAppShellHistoryUi } from './composables/useAppShellHistoryUi'
 import { useAppShellModalInteractions } from './composables/useAppShellModalInteractions'
@@ -135,7 +120,6 @@ import { useAppShellOpenFlow, type RefreshBacklinksOptions } from './composables
 import { useAppShellPersistence } from './composables/useAppShellPersistence'
 import { useAppShellChromeRuntime } from './composables/useAppShellChromeRuntime'
 import { useAppShellRuntimeLifecycle } from './composables/useAppShellRuntimeLifecycle'
-import { useAppShellEchoesRefresh } from './composables/useAppShellEchoesRefresh'
 import { useAppShellSearch } from './composables/useAppShellSearch'
 import { useAppShellWorkspaceEntries } from './composables/useAppShellWorkspaceEntries'
 import { useAppShellWorkspaceLifecycle } from './composables/useAppShellWorkspaceLifecycle'
@@ -144,7 +128,6 @@ import { useAppShellWorkspaceRouting } from './composables/useAppShellWorkspaceR
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppNotePersistence } from './composables/useAppNotePersistence'
 import { useAppShellRootWorkflow } from './composables/useAppShellRootWorkflow'
-import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
 import { useAppShellConstitutedContextActions } from './composables/useAppShellConstitutedContextActions'
 import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
@@ -160,8 +143,6 @@ import {
 } from '../domains/editor/lib/editorSignals'
 import { useAppWorkspaceController } from './composables/useAppWorkspaceController'
 import { useEditorState } from '../domains/editor/composables/useEditorState'
-import { useEchoesDiscoverability } from '../domains/echoes/composables/useEchoesDiscoverability'
-import { useEchoesPack } from '../domains/echoes/composables/useEchoesPack'
 import { useConstitutedContext } from '../domains/editor/composables/useConstitutedContext'
 import { useFilesystemState } from './composables/useFilesystemState'
 import { useWorkspaceState, type SidebarMode } from './composables/useWorkspaceState'
@@ -245,7 +226,6 @@ const closeOverflowMenu = () => {
   overflowMenuOpen.value = false
 }
 const editorZoom = ref(1)
-const workspaceMutationEchoesToken = ref(0)
 const newFileModalVisible = ref(false)
 const newFilePathInput = ref('')
 const newFileModalError = ref('')
@@ -256,7 +236,6 @@ const newFolderModalError = ref('')
 const openDateModalVisible = ref(false)
 const openDateInput = ref('')
 const openDateModalError = ref('')
-const settingsModalVisible = ref(false)
 const spellcheckDictionaryModalVisible = ref(false)
 const designSystemDebugVisible = ref(false)
 const shortcutsModalVisible = ref(false)
@@ -318,7 +297,6 @@ const activeNoteSourceToggleLabel = computed(() => {
   if (!activeFilePath.value || !isMarkdownPath(activeFilePath.value)) return ''
   return editorRef.value?.isActiveEditorSourceSurface?.() ? 'Switch to rich editor' : 'Edit raw text'
 })
-const echoesEnabled = ref(true)
 const activeStateLabel = computed(() => (
   activeStatus.value.saving
     ? 'saving'
@@ -339,16 +317,6 @@ function onEditorSignalSummary(payload: { paneId: string; summary: EditorSignalS
 function navigateActiveEditorSignal(kind: EditorSignalKind, direction: EditorSignalDirection) {
   editorRef.value?.navigateSignal(kind, direction)
 }
-const noteEchoes = useEchoesPack(activeFilePath, {
-  limit: 5,
-  enabled: echoesEnabled,
-  refreshKey: workspaceMutationEchoesToken
-})
-useAppShellEchoesRefresh({
-  indexingState: filesystem.indexingState,
-  refreshEchoes: () => noteEchoes.refresh()
-})
-const noteEchoesDiscoverability = useEchoesDiscoverability()
 const constitutedContext = useConstitutedContext({
   resolveItem: (path) => ({
     path,
@@ -559,7 +527,6 @@ const {
   workingFolderPath: filesystem.workingFolderPath,
   virtualDocs,
   allWorkspaceFiles,
-  workspaceMutationEchoesToken,
   ensureParentFolders,
   refreshActiveFileMetadata,
   upsertWorkspaceFilePath,
@@ -625,9 +592,6 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
   updateWikilinksForPathMoves,
   moveNoteHistoryEntries,
   runWorkspaceMutation,
-  bumpEchoesRefreshToken: () => {
-    workspaceMutationEchoesToken.value += 1
-  }
 })
 const modalController = useAppModalController({
   quickOpenVisible,
@@ -636,7 +600,6 @@ const modalController = useAppModalController({
   newFileModalVisible,
   newFolderModalVisible,
   openDateModalVisible,
-  settingsModalVisible,
   spellcheckDictionaryModalVisible,
   shortcutsModalVisible,
   aboutModalVisible,
@@ -651,45 +614,6 @@ const {
   restoreFocusAfterModalClose,
   trapTabWithinActiveModal
 } = modalController
-const secondBrainWorkspacePort = {
-  workingFolderPath: filesystem.workingFolderPath,
-  activeFilePath
-}
-
-const secondBrainContextPort = {
-  storageKeyForWorkspace: workspaceScopedSecondBrainSessionKey,
-  toAbsoluteWorkspacePath,
-  normalizeContextPathsForUpdate
-}
-
-const secondBrainSessionPort = {
-  createDeliberationSession,
-  loadDeliberationSession,
-  replaceSessionContext
-}
-
-const secondBrainUiEffectsPort = {
-  errorMessage: filesystem.errorMessage,
-  notifySuccess: (message: string) => filesystem.notifySuccess(message)
-}
-
-const secondBrainBridge = useAppSecondBrainBridge({
-  secondBrainWorkspacePort,
-  secondBrainContextPort,
-  secondBrainSessionPort,
-  secondBrainUiEffectsPort
-})
-const {
-  secondBrainRequestedSessionId,
-  secondBrainRequestedSessionNonce,
-  secondBrainRequestedPrompt,
-  secondBrainRequestedPromptNonce,
-  setSecondBrainSessionId,
-  setSecondBrainPrompt,
-  addActiveNoteToSecondBrain,
-  onSecondBrainContextChanged,
-  onSecondBrainSessionChanged
-} = secondBrainBridge
 const constitutedContextActions = useAppShellConstitutedContextActions({
   activeFilePath,
   constitutedContext,
@@ -701,14 +625,6 @@ const constitutedContextActions = useAppShellConstitutedContextActions({
   },
   contextActionLoading,
   noteTitleFromPath,
-  normalizeContextPathsForUpdate,
-  secondBrain: {
-    resolveSecondBrainSessionForPath: (path) => secondBrainBridge.resolveSecondBrainSessionForPath(path),
-    replaceSessionContext,
-    setSecondBrainSessionId,
-    setSecondBrainPrompt,
-    openSecondBrainViewFromPalette: () => openSecondBrainViewFromPalette()
-  },
 })
 const {
   addPathToConstitutedContext,
@@ -716,7 +632,6 @@ const {
   removeLocalPathFromConstitutedContext,
   removePinnedPathFromConstitutedContext,
   toggleActiveNoteInConstitutedContext,
-  openConstitutedContextInSecondBrain,
 } = constitutedContextActions
 
 const search = useAppShellSearch({
@@ -815,7 +730,6 @@ const shellModals = useAppShellModals({
     openDateModalVisible,
     openDateInput,
     openDateModalError,
-    settingsModalVisible,
     designSystemDebugVisible,
     shortcutsModalVisible,
     shortcutsFilterQuery,
@@ -873,8 +787,6 @@ const {
   closeAboutModal,
   openShortcutsModal,
   closeShortcutsModal,
-  openSettingsModal,
-  closeSettingsModal,
   openDesignSystemDebugModal,
   closeDesignSystemDebugModal,
   openWorkspaceSetupWizard,
@@ -889,7 +801,6 @@ const {
   closeOpenDateModal,
   openShortcutsFromOverflow,
   openAboutFromOverflow,
-  openSettingsFromOverflow,
   openShortcutsFromPalette,
   onNewFileInputKeydown,
   onNewFolderInputKeydown,
@@ -982,8 +893,8 @@ const navigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => multiPane.openInspectorInPane(path, paneId),
   revealDocumentInPane: (path: string, paneId?: string) => multiPane.revealDocumentInPane(path, paneId),
   setActivePathInPane: (paneId: string, path: string) => multiPane.setActivePathInPane(paneId, path),
-  openSurfaceInPane: (type: 'home' | 'second-brain-chat', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
-  findPaneContainingSurface: (type: 'home' | 'second-brain-chat') => multiPane.findPaneContainingSurface(type)
+  openSurfaceInPane: (type: 'home', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
+  findPaneContainingSurface: (type: 'home') => multiPane.findPaneContainingSurface(type)
 }
 
 const navigationHistoryPort = {
@@ -995,16 +906,6 @@ const navigationHistoryPort = {
     label: homeHistoryLabel,
     open: async (_snapshot: HomeHistorySnapshot): Promise<boolean> => {
       multiPane.openSurfaceInPane('home')
-      return true
-    }
-  },
-  secondBrain: {
-    read: readSecondBrainHistorySnapshot,
-    current: () => buildSecondBrainHistorySnapshot(),
-    stateKey: secondBrainSnapshotStateKey,
-    label: secondBrainHistoryLabel,
-    open: async (_snapshot: SecondBrainHistorySnapshot): Promise<boolean> => {
-      multiPane.openSurfaceInPane('second-brain-chat')
       return true
     }
   }
@@ -1020,10 +921,8 @@ const {
   isApplyingHistoryNavigation,
   historyTargetLabel,
   recordHomeHistorySnapshot,
-  recordSecondBrainHistorySnapshot,
   openTabWithAutosave,
   setActiveTabWithAutosave,
-  openNoteFromSecondBrain,
   openHistoryEntry,
   goBackInHistory,
   goForwardInHistory,
@@ -1138,7 +1037,6 @@ const shellViewModels = useAppShellViewModels({
     forwardTargets: documentHistory.forwardTargets
   },
   notes: {
-    noteEchoes: noteEchoes.items,
     backlinks,
   },
   context: {
@@ -1149,15 +1047,6 @@ const shellViewModels = useAppShellViewModels({
     recentViewedNotes,
     recentUpdatedNotes,
     showWizardAction: launchpadShowWizardAction
-  },
-  secondBrain: {
-    workspacePath: filesystem.workingFolderPath,
-    allWorkspaceFiles,
-    requestedSessionId: secondBrainRequestedSessionId,
-    requestedSessionNonce: secondBrainRequestedSessionNonce,
-    requestedPrompt: secondBrainRequestedPrompt,
-    requestedPromptNonce: secondBrainRequestedPromptNonce,
-    echoesRefreshToken: workspaceMutationEchoesToken
   },
   labels: {
     formatTimestamp: (value) => formatTimestamp(value ?? null)
@@ -1184,8 +1073,6 @@ const {
   activeNoteInContext,
   localContextItems,
   pinnedContextItems,
-  noteEchoesForPanel,
-  secondBrainPaneViewModel,
   launchpadPaneViewModel,
   backShortcutLabel,
   forwardShortcutLabel,
@@ -1244,7 +1131,6 @@ const shellModalInteractions = useAppShellModalInteractions({
     !newFileModalVisible.value &&
     !newFolderModalVisible.value &&
     !openDateModalVisible.value &&
-    !settingsModalVisible.value &&
     !designSystemDebugVisible.value &&
     !shortcutsModalVisible.value &&
     !themePickerVisible.value &&
@@ -1369,7 +1255,6 @@ const commands = useAppShellCommands({
   navigationPort: {
     openTabWithAutosave,
     recordHomeHistorySnapshot,
-    recordSecondBrainHistorySnapshot,
   },
   favoritesPort: {
     isFavorite: (path) => favorites.isFavorite(path),
@@ -1378,9 +1263,6 @@ const commands = useAppShellCommands({
   },
   actionPort: {
     loadAllFiles,
-    addActiveNoteToSecondBrain,
-    primeSecondBrainSessionRequest: () => secondBrainBridge.primeRequestedSecondBrainSessionFromStorage(),
-    openSettingsModal,
     openQuickOpen,
     openTodayNote,
     openWorkspacePicker: () => onSelectWorkingFolder(),
@@ -1394,15 +1276,12 @@ const commands = useAppShellCommands({
   }
 })
 const {
-  openSecondBrainViewFromPalette,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
-  addActiveNoteToSecondBrainFromPalette,
   addActiveNoteToFavoritesFromPalette,
   removeActiveNoteFromFavoritesFromPalette,
   removeFavoriteFromList,
   toggleActiveNoteFavoriteFromRightPane,
-  openSettingsFromPalette,
   openSearchPanel,
   openFavoriteFromSidebar,
   revealActiveInExplorer,
@@ -1426,17 +1305,13 @@ entryActions.bindLaunchpadActionPort({
   openQuickOpen: (initialQuery = '') => openQuickOpen(initialQuery),
   openCommandPalette: () => openCommandPalette(),
   openTodayNote: () => openTodayNote(),
-  openSecondBrainView: () => openSecondBrainViewFromPalette(),
 })
 entryActions.bindShellPaletteActionPort({
   openIntegratedTerminal,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
-  openSecondBrainViewFromPalette,
-  addActiveNoteToSecondBrainFromPalette,
   addActiveNoteToFavoritesFromPalette,
   removeActiveNoteFromFavoritesFromPalette,
-  openSettingsFromPalette,
   openSpellcheckDictionaryFromPalette: () => rootWorkflow.openSpellcheckDictionaryFromPalette(),
   openWorkspaceFromPalette,
   closeWorkspaceFromPalette,
@@ -1579,10 +1454,6 @@ const rootWorkflow = useAppShellRootWorkflow({
     notifyInfo: (message) => filesystem.notifyInfo(message),
     hasWorkspace: filesystem.hasWorkspace
   },
-  history: {
-    noteEchoesItems: noteEchoes.items,
-    noteEchoesDiscoverability
-  },
   explorer: {
     favorites: {
       markFavoriteMissing: (path) => favorites.markFavoriteMissing(path)
@@ -1675,7 +1546,6 @@ useAppShellKeyboard({
     newFileModalVisible,
     newFolderModalVisible,
     openDateModalVisible,
-    settingsModalVisible,
     designSystemDebugVisible,
     aboutModalVisible,
     shortcutsModalVisible,
@@ -1692,7 +1562,6 @@ useAppShellKeyboard({
     closeNewFileModal,
     closeNewFolderModal,
     closeOpenDateModal,
-    closeSettingsModal,
     closeDesignSystemDebugModal,
     closeAboutModal,
     closeShortcutsModal,
@@ -1759,7 +1628,6 @@ useAppShellKeyboard({
       @history-long-press-cancel="cancelHistoryLongPress"
       @history-target-click="onHistoryTargetClick"
       @open-today="void openHomeViewFromPalette()"
-      @open-second-brain="void openSecondBrainViewFromPalette()"
       @split-right="splitPaneFromPalette('row')"
       @split-down="splitPaneFromPalette('column')"
       @focus-pane="focusPaneFromPalette($event)"
@@ -1774,7 +1642,6 @@ useAppShellKeyboard({
       @open-command-palette="openCommandPalette"
       @open-shortcuts="openShortcutsFromOverflow"
       @open-about="openAboutFromOverflow"
-      @open-settings="openSettingsFromOverflow"
       @open-design-system-debug="openDesignSystemDebugFromOverflow"
       @rebuild-index="void rebuildIndexFromOverflow()"
       @close-workspace="closeWorkspace"
@@ -1814,10 +1681,6 @@ useAppShellKeyboard({
       :parse-search-snippet="parseSearchSnippet"
       :can-toggle-favorite="Boolean(activeFilePath)"
       :is-favorite="Boolean(activeFilePath && favorites.isFavorite(activeFilePath))"
-      :echoes-items="noteEchoesForPanel"
-      :echoes-loading="noteEchoes.loading.value"
-      :echoes-error="noteEchoes.error.value"
-      :echoes-hint-visible="noteEchoesDiscoverability.hintVisible.value"
       :indexing-state="filesystem.indexingState.value"
       :local-context-items="localContextItems"
       :pinned-context-items="pinnedContextItems"
@@ -1863,7 +1726,6 @@ useAppShellKeyboard({
       @context-pin="constitutedContext.pin()"
       @context-clear-local="constitutedContext.clearLocal()"
       @context-clear-pinned="constitutedContext.clearPinned()"
-      @context-open-second-brain="void openConstitutedContextInSecondBrain()"
       @active-note-open-history="void openActiveNoteHistory()"
     >
       <template #center>
@@ -1871,6 +1733,7 @@ useAppShellKeyboard({
           ref="editorRef"
           :layout="multiPane.layout.value"
           :active-document-path="activeFilePath"
+          :workspace-path="filesystem.workingFolderPath.value"
           :all-workspace-files="allWorkspaceFiles"
           :open-file="readTextFile"
           :open-externally="openPathNatively"
@@ -1886,7 +1749,6 @@ useAppShellKeyboard({
           :loadPropertyTypeSchema="loadPropertyTypeSchema"
           :savePropertyTypeSchema="savePropertyTypeSchema"
           :openLinkTarget="openWikilinkTarget"
-          :second-brain="secondBrainPaneViewModel"
           :launchpad="launchpadPaneViewModel"
           @pane-focus="multiPane.setActivePane($event.paneId)"
           @pane-tab-click="void onPaneTabClick($event)"
@@ -1896,10 +1758,7 @@ useAppShellKeyboard({
           @pane-tab-close-right="onPaneTabCloseRight($event)"
           @pane-tab-close-all="onPaneTabCloseAll($event)"
           @pane-request-move-tab="multiPane.moveActiveTabToAdjacentPane($event.direction)"
-          @open-note="void openNoteFromSecondBrain($event)"
           @external-reload="filesystem.notifyInfo(`Reloaded ${basenameLabel($event.path)} from disk.`)"
-          @second-brain-context-changed="onSecondBrainContextChanged"
-          @second-brain-session-changed="onSecondBrainSessionChanged"
           @status="onEditorStatus"
           @path-renamed="onEditorPathRenamed"
           @outline="onEditorOutline"
@@ -2353,49 +2212,6 @@ useAppShellKeyboard({
   width: min(560px, calc(100vw - 32px));
 }
 
-.settings-modal {
-  width: min(960px, calc(100vw - 32px));
-}
-
-.settings-tabs {
-  display: inline-flex;
-  gap: 6px;
-  margin: 2px 0 0;
-}
-
-.settings-tab-btn {
-  border: 1px solid var(--modal-tab-border);
-  border-bottom-color: transparent;
-  background: var(--modal-tab-bg);
-  border-radius: 8px 8px 0 0;
-  font-size: 12px;
-  padding: 6px 10px;
-  color: var(--text-soft);
-}
-
-.settings-tab-btn.active {
-  border-color: var(--modal-tab-active-border);
-  border-bottom-color: var(--modal-tab-active-bg);
-  background: var(--modal-tab-active-bg);
-  color: var(--modal-tab-active-text);
-  position: relative;
-  z-index: 1;
-}
-
-.settings-tab-panel {
-  border: 1px solid var(--modal-panel-border);
-  border-top: 0;
-  border-radius: 0 8px 8px 8px;
-  padding: 12px;
-  background: var(--modal-panel-bg);
-}
-
-.settings-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .confirm-title {
   margin: 0;
   font-size: 15px;
@@ -2422,77 +2238,6 @@ useAppShellKeyboard({
   margin: 6px 0 10px;
   font-size: 11px;
   color: var(--modal-copy);
-}
-
-.settings-model-group {
-  margin: 0 0 8px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-radius: 8px;
-  background: var(--modal-group-bg);
-}
-
-.settings-model-input-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.settings-discover-btn {
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--text-soft);
-  background: var(--modal-muted-btn-bg);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.settings-discover-btn:hover:not(:disabled) {
-  background: var(--modal-muted-btn-hover);
-  color: var(--text-main);
-}
-
-.settings-discover-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.settings-footer {
-  margin-top: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.settings-config-path {
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.settings-footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.settings-cancel-btn {
-  border: 0;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 12px;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.settings-cancel-btn:hover {
-  color: var(--text-main);
 }
 
 .modal-input-error {

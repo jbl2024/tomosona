@@ -42,12 +42,9 @@ export type AppShellPaletteThemePort = {
 export type AppShellPaletteActionPort = {
   openHomeViewFromPalette: () => boolean | Promise<boolean>
   openFavoritesPanelFromPalette: () => boolean | Promise<boolean>
-  openSecondBrainViewFromPalette: () => boolean | Promise<boolean>
-  addActiveNoteToSecondBrainFromPalette: () => boolean | Promise<boolean>
   addActiveNoteToFavoritesFromPalette: () => boolean | Promise<boolean>
   removeActiveNoteFromFavoritesFromPalette: () => boolean | Promise<boolean>
   convertMarkdownToWord: (path: string) => boolean | Promise<boolean>
-  openSettingsFromPalette: () => boolean | Promise<boolean>
   openIntegratedTerminal: () => boolean | Promise<boolean>
   openWorkspaceFromPalette: () => boolean | Promise<boolean>
   closeWorkspaceFromPalette: () => boolean | Promise<boolean>
@@ -102,11 +99,8 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'open-today': 4,
   'open-yesterday': 5,
   'open-specific-date': 6,
-  'open-second-brain-view': 8,
-  'add-active-note-to-second-brain': 10,
   'add-active-note-to-favorites': 11,
   'remove-active-note-from-favorites': 12,
-  'open-settings': 13,
   'open-integrated-terminal': 13.5,
   'reveal-in-explorer': 15,
   'convert-to-word': 15.5,
@@ -190,12 +184,6 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
           })]
         : []
     ),
-    createPaletteAction('utilities', {
-      id: 'open-settings',
-      label: 'Open Settings',
-      run: () => options.actionPort.openSettingsFromPalette(),
-      closeBeforeRun: true
-    }),
     ...(options.statePort.hasWorkspace.value
       ? [createPaletteAction('utilities', {
           id: 'open-integrated-terminal',

@@ -170,51 +170,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
     CREATE INDEX IF NOT EXISTS idx_note_properties_key_bool ON note_properties(key, value_bool);
     CREATE INDEX IF NOT EXISTS idx_note_properties_key_date ON note_properties(key, value_date);
 
-    CREATE TABLE IF NOT EXISTS second_brain_sessions (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL DEFAULT '',
-      provider TEXT NOT NULL DEFAULT '',
-      model TEXT NOT NULL DEFAULT '',
-      created_at_ms INTEGER NOT NULL DEFAULT 0,
-      updated_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_second_brain_sessions_updated ON second_brain_sessions(updated_at_ms DESC);
-
-    CREATE TABLE IF NOT EXISTS second_brain_context_items (
-      session_id TEXT NOT NULL,
-      path TEXT NOT NULL,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      token_estimate INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(session_id, path)
-    );
-    CREATE INDEX IF NOT EXISTS idx_second_brain_context_session_order
-      ON second_brain_context_items(session_id, sort_order ASC);
-
-    CREATE TABLE IF NOT EXISTS second_brain_messages (
-      id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL,
-      role TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'freestyle',
-      content_md TEXT NOT NULL DEFAULT '',
-      citations_json TEXT NOT NULL DEFAULT '[]',
-      attachments_json TEXT NOT NULL DEFAULT '[]',
-      created_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_second_brain_messages_session_created
-      ON second_brain_messages(session_id, created_at_ms ASC);
-
-    CREATE TABLE IF NOT EXISTS second_brain_drafts (
-      session_id TEXT PRIMARY KEY,
-      content_md TEXT NOT NULL DEFAULT '',
-      updated_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS second_brain_session_targets (
-      session_id TEXT PRIMARY KEY,
-      target_note_path TEXT NOT NULL DEFAULT '',
-      updated_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-
   "#,
     )?;
 

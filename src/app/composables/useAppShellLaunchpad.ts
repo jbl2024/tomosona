@@ -47,7 +47,6 @@ export type UseAppShellLaunchpadActionPort = {
   openQuickOpen: (initialQuery?: string) => boolean | Promise<boolean | void> | void
   openCommandPalette: () => boolean | Promise<boolean | void> | void
   openTodayNote: () => boolean | Promise<boolean | void> | void
-  openSecondBrainView: () => boolean | Promise<boolean | void> | void
 }
 
 /**
@@ -219,13 +218,9 @@ export function useAppShellLaunchpad(options: UseAppShellLaunchpadOptions) {
     return true
   }
 
-  async function launchQuickStart(kind: 'today' | 'second-brain' | 'command-palette') {
+  async function launchQuickStart(kind: 'today' | 'command-palette') {
     if (kind === 'today') {
       await options.actionPort.openTodayNote()
-      return true
-    }
-    if (kind === 'second-brain') {
-      await options.actionPort.openSecondBrainView()
       return true
     }
     await options.actionPort.openCommandPalette()

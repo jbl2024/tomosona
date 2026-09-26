@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 export type DocumentHistoryEntry = {
-  kind: 'note' | 'home' | 'second-brain'
+  kind: 'note' | 'home'
   path: string
   label: string
   stateKey: string

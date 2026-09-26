@@ -96,8 +96,7 @@ const QUICK_OPEN_BROWSE_ACTION_IDS = [
   'open-today',
   'create-new-file',
   'convert-to-word',
-  'open-favorites',
-  'open-settings'
+  'open-favorites'
 ] as const
 
 const PALETTE_ACTION_FAMILY_META: Record<PaletteActionFamily, { label: string; order: number }> = {

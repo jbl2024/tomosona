@@ -199,8 +199,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     structuredPropertyKeys,
     propertyKeySuggestions,
     propertySuggestionsForField,
-    propertyGenerationLoading,
-    propertyGenerationTargetIndex,
     ensurePropertySchemaLoaded,
     ensurePropertyKeySuggestionsLoaded,
     resetPropertySchemaState,
@@ -218,8 +216,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     propertiesExpanded,
     togglePropertiesVisibility,
     onRawYamlInput,
-    generateAutoProperties,
-    generatePropertyValue,
     movePathState: moveFrontmatterPathState
   } = useFrontmatterProperties({
     currentPath,
@@ -246,8 +242,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     structuredPropertyKeys,
     propertyKeySuggestions,
     propertySuggestionsForField,
-    propertyGenerationLoading,
-    propertyGenerationTargetIndex,
     ensurePropertySchemaLoaded,
     ensurePropertyKeySuggestionsLoaded,
     resetPropertySchemaState,
@@ -265,8 +259,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     propertiesExpanded,
     togglePropertiesVisibility,
     onRawYamlInput,
-    generateAutoProperties,
-    generatePropertyValue,
     moveFrontmatterPathState,
     markDocumentDirtyFromMetadataChange: markPathDirtyAndQueueAutosave
   }
@@ -532,8 +524,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     structuredPropertyKeys,
     propertyKeySuggestions,
     propertySuggestionsForField,
-    propertyGenerationLoading,
-    propertyGenerationTargetIndex,
     ensurePropertySchemaLoaded,
     ensurePropertyKeySuggestionsLoaded,
     resetPropertySchemaState,
@@ -551,8 +541,6 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     propertiesExpanded,
     togglePropertiesVisibility,
     onRawYamlInput,
-    generateAutoProperties,
-    generatePropertyValue,
     moveFrontmatterPathState,
     isLoadingLargeDocument: ui.loading.isLoadingLargeDocument,
     loadStageLabel: ui.loading.loadStageLabel,

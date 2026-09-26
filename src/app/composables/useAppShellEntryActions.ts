@@ -33,7 +33,6 @@ function createLaunchpadActionPort(): UseAppShellLaunchpadActionPort {
     openQuickOpen: async () => false,
     openCommandPalette: async () => false,
     openTodayNote: async () => false,
-    openSecondBrainView: async () => false,
   }
 }
 
@@ -41,11 +40,8 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
   return {
     openHomeViewFromPalette: () => false,
     openFavoritesPanelFromPalette: () => false,
-    openSecondBrainViewFromPalette: () => false,
-    addActiveNoteToSecondBrainFromPalette: () => false,
     addActiveNoteToFavoritesFromPalette: () => false,
     removeActiveNoteFromFavoritesFromPalette: () => false,
-    openSettingsFromPalette: () => false,
     openIntegratedTerminal: () => false,
     openWorkspaceFromPalette: () => false,
     closeWorkspaceFromPalette: () => false,

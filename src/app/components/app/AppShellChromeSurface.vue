@@ -50,7 +50,6 @@ const emit = defineEmits<{
   historyLongPressCancel: []
   historyTargetClick: [targetIndex: number]
   openToday: []
-  openSecondBrain: []
   splitRight: []
   splitDown: []
   focusPane: [index: number]
@@ -65,7 +64,6 @@ const emit = defineEmits<{
   openCommandPalette: []
   openShortcuts: []
   openAbout: []
-  openSettings: []
   openDesignSystemDebug: []
   rebuildIndex: []
   closeWorkspace: []
@@ -125,7 +123,6 @@ defineExpose<AppShellChromeSurfaceExposed>({
       @history-long-press-cancel="emit('historyLongPressCancel')"
       @history-target-click="emit('historyTargetClick', $event)"
       @open-today="emit('openToday')"
-      @open-second-brain="emit('openSecondBrain')"
       @split-right="emit('splitRight')"
       @split-down="emit('splitDown')"
       @focus-pane="emit('focusPane', $event)"
@@ -140,7 +137,6 @@ defineExpose<AppShellChromeSurfaceExposed>({
       @open-command-palette="emit('openCommandPalette')"
       @open-shortcuts="emit('openShortcuts')"
       @open-about="emit('openAbout')"
-      @open-settings="emit('openSettings')"
       @open-design-system-debug="emit('openDesignSystemDebug')"
       @rebuild-index="emit('rebuildIndex')"
       @close-workspace="emit('closeWorkspace')"

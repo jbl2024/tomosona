@@ -105,19 +105,6 @@ pub(crate) fn chunk_markdown(markdown: &str) -> Vec<(String, String)> {
     chunks
 }
 
-/// Adds note identity context to the first chunk to improve semantic grounding.
-pub(crate) fn inject_relative_path_context(
-    path_for_db: &str,
-    mut chunks: Vec<(String, String)>,
-) -> Vec<(String, String)> {
-    if path_for_db.trim().is_empty() || chunks.is_empty() {
-        return chunks;
-    }
-    if let Some((_, first_text)) = chunks.first_mut() {
-        *first_text = format!("{path_for_db}\n{first_text}");
-    }
-    chunks
-}
 
 fn chunk_content_hash(anchor: &str, text: &str) -> String {
     let mut hasher = DefaultHasher::new();
@@ -517,7 +504,7 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     ensure_index_schema(&conn)?;
     let tx = conn.unchecked_transaction()?;
     let path_for_db = normalize_workspace_relative_path(&root, &normalized_path)?;
-    let chunks = inject_relative_path_context(&path_for_db, chunks);
+    let chunks = chunks;
     log_index(&format!("reindex:start path={path_for_db}"));
     let source_key = normalize_note_key(&root, &normalized_path)?;
 
@@ -556,13 +543,6 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
         )?;
     }
     tx.execute(
-        "DELETE FROM embeddings
-         WHERE chunk_id IN (
-           SELECT id FROM chunks WHERE path = ?1 AND chunk_ord >= ?2
-         )",
-        params![path_for_db.clone(), chunk_count as i64],
-    )?;
-    tx.execute(
         "DELETE FROM chunks WHERE path = ?1 AND chunk_ord >= ?2",
         params![path_for_db.clone(), chunk_count as i64],
     )?;
@@ -595,7 +575,7 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     tx.commit()?;
     let total_ms = started_at.elapsed().as_millis();
     log_index(&format!(
-        "reindex:done path={path_for_db} chunks={chunk_count} targets={target_count} properties={property_count} embedding=deferred embedding_ms=0 total_ms={total_ms}"
+        "reindex:done path={path_for_db} chunks={chunk_count} targets={target_count} properties={property_count} total_ms={total_ms}"
     ));
     let _ = record_last_index_run(
         &conn,

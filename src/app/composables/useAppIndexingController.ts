@@ -308,7 +308,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     return status.model_init_attempts <= 1 && status.model_state !== 'ready'
   })
 
-  const indexSemanticLinksCount = computed(() => indexOverviewStats.value?.semantic_links_count ?? 0)
+  const indexSemanticLinksCount = computed(() => 0)
 
   const indexProcessedNotesCount = computed(() => indexOverviewStats.value?.processed_notes_count ?? 0)
 

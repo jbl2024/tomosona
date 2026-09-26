@@ -13,7 +13,6 @@ export type AppShellKeyboardStatePort = {
   newFileModalVisible: Readonly<Ref<boolean>>
   newFolderModalVisible: Readonly<Ref<boolean>>
   openDateModalVisible: Readonly<Ref<boolean>>
-  settingsModalVisible: Readonly<Ref<boolean>>
   designSystemDebugVisible: Readonly<Ref<boolean>>
   aboutModalVisible: Readonly<Ref<boolean>>
   shortcutsModalVisible: Readonly<Ref<boolean>>
@@ -34,7 +33,6 @@ export type AppShellKeyboardActionsPort = {
   closeNewFileModal: () => void
   closeNewFolderModal: () => void
   closeOpenDateModal: () => void
-  closeSettingsModal: () => void
   closeDesignSystemDebugModal: () => void
   closeAboutModal: () => void
   closeShortcutsModal: () => void
@@ -113,11 +111,6 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     if (options.statePort.openDateModalVisible.value) {
       consume(event)
       options.actionsPort.closeOpenDateModal()
-      return true
-    }
-    if (options.statePort.settingsModalVisible.value) {
-      consume(event)
-      options.actionsPort.closeSettingsModal()
       return true
     }
     if (options.statePort.designSystemDebugVisible.value) {

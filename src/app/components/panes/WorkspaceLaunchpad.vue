@@ -700,10 +700,6 @@ function shortUpdatedLabel(value: string): string {
   color: color-mix(in srgb, var(--accent) 88%, white 12%);
 }
 
-.launchpad-action-icon-second-brain {
-  color: color-mix(in srgb, #f6d365 74%, var(--text-dim));
-}
-
 .launchpad-action-icon-project {
   color: color-mix(in srgb, #98e6b3 72%, var(--text-dim));
 }

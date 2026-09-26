@@ -106,7 +106,7 @@ const emit = defineEmits<{
   launchpadOpenQuickOpen: []
   launchpadCreateNote: []
   launchpadOpenRecentNote: [path: string]
-  launchpadQuickStart: [kind: 'today' | 'second-brain' | 'command-palette']
+  launchpadQuickStart: [kind: 'today' | 'command-palette']
   toggleFavorite: []
   activeNoteOpenHistory: []
   activeNoteToggleSourceMode: []

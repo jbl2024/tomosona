@@ -4,7 +4,7 @@ import { documentPathsForPane } from '../lib/appShellPane'
 
 type PaneAxis = 'row' | 'column'
 type PaneDirection = 'next' | 'previous'
-type SurfaceType = 'home' | 'second-brain-chat'
+type SurfaceType = 'home'
 
 /** Groups shell workspace state and shell-owned UI persistence used by commands. */
 export type AppShellCommandsWorkspacePort = {
@@ -54,7 +54,6 @@ export type AppShellCommandsPanePort = {
 export type AppShellCommandsNavigationPort = {
   openTabWithAutosave: (path: string) => Promise<boolean>
   recordHomeHistorySnapshot: () => void
-  recordSecondBrainHistorySnapshot: () => void
 }
 
 /** Groups favorites-domain APIs consumed by shell commands. */
@@ -67,9 +66,6 @@ export type AppShellCommandsFavoritesPort = {
 /** Groups cross-domain actions already implemented elsewhere and reused by commands. */
 export type AppShellCommandsActionPort = {
   loadAllFiles: () => Promise<void>
-  addActiveNoteToSecondBrain: () => Promise<boolean>
-  primeSecondBrainSessionRequest: () => string
-  openSettingsModal: () => Promise<void>
   openQuickOpen: (initialQuery?: string) => Promise<void>
   openTodayNote: () => Promise<boolean>
   openWorkspacePicker: () => Promise<boolean>
@@ -103,21 +99,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     options.workspacePort.setSidebarMode(mode)
   }
 
-  async function openSecondBrainViewFromPalette() {
-    if (!options.workspacePort.hasWorkspace.value) {
-      options.workspacePort.notifyError('Open a workspace first.')
-      return false
-    }
-
-    options.actionPort.primeSecondBrainSessionRequest()
-    options.panePort.openSurfaceInPane('second-brain-chat')
-    options.navigationPort.recordSecondBrainHistorySnapshot()
-    if (!options.workspacePort.allWorkspaceFiles.value.length) {
-      await options.actionPort.loadAllFiles()
-    }
-    return true
-  }
-
   async function openHomeViewFromPalette() {
     options.panePort.openSurfaceInPane('home')
     options.navigationPort.recordHomeHistorySnapshot()
@@ -131,10 +112,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     options.actionPort.closeOverflowMenu()
     persistSidebarModeSelection('favorites')
     return true
-  }
-
-  async function addActiveNoteToSecondBrainFromPalette() {
-    return await options.actionPort.addActiveNoteToSecondBrain()
   }
 
   async function addActiveNoteToFavoritesFromPalette() {
@@ -180,11 +157,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
       return
     }
     await addActiveNoteToFavoritesFromPalette()
-  }
-
-  async function openSettingsFromPalette() {
-    await options.actionPort.openSettingsModal()
-    return true
   }
 
   function openSearchPanel() {
@@ -307,15 +279,12 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
   }
 
   return {
-    openSecondBrainViewFromPalette,
     openHomeViewFromPalette,
     openFavoritesPanelFromPalette,
-    addActiveNoteToSecondBrainFromPalette,
     addActiveNoteToFavoritesFromPalette,
     removeActiveNoteFromFavoritesFromPalette,
     removeFavoriteFromList,
     toggleActiveNoteFavoriteFromRightPane,
-    openSettingsFromPalette,
     openSearchPanel,
     openFavoriteFromSidebar,
     revealActiveInExplorer,

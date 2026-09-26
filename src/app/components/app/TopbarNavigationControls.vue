@@ -72,7 +72,6 @@ const emit = defineEmits<{
   openCommandPalette: []
   openShortcuts: []
   openAbout: []
-  openSettings: []
   openDesignSystemDebug: []
   rebuildIndex: []
   closeWorkspace: []
@@ -284,7 +283,6 @@ defineExpose({
             @open-command-palette="emit('openCommandPalette')"
             @open-shortcuts="emit('openShortcuts')"
           @open-about="emit('openAbout')"
-          @open-settings="emit('openSettings')"
           @open-design-system-debug="emit('openDesignSystemDebug')"
           @rebuild-index="emit('rebuildIndex')"
             @close-workspace="emit('closeWorkspace')"

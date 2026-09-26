@@ -46,7 +46,7 @@ export type MetadataRow = {
   value: string
 }
 
-export type ShellSurfaceType = 'document' | 'file-inspector' | 'home' | 'second-brain-chat'
+export type ShellSurfaceType = 'document' | 'file-inspector' | 'home'
 
 export type BuildMetadataRowsOptions = {
   activeFilePath: string
@@ -200,9 +200,7 @@ export function buildMetadataRows(options: BuildMetadataRowsOptions): MetadataRo
       ? 'Home'
       : activeTab.type === 'file-inspector'
         ? 'File inspector'
-      : activeTab.type === 'second-brain-chat'
-          ? 'Second Brain'
-          : 'Surface'
+        : 'Surface'
     return [
       { label: 'Surface', value: label },
       { label: 'Metadata', value: 'No document metadata for this surface' }

@@ -16,7 +16,6 @@ export type AppShellModalsStatePort = {
   openDateModalVisible: Ref<boolean>
   openDateInput: Ref<string>
   openDateModalError: Ref<string>
-  settingsModalVisible: Ref<boolean>
   designSystemDebugVisible: Ref<boolean>
   shortcutsModalVisible: Ref<boolean>
   shortcutsFilterQuery: Ref<string>
@@ -115,18 +114,6 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
   function closeShortcutsModal() {
     closeWithFocusRestore(() => {
       statePort.shortcutsModalVisible.value = false
-    })
-  }
-
-  async function openSettingsModal() {
-    actionPort.rememberFocusBeforeModalOpen()
-    statePort.settingsModalVisible.value = true
-    await nextTick()
-  }
-
-  function closeSettingsModal() {
-    closeWithFocusRestore(() => {
-      statePort.settingsModalVisible.value = false
     })
   }
 
@@ -238,11 +225,6 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
     openAboutModal()
   }
 
-  async function openSettingsFromOverflow() {
-    actionPort.closeOverflowMenu()
-    await openSettingsModal()
-  }
-
   function openShortcutsFromPalette() {
     openShortcutsModal()
     return true
@@ -306,8 +288,6 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
     closeAboutModal,
     openShortcutsModal,
     closeShortcutsModal,
-    openSettingsModal,
-    closeSettingsModal,
     openDesignSystemDebugModal,
     closeDesignSystemDebugModal,
     openWorkspaceSetupWizard,
@@ -322,7 +302,6 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
     closeOpenDateModal,
     openShortcutsFromOverflow,
     openAboutFromOverflow,
-    openSettingsFromOverflow,
     openShortcutsFromPalette,
     onNewFileInputKeydown,
     onNewFolderInputKeydown,

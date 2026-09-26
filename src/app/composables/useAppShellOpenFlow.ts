@@ -177,9 +177,6 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
   const backlinks = ref<string[]>([])
   const backlinksLoading = ref(false)
   const backlinksError = ref('')
-  const semanticLinks = ref<Array<{ path: string; score: number | null; direction: 'incoming' | 'outgoing' }>>([])
-  const semanticLinksLoading = ref(false)
-  const semanticLinksError = ref('')
 
   let activeNoteEffectsRequestToken = 0
   let backlinksSourcePath = ''
@@ -479,9 +476,6 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     backlinks,
     backlinksLoading,
     backlinksError,
-    semanticLinks,
-    semanticLinksLoading,
-    semanticLinksError,
     refreshBacklinks,
     openTodayNote,
     openYesterdayNote,
