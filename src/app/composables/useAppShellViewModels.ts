@@ -1,6 +1,5 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { FileMetadata } from '../../shared/api/apiTypes'
-import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
@@ -36,9 +35,7 @@ type ViewModelOptions = {
     forwardTargets: Ref<Array<{ index: number; entry: DocumentHistoryEntry }>>
   }
   notes: {
-    noteEchoes: Ref<EchoesItem[]>
     backlinks: Ref<string[]>
-    semanticLinks?: Ref<Array<{ path: string }>>
   }
   context: {
     constitutedContext: {
@@ -76,11 +73,9 @@ export type AppShellViewModels = {
   filteredShortcutSections: ComputedRef<ShortcutSection[]>
   metadataRows: ComputedRef<ReturnType<typeof buildMetadataRows>>
   backlinkCount: ComputedRef<number>
-  semanticLinkCount: ComputedRef<number>
   activeNoteInContext: ComputedRef<boolean>
   localContextItems: ComputedRef<ConstitutedContextItem[]>
   pinnedContextItems: ComputedRef<ConstitutedContextItem[]>
-  noteEchoesForPanel: ComputedRef<Array<EchoesItem & { isInContext: boolean }>>
   launchpadPaneViewModel: ComputedRef<AppShellLaunchpadViewModel>
   backShortcutLabel: ComputedRef<string>
   forwardShortcutLabel: ComputedRef<string>
@@ -157,19 +152,12 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
   )
 
   const backlinkCount = computed(() => options.notes.backlinks.value.length)
-  const semanticLinkCount = computed(() => options.notes.semanticLinks?.value.length ?? 0)
   const activeNoteInContext = computed(() => {
     const path = options.workspace.activeFilePath.value.trim()
     return path ? options.context.constitutedContext.contains(path) : false
   })
   const localContextItems = computed(() => options.context.constitutedContext.localItems.value)
   const pinnedContextItems = computed(() => options.context.constitutedContext.pinnedItems.value)
-  const noteEchoesForPanel = computed(() =>
-    options.notes.noteEchoes.value.map((item) => ({
-      ...item,
-      isInContext: options.context.constitutedContext.contains(item.path)
-    }))
-  )
   const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
     workspaceLabel: options.workspace.workingFolderPath.value
       ? options.libs.basenameLabel(options.workspace.workingFolderPath.value)
@@ -208,11 +196,9 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
     filteredShortcutSections,
     metadataRows,
     backlinkCount,
-    semanticLinkCount,
     activeNoteInContext,
     localContextItems,
     pinnedContextItems,
-    noteEchoesForPanel,
     launchpadPaneViewModel,
     backShortcutLabel,
     forwardShortcutLabel,

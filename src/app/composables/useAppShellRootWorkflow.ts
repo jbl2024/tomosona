@@ -51,11 +51,6 @@ type RootFilesystemPort = {
   hasWorkspace: Readonly<Ref<boolean>>
 }
 
-type RootHistoryPort = {
-  noteEchoesItems: Readonly<Ref<unknown[]>>
-  noteEchoesDiscoverability: { markPackShown: () => void }
-}
-
 type RootExplorerPort = {
   favorites: { markFavoriteMissing: (path: string) => void }
   removeLaunchpadRecentNote: (path: string) => void
@@ -71,7 +66,6 @@ type RootOptions = {
   modal: RootModalPort
   surface: RootSurfacePort
   filesystem: RootFilesystemPort
-  history: RootHistoryPort
   explorer: RootExplorerPort
   editor: RootEditorPort
   workspaceMutation: RootWorkspaceMutationPort
@@ -205,15 +199,6 @@ export function useAppShellRootWorkflow(options: RootOptions) {
   function openSpellcheckDictionaryFromPalette() {
     return openSpellcheckDictionaryModal()
   }
-
-  watch(
-    () => options.history.noteEchoesItems.value.length,
-    (count, previousCount = 0) => {
-      if (count > 0 && previousCount === 0) {
-        options.history.noteEchoesDiscoverability.markPackShown()
-      }
-    }
-  )
 
   watch(
     () => options.indexing.indexStatusModalVisible.value,

@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core'
-import { toEchoesPack, type EchoesPack } from '../../domains/echoes/lib/echoes'
 import type {
   IndexLogEntry,
   IndexOverviewStats,
@@ -8,11 +7,6 @@ import type {
   PathMoveRewriteResult,
 } from './apiTypes'
 
-type ComputeEchoesPackPayload = {
-  anchor_path: string
-  limit?: number
-  include_recent_activity?: boolean
-}
 
 /** Compatibility no-op while older UI state is retired. */
 export async function reindexMarkdownFileSemantic(_path: string): Promise<void> {}
@@ -24,7 +18,7 @@ export async function readIndexRuntimeStatus(): Promise<IndexRuntimeStatus> {
 }
 
 /**
- * Frontend IPC wrappers for indexing, search, graph data, and Echoes transport.
+ * Frontend IPC wrappers for indexing, search, and graph data.
  */
 
 /** Initializes the workspace database and runtime dependencies. */
@@ -118,25 +112,4 @@ export async function readPropertyTypeSchema(): Promise<Record<string, string>> 
 /** Persists the property type schema for the active workspace. */
 export async function writePropertyTypeSchema(schema: Record<string, string>): Promise<void> {
   await invoke('write_property_type_schema', { schema })
-}
-
-/** Computes a local Echoes suggestion pack for a note anchor. */
-export async function computeEchoesPack(
-  anchorPath: string,
-  options: {
-    limit?: number
-    includeRecentActivity?: boolean
-  } = {}
-): Promise<EchoesPack> {
-  const payload: ComputeEchoesPackPayload = {
-    anchor_path: anchorPath
-  }
-  if (options.limit != null) {
-    payload.limit = options.limit
-  }
-  if (options.includeRecentActivity != null) {
-    payload.include_recent_activity = options.includeRecentActivity
-  }
-  const result = await invoke('compute_echoes_pack', { payload })
-  return toEchoesPack(result as Parameters<typeof toEchoesPack>[0])
 }

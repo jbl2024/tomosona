@@ -29,7 +29,6 @@ export type UseWorkspaceMutationEffectsOptions = {
   updateWikilinksForPathMoves: (moves: PathMove[]) => Promise<PathMoveRewriteResult>
   moveNoteHistoryEntries: (moves: PathMove[]) => Promise<void>
   runWorkspaceMutation: (task: () => Promise<WorkspaceMutationResult>) => Promise<void>
-  bumpEchoesRefreshToken: () => void
 }
 
 function normalizeMoves(moves: PathMove[]): PathMove[] {
@@ -74,7 +73,6 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
   async function scheduleDeferredLocalSync(moves: PathMove[], expandedMarkdownMoves: PathMove[]) {
     await deferredScheduler.schedule(() => {
       options.applyDeferredLocalPathMoves(moves, expandedMarkdownMoves)
-      options.bumpEchoesRefreshToken()
     })
   }
 

@@ -31,7 +31,6 @@ export type AppNotePersistenceOptions = {
   workingFolderPath: Ref<string>
   virtualDocs: Ref<Record<string, VirtualDoc>>
   allWorkspaceFiles: Ref<string[]>
-  workspaceMutationEchoesToken: Ref<number>
   ensureParentFolders: (path: string) => Promise<void>
   refreshActiveFileMetadata: (path: string) => Promise<void>
   upsertWorkspaceFilePath: (path: string) => void
@@ -168,7 +167,6 @@ export function useAppNotePersistence(options: AppNotePersistenceOptions): AppNo
 
     if (virtual || isNewWorkspacePath) {
       await options.loadAllFiles()
-      options.workspaceMutationEchoesToken.value += 1
     }
 
     return result

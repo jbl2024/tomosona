@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
   activePath: string
   activeLabel?: string
 }>(), {
-  activeLabel: 'Use this note for Echoes suggestions'
+  activeLabel: 'Use this note in the current context'
 })
 
 const emit = defineEmits<{

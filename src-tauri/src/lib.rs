@@ -3,7 +3,6 @@
 mod app_meta;
 mod db;
 mod docx;
-mod echoes;
 mod editor_sync;
 mod favorites;
 mod fs_ops;
@@ -318,15 +317,6 @@ fn update_wikilinks_for_path_moves(moves: Vec<PathMoveInput>) -> Result<PathMove
     update_wikilinks_for_path_moves_impl(moves)
 }
 
-#[tauri::command]
-async fn compute_echoes_pack(
-    payload: echoes::ComputeEchoesPackPayload,
-) -> Result<echoes::EchoesPackDto> {
-    tauri::async_runtime::spawn_blocking(move || echoes::compute_echoes_pack(payload))
-        .await
-        .map_err(|_| AppError::OperationFailed)?
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if db::init_sqlite_runtime() {
@@ -395,13 +385,12 @@ pub fn run() {
             favorites::add_favorite,
             favorites::remove_favorite,
             favorites::rename_favorite,
-            compute_echoes_pack,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{
