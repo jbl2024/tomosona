@@ -2,7 +2,7 @@ import { effectScope, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAppShellKeyboard } from './useAppShellKeyboard'
 
-function createKeyboard() {
+function createKeyboard(isMacOs = false) {
   const state = {
     quickOpenVisible: ref(false),
     terminalVisible: ref(false),
@@ -67,7 +67,7 @@ function createKeyboard() {
 
   const scope = effectScope()
   const api = scope.run(() => useAppShellKeyboard({
-    isMacOs: false,
+    isMacOs,
     statePort: {
       ...state,
       quickOpenIsActionMode: ref(false)
@@ -99,13 +99,53 @@ describe('useAppShellKeyboard', () => {
     scope.stop()
   })
 
-  it('closes the integrated terminal on Escape', () => {
+  it('focuses an already visible terminal on Escape outside the panel', () => {
     const { scope, state, actions } = createKeyboard()
     state.terminalVisible.value = true
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
 
+    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
+    expect(actions.closeIntegratedTerminal).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('passes Escape through to the terminal program', () => {
+    const { scope, state, actions } = createKeyboard(true)
+    state.terminalVisible.value = true
+    const panel = document.createElement('section')
+    panel.className = 'integrated-terminal'
+    const input = document.createElement('textarea')
+    panel.appendChild(input)
+    document.body.appendChild(panel)
+    const received = vi.fn()
+    input.addEventListener('keydown', received)
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    input.dispatchEvent(event)
+    expect(received).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(false)
+    expect(actions.closeIntegratedTerminal).not.toHaveBeenCalled()
+    expect(actions.openIntegratedTerminal).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('toggles the panel with Cmd+J from a terminal input and preserves Ctrl+J on Mac', () => {
+    const { scope, state, guards, actions } = createKeyboard(true)
+    guards.shouldBlockGlobalShortcutsFromTarget.mockReturnValue(true)
+    const input = document.createElement('textarea')
+    document.body.appendChild(input)
+    const received = vi.fn()
+    input.addEventListener('keydown', received)
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', metaKey: true, bubbles: true, cancelable: true }))
+    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
+    state.terminalVisible.value = true
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', metaKey: true, bubbles: true, cancelable: true }))
     expect(actions.closeIntegratedTerminal).toHaveBeenCalledTimes(1)
+    expect(received).not.toHaveBeenCalled()
+    const ctrlJ = new KeyboardEvent('keydown', { key: 'j', ctrlKey: true, bubbles: true, cancelable: true })
+    input.dispatchEvent(ctrlJ)
+    expect(received).toHaveBeenCalledTimes(1)
+    expect(ctrlJ.defaultPrevented).toBe(false)
     scope.stop()
   })
 

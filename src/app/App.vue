@@ -240,6 +240,7 @@ const isMacOs = typeof navigator !== 'undefined' && /(Mac|iPhone|iPad|iPod)/i.te
 
 const quickOpenVisible = ref(false)
 const terminalVisible = ref(false)
+const terminalPanel = ref<InstanceType<typeof IntegratedTerminalPanel> | null>(null)
 const quickOpenQuery = ref('')
 const quickOpenActiveIndex = ref(0)
 const themePickerVisible = ref(false)
@@ -292,6 +293,7 @@ function openIntegratedTerminal() {
     return false
   }
   terminalVisible.value = true
+  void nextTick(() => terminalPanel.value?.focus())
   return true
 }
 
@@ -2199,6 +2201,7 @@ useAppShellKeyboard({
       </template>
       <template #terminal>
         <IntegratedTerminalPanel
+          ref="terminalPanel"
           :visible="terminalVisible"
           :workspace-path="filesystem.workingFolderPath.value"
           :current-file-path="activeFilePath"

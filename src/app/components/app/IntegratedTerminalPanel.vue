@@ -189,6 +189,8 @@ watch(() => props.visible, (visible) => {
   if (visible && !tabs.value.length) void createTerminalTab()
   if (visible) focusActiveTab()
 }, { immediate: true })
+defineExpose({ focus: focusActiveTab })
+
 watch(activeTabId, () => focusActiveTab())
 watch(() => props.colorScheme, () => { for (const runtime of runtimes.values()) runtime.terminal.options.theme = terminalTheme() })
 watch(() => props.workspacePath, async () => {

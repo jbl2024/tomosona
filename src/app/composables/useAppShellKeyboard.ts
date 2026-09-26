@@ -83,7 +83,7 @@ export type UseAppShellKeyboardOptions = {
  * Owns shell-global keyboard routing and priority ordering.
  *
  * Invariants:
- * - `Escape` closes the top-most shell modal, then toggles the terminal when no modal is open.
+ * - `Escape` closes shell overlays, then opens/focuses the terminal unless it already owns focus.
  * - `Mod+W` is always intercepted to avoid native window-close behavior.
  * - Domain behavior stays outside this controller; it only invokes injected shell intents.
  */
@@ -155,11 +155,6 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       consume(event)
       return true
     }
-    if (options.statePort.terminalVisible.value) {
-      consume(event)
-      options.actionsPort.closeIntegratedTerminal()
-      return true
-    }
 
     if (options.statePort.historyMenuOpen.value) {
       consume(event)
@@ -180,6 +175,9 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     // A modal outside this controller (for example spellcheck) keeps ownership
     // of Escape; never let it accidentally open the terminal behind itself.
     if (options.guardsPort.hasBlockingModalOpen()) return false
+
+    // Vim and other interactive programs own Escape inside the terminal.
+    if (event.target instanceof Element && event.target.closest('.integrated-terminal')) return true
 
     consume(event)
     void options.actionsPort.openIntegratedTerminal()
@@ -256,6 +254,14 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     }
 
     if (options.guardsPort.hasBlockingModalOpen()) return
+
+    const isPanelModifier = options.isMacOs ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
+    if (isPanelModifier && key === 'j' && !event.shiftKey && !event.altKey) {
+      consume(event)
+      if (options.statePort.terminalVisible.value) options.actionsPort.closeIntegratedTerminal()
+      else void options.actionsPort.openIntegratedTerminal()
+      return
+    }
 
     // The command palette remains available from focused native inputs such
     // as xterm's hidden textarea, while other shell shortcuts stay local.
