@@ -9,10 +9,10 @@ import {
 
 describe('indexActivity', () => {
   it('parses structured key value fields from backend logs', () => {
-    expect(parseIndexLogFields('semantic_edges:refresh_error run_id=4 phase=insert_edge sqlite_code=ConstraintViolation')).toEqual({
+    expect(parseIndexLogFields('rebuild:done run_id=4 indexed=12 total_ms=987')).toEqual({
       run_id: '4',
-      phase: 'insert_edge',
-      sqlite_code: 'ConstraintViolation'
+      indexed: '12',
+      total_ms: '987'
     })
   })
 
@@ -40,34 +40,15 @@ describe('indexActivity', () => {
       },
       {
         ts_ms: 1_100,
-        message: 'semantic_edges:refresh_phase run_id=9 phase=query_neighbors source_index=3 source_total=12 source_path=Notes/Projet.md'
+        message: 'record_internal_write path=notes/b.md'
       },
       {
         ts_ms: 1_200,
-        message: 'semantic_edges:refresh_done run_id=9 phase=done sources_with_vector=12 added=4 total_ms=42'
+        message: 'save_note_buffer:start path=notes/c.md'
       }
     ], (path) => path)
 
     expect(rows).toEqual([])
-  })
-
-  it('renders semantic refresh errors with actionable detail', () => {
-    const rows = buildIndexActivityRows([
-      {
-        ts_ms: 1_000,
-        message: 'semantic_edges:refresh_start run_id=9 phase=scan_sources sources=12 top_k=3 threshold=0.62'
-      },
-      {
-        ts_ms: 1_100,
-        message: 'semantic_edges:refresh_error run_id=9 phase=insert_edge source_path=Notes/Projet.md target_path=Notes/Cible.md sqlite_code=ConstraintViolation sqlite_msg=UNIQUE_constraint_failed'
-      }
-    ], (path) => path)
-
-    expect(rows[0]).toMatchObject({
-      state: 'error',
-      title: 'Semantic link refresh failed',
-      detail: 'phase insert edge · Notes/Projet.md · target Notes/Cible.md · sqlite ConstraintViolation · UNIQUE constraint failed'
-    })
   })
 
   it('renders rebuild and generic error rows with the newest entry first', () => {
@@ -82,14 +63,14 @@ describe('indexActivity', () => {
       },
       {
         ts_ms: 1_200,
-        message: 'model:unavailable failed to reach embedding provider'
+        message: 'fts_search:error gobject failed to start'
       }
     ], (path) => path)
 
     expect(rows[0]).toMatchObject({
       state: 'error',
       group: 'system',
-      title: 'Model warning'
+      title: 'Indexer error'
     })
     expect(rows[1]).toMatchObject({
       state: 'done',

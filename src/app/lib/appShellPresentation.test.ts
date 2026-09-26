@@ -6,15 +6,12 @@ import {
   buildShortcutSections,
   buildSystemThemeLabel,
   buildThemePickerItems,
-  formatRelativeTime,
-  formatSearchScore
+  formatRelativeTime
 } from './appShellPresentation'
 
 describe('appShellPresentation', () => {
-  it('formats labels and scores deterministically', () => {
+  it('formats labels deterministically', () => {
     expect(basenameLabel('/vault/notes/alpha.md')).toBe('alpha.md')
-    expect(formatSearchScore(1.23456)).toBe('1.235')
-    expect(formatSearchScore(Number.NaN)).toBe('--')
   })
 
   it('builds theme picker items with the system row first', () => {

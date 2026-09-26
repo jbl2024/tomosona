@@ -31,12 +31,10 @@ const props = defineProps<{
   searchQuery: string
   globalSearchMode: SearchMode
   searchModeOptions: Array<{ mode: SearchMode; label: string }>
-  showSearchScore: boolean
   hasSearched: boolean
   searchLoading: boolean
   groupedSearchResults: SearchResultGroup[]
   toRelativePath: (path: string) => string
-  formatSearchScore: (value: number) => string
   parseSearchSnippet: (snippet: string) => Array<{ text: string; highlighted: boolean }>
 }>()
 
@@ -158,12 +156,10 @@ defineExpose({
         :query="searchQuery"
         :mode="globalSearchMode"
         :mode-options="searchModeOptions"
-        :show-search-score="showSearchScore"
         :has-searched="hasSearched"
         :search-loading="searchLoading"
         :grouped-results="groupedSearchResults"
         :to-relative-path="toRelativePath"
-        :format-search-score="formatSearchScore"
         :snippet-parts="parseSearchSnippet"
         @update:query="emit('updateSearchQuery', $event)"
         @enter="emit('runGlobalSearch')"

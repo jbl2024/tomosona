@@ -40,7 +40,7 @@ describe('useAppShellPaneRuntime', () => {
         toggleSidebar
       },
       search: {
-        selectGlobalSearchMode: vi.fn((mode: 'hybrid' | 'semantic' | 'lexical') => ({
+        selectGlobalSearchMode: vi.fn((mode: 'hybrid' | 'lexical') => ({
           caret: mode === 'hybrid' ? 0 : 7
         }))
       },

@@ -122,9 +122,9 @@ describe('useAppShellSearch', () => {
     }))
     if (!search) throw new Error('Expected search controller')
 
-    const next = search.selectGlobalSearchMode('semantic')
+    const next = search.selectGlobalSearchMode('lexical')
 
-    expect(search.searchQuery.value.startsWith('semantic:')).toBe(true)
+    expect(search.searchQuery.value.startsWith('lexical:')).toBe(true)
     expect(next.caret).toBeGreaterThan(0)
     scope.stop()
   })

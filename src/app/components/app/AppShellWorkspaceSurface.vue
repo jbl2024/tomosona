@@ -50,12 +50,10 @@ defineProps<{
   searchQuery: string
   globalSearchMode: SearchMode
   searchModeOptions: Array<{ mode: SearchMode; label: string }>
-  showSearchScore: boolean
   hasSearched: boolean
   searchLoading: boolean
   groupedSearchResults: SearchResultGroup[]
   toRelativePath: (path: string) => string
-  formatSearchScore: (value: number) => string
   parseSearchSnippet: (snippet: string) => Array<{ text: string; highlighted: boolean }>
   canToggleFavorite: boolean
   isFavorite: boolean
@@ -143,12 +141,10 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
       :search-query="searchQuery"
       :global-search-mode="globalSearchMode"
       :search-mode-options="searchModeOptions"
-      :show-search-score="showSearchScore"
       :has-searched="hasSearched"
       :search-loading="searchLoading"
       :grouped-search-results="groupedSearchResults"
       :to-relative-path="toRelativePath"
-      :format-search-score="formatSearchScore"
       :parse-search-snippet="parseSearchSnippet"
       @set-sidebar-mode="emit('setSidebarMode', $event)"
       @explorer-open="emit('explorerOpen', $event)"

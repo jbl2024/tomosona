@@ -35,9 +35,6 @@ const props = defineProps<{
   currentOperationDetail: string
   currentOperationPath: string
   currentOperationStatusLabel: string
-  modelStateClass: string
-  modelStatusLabel: string
-  showWarmupNote: boolean
   alert: { level: 'error' | 'warning'; title: string; message: string } | null
   processedNotesCount: number
   notesTotalCount: number
@@ -114,14 +111,6 @@ const currentRunMetaLine = computed(() => {
   const detail = currentRunDetail.value.trim()
   if (path && detail) return `${path} · ${detail}`
   return path || detail
-})
-
-const modelDetail = computed(() => {
-  const parts: string[] = []
-  if (props.showWarmupNote) {
-    parts.push('First initialization can download model weights and take longer.')
-  }
-  return parts.join(' · ')
 })
 
 const activityFilters = computed(() => [
@@ -213,21 +202,6 @@ function renderPathPrefix(row: IndexActivityRow) {
         </section>
 
         <section class="index-secondary-grid" :class="{ 'index-secondary-grid--single': !showCurrentRunSection }">
-          <section class="index-hero-card index-model-strip">
-            <div class="index-hero-card-top index-model-card-top">
-              <div class="index-model-copy">
-                <CpuChipIcon class="index-hero-icon" aria-hidden="true" />
-                <p class="index-hero-label">Index</p>
-              </div>
-              <span class="index-model-state" :class="modelStateClass">{{ modelStatusLabel }}</span>
-            </div>
-
-            <div class="index-hero-value index-model-name">Lexical</div>
-            <p v-if="modelDetail" class="index-hero-detail index-model-detail">
-              {{ modelDetail }}
-            </p>
-          </section>
-
           <section v-if="showCurrentRunSection" class="index-progress-strip">
             <div class="index-progress-strip-head">
               <div class="index-progress-strip-copy">
@@ -557,40 +531,6 @@ function renderPathPrefix(row: IndexActivityRow) {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.index-model-strip {
-  min-height: 104px;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  align-content: start;
-  padding: 12px 14px 11px;
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--index-card-bg) 94%, white 6%), var(--index-card-bg)),
-    var(--index-card-bg);
-  border: 1px solid color-mix(in srgb, var(--index-card-border) 72%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
-    0 10px 24px color-mix(in srgb, #000 4%, transparent);
-}
-
-.index-model-copy {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.index-model-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-soft);
-  flex: 0 0 auto;
-}
-
-.index-model-text {
-  min-width: 0;
-}
-
 .index-section-kicker {
   margin: 0;
   font-size: 0.68rem;
@@ -599,67 +539,6 @@ function renderPathPrefix(row: IndexActivityRow) {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-dim);
-}
-
-.index-model-name {
-  margin: 10px 0 0;
-  font-size: 1.12rem;
-  font-family: var(--font-code);
-  color: var(--text-main);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  white-space: normal;
-  line-height: 1.18;
-  min-height: calc(1.12rem * 1.18 * 2);
-}
-
-.index-model-state {
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
-  justify-self: end;
-  align-self: start;
-}
-
-.index-model-ready {
-  color: var(--index-model-ready-text);
-  background: var(--index-model-ready-bg);
-}
-
-.index-model-busy {
-  color: var(--index-model-busy-text);
-  background: var(--index-model-busy-bg);
-}
-
-.index-model-failed {
-  color: var(--index-model-failed-text);
-  background: var(--index-model-failed-bg);
-}
-
-.index-model-idle {
-  color: var(--index-model-idle-text);
-  background: var(--index-model-idle-bg);
-}
-
-.index-model-note {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--text-dim);
-}
-
-.index-model-meta {
-  margin: 0;
-  grid-column: 1 / -1;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--text-soft);
 }
 
 .index-progress-strip {

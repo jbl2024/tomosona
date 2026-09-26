@@ -53,7 +53,6 @@ export function useAppShellSearch(options: UseAppShellSearchOptions) {
   })
 
   const globalSearchMode = computed<SearchMode>(() => detectSearchMode(searchQuery.value))
-  const showSearchScore = computed(() => globalSearchMode.value === 'semantic')
 
   function resetSearchState() {
     searchRequestToken += 1
@@ -143,7 +142,6 @@ export function useAppShellSearch(options: UseAppShellSearchOptions) {
     hasSearched,
     groupedSearchResults,
     globalSearchMode,
-    showSearchScore,
     resetSearchState,
     runGlobalSearch,
     selectGlobalSearchMode,

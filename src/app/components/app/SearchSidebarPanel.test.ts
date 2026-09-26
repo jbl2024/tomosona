@@ -2,7 +2,7 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SearchSidebarPanel from './SearchSidebarPanel.vue'
 
-const readPropertyKeys = vi.fn(async () => ['category', 'created', 'semantic', 'hybrid', 'status', 'tags'])
+const readPropertyKeys = vi.fn(async () => ['category', 'created', 'lexical', 'hybrid', 'status', 'tags'])
 const readPropertyValueSuggestions = vi.fn(async (key: string) => {
   if (key === 'created') return ['2026-03-06', '2026-03-07']
   if (key === 'status') return ['draft', 'published']
@@ -35,13 +35,11 @@ function mountHarness() {
           workingFolderPath: '/vault',
           query: query.value,
           mode: 'hybrid',
-          modeOptions: [{ mode: 'hybrid', label: 'Hybrid' }, { mode: 'semantic', label: 'Semantic' }],
-          showSearchScore: true,
+          modeOptions: [{ mode: 'hybrid', label: 'Hybrid' }],
           hasSearched: true,
           searchLoading: false,
           groupedResults: [{ path: '/vault/a.md', items: [{ path: '/vault/a.md', snippet: 'hello', score: 0.9 }] }],
           toRelativePath: (path: string) => path.replace('/vault/', ''),
-          formatSearchScore: (value: number) => value.toFixed(3),
           snippetParts: (snippet: string) => [{ text: snippet, highlighted: false }],
           'onUpdate:query': (value: string) => { query.value = value },
           onSelectMode: (mode: string) => selectedModes.push(mode),
@@ -76,7 +74,7 @@ describe('SearchSidebarPanel', () => {
     expect(optionTexts.some((text) => text.includes('category'))).toBe(true)
     expect(optionTexts.some((text) => text.includes('status'))).toBe(true)
     expect(optionTexts.some((text) => text.includes('created'))).toBe(true)
-    expect(optionTexts.some((text) => text.includes('semantic'))).toBe(false)
+    expect(optionTexts.some((text) => text.includes('lexical'))).toBe(false)
     expect(optionTexts.some((text) => text.includes('hybrid'))).toBe(false)
     expect(document.body.textContent).toContain('Quick filters')
 
@@ -140,7 +138,7 @@ describe('SearchSidebarPanel', () => {
 
     expect(document.querySelectorAll('.ui-filterable-dropdown-option').length).toBe(0)
 
-    mounted.query.value = 'semantic:'
+    mounted.query.value = 'lexical:'
     await nextTick()
     mounted.root.querySelector<HTMLInputElement>('[data-search-input="true"]')?.dispatchEvent(
       new Event('input', { bubbles: true })

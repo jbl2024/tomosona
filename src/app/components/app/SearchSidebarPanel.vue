@@ -35,7 +35,7 @@ type AutocompleteContext = {
   mode: 'keys' | 'values'
 }
 
-const RESERVED_SEARCH_PREFIX_KEYS = new Set(['semantic', 'lexical', 'hybrid'])
+const RESERVED_SEARCH_PREFIX_KEYS = new Set(['lexical', 'hybrid'])
 
 const props = defineProps<{
   disabled: boolean
@@ -43,12 +43,10 @@ const props = defineProps<{
   query: string
   mode: SearchMode
   modeOptions: Array<{ mode: SearchMode; label: string }>
-  showSearchScore: boolean
   hasSearched: boolean
   searchLoading: boolean
   groupedResults: SearchResultGroup[]
   toRelativePath: (path: string) => string
-  formatSearchScore: (value: number) => string
   snippetParts: (snippet: string) => Array<{ text: string; highlighted: boolean }>
 }>()
 
@@ -85,7 +83,7 @@ const quickFilters: QuickFilter[] = [
 const baseQuery = computed(() => stripSearchModePrefix(props.query))
 const modePrefixOnly = computed(() => {
   const trimmed = props.query.trim()
-  return /^(semantic|lexical|hybrid):$/i.test(trimmed)
+  return /^(lexical|hybrid):$/i.test(trimmed)
 })
 
 function parseAutocompleteContext(query: string): AutocompleteContext {
@@ -457,7 +455,7 @@ watch(
         {{ option.label }}
       </button>
     </div>
-    <p class="search-mode-hint">Hint: <code>semantic:</code> concept | <code>lexical:</code> exact term</p>
+    <p class="search-mode-hint">Hint: <code>lexical:</code> exact term</p>
 
     <div class="results-list">
       <div v-if="hasSearched && !searchLoading && !groupedResults.length" class="placeholder">No results</div>
@@ -470,7 +468,6 @@ watch(
           class="result-item"
           @click="emit('open-result', item)"
         >
-          <p v-if="showSearchScore" class="result-score">score: {{ formatSearchScore(item.score) }}</p>
           <div class="result-snippet">
             <template v-for="(part, idx) in snippetParts(item.snippet)" :key="`${idx}-${part.text}`">
               <strong v-if="part.highlighted">{{ part.text }}</strong>
@@ -616,13 +613,6 @@ watch(
   margin-bottom: 6px;
   font-size: var(--font-size-md);
   color: var(--text-main);
-}
-
-.result-score {
-  margin: 0 0 4px;
-  font-size: var(--font-size-xs);
-  color: var(--search-result-score);
-  font-family: var(--font-code);
 }
 
 .result-snippet :deep(strong) {

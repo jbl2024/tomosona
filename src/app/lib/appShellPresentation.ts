@@ -73,12 +73,6 @@ export type BuildShortcutSectionsOptions = {
   commandPaletteShortcutLabel: string
 }
 
-/** Formats a search hit score for display in the shell UI. */
-export function formatSearchScore(value: number): string {
-  if (!Number.isFinite(value)) return '--'
-  return value.toFixed(3)
-}
-
 /** Returns the final path segment for a workspace path. */
 export function basenameLabel(path: string): string {
   const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')

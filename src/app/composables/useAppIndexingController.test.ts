@@ -26,27 +26,15 @@ function createController() {
   const refreshBacklinks = vi.fn(async () => {})
   const readIndexLogs = vi.fn(async (): Promise<IndexLogEntry[]> => [])
   const readIndexOverviewStats = vi.fn(async () => ({
-    semantic_links_count: 71,
     processed_notes_count: 10,
     workspace_notes_count: 20,
     last_run_finished_at_ms: 1710836339000,
     last_run_title: 'Workspace rebuild done',
     last_run_duration_ms: 474000
   }))
-  const readIndexRuntimeStatus = vi.fn(async () => ({
-    model_name: 'bge',
-    model_state: 'ready',
-    model_init_attempts: 1,
-    model_last_started_at_ms: null,
-    model_last_finished_at_ms: null,
-    model_last_duration_ms: null,
-    model_last_error: null
-  }))
   const requestIndexCancel = vi.fn(async () => {})
   const rebuildWorkspaceIndex = vi.fn(async () => ({ indexed_files: 2, canceled: false }))
   const reindexMarkdownFileLexical = vi.fn(async () => {})
-  const reindexMarkdownFileSemantic = vi.fn(async () => {})
-  const refreshSemanticEdgesCacheNow = vi.fn(async () => {})
   const removeMarkdownFileFromIndex = vi.fn(async () => {})
   const confirmStopCurrentOperation = vi.fn(() => true)
   const notifyInfo = vi.fn()
@@ -59,12 +47,9 @@ function createController() {
     hasWorkspace,
     indexingState,
     readIndexLogs,
-    readIndexRuntimeStatus,
     requestIndexCancel,
     rebuildWorkspaceIndex,
     reindexMarkdownFileLexical,
-    reindexMarkdownFileSemantic,
-    refreshSemanticEdgesCacheNow,
     removeMarkdownFileFromIndex,
     refreshBacklinks,
     readIndexOverviewStats,
@@ -82,13 +67,10 @@ function createController() {
       },
       indexingApiPort: {
         readIndexLogs,
-        readIndexRuntimeStatus,
         readIndexOverviewStats,
         requestIndexCancel,
         rebuildWorkspaceIndex,
         reindexMarkdownFileLexical,
-        reindexMarkdownFileSemantic,
-        refreshSemanticEdgesCacheNow,
         removeMarkdownFileFromIndex
       },
       indexingDocumentPort: {
@@ -188,7 +170,6 @@ describe('useAppIndexingController', () => {
     })).rejects.toThrow('rewrite failed')
 
     expect(indexingState.value).toBe('out_of_sync')
-    expect(controller.semanticIndexState.value).toBe('error')
     expect(controller.indexRunPhase.value).toBe('error')
     expect(controller.indexRunMessage.value).toBe('rewrite failed')
   })
@@ -242,60 +223,6 @@ describe('useAppIndexingController', () => {
     expect(controller.indexRunMessage.value).toBe('Failed to reindex a.md.')
   })
 
-  it('falls back to semantic state while noisy progress logs stay hidden', async () => {
-    const { controller, readIndexLogs } = createController()
-    controller.semanticIndexState.value = 'running'
-    readIndexLogs.mockResolvedValueOnce([
-      {
-        ts_ms: 1_000,
-        message: 'semantic_edges:refresh_start run_id=3 phase=scan_sources sources=10 top_k=3 threshold=0.62'
-      }
-    ])
-
-    await controller.refreshIndexModalData()
-
-    expect(controller.indexCurrentOperationLabel.value).toBe('Refreshing semantic links')
-    expect(controller.indexCurrentOperationDetail.value).toBe('Updating note embeddings and semantic links.')
-    expect(controller.indexCurrentOperationPath.value).toBe('')
-    expect(controller.filteredIndexActivityRows.value).toEqual([])
-  })
-
-  it('uses detailed semantic error activity in the modal alert', async () => {
-    const { controller, readIndexLogs } = createController()
-    controller.semanticIndexState.value = 'error'
-    readIndexLogs.mockResolvedValueOnce([
-      {
-        ts_ms: 1_000,
-        message: 'semantic_edges:refresh_error run_id=3 phase=insert_edge source_path=/vault/Area/Note.md sqlite_code=ConstraintViolation sqlite_msg=UNIQUE_constraint_failed'
-      }
-    ])
-
-    await controller.refreshIndexModalData()
-
-    expect(controller.indexAlert.value?.message).toContain('phase insert edge')
-    expect(controller.indexAlert.value?.message).toContain('sqlite ConstraintViolation')
-  })
-
-  it('runs semantic refresh work promptly after queueing markdown reindex and refreshes backlinks once', async () => {
-    vi.useFakeTimers()
-    const {
-      controller,
-      reindexMarkdownFileSemantic,
-      refreshSemanticEdgesCacheNow,
-      refreshBacklinks
-    } = createController()
-
-    controller.enqueueMarkdownReindex('/vault/a.md')
-    expect(controller.semanticIndexState.value).toBe('pending')
-    await vi.advanceTimersByTimeAsync(200)
-    await vi.runAllTimersAsync()
-
-    expect(reindexMarkdownFileSemantic).toHaveBeenCalledWith('/vault/a.md')
-    expect(refreshSemanticEdgesCacheNow).toHaveBeenCalledOnce()
-    expect(refreshBacklinks).toHaveBeenCalled()
-    expect(controller.semanticIndexState.value).toBe('idle')
-  })
-
   it('coalesces derived view refreshes across adjacent background batches', async () => {
     vi.useFakeTimers()
     const { controller, refreshBacklinks, reindexMarkdownFileLexical } = createController()
@@ -346,18 +273,6 @@ describe('useAppIndexingController', () => {
     expect(refreshBacklinks).toHaveBeenCalledTimes(1)
     expect(indexingState.value).toBe('indexed')
     expect(controller.indexRunLastFinishedAt.value).not.toBeNull()
-  })
-
-  it('marks semantic indexing as error when semantic reindex fails', async () => {
-    vi.useFakeTimers()
-    const { controller, reindexMarkdownFileSemantic } = createController()
-    reindexMarkdownFileSemantic.mockRejectedValueOnce(new Error('semantic failed'))
-
-    controller.enqueueMarkdownReindex('/vault/a.md')
-    vi.advanceTimersByTime(15_000)
-    await vi.runAllTimersAsync()
-
-    expect(controller.semanticIndexState.value).toBe('error')
   })
 
   it('removes markdown from the index in background and refreshes derived views', async () => {
@@ -431,25 +346,22 @@ describe('useAppIndexingController', () => {
 
   it('opens and closes the index status modal with polling-safe state', async () => {
     vi.useFakeTimers()
-    const { controller, readIndexLogs, readIndexOverviewStats, readIndexRuntimeStatus } = createController()
+    const { controller, readIndexLogs, readIndexOverviewStats } = createController()
 
     controller.openIndexStatusModal()
     await Promise.resolve()
     expect(controller.indexStatusModalVisible.value).toBe(true)
     expect(readIndexLogs).toHaveBeenCalled()
     expect(readIndexOverviewStats).toHaveBeenCalled()
-    expect(readIndexRuntimeStatus).toHaveBeenCalled()
 
     readIndexLogs.mockClear()
     readIndexOverviewStats.mockClear()
-    readIndexRuntimeStatus.mockClear()
     controller.closeIndexStatusModal()
     vi.advanceTimersByTime(1_000)
 
     expect(controller.indexStatusModalVisible.value).toBe(false)
     expect(readIndexLogs).not.toHaveBeenCalled()
     expect(readIndexOverviewStats).not.toHaveBeenCalled()
-    expect(readIndexRuntimeStatus).not.toHaveBeenCalled()
   })
 
   it('resetIndexingState clears queues and transient run state', async () => {
@@ -463,6 +375,5 @@ describe('useAppIndexingController', () => {
     expect(controller.indexRunKind.value).toBe('idle')
     expect(controller.indexRunPhase.value).toBe('idle')
     expect(controller.indexRunMessage.value).toBe('')
-    expect(controller.semanticIndexState.value).toBe('idle')
   })
 })

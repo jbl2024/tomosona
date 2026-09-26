@@ -133,7 +133,6 @@ After each save:
 - Markdown is parsed
 - Document is chunked (by heading/section)
 - SQLite FTS5 updated (BM25)
-- Embedding queue updated
 - Metadata stored in local database
 
 Search operates on normalized Markdown.
@@ -193,7 +192,6 @@ This architecture gives you:
 - Structured editing
 - Clean Markdown
 - Fast search
-- Embeddings capability
 - Block-level extensibility
 - No cloud dependency
 - No data lock-in
@@ -203,15 +201,3 @@ And most importantly:
 
 You are not building a toy.
 You are building a tool you can rely on.
-
-## 12. Semantic Retrieval Addendum
-
-The runtime now supports hybrid lexical + semantic retrieval:
-
-- Lexical candidate retrieval still uses SQLite FTS5/BM25.
-- Semantic vectors are generated locally in Rust with `fastembed`.
-- Search results are reranked by blending lexical and semantic relevance.
-
-Semantic behavior is best-effort and non-blocking:
-
-- If model initialization fails, indexing/search fall back to lexical-only mode.

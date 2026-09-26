@@ -1,5 +1,5 @@
 import { computed, getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue'
-import type { IndexLogEntry, IndexOverviewStats, IndexRuntimeStatus } from '../../shared/api/apiTypes'
+import type { IndexLogEntry, IndexOverviewStats } from '../../shared/api/apiTypes'
 import { buildIndexActivityRows, type IndexActivityRow, type IndexLogFilter } from '../lib/indexActivity'
 import { formatTimestamp } from '../lib/appShellPaths'
 
@@ -19,8 +19,6 @@ import { formatTimestamp } from '../lib/appShellPaths'
 export type IndexRunKind = 'idle' | 'background' | 'rebuild' | 'mutation'
 /** Describes the current step within the active indexing workflow. */
 export type IndexRunPhase = 'idle' | 'indexing_files' | 'refreshing_views' | 'done' | 'error'
-/** Tracks the delayed semantic indexing pipeline independently from lexical indexing. */
-export type SemanticIndexState = 'idle' | 'pending' | 'running' | 'error'
 
 /**
  * Shell state consumed by the indexing controller.
@@ -38,13 +36,10 @@ export type AppIndexingShellPort = {
 /** Backend operations used by the indexing controller. */
 export type AppIndexingApiPort = {
   readIndexLogs: (limit: number) => Promise<IndexLogEntry[]>
-  readIndexRuntimeStatus: () => Promise<IndexRuntimeStatus>
   readIndexOverviewStats: () => Promise<IndexOverviewStats>
   requestIndexCancel: () => Promise<void>
   rebuildWorkspaceIndex: () => Promise<{ indexed_files: number; canceled: boolean }>
   reindexMarkdownFileLexical: (path: string) => Promise<void>
-  reindexMarkdownFileSemantic: (path: string) => Promise<void>
-  refreshSemanticEdgesCacheNow: () => Promise<void>
   removeMarkdownFileFromIndex: (path: string) => Promise<void>
 }
 
@@ -82,8 +77,8 @@ export type WorkspaceMutationResult = {
 }
 
 /**
- * Owns app-shell indexing state, modal polling, and background lexical/semantic
- * reindex scheduling.
+ * Owns app-shell indexing state, modal polling, and background reindex
+ * scheduling.
  */
 export function useAppIndexingController(options: UseAppIndexingControllerOptions) {
   const {
@@ -93,8 +88,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexingSurfacePort,
     indexingUiEffectsPort
   } = options
-  // Keep a tiny batch window so repeated saves coalesce without leaving semantic links stale.
-  const semanticDebounceMs = 20
   const indexedViewRefreshDebounceMs = 120
   const indexedViewRefreshRetryMs = 120
   const indexedViewRefreshBusyTimeoutMs = 5_000
@@ -102,14 +95,10 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   let reindexGeneration = 0
   const pendingReindexPaths = new Set<string>()
   const pendingReindexCount = ref(0)
-  const pendingSemanticReindexAt = new Map<string, number>()
-  let semanticReindexTimer: ReturnType<typeof setTimeout> | null = null
-  let semanticReindexWorkerRunning = false
   let indexStatusPollTimer: ReturnType<typeof setInterval> | null = null
   let indexedViewRefreshRequestVersion = 0
   let indexedViewRefreshInFlight: Promise<number> | null = null
 
-  const semanticIndexState = ref<SemanticIndexState>('idle')
   const indexRunKind = ref<IndexRunKind>('idle')
   const indexRunPhase = ref<IndexRunPhase>('idle')
   const indexRunCurrentPath = ref('')
@@ -120,7 +109,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   const indexRunMessage = ref('')
   const indexRunLastFinishedAt = ref<number | null>(null)
   const indexStatusBusy = ref(false)
-  const indexRuntimeStatus = ref<IndexRuntimeStatus | null>(null)
   const indexOverviewStats = ref<IndexOverviewStats | null>(null)
   const indexLogEntries = ref<IndexLogEntry[]>([])
   const indexLogFilter = ref<IndexLogFilter>('all')
@@ -205,7 +193,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
         const completed = Math.min(indexFinalizeCompleted.value, total)
         return `refreshing views ${completed}/${total}`
       }
-      return 'rebuilding lexical and semantic index'
+      return 'rebuilding index'
     }
     if (indexRunKind.value === 'mutation') {
       if (indexRunPhase.value === 'refreshing_views') {
@@ -220,30 +208,15 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
 
   const indexActionLabel = computed(() => (indexRunning.value ? 'Stop' : 'Rebuild index'))
 
-  const indexModelStatusLabel = computed(() => {
-    const status = indexRuntimeStatus.value
-    if (!status) return 'unknown'
-    if (status.model_state === 'ready') return 'ready'
-    if (status.model_state === 'initializing') return 'initializing'
-    if (status.model_state === 'failed') return 'failed'
-    if (status.model_state === 'not_initialized') return 'not initialized'
-    return status.model_state
-  })
-
   const indexStatusBadgeLabel = computed(() => {
     if (indexRunPhase.value === 'error' || indexingShellPort.indexingState.value === 'out_of_sync') return 'Needs attention'
     if (indexRunning.value) return 'Reindexing'
-    if (semanticIndexState.value === 'running') return 'Semantic sync'
-    if (semanticIndexState.value === 'pending') return 'Semantic pending'
-    if (semanticIndexState.value === 'error') return 'Semantic warning'
     return 'Ready'
   })
 
   const indexStatusBadgeClass = computed(() => {
     if (indexRunPhase.value === 'error' || indexingShellPort.indexingState.value === 'out_of_sync') return 'index-badge-error'
     if (indexRunning.value) return 'index-badge-running'
-    if (semanticIndexState.value === 'error') return 'index-badge-error'
-    if (semanticIndexState.value === 'pending' || semanticIndexState.value === 'running') return 'index-badge-running'
     return 'index-badge-ready'
   })
 
@@ -278,9 +251,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   const indexProgressSummary = computed(() => {
     if (!indexRunning.value) {
       if (indexingShellPort.indexingState.value === 'out_of_sync') return 'Pending reindex'
-      if (semanticIndexState.value === 'pending') return 'Semantic index pending'
-      if (semanticIndexState.value === 'running') return 'Semantic index syncing'
-      if (semanticIndexState.value === 'error') return 'Semantic index warning'
       return indexRunLastFinishedAt.value ? `Last run ${formatTimestamp(indexRunLastFinishedAt.value)}` : ''
     }
     if (indexRunPhase.value === 'refreshing_views') {
@@ -294,21 +264,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   })
 
   const indexShowProgressBar = computed(() => indexRunning.value)
-
-  const indexModelStateClass = computed(() => {
-    if (indexModelStatusLabel.value === 'ready') return 'index-model-ready'
-    if (indexModelStatusLabel.value === 'initializing') return 'index-model-busy'
-    if (indexModelStatusLabel.value === 'failed') return 'index-model-failed'
-    return 'index-model-idle'
-  })
-
-  const indexShowWarmupNote = computed(() => {
-    const status = indexRuntimeStatus.value
-    if (!status) return false
-    return status.model_init_attempts <= 1 && status.model_state !== 'ready'
-  })
-
-  const indexSemanticLinksCount = computed(() => 0)
 
   const indexProcessedNotesCount = computed(() => indexOverviewStats.value?.processed_notes_count ?? 0)
 
@@ -333,17 +288,13 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     const row = indexCurrentActivity.value
     if (row) return row.title
     if (indexRunning.value) return indexProgressLabel.value
-    if (semanticIndexState.value === 'running') return 'Refreshing semantic links'
-    if (semanticIndexState.value === 'pending') return 'Semantic indexing queued'
     return ''
   })
 
   const indexCurrentOperationDetail = computed(() => {
     const row = indexCurrentActivity.value
     if (row?.detail) return row.detail
-    if (indexRunMessage.value && (indexRunning.value || semanticIndexState.value === 'error')) return indexRunMessage.value
-    if (semanticIndexState.value === 'running') return 'Updating note embeddings and semantic links.'
-    if (semanticIndexState.value === 'pending') return `${pendingSemanticReindexAt.size} file${pendingSemanticReindexAt.size === 1 ? '' : 's'} waiting for semantic refresh.`
+    if (indexRunMessage.value && indexRunning.value) return indexRunMessage.value
     return ''
   })
 
@@ -356,8 +307,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
 
   const indexCurrentOperationStatusLabel = computed(() => {
     if (indexCurrentActivity.value?.state === 'running') return 'In progress'
-    if (semanticIndexState.value === 'pending') return 'Queued'
-    if (semanticIndexState.value === 'error' || indexRunPhase.value === 'error') return 'Attention'
+    if (indexRunPhase.value === 'error') return 'Attention'
     if (indexRunning.value) return 'In progress'
     return 'Idle'
   })
@@ -384,16 +334,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       return {
         level: 'warning' as const,
         title: 'Workspace changed',
-        message: 'Some files are not indexed yet. Run a rebuild to sync search and semantic links.'
-      }
-    }
-    if (semanticIndexState.value === 'error') {
-      return {
-        level: 'warning' as const,
-        title: 'Semantic indexing warning',
-        message:
-          latestIndexError.value?.detail ||
-          'Lexical index is up to date, but semantic vectors need attention.'
+        message: 'Some files are not indexed yet. Run a rebuild to sync search.'
       }
     }
     return null
@@ -421,22 +362,11 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
-  /** Clears the semantic debounce timer before rescheduling or disposal. */
-  function clearSemanticTimer() {
-    if (semanticReindexTimer) {
-      clearTimeout(semanticReindexTimer)
-      semanticReindexTimer = null
-    }
-  }
-
   /** Resets transient indexing state when the workspace closes or gets reloaded. */
   function resetIndexingState() {
     reindexGeneration += 1
     pendingReindexPaths.clear()
     updatePendingReindexCount()
-    pendingSemanticReindexAt.clear()
-    clearSemanticTimer()
-    semanticIndexState.value = 'idle'
     reindexWorkerRunning = false
     indexRunKind.value = 'idle'
     indexRunPhase.value = 'idle'
@@ -491,16 +421,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
-  /** Refreshes backend runtime status for the modal summary cards. */
-  async function refreshIndexRuntimeStatus() {
-    if (!indexingShellPort.hasWorkspace.value) return
-    try {
-      indexRuntimeStatus.value = await indexingApiPort.readIndexRuntimeStatus()
-    } catch {
-      indexRuntimeStatus.value = null
-    }
-  }
-
   /** Refreshes persisted index overview counts used by the summary cards. */
   async function refreshIndexOverviewStats() {
     if (!indexingShellPort.hasWorkspace.value) return
@@ -511,96 +431,9 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
-  /** Refreshes both runtime status and activity logs in parallel. */
+  /** Refreshes both index overview stats and activity logs in parallel. */
   async function refreshIndexModalData() {
-    await Promise.all([refreshIndexRuntimeStatus(), refreshIndexOverviewStats(), refreshIndexLogs()])
-  }
-
-  /**
-   * Schedules the semantic pass from the earliest pending due time so bursts of
-   * file edits collapse into one delayed semantic refresh.
-   */
-  function scheduleSemanticReindexTimer() {
-    clearSemanticTimer()
-    if (!pendingSemanticReindexAt.size) {
-      if (!semanticReindexWorkerRunning && semanticIndexState.value !== 'error') {
-        semanticIndexState.value = 'idle'
-      }
-      return
-    }
-    const now = Date.now()
-    let nextDue = Number.POSITIVE_INFINITY
-    for (const dueAt of pendingSemanticReindexAt.values()) {
-      nextDue = Math.min(nextDue, dueAt)
-    }
-    const delay = Math.max(20, Math.min(15_000, nextDue - now))
-    semanticReindexTimer = setTimeout(() => {
-      semanticReindexTimer = null
-      void runSemanticReindexWorker()
-    }, delay)
-  }
-
-  /** Runs debounced semantic reindex work and refreshes dependent semantic views once per batch. */
-  async function runSemanticReindexWorker() {
-    if (semanticReindexWorkerRunning) return
-    if (!indexingShellPort.workingFolderPath.value) return
-    semanticReindexWorkerRunning = true
-    semanticIndexState.value = 'running'
-    try {
-      while (pendingSemanticReindexAt.size > 0) {
-        const now = Date.now()
-        const duePaths = Array.from(pendingSemanticReindexAt.entries())
-          .filter(([, dueAt]) => dueAt <= now)
-          .map(([path]) => path)
-
-        if (!duePaths.length) {
-          semanticIndexState.value = 'pending'
-          scheduleSemanticReindexTimer()
-          return
-        }
-
-        let hadSemanticError = false
-        let updated = 0
-        for (const path of duePaths) {
-          pendingSemanticReindexAt.delete(path)
-          try {
-            await indexingApiPort.reindexMarkdownFileSemantic(path)
-            updated += 1
-          } catch {
-            hadSemanticError = true
-            console.warn('[index] semantic:file:error', { path })
-          }
-        }
-
-        if (updated > 0) {
-          try {
-            await indexingApiPort.refreshSemanticEdgesCacheNow()
-            await refreshIndexedViewsDeferred()
-          } catch {
-            hadSemanticError = true
-            console.warn('[index] semantic:refresh:error')
-          }
-        }
-
-        if (hadSemanticError) {
-          semanticIndexState.value = 'error'
-        } else if (pendingSemanticReindexAt.size > 0) {
-          semanticIndexState.value = 'pending'
-        } else {
-          semanticIndexState.value = 'idle'
-        }
-      }
-    } finally {
-      semanticReindexWorkerRunning = false
-      if (pendingSemanticReindexAt.size > 0) {
-        if (semanticIndexState.value !== 'error') {
-          semanticIndexState.value = 'pending'
-        }
-        scheduleSemanticReindexTimer()
-      } else if (semanticIndexState.value !== 'error') {
-        semanticIndexState.value = 'idle'
-      }
-    }
+    await Promise.all([refreshIndexOverviewStats(), refreshIndexLogs()])
   }
 
   /** Processes the lexical reindex queue and updates shell progress state. */
@@ -677,7 +510,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     }
   }
 
-  /** Queues a markdown file for lexical reindex plus delayed semantic refresh. */
+  /** Queues a markdown file for lexical reindex. */
   function enqueueMarkdownReindex(path: string) {
     if (!indexingShellPort.workingFolderPath.value || !indexingDocumentPort.isMarkdownPath(path)) return
     if (indexRunKind.value === 'background' && indexRunCurrentPath.value === path) return
@@ -698,19 +531,12 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     } else {
       indexRunTotal.value = Math.max(indexRunTotal.value, indexRunCompleted.value + pendingReindexCount.value)
     }
-    pendingSemanticReindexAt.set(path, Date.now() + semanticDebounceMs)
-    if (semanticIndexState.value !== 'running') {
-      semanticIndexState.value = 'pending'
-    }
-    scheduleSemanticReindexTimer()
     void runReindexWorker()
   }
 
   /** Removes a file from the index asynchronously and refreshes dependent views afterward. */
   function removeMarkdownFromIndexInBackground(path: string) {
     if (!path.trim()) return
-    pendingSemanticReindexAt.delete(path)
-    scheduleSemanticReindexTimer()
     void indexingApiPort.removeMarkdownFileFromIndex(path).then(() => {
       console.info('[index] background:remove:done', { path })
       void indexingSurfacePort.refreshBacklinks()
@@ -730,9 +556,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     reindexGeneration += 1
     pendingReindexPaths.clear()
     updatePendingReindexCount()
-    pendingSemanticReindexAt.clear()
-    clearSemanticTimer()
-    semanticIndexState.value = 'running'
     reindexWorkerRunning = false
     indexRunKind.value = 'rebuild'
     indexRunPhase.value = 'indexing_files'
@@ -750,7 +573,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       indexRunCompleted.value = result.indexed_files
       if (result.canceled) {
         indexingShellPort.indexingState.value = 'out_of_sync'
-        semanticIndexState.value = 'error'
         indexRunPhase.value = 'error'
         indexRunMessage.value = 'Rebuild canceled by user.'
         indexingUiEffectsPort?.notifyInfo?.('Index rebuild canceled.')
@@ -759,14 +581,12 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       indexRunPhase.value = 'refreshing_views'
       await refreshIndexedViewsDeferred()
       indexingShellPort.indexingState.value = 'indexed'
-      semanticIndexState.value = 'idle'
       indexRunPhase.value = 'done'
       indexRunLastFinishedAt.value = Date.now()
       console.info('[index] rebuild:done', { indexed: result.indexed_files })
       indexingUiEffectsPort?.notifySuccess?.(`Index rebuilt (${result.indexed_files} file${result.indexed_files === 1 ? '' : 's'}).`)
     } catch (err) {
       indexingShellPort.indexingState.value = 'out_of_sync'
-      semanticIndexState.value = 'error'
       indexRunPhase.value = 'error'
       indexRunMessage.value = err instanceof Error ? err.message : 'Could not rebuild index.'
       console.warn('[index] rebuild:error', {
@@ -793,7 +613,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexFinalizeTotal.value = 0
     indexRunMessage.value = ''
     indexingShellPort.indexingState.value = 'indexing'
-    semanticIndexState.value = 'running'
 
     try {
       const result = await task()
@@ -804,12 +623,10 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       await new Promise<void>((resolve) => setTimeout(resolve, 0))
       await refreshIndexedViewsDeferred()
       indexingShellPort.indexingState.value = 'indexed'
-      semanticIndexState.value = 'idle'
       indexRunPhase.value = 'done'
       indexRunLastFinishedAt.value = Date.now()
     } catch (err) {
       indexingShellPort.indexingState.value = 'out_of_sync'
-      semanticIndexState.value = 'error'
       indexRunPhase.value = 'error'
       indexRunMessage.value = err instanceof Error ? err.message : 'Could not update workspace links.'
       throw err
@@ -823,9 +640,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
       reindexGeneration += 1
       pendingReindexPaths.clear()
       updatePendingReindexCount()
-      pendingSemanticReindexAt.clear()
-      clearSemanticTimer()
-      semanticIndexState.value = 'idle'
       reindexWorkerRunning = false
       indexingShellPort.indexingState.value = 'out_of_sync'
       indexRunPhase.value = 'error'
@@ -861,8 +675,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   /** Disposes timers and polling loops owned by the controller. */
   function dispose() {
     stopIndexStatusPolling()
-    clearSemanticTimer()
-    pendingSemanticReindexAt.clear()
   }
 
   if (getCurrentInstance()) {
@@ -872,7 +684,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
   }
 
   return {
-    semanticIndexState,
     indexRunKind,
     indexRunPhase,
     indexRunCurrentPath,
@@ -883,9 +694,7 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexRunMessage,
     indexRunLastFinishedAt,
     indexStatusBusy,
-    indexRuntimeStatus,
     indexOverviewStats,
-    indexSemanticLinksCount,
     indexProcessedNotesCount,
     indexWorkspaceNotesCount,
     indexLastRunFinishedAtMs,
@@ -900,7 +709,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexRunning,
     indexProgressLabel,
     indexActionLabel,
-    indexModelStatusLabel,
     indexStatusBadgeLabel,
     indexStatusBadgeClass,
     indexProgressTotal,
@@ -908,8 +716,6 @@ export function useAppIndexingController(options: UseAppIndexingControllerOption
     indexProgressPercent,
     indexProgressSummary,
     indexShowProgressBar,
-    indexModelStateClass,
-    indexShowWarmupNote,
     indexAlert,
     indexCurrentActivity,
     indexCurrentOperationLabel,

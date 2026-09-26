@@ -222,7 +222,7 @@ Search integration:
 - the search sidebar can autocomplete property keys from the workspace index
 - once a key is inserted, known values for that key are suggested too
 - quick filters are kept intentionally small and map to the most common property queries
-- search mode prefixes such as `semantic:`, `lexical:`, and `hybrid:` are reserved and excluded from property-key autocomplete
+- search mode prefixes such as `lexical:` and `hybrid:` are reserved and excluded from property-key autocomplete
 
 ## 10. Obsidian Compatibility Notes
 

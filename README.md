@@ -29,7 +29,6 @@ The idea is straightforward:
 
 - your notes stay as plain `.md` files that remain readable outside the app;
 - the app adds a local index under `.tomosona/` to power search, backlinks, and graph features;
-- AI features are optional and plug into your local configuration;
 - no cloud layer is required to organize, retrieve, and connect your notes.
 
 ## Product Principles
@@ -46,10 +45,6 @@ Notes are stored as `.md` files, with frontmatter support for properties. UI met
 
 The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, hybrid search, and contextual suggestions.
 
-### 4. AI in service of the workspace
-
-`Second Brain` uses your notes as explicit context. It is meant to support writing and analysis, not replace your knowledge base.
-
 ## Core Features
 
 ### Workspace and app shell
@@ -59,7 +54,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - a workspace setup wizard with starter structures for knowledge bases, journals, and project-oriented workspaces;
 - a new note modal with a workspace template picker sourced from `_templates/`;
 - navigation history, command palette, quick open, and built-in keyboard shortcuts;
-- a multi-pane layout for opening multiple notes and Second Brain side by side.
+- a multi-pane layout for opening multiple notes side by side.
 
 ### Markdown editor
 
@@ -81,7 +76,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - guided wikilink rewrite flows on rename;
 - local per-note history with a right-pane snapshot browser and restore flow;
 - heading overview and document navigation;
-- a right panel for backlinks, semantic links, properties, and Echoes.
+- a right panel for backlinks, properties, and Echoes.
 
 ### Convert to Word
 
@@ -103,26 +98,8 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 
 - a local SQLite index in `.tomosona/tomosona.sqlite`;
 - lexical full-text search;
-- local semantic search with hybrid lexical + semantic reranking;
 - index rebuild flows and indexing status in the UI;
 - reindexing on save and graph refresh integration.
-
-### Second Brain
-
-- a dedicated chat surface for the workspace;
-- persistent sessions;
-- explicit context injection via `@relative/path.md`;
-- streamed responses;
-- open referenced notes in another pane when appropriate;
-- local LLM provider configuration in `~/.tomosona/conf.json`.
-
-Currently supported providers:
-
-- OpenAI
-- OpenAI Codex
-- OpenAI-compatible
-- Groq
-- Anthropic
 
 ### Theming and ergonomics
 
@@ -191,7 +168,7 @@ This starts:
 - the Vite dev server;
 - the Tauri desktop window;
 - the Rust backend;
-- the Tauri IPC layer used by the shell, indexing, search, and AI features.
+- the Tauri IPC layer used by the shell, indexing, and search;
 
 ### Note-open debug mode
 
@@ -233,31 +210,12 @@ cd src-tauri
 cargo check
 ```
 
-## AI Configuration
-
-Application settings are stored in:
-
-- macOS / Linux : `~/.tomosona/conf.json`
-- Windows : `%USERPROFILE%\\.tomosona\\conf.json`
-
-The file contains two main sections:
-
-- `llm` for `Second Brain`
-- `embeddings` for semantic search
-
-Useful notes:
-
-- API keys should never be committed;
-- the `openai-codex` provider relies on local Codex CLI authentication;
-- embeddings can stay in internal mode or use an external OpenAI-compatible provider depending on the settings configuration.
-
 ## Local Data
 
 Within each workspace, Tomosona may create or maintain:
 
 - `.tomosona/tomosona.sqlite` for the local index;
 - `.tomosona/property-types.json` for the property schema;
-- `.tomosona/second-brain/` for certain session artifacts and drafts;
 - `.tomosona-trash/` for some delete/move workflows.
 
 Your notes themselves remain standard `.md` files in your normal workspace tree.
@@ -268,6 +226,5 @@ The project is evolving quickly. Recent notable additions include:
 
 - the launchpad and workspace setup wizard;
 - Echoes contextual suggestions;
-- Codex model discovery in settings;
 - inline find in the editor;
-- the multi-pane shell and tighter Second Brain integration.
+- the multi-pane shell.

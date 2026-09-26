@@ -48,9 +48,6 @@ defineProps<{
   indexCurrentOperationDetail: string
   indexCurrentOperationPath: string
   indexCurrentOperationStatusLabel: string
-  indexModelStateClass: string
-  indexModelStatusLabel: string
-  indexShowWarmupNote: boolean
   indexAlert: { level: 'error' | 'warning'; title: string; message: string } | null
   indexProcessedNotesCount: number
   indexNotesTotalCount: number
@@ -172,9 +169,6 @@ const emit = defineEmits<{
     :current-operation-detail="indexCurrentOperationDetail"
     :current-operation-path="indexCurrentOperationPath"
     :current-operation-status-label="indexCurrentOperationStatusLabel"
-    :model-state-class="indexModelStateClass"
-    :model-status-label="indexModelStatusLabel"
-    :show-warmup-note="indexShowWarmupNote"
     :alert="indexAlert"
     :processed-notes-count="indexProcessedNotesCount"
     :notes-total-count="indexNotesTotalCount"

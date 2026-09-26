@@ -33,11 +33,9 @@ If a module or doc does not answer those questions, treat it as incomplete and p
 1. `README.md`
 2. `src/app/ARCHITECTURE.md`
 3. `src/domains/editor/components/editor/ARCHITECTURE.md`
-4. `src/domains/second-brain/components/ARCHITECTURE.md`
-5. `src/domains/explorer/ARCHITECTURE.md`
-6. `src-tauri/src/BACKEND_INDEX_ARCHITECTURE.md`
-7. `src-tauri/src/second_brain/SECOND_BRAIN_ARCHITECTURE.md`
-8. `docs/design/11_testing_guide.md`
+4. `src/domains/explorer/ARCHITECTURE.md`
+5. `src-tauri/src/BACKEND_INDEX_ARCHITECTURE.md`
+6. `docs/design/11_testing_guide.md`
 
 That order goes from product shape to the main implementation seams.
 
@@ -48,8 +46,8 @@ If you are new to the codebase, do this in order:
 1. Run `npm test` once to confirm the frontend test suite is healthy.
 2. Run `cargo check` in `src-tauri` to confirm the backend still compiles.
 3. Open `src/app/App.vue` and skim the imports only. That shows the shell surface area and the current surface wrappers (`AppShellChromeSurface`, `AppShellWorkspaceSurface`, `AppShellOverlays`).
-4. Open `src/domains/editor/components/editor/ARCHITECTURE.md` and `src/domains/second-brain/components/ARCHITECTURE.md` to see how the two densest UI surfaces are split.
-5. Open `src-tauri/src/BACKEND_INDEX_ARCHITECTURE.md` and `src-tauri/src/second_brain/SECOND_BRAIN_ARCHITECTURE.md` to see where backend responsibilities live.
+4. Open `src/domains/editor/components/editor/ARCHITECTURE.md` to see how the densest UI surface is split.
+5. Open `src-tauri/src/BACKEND_INDEX_ARCHITECTURE.md` to see where backend responsibilities live.
 6. Pick one feature you care about and trace it through the smallest number of files possible.
 
 If the code path is unclear, start from the tests for that feature. The tests are often a better map than the implementation files.
@@ -64,7 +62,7 @@ Use this as a quick routing table when you need to make a change.
 | App runtime bootstrap / teardown | `src/app/composables/useAppShellRuntimeLifecycle.ts` | `src/app/App.vue`, `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellPersistence.ts` |
 | Shell chrome controls | `src/app/composables/useAppShellChromeRuntime.ts` | `src/app/App.vue`, `src/app/composables/useAppShellHistoryUi.ts`, `src/app/composables/useAppShellPersistence.ts` |
 | Shell presentation surfaces | `src/app/components/app/AppShellChromeSurface.vue`, `src/app/components/app/AppShellWorkspaceSurface.vue`, `src/app/components/app/AppShellOverlays.vue` | `src/app/App.vue`, `src/app/components/app/TopbarNavigationControls.vue`, `src/app/components/app/SidebarSurface.vue`, `src/app/components/app/WorkspaceStatusBar.vue`, `src/app/components/app/*Modal.vue` |
-| Constituted context actions | `src/app/composables/useAppShellConstitutedContextActions.ts` | `src/app/App.vue`, `src/app/composables/useAppSecondBrainBridge.ts`, `src/domains/editor/composables/useConstitutedContext.ts` |
+| Constituted context actions | `src/app/composables/useAppShellConstitutedContextActions.ts` | `src/app/App.vue`, `src/domains/editor/composables/useConstitutedContext.ts` |
 | Pane/editor runtime glue | `src/app/composables/useAppShellPaneRuntime.ts` | `src/app/App.vue`, `src/app/composables/useAppNavigationController.ts`, `src/app/composables/useAppShellCommands.ts` |
 | Pure shell helpers | `src/app/lib/appShellDocuments.ts`, `src/app/lib/appShellPane.ts`, `src/app/lib/appShellPathMoveEffects.ts` | `src/app/App.vue`, `src/app/composables/useAppShellPaneRuntime.ts`, `src/app/composables/useAppShellCommands.ts` |
 | Workspace entry routing | `src/app/composables/useAppShellWorkspaceRouting.ts` | `src/app/composables/useAppShellWorkspaceLifecycle.ts`, `src/app/composables/useAppShellWorkspaceSetup.ts`, `src/app/composables/useAppShellModals.ts`, `src/app/ARCHITECTURE.md` |
@@ -81,8 +79,6 @@ Use this as a quick routing table when you need to make a change.
 | Launchpad quick-start routing | `src/app/components/panes/WorkspaceLaunchpad.vue` | `src/app/composables/useAppShellLaunchpad.ts`, `src/app/composables/useAppShellCommands.ts`, `src/app/ARCHITECTURE.md` |
 | Explorer rename / move | `src/domains/explorer/components/ExplorerTree.vue` | `src/domains/explorer/composables/useExplorerOperations.ts`, `src/domains/explorer/lib/explorerDndRules.ts`, `src-tauri/src/fs_ops.rs` |
 | Search / indexing | `src-tauri/src/markdown_index.rs` | `src-tauri/src/search_index.rs`, `src-tauri/src/index_schema.rs`, `src/app/composables/useAppIndexingController.ts` |
-| Second Brain chat flow | `src/domains/second-brain/components/SecondBrainView.vue` | `src/domains/second-brain/composables/useSecondBrainViewState.ts`, `src/domains/second-brain/composables/useSecondBrainSessionWorkflow.ts`, `src/domains/second-brain/composables/useSecondBrainConversationRuntime.ts`, `src-tauri/src/second_brain/*` |
-| Second Brain config / models | `src/app/components/settings/SettingsModal.vue` | `src/shared/api/settingsApi.ts`, `src-tauri/src/second_brain/config.rs`, `src-tauri/src/second_brain/openai_codex.rs` |
 | UI primitives / shared shells | `src/shared/components/ui/ARCHITECTURE.md` | `src/shared/components/ui/*`, `src/assets/tailwind.css` |
 
 ## How Things Fit Together
@@ -139,21 +135,6 @@ sequenceDiagram
   C->>S: refresh search/results state
 ```
 
-### Second Brain Send
-
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant V as SecondBrainView
-  participant P as Session/context composables
-  participant B as Backend second_brain
-
-  U->>V: type message and context
-  V->>P: resolve explicit context paths
-  P->>B: send session payload
-  B->>V: stream assistant deltas
-```
-
 ### Explorer Rename / Move
 
 ```mermaid
@@ -199,16 +180,6 @@ Start in:
 - `src/domains/editor/composables/useEditor*`
 - `src/domains/editor/lib/*`
 
-### Second Brain
-
-Use this when the change touches chat sessions, context injection, streamed responses, or prompt composition.
-
-Start in:
-
-- `src/domains/second-brain/components/SecondBrainView.vue`
-- `src/domains/second-brain/composables/useSecondBrain*`
-- `src/domains/second-brain/lib/*`
-
 ### Explorer
 
 Use this when the change is about tree rendering, selection, drag and drop, rename, or file moves.
@@ -230,7 +201,6 @@ Start in:
 - `src-tauri/src/markdown_index.rs`
 - `src-tauri/src/search_index.rs`
 - `src-tauri/src/index_schema.rs`
-- `src-tauri/src/second_brain/*`
 
 ## Common Workflows
 
@@ -277,18 +247,6 @@ The restore path usually crosses:
 - `src/app/composables/useWorkspaceMutationEffects.ts`
 
 If restored snapshots disappear or move after rename, check the workspace mutation effects first.
-
-### Change Second Brain behavior
-
-Second Brain is split across:
-
-- shell wiring in `App.vue`
-- frontend chat surface in `SecondBrainView.vue`
-- frontend session/context workflow in `useSecondBrainSessionWorkflow.ts`
-- frontend conversation runtime in `useSecondBrainConversationRuntime.ts`
-- backend session store, prompt builder, and message flow
-
-If the change affects explicit context or streaming, check both frontend and backend.
 
 ### Change search or indexing
 

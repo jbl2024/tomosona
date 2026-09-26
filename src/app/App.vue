@@ -36,14 +36,11 @@ import {
   initDb,
   readIndexLogs,
   readIndexOverviewStats,
-  readIndexRuntimeStatus,
   readPropertyTypeSchema,
   rebuildWorkspaceIndex,
   removeMarkdownFileFromIndex,
-  refreshSemanticEdgesCacheNow,
   requestIndexCancel,
   reindexMarkdownFileLexical,
-  reindexMarkdownFileSemantic,
   updateWikilinksForPathMoves,
   updateWikilinksForRename,
   writePropertyTypeSchema
@@ -80,8 +77,7 @@ import {
   buildShortcutSections,
   buildSystemThemeLabel,
   buildThemePickerItems,
-  formatRelativeTime,
-  formatSearchScore
+  formatRelativeTime
 } from './lib/appShellPresentation'
 import { readPersistedMultiPaneLayout } from './lib/appShellPersistence'
 import {
@@ -448,13 +444,10 @@ const indexingControllerShellPort = {
 
 const indexingControllerApiPort = {
   readIndexLogs,
-  readIndexRuntimeStatus,
   readIndexOverviewStats,
   requestIndexCancel,
   rebuildWorkspaceIndex,
   reindexMarkdownFileLexical,
-  reindexMarkdownFileSemantic,
-  refreshSemanticEdgesCacheNow,
   removeMarkdownFileFromIndex
 }
 
@@ -494,14 +487,11 @@ const {
   indexRunning,
   indexProgressLabel,
   indexActionLabel,
-  indexModelStatusLabel,
   indexStatusBadgeLabel,
   indexStatusBadgeClass,
   indexProgressPercent,
   indexProgressSummary,
   indexShowProgressBar,
-  indexModelStateClass,
-  indexShowWarmupNote,
   indexAlert,
   indexCurrentOperationLabel,
   indexCurrentOperationDetail,
@@ -648,7 +638,6 @@ const {
   hasSearched,
   groupedSearchResults,
   globalSearchMode,
-  showSearchScore,
   resetSearchState,
   runGlobalSearch,
   selectGlobalSearchMode,
@@ -1672,12 +1661,10 @@ useAppShellKeyboard({
       :search-query="searchQuery"
       :global-search-mode="globalSearchMode"
       :search-mode-options="searchModeOptions"
-      :show-search-score="showSearchScore"
       :has-searched="hasSearched"
       :search-loading="searchLoading"
       :grouped-search-results="groupedSearchResults"
       :to-relative-path="toRelativePath"
-      :format-search-score="formatSearchScore"
       :parse-search-snippet="parseSearchSnippet"
       :can-toggle-favorite="Boolean(activeFilePath)"
       :is-favorite="Boolean(activeFilePath && favorites.isFavorite(activeFilePath))"
@@ -1813,9 +1800,6 @@ useAppShellKeyboard({
       :index-current-operation-detail="indexCurrentOperationDetail"
       :index-current-operation-path="indexCurrentOperationPath"
       :index-current-operation-status-label="indexCurrentOperationStatusLabel"
-      :index-model-state-class="indexModelStateClass"
-      :index-model-status-label="indexModelStatusLabel"
-      :index-show-warmup-note="indexShowWarmupNote"
       :index-alert="indexAlert"
       :index-processed-notes-count="indexProcessedNotesCount"
       :index-notes-total-count="indexNotesTotalCount"

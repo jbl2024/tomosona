@@ -2,14 +2,12 @@
 
 ## Scope
 This module provides a VS Code-style multi-pane shell for mixed editor surfaces:
-- document notes,
-- Second Brain chat.
+- document notes.
 
 ## Data Model
 - `MultiPaneLayout` stores `root` split tree, `panesById`, and `activePaneId`.
 - `PaneTab` is a tagged union with `type`:
-  - `document` with `path`,
-  - `second-brain-chat`.
+  - `document` with `path`.
 - `SplitNode` is either:
   - `{ kind: 'pane', paneId }`
   - `{ kind: 'split', axis, a, b, ratio: 0.5 }`
@@ -26,13 +24,12 @@ This module provides a VS Code-style multi-pane shell for mixed editor surfaces:
 - `PaneSurfaceHost.vue` chooses the active surface renderer based on tab `type`.
 - `EditorPaneTabs.vue` renders pane-local typed tabs and pane-local tab actions.
 - `MultiPaneToolbarMenu.vue` exposes split/focus/move/reset actions in the top toolbar.
-- `SecondBrainPaneSurface.vue` mounts the Second Brain chat surface directly (no dedicated explorer split).
 
 ## Command Flow
 1. UI emits user intent (`split`, `focus`, `move tab`, `close pane`, `reset`).
 2. `useMultiPaneWorkspaceState` mutates layout state while enforcing invariants.
 3. App routes open actions to the active pane and applies uniqueness redirect (focus existing tab instead of duplicating).
-4. Surface-specific handlers (Second Brain) run inside pane surfaces.
+4. Surface-specific handlers run inside pane surfaces.
 5. Session snapshot is persisted in `sessionStorage` and restored on reload.
 
 ## Persistence
@@ -42,5 +39,5 @@ This module provides a VS Code-style multi-pane shell for mixed editor surfaces:
 
 ## KISS Rationale
 - No tab drag across panes in MVP (explicit move command only).
-- No duplicate document or duplicate special-surface instance.
-- `Join panes` merges all unique tabs (document + surfaces) into one pane and keeps the active tab when possible.
+- No duplicate document instance.
+- `Join panes` merges all unique document tabs into one pane and keeps the active tab when possible.

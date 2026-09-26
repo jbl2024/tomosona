@@ -11,7 +11,6 @@
 - Forbidden dependency direction: `domains -> app`.
 - Domain modules keep domain behavior:
   - `editor`: document/session/editing behavior
-  - `second-brain`: session/context/draft behavior
   - `favorites`: favorite persistence and workspace sync
   - `explorer`: tree rendering and file tree interactions
 - Shell modules own:
@@ -61,7 +60,7 @@
 - `useAppShellWorkspaceFsSync`: workspace filesystem watcher subscription, root filtering, and shell fan-out.
 - `useAppShellHistoryUi`: back/forward menu long press, click routing, outside click, resize positioning.
 - `useAppShellChromeRuntime`: shell chrome resize state, overflow menu toggle, and zoom wrappers.
-- `useAppShellConstitutedContextActions`: constituted-context mutations and cross-surface routing into Second Brain.
+- `useAppShellConstitutedContextActions`: constituted-context mutations and cross-surface routing.
 - `useAppShellPaneRuntime`: pane-tab and editor-status event glue.
 - `useAppShellWorkspaceLifecycle`: workspace restore, workspace close/reset, and saved-workspace bootstrap.
 - `useAppShellRuntimeLifecycle`: runtime boot/teardown for persistence, global listeners, and workspace lifecycle start/stop.
@@ -72,7 +71,6 @@
   - `useAppWorkspaceController`
   - `useAppNavigationController`
   - `useAppIndexingController`
-  - `useAppSecondBrainBridge`
 
 ## View-model Rules
 - Pane surface props should be passed as typed shell view-models.

@@ -1,7 +1,7 @@
 /**
  * Supported explicit search mode prefixes.
  */
-export type SearchMode = 'hybrid' | 'semantic' | 'lexical'
+export type SearchMode = 'hybrid' | 'lexical'
 
 type SearchModeApplyResult = {
   value: string
@@ -9,7 +9,6 @@ type SearchModeApplyResult = {
 }
 
 const MODE_PREFIXES: Array<{ mode: SearchMode; prefix: string }> = [
-  { mode: 'semantic', prefix: 'semantic:' },
   { mode: 'lexical', prefix: 'lexical:' },
   { mode: 'hybrid', prefix: 'hybrid:' }
 ]

@@ -2,20 +2,9 @@ import { invoke } from '@tauri-apps/api/core'
 import type {
   IndexLogEntry,
   IndexOverviewStats,
-  IndexRuntimeStatus,
   PathMove,
   PathMoveRewriteResult,
 } from './apiTypes'
-
-
-/** Compatibility no-op while older UI state is retired. */
-export async function reindexMarkdownFileSemantic(_path: string): Promise<void> {}
-/** Compatibility no-op while older UI state is retired. */
-export async function refreshSemanticEdgesCacheNow(): Promise<void> {}
-/** Embedding runtime no longer exists. */
-export async function readIndexRuntimeStatus(): Promise<IndexRuntimeStatus> {
-  return { model_name: '', model_state: 'unavailable', model_init_attempts: 0, model_last_started_at_ms: null, model_last_finished_at_ms: null, model_last_duration_ms: null, model_last_error: null }
-}
 
 /**
  * Frontend IPC wrappers for indexing, search, and graph data.

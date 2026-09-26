@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import IndexStatusModal from './IndexStatusModal.vue'
 import type { IndexActivityRow } from '../../lib/indexActivity'
 
-function createRow(partial: Partial<IndexActivityRow> & Pick<IndexActivityRow, 'id' | 'ts' | 'timeLabel' | 'state' | 'group' | 'path' | 'directory' | 'fileName' | 'title' | 'detail' | 'durationMs' | 'chunks' | 'targets' | 'properties' | 'embeddingStatus' | 'rawMessage'>): IndexActivityRow {
+function createRow(partial: Partial<IndexActivityRow> & Pick<IndexActivityRow, 'id' | 'ts' | 'timeLabel' | 'state' | 'group' | 'path' | 'directory' | 'fileName' | 'title' | 'detail' | 'durationMs' | 'chunks' | 'targets' | 'properties' | 'rawMessage'>): IndexActivityRow {
   return partial
 }
 
@@ -28,26 +28,7 @@ function mountModal() {
       chunks: null,
       targets: null,
       properties: null,
-      embeddingStatus: '',
-      rawMessage: 'rebuild:done indexed=32 semantic_indexed=29 scanned=32 canceled=false total_ms=474000'
-    }),
-    createRow({
-      id: 'semantic-refresh-done',
-      ts: 1710836239000,
-      timeLabel: '10:17:19',
-      state: 'done',
-      group: 'engine',
-      path: '/vault/notes/index.md',
-      directory: 'vault/notes',
-      fileName: 'index.md',
-      title: 'Semantic links refreshed',
-      detail: 'added 71 · notes 24 · 86 ms',
-      durationMs: 86,
-      chunks: null,
-      targets: null,
-      properties: null,
-      embeddingStatus: '',
-      rawMessage: 'semantic_edges:refresh_done added=71 sources_with_vector=24 total_ms=86'
+      rawMessage: 'rebuild:done indexed=32 total_ms=474000'
     }),
     createRow({
       id: 'file-done',
@@ -64,7 +45,6 @@ function mountModal() {
       chunks: 3,
       targets: 1,
       properties: 2,
-      embeddingStatus: 'ready',
       rawMessage: 'reindex:done path=/vault/notes/test1.md total_ms=14'
     })
   ]
@@ -76,15 +56,6 @@ function mountModal() {
           visible: true,
           running: false,
           busy: false,
-          runtimeStatus: {
-            model_name: 'modernbert-embed-large',
-            model_state: 'not_initialized',
-            model_init_attempts: 1,
-            model_last_started_at_ms: null,
-            model_last_finished_at_ms: 1710836000000,
-            model_last_duration_ms: 1200,
-            model_last_error: null
-          },
           badgeLabel: 'Ready',
           badgeClass: 'index-badge-ready',
           showProgressBar: false,
@@ -96,11 +67,7 @@ function mountModal() {
           currentOperationDetail: '',
           currentOperationPath: '',
           currentOperationStatusLabel: 'Idle',
-          modelStateClass: 'index-model-idle',
-          modelStatusLabel: 'Not initialized',
-          showWarmupNote: true,
           alert: null,
-          semanticLinksCount: 71,
           processedNotesCount: 10,
           notesTotalCount: 20,
           notesTotalLoading: false,
@@ -142,13 +109,10 @@ describe('IndexStatusModal', () => {
     const mounted = mountModal()
 
     expect(mounted.root.textContent).toContain('Index Status')
-    expect(mounted.root.textContent).toContain('Semantic links')
     expect(mounted.root.textContent).toContain('Notes processed')
     expect(mounted.root.textContent).toContain('Last run')
-    expect(mounted.root.textContent).toContain('71')
     expect(mounted.root.textContent).toContain('10/20')
     expect(mounted.root.textContent).toContain('Workspace rebuild done')
-    expect(mounted.root.textContent).toContain('86 ms')
     expect(mounted.root.textContent).toContain('474000 ms')
     expect(mounted.root.textContent).toContain('Rebuild index')
     expect(mounted.root.textContent).toContain('Close')
@@ -173,15 +137,6 @@ describe('IndexStatusModal', () => {
             visible: true,
             running: false,
             busy: false,
-            runtimeStatus: {
-              model_name: 'modernbert-embed-large',
-              model_state: 'ready',
-              model_init_attempts: 1,
-              model_last_started_at_ms: null,
-              model_last_finished_at_ms: null,
-              model_last_duration_ms: null,
-              model_last_error: null
-            },
             badgeLabel: 'Ready',
             badgeClass: 'index-badge-ready',
             showProgressBar: false,
@@ -193,11 +148,7 @@ describe('IndexStatusModal', () => {
             currentOperationDetail: '',
             currentOperationPath: '',
             currentOperationStatusLabel: 'Idle',
-            modelStateClass: 'index-model-idle',
-            modelStatusLabel: 'Ready',
-            showWarmupNote: false,
             alert: null,
-            semanticLinksCount: 5,
             processedNotesCount: 7,
             notesTotalCount: 12,
             notesTotalLoading: false,

@@ -124,16 +124,6 @@ export type IndexLogEntry = {
   message: string
 }
 
-export type IndexRuntimeStatus = {
-  model_name: string
-  model_state: string
-  model_init_attempts: number
-  model_last_started_at_ms: number | null
-  model_last_finished_at_ms: number | null
-  model_last_duration_ms: number | null
-  model_last_error: string | null
-}
-
 export type PathMove = {
   from: string
   to: string
