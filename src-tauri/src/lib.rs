@@ -80,8 +80,7 @@ use wikilink_graph::{
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
-    normalize_note_key_from_workspace_path, normalize_workspace_path,
-    normalize_workspace_relative_from_input, normalize_workspace_relative_path, note_key_basename,
+    normalize_workspace_path, normalize_workspace_relative_from_input, normalize_workspace_relative_path,
     note_link_target, rewrite_wikilinks_for_note,
     workspace_absolute_path,
 };

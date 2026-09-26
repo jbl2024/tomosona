@@ -128,17 +128,6 @@ pub(crate) fn has_hidden_dir_component(root: &Path, path: &Path) -> bool {
     false
 }
 
-pub(crate) fn normalize_note_key_from_workspace_path(
-    root: &Path,
-    stored_path: &str,
-) -> Option<String> {
-    normalize_note_key(root, &root.join(stored_path)).ok()
-}
-
-pub(crate) fn note_key_basename(key: &str) -> String {
-    key.rsplit('/').next().unwrap_or(key).to_string()
-}
-
 pub(crate) fn note_link_target(root: &Path, path: &Path) -> Result<String> {
     let relative = path.strip_prefix(root).map_err(|_| AppError::InvalidPath)?;
     let normalized = strip_markdown_extension(relative);

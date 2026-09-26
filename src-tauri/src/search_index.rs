@@ -1,6 +1,6 @@
 //! Lexical search query parsing and helpers.
 
-use std::{collections::HashSet, path::Path};
+use std::collections::HashSet;
 
 use rusqlite::{params, params_from_iter, types::Value as SqlValue, Connection};
 use serde::Serialize;
@@ -439,38 +439,6 @@ pub(crate) fn build_prefix_fts_query(text_query: &str) -> Option<String> {
     } else {
         Some(terms.join(" AND "))
     }
-}
-
-fn fallback_lexical_hits(
-    conn: &Connection,
-    root_canonical: &Path,
-    text_query: &str,
-    property_paths: Option<&HashSet<String>>,
-) -> Result<Vec<Hit>> {
-    let ranked_rows = collect_lexical_ranked_rows(conn, text_query, property_paths)?;
-    if ranked_rows.is_empty() {
-        return Ok(vec![]);
-    }
-    let lexical_relevance: Vec<f64> = ranked_rows.iter().map(|item| -item.lexical_score).collect();
-    let lexical_norm = min_max_normalize(&lexical_relevance);
-
-    let mut scored: Vec<(usize, f64)> = ranked_rows
-        .iter()
-        .enumerate()
-        .map(|(index, _)| (index, lexical_norm[index]))
-        .collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    let mut out = Vec::new();
-    for (index, score) in scored.into_iter().take(SEARCH_RESULT_LIMIT) {
-        let row = &ranked_rows[index];
-        out.push(Hit {
-            path: workspace_absolute_path(root_canonical, &row.path),
-            snippet: row.snippet.clone(),
-            score,
-        });
-    }
-    Ok(out)
 }
 
 /*pub(crate) fn semantic_snippet_preview(text: &str) -> String {

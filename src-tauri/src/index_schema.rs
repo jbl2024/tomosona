@@ -42,46 +42,6 @@ const INTERNAL_META_LAST_RUN_FINISHED_AT_MS_KEY: &str = "last_index_run_finished
 const INTERNAL_META_LAST_RUN_TITLE_KEY: &str = "last_index_run_title";
 const INTERNAL_META_LAST_RUN_DURATION_MS_KEY: &str = "last_index_run_duration_ms";
 
-fn sanitize_log_value(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-' | '/' | ':') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-fn sqlite_error_tokens(err: &rusqlite::Error) -> String {
-    let mut tokens = vec![format!("err={}", sanitize_log_value(&err.to_string()))];
-    if let rusqlite::Error::SqliteFailure(code, message) = err {
-        tokens.push(format!("sqlite_code={:?}", code.code));
-        tokens.push(format!("sqlite_extended={}", code.extended_code));
-        if let Some(message) = message {
-            tokens.push(format!("sqlite_msg={}", sanitize_log_value(message)));
-        }
-    }
-    tokens.push(format!(
-        "err_debug={}",
-        sanitize_log_value(&format!("{err:?}"))
-    ));
-    tokens.join(" ")
-}
-
-fn schema_shape_needs_reset(_conn: &Connection, current_version: i64) -> bool {
-    if current_version == 0 {
-        return false;
-    }
-    if current_version < 3 {
-        return false;
-    }
-
-    false
-}
-
 pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
@@ -589,27 +549,4 @@ pub(crate) fn list_markdown_files_via_find(root: &Path) -> Result<Vec<PathBuf>> 
     let mut files = Vec::new();
     walk(root, root, &mut files)?;
     Ok(files)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{sanitize_log_value, sqlite_error_tokens};
-
-    #[test]
-    fn sanitize_log_value_replaces_whitespace_and_symbols() {
-        assert_eq!(
-            sanitize_log_value(
-                "UNIQUE constraint failed: semantic_edges(source_path, target_path)"
-            ),
-            "UNIQUE_constraint_failed:_semantic_edges_source_path__target_path_"
-        );
-    }
-
-    #[test]
-    fn sqlite_error_tokens_include_debug_details_for_non_sqlite_failure_variants() {
-        let tokens = sqlite_error_tokens(&rusqlite::Error::InvalidQuery);
-
-        assert!(tokens.contains("err="));
-        assert!(tokens.contains("err_debug=InvalidQuery"));
-    }
 }
