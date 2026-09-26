@@ -85,62 +85,6 @@ pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
     Ok(out)
 }
 
-/*pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
-    let root_canonical = active_workspace_root()?;
-    let mut path_buf = PathBuf::from(path);
-    if path_buf.as_os_str().is_empty() {
-        return Err(AppError::InvalidPath);
-    }
-    if !path_buf.is_absolute() {
-        path_buf = root_canonical.join(path_buf);
-    }
-    if path_buf.exists() {
-        path_buf = fs::canonicalize(path_buf)?;
-    }
-
-    let target_path = normalize_workspace_relative_path(&root_canonical, &path_buf)?;
-    let conn = open_db()?;
-    let mut stmt = conn.prepare(
-        r#"
-        SELECT target_path AS related_path, score, 'outgoing' AS direction
-        FROM semantic_edges
-        WHERE source_path = ?1
-        UNION ALL
-        SELECT source_path AS related_path, score, 'incoming' AS direction
-        FROM semantic_edges
-        WHERE target_path = ?1
-        ORDER BY score DESC, related_path COLLATE NOCASE
-    "#,
-    )?;
-    let rows = stmt.query_map([target_path], |row| {
-        Ok(SemanticLink {
-            path: workspace_absolute_path(&root_canonical, &row.get::<_, String>(0)?),
-            score: row.get::<_, f32>(1).ok(),
-            direction: row.get::<_, String>(2)?,
-        })
-    })?;
-
-    let mut out: Vec<SemanticLink> = Vec::new();
-    let mut positions_by_key: HashMap<String, usize> = HashMap::new();
-    for row in rows {
-        let item = row?;
-        let key = item.path.to_lowercase();
-        if let Some(index) = positions_by_key.get(&key).copied() {
-            let existing: &mut SemanticLink = &mut out[index];
-            let existing_score = existing.score.unwrap_or(-1.0);
-            let next_score = item.score.unwrap_or(-1.0);
-            if next_score > existing_score {
-                *existing = item;
-            }
-            continue;
-        }
-        positions_by_key.insert(key, out.len());
-        out.push(item);
-    }
-
-    Ok(out)
-}*/
-
 pub(crate) fn update_wikilinks_for_rename(
     old_path: String,
     new_path: String,
