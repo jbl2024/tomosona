@@ -11,9 +11,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import {
-  ALTERS_SURFACE_ICON,
-  COSMOS_SURFACE_ICON,
-  SECOND_BRAIN_SURFACE_ICON
+  ALTERS_SURFACE_ICON
 } from '../../lib/appShellSurfaceIcons'
 
 type RecentWorkspaceCard = {
@@ -66,7 +64,7 @@ const emit = defineEmits<{
   openQuickOpen: []
   createNote: []
   openRecentNote: [path: string]
-  quickStart: [kind: 'today' | 'second-brain' | 'cosmos' | 'command-palette' | 'alters']
+  quickStart: [kind: 'today' | 'command-palette' | 'alters']
 }>()
 
 function noteLocationLabel(path: string): string {
@@ -317,20 +315,6 @@ function shortUpdatedLabel(value: string): string {
             <span class="launchpad-action-copy">
               <strong>Today&apos;s note</strong>
               <span>Write in your daily journal</span>
-            </span>
-          </button>
-          <button type="button" class="launchpad-action-row" @click="emit('quickStart', 'second-brain')">
-            <span class="launchpad-action-icon launchpad-action-icon-second-brain"><component :is="SECOND_BRAIN_SURFACE_ICON" /></span>
-            <span class="launchpad-action-copy">
-              <strong>Ask Second Brain</strong>
-              <span>Query your entire workspace</span>
-            </span>
-          </button>
-          <button type="button" class="launchpad-action-row" @click="emit('quickStart', 'cosmos')">
-            <span class="launchpad-action-icon launchpad-action-icon-project"><component :is="COSMOS_SURFACE_ICON" /></span>
-            <span class="launchpad-action-copy">
-              <strong>Explore Cosmos</strong>
-              <span>Open the knowledge graph</span>
             </span>
           </button>
           <button type="button" class="launchpad-action-row" @click="emit('quickStart', 'alters')">

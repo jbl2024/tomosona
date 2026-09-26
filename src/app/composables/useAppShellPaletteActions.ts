@@ -168,31 +168,6 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       run: () => options.actionPort.openFavoritesPanelFromPalette(),
       closeBeforeRun: true
     }),
-    createPaletteAction('navigation', {
-      id: 'open-cosmos-view',
-      label: 'Open Cosmos View',
-      run: () => options.actionPort.openCosmosViewFromPalette(),
-      closeBeforeRun: true,
-      loadingLabel: 'Loading graph...'
-    }),
-    createPaletteAction('navigation', {
-      id: 'open-second-brain-view',
-      label: 'Open Second Brain View',
-      run: () => options.actionPort.openSecondBrainViewFromPalette(),
-      closeBeforeRun: true
-    }),
-    createPaletteAction('navigation', {
-      id: 'open-alter-exploration-view',
-      label: 'Open Alter Exploration',
-      run: () => options.actionPort.openAlterExplorationViewFromPalette(),
-      closeBeforeRun: true
-    }),
-    createPaletteAction('navigation', {
-      id: 'open-alters-view',
-      label: 'Open Alters View',
-      run: () => options.actionPort.openAltersViewFromPalette(),
-      closeBeforeRun: true
-    }),
     ...(
       options.statePort.activeFilePath.value &&
       options.documentPort.isMarkdownPath(options.statePort.activeFilePath.value)
@@ -203,11 +178,6 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
           })]
         : []
     ),
-    createPaletteAction('notes', {
-      id: 'add-active-note-to-second-brain',
-      label: 'Add Active Note to Second Brain',
-      run: () => options.actionPort.addActiveNoteToSecondBrainFromPalette()
-    }),
     ...(
       options.statePort.activeFilePath.value &&
       !options.favoritesPort.isFavorite(options.statePort.activeFilePath.value)
@@ -262,13 +232,6 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
           })]
         : []
     ),
-    createPaletteAction('navigation', {
-      id: 'open-note-in-cosmos',
-      label: 'Open Note in Cosmos',
-      run: () => options.actionPort.openNoteInCosmosFromPalette(),
-      closeBeforeRun: true,
-      loadingLabel: 'Loading graph and locating active note...'
-    }),
     createPaletteAction('workspace', {
       id: 'open-workspace',
       label: 'Open Workspace',

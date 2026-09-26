@@ -3,31 +3,21 @@
  * EditorRightPane
  *
  * Purpose:
- * - Render the note-side context workflow: note -> Echoes -> constituted context
- *   -> Second Brain / Cosmos / Pulse.
+ * - Render note metadata, outline, and links.
  *
  * Boundaries:
  * - Stateless rendering component.
  * - Emits user intents and relies on the shell for navigation, state updates,
  *   and cross-surface orchestration.
  */
-import { computed, ref, watch } from 'vue'
-import { ArrowLeftIcon, BookmarkIcon, ChevronRightIcon, ClockIcon, StarIcon as StarOutlineIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ref } from 'vue'
+import { ChevronRightIcon, ClockIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
-import EditorEchoesPanel from './editor/EditorEchoesPanel.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
-import PulsePanel from '../../pulse/components/PulsePanel.vue'
-import { PULSE_ACTIONS_BY_SOURCE, type PulseApplyMode } from '../../pulse/lib/pulse'
-import type { PulseActionId } from '../../../shared/api/apiTypes'
-import { createClosedPulseDrawerState, type PulseDrawerState } from '../../pulse/lib/pulseDrawer'
-import type { ConstitutedContextItem } from '../composables/useConstitutedContext'
-import type { EchoesItem } from '../../echoes/lib/echoes'
 
 type HeadingNode = { level: 1 | 2 | 3; text: string }
 type PropertyPreviewRow = { key: string; value: string }
 type MetadataRow = { label: string; value: string }
-type SemanticLinkRow = { path: string; score: number | null; direction: 'incoming' | 'outgoing' }
-type ContextEchoesItem = EchoesItem & { isInContext: boolean }
 
 const props = defineProps<{
   width: number
@@ -36,24 +26,10 @@ const props = defineProps<{
   activeStateLabel: string
   activeNoteSourceToggleLabel?: string
   backlinkCount: number
-  semanticLinkCount: number
-  activeNoteInContext: boolean
   canToggleFavorite: boolean
   isFavorite: boolean
-  echoesItems: ContextEchoesItem[]
-  echoesLoading: boolean
-  echoesError: string
-  echoesHintVisible: boolean
   indexingState: 'indexed' | 'indexing' | 'out_of_sync'
-  localContextItems: ConstitutedContextItem[]
-  pinnedContextItems: ConstitutedContextItem[]
-  contextError?: string
-  canReasonOnContext: boolean
-  isLaunchingContextAction: boolean
   outline: HeadingNode[]
-  semanticLinks: SemanticLinkRow[]
-  semanticLinksLoading: boolean
-  semanticLinksError: string
   backlinks: string[]
   backlinksLoading: boolean
   backlinksError: string
@@ -61,105 +37,25 @@ const props = defineProps<{
   propertiesPreview: PropertyPreviewRow[]
   propertyParseErrorCount: number
   toRelativePath: (path: string) => string
-  pulseState?: PulseDrawerState
 }>()
 
 const emit = defineEmits<{
   'toggle-favorite': []
   'open-note-history': []
   'active-note-toggle-source-mode': []
-  'active-note-add-to-context': []
-  'active-note-remove-from-context': []
-  'active-note-open-cosmos': []
-  'active-note-open-pulse': []
-  'echoes-open': [path: string]
-  'echoes-add-to-context': [path: string]
-  'echoes-remove-from-context': [path: string]
-  'echoes-reindex': []
   'outline-click': [payload: { index: number; heading: HeadingNode }]
   'backlink-open': [path: string]
-  'context-open': [path: string]
-  'context-remove-local': [path: string]
-  'context-remove-pinned': [path: string]
-  'context-pin': []
-  'context-clear-local': []
-  'context-clear-pinned': []
-  'context-open-second-brain': []
-  'context-open-cosmos': []
-  'context-open-pulse': []
-  'pulse-action-change': [actionId: PulseActionId]
-  'pulse-instruction-change': [value: string]
-  'pulse-run': []
-  'pulse-cancel': []
-  'pulse-close': []
-  'pulse-apply': [mode: PulseApplyMode]
 }>()
 
 const outlineExpanded = ref(false)
-const semanticExpanded = ref(false)
 const backlinksExpanded = ref(false)
 const metadataExpanded = ref(false)
 const propertiesExpanded = ref(false)
 const activeNoteExpanded = ref(true)
-const hasEchoesContent = computed(() => props.echoesItems.length > 0 && !props.echoesLoading && !props.echoesError)
-const hasLocalContext = computed(() => props.localContextItems.length > 0)
-const hasPinnedContext = computed(() => props.pinnedContextItems.length > 0)
-const effectivePulseState = computed(() => props.pulseState ?? createClosedPulseDrawerState())
-const pulseSourceLabel = computed(() => {
-  if (effectivePulseState.value.sourceKind === 'editor_selection') return 'Editor selection'
-  if (effectivePulseState.value.sourceKind === 'second_brain_context') return 'Current context'
-  const noteTitle = props.activeNoteTitle.trim()
-  return noteTitle && noteTitle !== 'No active note'
-    ? `Current note (${noteTitle})`
-    : 'Current note'
-})
-
-watch(
-  hasEchoesContent,
-  (hasEchoes) => {
-    semanticExpanded.value = !hasEchoes
-    backlinksExpanded.value = !hasEchoes
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
   <aside class="right-pane" :style="{ width: `${props.width}px` }">
-    <section v-if="effectivePulseState.open" class="pulse-drawer-view">
-      <div class="pulse-drawer-header">
-        <button type="button" class="pulse-drawer-back" aria-label="Back to inspector" title="Back to inspector" @click="emit('pulse-close')">
-          <ArrowLeftIcon />
-        </button>
-        <div>
-          <h3 class="section-title pulse-drawer-title">Pulse</h3>
-          <p class="pulse-drawer-subtitle">{{ pulseSourceLabel }}</p>
-        </div>
-      </div>
-
-      <PulsePanel
-        compact
-        drawer
-        :action-id="effectivePulseState.actionId"
-        :actions="PULSE_ACTIONS_BY_SOURCE[effectivePulseState.sourceKind]"
-        :instruction="effectivePulseState.instruction"
-        :preview-markdown="effectivePulseState.previewMarkdown"
-        :provenance-paths="effectivePulseState.provenancePaths"
-        :running="effectivePulseState.running"
-        :error="effectivePulseState.error"
-        :source-text="effectivePulseState.sourceText"
-        :apply-modes="effectivePulseState.applyModes"
-        :primary-apply-mode="effectivePulseState.primaryApplyMode"
-        @update:action-id="emit('pulse-action-change', $event as PulseActionId)"
-        @update:instruction="emit('pulse-instruction-change', $event)"
-        @run="emit('pulse-run')"
-        @cancel="emit('pulse-cancel')"
-        @close="emit('pulse-close')"
-        @apply="emit('pulse-apply', $event)"
-      />
-    </section>
-
-    <template v-else>
     <section class="pane-card pane-toolbar">
       <button type="button" class="section-toggle active-note-section-toggle" @click="activeNoteExpanded = !activeNoteExpanded">
         <h3 class="section-title pane-toolbar-title">Active Note</h3>
@@ -183,38 +79,6 @@ watch(
             <StarOutlineIcon v-else />
             {{ props.isFavorite ? 'Remove from favorites' : 'Add to favorites' }}
           </UiButton>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="primary-context-btn"
-            :disabled="!props.activeNotePath"
-            @click="props.activeNoteInContext ? emit('active-note-remove-from-context') : emit('active-note-add-to-context')"
-          >
-            <span class="menu-row-spacer" aria-hidden="true"></span>
-            {{ props.activeNoteInContext ? 'Remove from Context' : 'Add to Context' }}
-          </UiButton>
-
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="secondary-note-btn"
-            :disabled="!props.activeNotePath"
-            @click="emit('active-note-open-cosmos')"
-          >
-            <span class="menu-row-spacer" aria-hidden="true"></span>
-            Explore in Cosmos
-          </UiButton>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="secondary-note-btn"
-            :disabled="!props.activeNotePath"
-            @click="emit('active-note-open-pulse')"
-          >
-            <span class="menu-row-spacer" aria-hidden="true"></span>
-            Pulse
-          </UiButton>
-
           <div class="pane-toolbar-divider" aria-hidden="true"></div>
 
           <UiButton
@@ -245,142 +109,6 @@ watch(
       </template>
     </section>
 
-    <EditorEchoesPanel
-      :items="props.echoesItems"
-      :loading="props.echoesLoading"
-      :error="props.echoesError"
-      :hint-visible="props.echoesHintVisible"
-      :indexing-state="props.indexingState"
-      :can-reindex="Boolean(props.activeNotePath)"
-      :to-relative-path="props.toRelativePath"
-      @open="emit('echoes-open', $event)"
-      @add="emit('echoes-add-to-context', $event)"
-      @remove="emit('echoes-remove-from-context', $event)"
-      @reindex="emit('echoes-reindex')"
-    />
-
-    <section class="pane-card pane-section context-card">
-      <div class="context-head">
-        <div class="context-head-copy">
-          <h3 class="section-title">Note Context</h3>
-          <p v-if="hasLocalContext" class="context-count">
-            {{ props.localContextItems.length }} note{{ props.localContextItems.length > 1 ? 's' : '' }}
-          </p>
-        </div>
-        <div class="context-actions" v-if="hasLocalContext">
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="context-icon-btn"
-            title="Pin Context"
-            aria-label="Pin Context"
-            @click="emit('context-pin')"
-          >
-            <BookmarkIcon />
-          </UiButton>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="context-icon-btn"
-            title="Clear Context"
-            aria-label="Clear Context"
-            @click="emit('context-clear-local')"
-          >
-            <XMarkIcon />
-          </UiButton>
-        </div>
-      </div>
-
-      <div v-if="props.contextError" class="empty-state">{{ props.contextError }}</div>
-      <div v-else-if="!hasLocalContext" class="empty-state">Add notes from Echoes or the active note.</div>
-      <div v-else class="context-list">
-        <div v-for="item in props.localContextItems" :key="item.path" class="context-row">
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="context-open-btn !justify-start !text-left"
-            :title="props.toRelativePath(item.path)"
-            @click="emit('context-open', item.path)"
-          >
-            <span class="context-row-title">{{ item.title }}</span>
-          </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove-local', item.path)">×</UiButton>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="hasPinnedContext" class="pane-card pane-section context-card">
-      <div class="context-head">
-        <div class="context-head-copy">
-          <h3 class="section-title">Pinned Context</h3>
-          <p v-if="hasPinnedContext" class="context-count">
-            {{ props.pinnedContextItems.length }} note{{ props.pinnedContextItems.length > 1 ? 's' : '' }}
-          </p>
-        </div>
-        <div class="context-actions" v-if="hasPinnedContext">
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="context-icon-btn"
-            title="Clear Pinned Context"
-            aria-label="Clear Pinned Context"
-            @click="emit('context-clear-pinned')"
-          >
-            <XMarkIcon />
-          </UiButton>
-        </div>
-      </div>
-
-      <div v-if="props.contextError" class="empty-state">{{ props.contextError }}</div>
-      <div v-else class="context-list">
-        <div v-for="item in props.pinnedContextItems" :key="item.path" class="context-row">
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class-name="context-open-btn !justify-start !text-left"
-            :title="props.toRelativePath(item.path)"
-            @click="emit('context-open', item.path)"
-          >
-            <span class="context-row-title">{{ item.title }}</span>
-          </UiButton>
-          <UiButton variant="ghost" size="sm" class-name="context-remove-btn" @click="emit('context-remove-pinned', item.path)">×</UiButton>
-        </div>
-      </div>
-    </section>
-
-    <section class="pane-card pane-section action-card">
-      <UiButton
-        variant="primary"
-        size="md"
-        class-name="context-primary-cta"
-        :disabled="!props.canReasonOnContext || props.isLaunchingContextAction"
-        :loading="props.isLaunchingContextAction"
-        @click="emit('context-open-second-brain')"
-      >
-        Reason on This Context
-      </UiButton>
-
-      <div class="context-secondary-actions">
-        <UiButton
-          variant="ghost"
-          size="sm"
-          class-name="context-link-btn"
-          :disabled="!props.canReasonOnContext || props.isLaunchingContextAction"
-          @click="emit('context-open-cosmos')"
-        >
-          Explore in Cosmos
-        </UiButton>
-        <UiButton
-          variant="ghost"
-          size="sm"
-          class-name="context-link-btn"
-          :disabled="!props.canReasonOnContext || props.isLaunchingContextAction"
-          @click="emit('context-open-pulse')"
-        >
-          Transform with Pulse
-        </UiButton>
-      </div>
-    </section>
 
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="outlineExpanded = !outlineExpanded">
@@ -399,32 +127,6 @@ watch(
         >
           {{ heading.text }}
         </button>
-      </template>
-    </section>
-
-    <section class="pane-card pane-section">
-      <button type="button" class="section-toggle" @click="semanticExpanded = !semanticExpanded">
-        <h3 class="section-title">Semantic Links</h3>
-        <ChevronRightIcon class="section-toggle-chevron" :class="{ expanded: semanticExpanded }" />
-      </button>
-      <template v-if="semanticExpanded">
-        <div v-if="props.semanticLinksLoading" class="empty-state">Loading...</div>
-        <template v-else>
-          <div v-if="props.semanticLinksError" class="empty-state">{{ props.semanticLinksError }}</div>
-          <div v-if="!props.semanticLinks.length && !props.semanticLinksError" class="empty-state">No semantic links</div>
-          <button
-            v-for="item in props.semanticLinks"
-            :key="`semantic-${item.path}`"
-            type="button"
-            class="pane-item semantic-link-item"
-            @click="emit('backlink-open', item.path)"
-          >
-            <span class="semantic-link-path">{{ props.toRelativePath(item.path) }}</span>
-            <span class="semantic-link-meta">
-              <span class="semantic-link-direction">{{ item.direction === 'outgoing' ? 'out' : 'in' }}</span>
-            </span>
-          </button>
-        </template>
       </template>
     </section>
 
@@ -482,7 +184,6 @@ watch(
         </div>
       </template>
     </section>
-    </template>
   </aside>
 </template>
 

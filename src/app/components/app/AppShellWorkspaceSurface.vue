@@ -5,11 +5,6 @@ import EditorRightPane from '../../../domains/editor/components/EditorRightPane.
 import type { SearchMode } from '../../../shared/lib/searchMode'
 import type { FavoriteEntry } from '../../../shared/api/apiTypes'
 import type { PathMove } from '../../../shared/api/apiTypes'
-import type { ConstitutedContextItem } from '../../../domains/editor/composables/useConstitutedContext'
-import type { EchoesItem } from '../../../domains/echoes/lib/echoes'
-import type { PulseDrawerState } from '../../../domains/pulse/lib/pulseDrawer'
-import type { PulseActionId } from '../../../shared/api/apiTypes'
-import type { PulseApplyMode } from '../../../domains/pulse/lib/pulse'
 
 /**
  * Module: AppShellWorkspaceSurface
@@ -25,11 +20,9 @@ import type { PulseApplyMode } from '../../../domains/pulse/lib/pulse'
 
 type SearchHit = { path: string; snippet: string; score: number }
 type SearchResultGroup = { path: string; items: SearchHit[] }
-type ContextEchoesItem = EchoesItem & { isInContext: boolean }
 type HeadingNode = { level: 1 | 2 | 3; text: string }
 type PropertyPreviewRow = { key: string; value: string }
 type MetadataRow = { label: string; value: string }
-type SemanticLinkRow = { path: string; score: number | null; direction: 'incoming' | 'outgoing' }
 
 export type AppShellWorkspaceSurfaceExposed = {
   revealPathInView: (
@@ -51,8 +44,6 @@ defineProps<{
   activeStateLabel: string
   activeNoteSourceToggleLabel?: string
   backlinkCount: number
-  semanticLinkCount: number
-  activeNoteInContext: boolean
   indexingState: 'indexed' | 'indexing' | 'out_of_sync'
   favoriteItems: FavoriteEntry[]
   favoritesLoading: boolean
@@ -68,25 +59,13 @@ defineProps<{
   parseSearchSnippet: (snippet: string) => Array<{ text: string; highlighted: boolean }>
   canToggleFavorite: boolean
   isFavorite: boolean
-  echoesItems: ContextEchoesItem[]
-  echoesLoading: boolean
-  echoesError: string
-  echoesHintVisible: boolean
-  localContextItems: ConstitutedContextItem[]
-  pinnedContextItems: ConstitutedContextItem[]
-  canReasonOnContext: boolean
-  isLaunchingContextAction: boolean
   outline: HeadingNode[]
-  semanticLinks: SemanticLinkRow[]
-  semanticLinksLoading: boolean
-  semanticLinksError: string
   backlinks: string[]
   backlinksLoading: boolean
   backlinksError: string
   metadataRows: MetadataRow[]
   propertiesPreview: PropertyPreviewRow[]
   propertyParseErrorCount: number
-  pulseDrawerState?: PulseDrawerState
 }>()
 
 const emit = defineEmits<{
@@ -117,30 +96,6 @@ const emit = defineEmits<{
   pathRenamed: [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: HeadingNode[]]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
-  pulseStateChange: [payload: PulseDrawerState]
-  pulseActionChange: [actionId: PulseActionId]
-  pulseInstructionChange: [value: string]
-  pulseRun: []
-  pulseCancel: []
-  pulseClose: []
-  pulseApply: [mode: PulseApplyMode]
-  pulseOpenSecondBrain: [payload: { contextPaths: string[]; prompt?: string }]
-  externalReload: [payload: { path: string }]
-  secondBrainContextChanged: [paths: string[]]
-  secondBrainSessionChanged: [sessionId: string]
-  alterOpenSecondBrain: [alterId: string]
-  cosmosQueryUpdate: [value: string]
-  cosmosSearchEnter: []
-  cosmosSelectMatch: [nodeId: string]
-  cosmosToggleFocusMode: [value: boolean]
-  cosmosToggleSemanticEdges: [value: boolean]
-  cosmosExpandNeighborhood: []
-  cosmosJumpRelated: [nodeId: string]
-  cosmosOpenSelected: []
-  cosmosLocateSelected: []
-  cosmosResetView: []
-  cosmosSelectNode: [nodeId: string]
-  cosmosAddToContext: [path: string]
   openNote: [path: string]
   launchpadOpenWorkspace: []
   launchpadOpenWizard: []
@@ -155,25 +110,8 @@ const emit = defineEmits<{
   toggleFavorite: []
   activeNoteOpenHistory: []
   activeNoteToggleSourceMode: []
-  activeNoteAddToContext: []
-  activeNoteRemoveFromContext: []
-  activeNoteOpenCosmos: []
-  activeNoteOpenPulse: []
-  echoesOpen: [path: string]
-  echoesAddToContext: [path: string]
-  echoesRemoveFromContext: [path: string]
-  echoesReindex: []
   outlineClick: [payload: { index: number; heading: HeadingNode }]
   backlinkOpen: [path: string]
-  contextOpen: [path: string]
-  contextRemoveLocal: [path: string]
-  contextRemovePinned: [path: string]
-  contextPin: []
-  contextClearLocal: []
-  contextClearPinned: []
-  contextOpenSecondBrain: []
-  contextOpenCosmos: []
-  contextOpenPulse: []
 }>()
 
 const sidebarRef = ref<InstanceType<typeof SidebarSurface> | null>(null)
@@ -256,23 +194,10 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           :active-state-label="activeStateLabel"
           :active-note-source-toggle-label="activeNoteSourceToggleLabel"
           :backlink-count="backlinkCount"
-          :semantic-link-count="semanticLinkCount"
-          :active-note-in-context="activeNoteInContext"
           :indexing-state="indexingState"
           :can-toggle-favorite="canToggleFavorite"
           :is-favorite="isFavorite"
-          :echoes-items="echoesItems"
-          :echoes-loading="echoesLoading"
-          :echoes-error="echoesError"
-          :echoes-hint-visible="echoesHintVisible"
-          :local-context-items="localContextItems"
-          :pinned-context-items="pinnedContextItems"
-          :can-reason-on-context="canReasonOnContext"
-          :is-launching-context-action="isLaunchingContextAction"
           :outline="outline"
-          :semantic-links="semanticLinks"
-          :semantic-links-loading="semanticLinksLoading"
-          :semantic-links-error="semanticLinksError"
           :backlinks="backlinks"
           :backlinks-loading="backlinksLoading"
           :backlinks-error="backlinksError"
@@ -280,35 +205,11 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           :properties-preview="propertiesPreview"
           :property-parse-error-count="propertyParseErrorCount"
           :to-relative-path="toRelativePath"
-          :pulse-state="pulseDrawerState"
           @toggle-favorite="emit('toggleFavorite')"
           @open-note-history="emit('activeNoteOpenHistory')"
           @active-note-toggle-source-mode="emit('activeNoteToggleSourceMode')"
-          @active-note-add-to-context="emit('activeNoteAddToContext')"
-          @active-note-remove-from-context="emit('activeNoteRemoveFromContext')"
-          @active-note-open-cosmos="emit('activeNoteOpenCosmos')"
-          @active-note-open-pulse="emit('activeNoteOpenPulse')"
-          @echoes-open="emit('echoesOpen', $event)"
-          @echoes-add-to-context="emit('echoesAddToContext', $event)"
-          @echoes-remove-from-context="emit('echoesRemoveFromContext', $event)"
-          @echoes-reindex="emit('echoesReindex')"
           @outline-click="emit('outlineClick', $event)"
           @backlink-open="emit('backlinkOpen', $event)"
-          @context-open="emit('contextOpen', $event)"
-          @context-remove-local="emit('contextRemoveLocal', $event)"
-          @context-remove-pinned="emit('contextRemovePinned', $event)"
-          @context-pin="emit('contextPin')"
-          @context-clear-local="emit('contextClearLocal')"
-          @context-clear-pinned="emit('contextClearPinned')"
-          @context-open-second-brain="emit('contextOpenSecondBrain')"
-          @context-open-cosmos="emit('contextOpenCosmos')"
-          @context-open-pulse="emit('contextOpenPulse')"
-          @pulse-action-change="emit('pulseActionChange', $event)"
-          @pulse-instruction-change="emit('pulseInstructionChange', $event)"
-          @pulse-run="emit('pulseRun')"
-          @pulse-cancel="emit('pulseCancel')"
-          @pulse-close="emit('pulseClose')"
-          @pulse-apply="emit('pulseApply', $event)"
         />
       </div>
       <slot name="terminal" />

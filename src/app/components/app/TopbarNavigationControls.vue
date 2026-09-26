@@ -12,8 +12,6 @@ import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
 import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
 import {
-  COSMOS_SURFACE_ICON,
-  SECOND_BRAIN_SURFACE_ICON,
   ALTER_EXPLORATION_SURFACE_ICON
 } from '../../lib/appShellSurfaceIcons'
 
@@ -63,8 +61,6 @@ const emit = defineEmits<{
   historyLongPressCancel: []
   historyTargetClick: [targetIndex: number]
   openToday: []
-  openCosmos: []
-  openSecondBrain: []
   openAlterExploration: []
   splitRight: []
   splitDown: []
@@ -248,24 +244,6 @@ defineExpose({
             @click="emit('openToday')"
           >
             <HomeIcon />
-          </UiIconButton>
-          <UiIconButton
-            class-name="toolbar-icon-btn"
-            :disabled="!hasWorkspace"
-            title="Cosmos view"
-            aria-label="Cosmos view"
-            @click="emit('openCosmos')"
-          >
-            <component :is="COSMOS_SURFACE_ICON" />
-          </UiIconButton>
-          <UiIconButton
-            class-name="toolbar-icon-btn"
-            :disabled="!hasWorkspace"
-            title="Second Brain"
-            aria-label="Second Brain"
-            @click="emit('openSecondBrain')"
-          >
-            <component :is="SECOND_BRAIN_SURFACE_ICON" />
           </UiIconButton>
           <UiIconButton
             class-name="toolbar-icon-btn"

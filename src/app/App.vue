@@ -1227,7 +1227,6 @@ const {
   backlinksError,
   semanticLinks,
   semanticLinksLoading,
-  semanticLinksError,
   openTodayNote,
   openYesterdayNote,
   showExplorerForActiveFile,
@@ -1380,7 +1379,6 @@ const {
   filteredShortcutSections,
   metadataRows,
   backlinkCount,
-  semanticLinkCount,
   activeNoteInContext,
   localContextItems,
   pinnedContextItems,
@@ -2044,7 +2042,6 @@ useAppShellKeyboard({
       :active-state-label="activeStateLabel"
       :active-note-source-toggle-label="activeNoteSourceToggleLabel"
       :backlink-count="backlinkCount"
-      :semantic-link-count="semanticLinkCount"
       :active-note-in-context="activeNoteInContext"
       :favorite-items="favorites.items.value"
       :favorites-loading="favorites.loading.value"
@@ -2070,9 +2067,6 @@ useAppShellKeyboard({
       :can-reason-on-context="!constitutedContext.isEmpty.value"
       :is-launching-context-action="contextActionLoading"
       :outline="editorState.activeOutline.value"
-      :semantic-links="semanticLinks"
-      :semantic-links-loading="semanticLinksLoading"
-      :semantic-links-error="semanticLinksError"
       :backlinks="backlinks"
       :backlinks-loading="backlinksLoading"
       :backlinks-error="backlinksError"
