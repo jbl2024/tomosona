@@ -12,7 +12,6 @@ function createKeyboard(isMacOs = false) {
     newFileModalVisible: ref(false),
     newFolderModalVisible: ref(false),
     openDateModalVisible: ref(false),
-    settingsModalVisible: ref(false),
     designSystemDebugVisible: ref(false),
     aboutModalVisible: ref(false),
     shortcutsModalVisible: ref(false),
@@ -29,7 +28,6 @@ function createKeyboard(isMacOs = false) {
     closeNewFileModal: vi.fn(),
     closeNewFolderModal: vi.fn(),
     closeOpenDateModal: vi.fn(),
-    closeSettingsModal: vi.fn(),
     closeDesignSystemDebugModal: vi.fn(),
     closeAboutModal: vi.fn(),
     closeShortcutsModal: vi.fn(),
@@ -86,26 +84,28 @@ describe('useAppShellKeyboard', () => {
 
   it('closes the top-most modal on Escape before shell menus', () => {
     const { scope, state, actions } = createKeyboard()
-    state.settingsModalVisible.value = true
+    state.newFileModalVisible.value = true
     state.quickOpenVisible.value = true
 
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     window.dispatchEvent(event)
 
-    expect(actions.closeSettingsModal).toHaveBeenCalledTimes(1)
+    expect(actions.closeNewFileModal).toHaveBeenCalledTimes(1)
     expect(actions.closeQuickOpen).not.toHaveBeenCalled()
     expect(event.defaultPrevented).toBe(true)
     scope.stop()
   })
 
-  it('focuses an already visible terminal on Escape outside the panel', () => {
+  it('does not open or focus the terminal on Escape outside the panel', () => {
     const { scope, state, actions } = createKeyboard()
     state.terminalVisible.value = true
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    window.dispatchEvent(event)
 
-    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
+    expect(actions.openIntegratedTerminal).not.toHaveBeenCalled()
     expect(actions.closeIntegratedTerminal).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
     scope.stop()
   })
 
@@ -148,14 +148,14 @@ describe('useAppShellKeyboard', () => {
     scope.stop()
   })
 
-  it('opens the integrated terminal on Escape outside a modal', () => {
+  it('does not open the integrated terminal on Escape outside a modal', () => {
     const { scope, actions } = createKeyboard()
 
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     window.dispatchEvent(event)
 
-    expect(actions.openIntegratedTerminal).toHaveBeenCalledTimes(1)
-    expect(event.defaultPrevented).toBe(true)
+    expect(actions.openIntegratedTerminal).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
     scope.stop()
   })
 
