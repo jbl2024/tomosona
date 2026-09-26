@@ -12,7 +12,6 @@ import type {
   EditorSignalSummary
 } from '../../../domains/editor/lib/editorSignals'
 import type {
-  AppShellAltersViewModel,
   AppShellLaunchpadViewModel,
   AppShellSecondBrainViewModel
 } from '../../lib/appShellViewModels'
@@ -82,7 +81,6 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
-  alters: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
   launchpad: AppShellLaunchpadViewModel
 }>()
@@ -112,12 +110,9 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette' | 'alters']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
-  'second-brain-open-alter-exploration': []
-  'alter-exploration-notify': [payload: { tone: 'info' | 'success' | 'error'; message: string }]
-  'alter-open-second-brain': [alterId: string]
 }>()
 
 // Keep instance refs out of Vue reactivity to avoid render-feedback loops.
@@ -368,19 +363,18 @@ onBeforeUnmount(() => {
           recentUpdatedNotes: launchpad.recentUpdatedNotes,
           showWizardAction: launchpad.showWizardAction
         }"
-        :alters="alters"
         :second-brain="secondBrain"
         :get-status="getStatus"
-        :openFile="openFile"
-        :saveFile="saveFile"
-        :readNoteSnapshot="readNoteSnapshot"
-        :saveNoteBuffer="saveNoteBuffer"
-        :renameFileFromTitle="renameFileFromTitle"
-        :loadLinkTargets="loadLinkTargets"
-        :loadLinkHeadings="loadLinkHeadings"
-        :loadPropertyTypeSchema="loadPropertyTypeSchema"
-        :savePropertyTypeSchema="savePropertyTypeSchema"
-        :openLinkTarget="openLinkTarget"
+        :open-file="openFile"
+        :save-file="saveFile"
+        :read-note-snapshot="readNoteSnapshot"
+        :save-note-buffer="saveNoteBuffer"
+        :rename-file-from-title="renameFileFromTitle"
+        :load-link-targets="loadLinkTargets"
+        :load-link-headings="loadLinkHeadings"
+        :load-property-type-schema="loadPropertyTypeSchema"
+        :save-property-type-schema="savePropertyTypeSchema"
+        :open-link-target="openLinkTarget"
         :spellcheck-enabled="spellcheckEnabled"
         :ruler-visible="rulerVisible"
         @status="emit('status', $event)"
@@ -402,9 +396,6 @@ onBeforeUnmount(() => {
         @launchpad-quick-start="emit('launchpad-quick-start', $event)"
         @second-brain-context-changed="emit('second-brain-context-changed', $event)"
         @second-brain-session-changed="emit('second-brain-session-changed', $event)"
-        @second-brain-open-alter-exploration="emit('second-brain-open-alter-exploration')"
-        @alter-exploration-notify="emit('alter-exploration-notify', $event)"
-        @alter-open-second-brain="emit('alter-open-second-brain', $event)"
       />
     </section>
 

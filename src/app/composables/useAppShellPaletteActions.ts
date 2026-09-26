@@ -43,8 +43,6 @@ export type AppShellPaletteActionPort = {
   openHomeViewFromPalette: () => boolean | Promise<boolean>
   openFavoritesPanelFromPalette: () => boolean | Promise<boolean>
   openSecondBrainViewFromPalette: () => boolean | Promise<boolean>
-  openAlterExplorationViewFromPalette: () => boolean | Promise<boolean>
-  openAltersViewFromPalette: () => boolean | Promise<boolean>
   addActiveNoteToSecondBrainFromPalette: () => boolean | Promise<boolean>
   addActiveNoteToFavoritesFromPalette: () => boolean | Promise<boolean>
   removeActiveNoteFromFavoritesFromPalette: () => boolean | Promise<boolean>
@@ -105,8 +103,6 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'open-yesterday': 5,
   'open-specific-date': 6,
   'open-second-brain-view': 8,
-  'open-alter-exploration-view': 9,
-  'open-alters-view': 10,
   'add-active-note-to-second-brain': 10,
   'add-active-note-to-favorites': 11,
   'remove-active-note-from-favorites': 12,

@@ -13,10 +13,7 @@ import { clearEditorStatusForPaths, documentPathsForPane } from '../lib/appShell
  * - Keeps pane/editor glue out of `App.vue`.
  * - Does not own domain state; it only coordinates the existing shell ports.
  */
-type PaneTab =
-  | { id: string; type: 'document'; path: string }
-  | { id: string; type: 'file-inspector'; path: string }
-  | { id: string; type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters'; pinned?: boolean }
+type PaneTab = { id: string; type: string; path?: string }
 
 type PaneState = {
   activeTabId: string
@@ -77,7 +74,7 @@ export function useAppShellPaneRuntime(options: Options) {
     const pane = options.multiPane.layout.value.panesById[payload.paneId]
     const tab = pane?.openTabs.find((item) => item.id === payload.tabId)
     if (!tab) return
-    if (tab.type === 'document') {
+    if (tab.type === 'document' && tab.path) {
       const opened = await options.setActiveTabWithAutosave(tab.path)
       if (!opened) return
       return
@@ -89,7 +86,7 @@ export function useAppShellPaneRuntime(options: Options) {
     const pane = options.multiPane.layout.value.panesById[payload.paneId]
     const tab = pane?.openTabs.find((item) => item.id === payload.tabId)
     options.multiPane.closeTabInPane(payload.paneId, payload.tabId)
-    if (tab?.type === 'document') {
+    if (tab?.type === 'document' && tab.path) {
       options.editorState.clearStatus(tab.path)
     }
   }
@@ -121,7 +118,7 @@ export function useAppShellPaneRuntime(options: Options) {
     const tab = pane?.openTabs.find((item) => item.id === pane.activeTabId)
     if (!tab) return
     options.multiPane.closeTabInPane(paneId, tab.id)
-    if (tab.type === 'document') {
+    if (tab.type === 'document' && tab.path) {
       options.editorState.clearStatus(tab.path)
     }
   }

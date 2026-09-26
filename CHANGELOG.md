@@ -18,6 +18,8 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 - Pulse transformation engine, editor AI macros, interface integrations, IPC commands, and dedicated styles/tests.
 
+- Alters, including persona management, exploration, Second Brain selection, settings, session metadata, IPC commands, built-in assets, and dedicated tests/docs.
+
 ### Fixed
 
 ### Security

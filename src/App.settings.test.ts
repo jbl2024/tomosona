@@ -42,11 +42,6 @@ const hoisted = vi.hoisted(() => ({
       ]
     },
     embeddings: { mode: 'internal', external: null },
-    alters: {
-      default_mode: 'neutral',
-      show_badge_in_chat: true,
-      default_influence_intensity: 'balanced'
-    }
   })),
   writeAppSettings: vi.fn(async () => ({ path: '/Users/test/.tomosona/conf.json', embeddings_changed: false })),
   discoverCodexModels: vi.fn(async () => [
@@ -561,11 +556,6 @@ describe('App settings modal', () => {
           base_url: 'https://albert.api.etalab.gouv.fr/v1/'
         }
       },
-      alters: {
-        default_mode: 'neutral',
-        show_badge_in_chat: true,
-        default_influence_intensity: 'balanced'
-      }
     })
 
     const mounted = mountApp()

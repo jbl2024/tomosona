@@ -46,7 +46,7 @@ export type MetadataRow = {
   value: string
 }
 
-export type ShellSurfaceType = 'document' | 'file-inspector' | 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters'
+export type ShellSurfaceType = 'document' | 'file-inspector' | 'home' | 'second-brain-chat'
 
 export type BuildMetadataRowsOptions = {
   activeFilePath: string
@@ -202,8 +202,6 @@ export function buildMetadataRows(options: BuildMetadataRowsOptions): MetadataRo
         ? 'File inspector'
       : activeTab.type === 'second-brain-chat'
           ? 'Second Brain'
-          : activeTab.type === 'alter-exploration'
-            ? 'Alter Exploration'
           : 'Surface'
     return [
       { label: 'Surface', value: label },

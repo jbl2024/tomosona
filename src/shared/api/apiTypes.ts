@@ -202,20 +202,11 @@ export type AppSettingsEmbeddings = {
   external: AppSettingsEmbeddingProfile | null
 }
 
-export type AlterDefaultMode = 'neutral' | 'last_used'
-
-export type AppSettingsAlters = {
-  default_mode: AlterDefaultMode
-  show_badge_in_chat: boolean
-  default_influence_intensity: 'light' | 'balanced' | 'strong'
-}
-
 export type AppSettingsView = {
   exists: boolean
   path: string
   llm: AppSettingsLlm | null
   embeddings: AppSettingsEmbeddings
-  alters: AppSettingsAlters
 }
 
 export type SaveAppSettingsPayload = {
@@ -253,17 +244,11 @@ export type SaveAppSettingsPayload = {
       base_url?: string | null
     } | null
   }
-  alters: {
-    default_mode: AlterDefaultMode
-    show_badge_in_chat: boolean
-    default_influence_intensity: 'light' | 'balanced' | 'strong'
-  }
 }
 
 export type WriteAppSettingsResult = {
   path: string
   embeddings_changed: boolean
-  alters: AppSettingsAlters
 }
 
 export type CodexDiscoveredModel = {
@@ -308,7 +293,6 @@ export type SecondBrainSessionSummary = {
   context_count: number
   target_note_path: string
   context_paths: string[]
-  alter_id?: string
 }
 
 export type SecondBrainContextItem = {
@@ -334,200 +318,9 @@ export type SecondBrainSessionPayload = {
   created_at_ms: number
   updated_at_ms: number
   target_note_path: string
-  alter_id?: string
   context_items: SecondBrainContextItem[]
   messages: SecondBrainMessage[]
   draft_content: string
-}
-
-export type AlterInspirationSourceType = 'manual' | 'template' | 'reference_figure' | 'note'
-
-export type AlterInspiration = {
-  id: string
-  label: string
-  source_type: AlterInspirationSourceType
-  weight: number | null
-  reference_id: string | null
-}
-
-/** Runtime Alter style persisted with each workspace alter. */
-export type AlterStyle = {
-  tone: 'neutral' | 'direct' | 'socratic' | 'strategic' | 'creative'
-  verbosity: 'short' | 'medium' | 'long'
-  temperature: number
-  contradiction_level: number
-  exploration_level: number
-  influence_intensity: 'light' | 'balanced' | 'strong'
-  response_style: 'concise' | 'analytic' | 'dialectic' | 'frontal'
-  cite_hypotheses: boolean
-  signal_biases: boolean
-}
-
-export type AlterSummary = {
-  id: string
-  name: string
-  slug: string
-  description: string
-  icon: string | null
-  color: string | null
-  category: string | null
-  mission: string
-  is_favorite: boolean
-  is_built_in: boolean
-  revision_count: number
-  updated_at_ms: number
-}
-
-export type AlterPayload = {
-  id: string
-  name: string
-  slug: string
-  description: string
-  icon: string | null
-  color: string | null
-  category: string | null
-  mission: string
-  inspirations: AlterInspiration[]
-  principles: string[]
-  reflexes: string[]
-  values: string[]
-  critiques: string[]
-  blind_spots: string[]
-  system_hints: string[]
-  style: AlterStyle
-  invocation_prompt: string
-  is_favorite: boolean
-  is_built_in: boolean
-  created_at_ms: number
-  updated_at_ms: number
-}
-
-export type AlterRevisionSummary = {
-  revision_id: string
-  alter_id: string
-  created_at_ms: number
-  reason: string | null
-}
-
-export type AlterRevisionPayload = {
-  revision_id: string
-  alter_id: string
-  created_at_ms: number
-  reason: string | null
-  alter: AlterPayload
-}
-
-export type CreateAlterPayload = {
-  name: string
-  description: string
-  icon?: string | null
-  color?: string | null
-  category?: string | null
-  mission: string
-  inspirations: AlterInspiration[]
-  principles: string[]
-  reflexes: string[]
-  values: string[]
-  critiques: string[]
-  blind_spots: string[]
-  system_hints: string[]
-  style: AlterStyle
-  is_favorite: boolean
-}
-
-export type UpdateAlterPayload = CreateAlterPayload & {
-  id: string
-  revision_reason?: string | null
-}
-
-export type PreviewAlterPayload = {
-  draft: CreateAlterPayload
-  prompt: string
-}
-
-export type PreviewAlterResult = {
-  invocation_prompt: string
-  preview_prompt: string
-}
-
-export type GenerateAlterDraftPayload = {
-  prompt: string
-}
-
-export type AlterExplorationSubjectType = 'prompt' | 'note' | 'selection' | 'response'
-export type AlterExplorationMode = 'challenge' | 'explore' | 'decide' | 'refine'
-export type AlterExplorationOutputFormat = 'summary' | 'tension_map' | 'decision_brief' | 'refined_proposal'
-export type AlterExplorationSessionState = 'draft' | 'running' | 'completed' | 'failed'
-
-export type AlterExplorationSubject = {
-  subject_type: AlterExplorationSubjectType
-  text: string
-  source_id?: string | null
-}
-
-export type AlterExplorationAlterSnapshot = {
-  id: string
-  name: string
-  mission: string
-  invocation_prompt: string
-  temperature: number
-}
-
-export type AlterExplorationRoundResult = {
-  round_number: number
-  alter_id: string
-  alter_name?: string
-  content: string
-  references_alter_ids: string[]
-}
-
-export type AlterExplorationSession = {
-  id: string
-  workspace_id: string
-  subject: AlterExplorationSubject
-  alter_ids: string[]
-  mode: AlterExplorationMode
-  rounds: number
-  output_format: AlterExplorationOutputFormat
-  state: AlterExplorationSessionState
-  round_results: AlterExplorationRoundResult[]
-  final_synthesis: string | null
-  error_message: string | null
-  created_at_ms: number
-  updated_at_ms: number
-  alters?: AlterExplorationAlterSnapshot[]
-  workspace_path?: string | null
-  cancel_requested?: boolean
-}
-
-export type AlterExplorationSessionSummary = {
-  id: string
-  workspace_path: string
-  subject_preview: string
-  alter_count: number
-  mode: AlterExplorationMode
-  rounds: number
-  output_format: AlterExplorationOutputFormat
-  state: AlterExplorationSessionState
-  cancel_requested: boolean
-  created_at_ms: number
-  updated_at_ms: number
-}
-
-export type CreateAlterExplorationSessionPayload = {
-  subject: AlterExplorationSubject
-  alter_ids: string[]
-  mode: AlterExplorationMode
-  rounds: number
-  output_format: AlterExplorationOutputFormat
-}
-
-export type RunAlterExplorationSessionPayload = {
-  session_id: string
-}
-
-export type CancelAlterExplorationSessionPayload = {
-  session_id: string
 }
 
 export type SecondBrainStreamEvent = {

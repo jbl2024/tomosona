@@ -2,8 +2,6 @@
 import { computed, ref } from 'vue'
 import EditorView from '../../../domains/editor/components/EditorView.vue'
 import SecondBrainPaneSurface from '../../../domains/second-brain/components/SecondBrainPaneSurface.vue'
-import AlterExplorationPaneSurface from '../../../domains/alters/components/AlterExplorationPaneSurface.vue'
-import AlterManagerView from '../../../domains/alters/components/AlterManagerView.vue'
 import FileInspectorPaneSurface from './FileInspectorPaneSurface.vue'
 import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
@@ -12,11 +10,9 @@ import type { WikilinkAnchor } from '../../../domains/editor/lib/wikilinks'
 import type { DocumentSession } from '../../../domains/editor/composables/useDocumentEditorSessions'
 import type { ReadNoteSnapshotResult, SaveNoteResult, WorkspaceFsChange } from '../../../shared/api/apiTypes'
 import type {
-  AppShellAltersViewModel,
   AppShellLaunchpadViewModel,
   AppShellSecondBrainViewModel
 } from '../../lib/appShellViewModels'
-import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
 import type {
   EditorSignalDirection,
   EditorSignalKind,
@@ -48,7 +44,6 @@ const props = defineProps<{
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
   activeDocumentPath: string
-  alters?: AppShellAltersViewModel
   secondBrain: AppShellSecondBrainViewModel
   launchpad: AppShellLaunchpadViewModel & {
     showExperience: boolean
@@ -73,12 +68,9 @@ const emit = defineEmits<{
   'launchpad-open-quick-open': []
   'launchpad-create-note': []
   'launchpad-open-recent-note': [path: string]
-  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette' | 'alters']
+  'launchpad-quick-start': [kind: 'today' | 'second-brain' | 'command-palette']
   'second-brain-context-changed': [paths: string[]]
   'second-brain-session-changed': [sessionId: string]
-  'second-brain-open-alter-exploration': []
-  'alter-exploration-notify': [payload: { tone: 'info' | 'success' | 'error'; message: string }]
-  'alter-open-second-brain': [alterId: string]
 }>()
 
 type EditorSurfaceExposed = {
@@ -101,21 +93,12 @@ type EditorSurfaceExposed = {
 
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
 const hasSecondBrainTab = computed(() => props.openTabs.some((tab) => tab.type === 'second-brain-chat'))
-const hasAlterExplorationTab = computed(() => props.openTabs.some((tab) => tab.type === 'alter-exploration'))
-const hasAltersTab = computed(() => props.openTabs.some((tab) => tab.type === 'alters'))
 const showSecondBrainSurface = computed(() => props.activeTab?.type === 'second-brain-chat')
-const showAlterExplorationSurface = computed(() => props.activeTab?.type === 'alter-exploration')
-const showAltersSurface = computed(() => props.activeTab?.type === 'alters')
 const activeInspectorTab = computed(() => props.activeTab?.type === 'file-inspector' ? props.activeTab : null)
 const activeInspectorPath = computed(() => activeInspectorTab.value?.path ?? '')
 const openActiveInspectorExternally = () => {
   if (!activeInspectorTab.value || !props.openExternally) return
   void props.openExternally(activeInspectorTab.value.path)
-}
-const defaultAlterSettings: AppSettingsAlters = {
-  default_mode: 'neutral',
-  show_badge_in_chat: true,
-  default_influence_intensity: 'balanced'
 }
 const secondBrainViewModel = computed(() => ({
   workspacePath: props.secondBrain.workspacePath,
@@ -124,16 +107,9 @@ const secondBrainViewModel = computed(() => ({
   requestedSessionNonce: props.secondBrain.requestedSessionNonce,
   requestedPrompt: props.secondBrain.requestedPrompt,
   requestedPromptNonce: props.secondBrain.requestedPromptNonce,
-  requestedAlterId: props.secondBrain.requestedAlterId ?? '',
-  requestedAlterNonce: props.secondBrain.requestedAlterNonce ?? 0,
   activeNotePath: props.secondBrain.activeNotePath,
-  echoesRefreshToken: props.secondBrain.echoesRefreshToken,
-  settings: props.secondBrain.settings ?? defaultAlterSettings
+  echoesRefreshToken: props.secondBrain.echoesRefreshToken
 }))
-const altersViewModel = computed<AppShellAltersViewModel>(() => props.alters ?? {
-  workspacePath: '',
-  settings: defaultAlterSettings
-})
 
 function withEditor<T>(run: (editor: EditorSurfaceExposed) => T, fallback: T): T {
   const editor = editorSurfaceRef.value
@@ -223,34 +199,11 @@ defineExpose<EditorSurfaceExposed>({
     :requested-session-nonce="secondBrainViewModel.requestedSessionNonce"
     :requested-prompt="secondBrainViewModel.requestedPrompt"
     :requested-prompt-nonce="secondBrainViewModel.requestedPromptNonce"
-    :requested-alter-id="secondBrainViewModel.requestedAlterId"
-    :requested-alter-nonce="secondBrainViewModel.requestedAlterNonce"
     :active-note-path="secondBrainViewModel.activeNotePath"
     :echoes-refresh-token="secondBrainViewModel.echoesRefreshToken"
-    :settings="secondBrainViewModel.settings"
     @open-note="emit('open-note', $event)"
-    @open-alter-exploration="emit('second-brain-open-alter-exploration')"
     @context-changed="emit('second-brain-context-changed', $event)"
     @session-changed="emit('second-brain-session-changed', $event)"
-  />
-
-  <AlterExplorationPaneSurface
-    v-if="hasAlterExplorationTab"
-    v-show="showAlterExplorationSurface"
-    :workspace-path="secondBrainViewModel.workspacePath"
-    :all-workspace-files="secondBrainViewModel.allWorkspaceFiles"
-    :active-note-path="secondBrainViewModel.activeNotePath"
-    @open-note="emit('open-note', $event)"
-    @notify="emit('alter-exploration-notify', $event)"
-  />
-
-  <AlterManagerView
-    v-if="hasAltersTab"
-    v-show="showAltersSurface"
-    :workspace-path="altersViewModel.workspacePath"
-    :active-note-path="activeDocumentPath"
-    :settings="altersViewModel.settings"
-    @open-second-brain="emit('alter-open-second-brain', $event)"
   />
 
   <WorkspaceLaunchpad

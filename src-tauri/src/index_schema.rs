@@ -84,26 +84,7 @@ fn sqlite_error_tokens(err: &rusqlite::Error) -> String {
     tokens.join(" ")
 }
 
-fn table_has_column(conn: &Connection, table: &str, column: &str) -> bool {
-    let pragma = format!("PRAGMA table_info({table})");
-    let mut stmt = match conn.prepare(&pragma) {
-        Ok(stmt) => stmt,
-        Err(_) => return false,
-    };
-    let rows = match stmt.query_map([], |row| row.get::<_, String>(1)) {
-        Ok(rows) => rows,
-        Err(_) => return false,
-    };
-
-    for name in rows.flatten() {
-        if name == column {
-            return true;
-        }
-    }
-    false
-}
-
-fn schema_shape_needs_reset(conn: &Connection, current_version: i64) -> bool {
+fn schema_shape_needs_reset(_conn: &Connection, current_version: i64) -> bool {
     if current_version == 0 {
         return false;
     }
@@ -111,7 +92,7 @@ fn schema_shape_needs_reset(conn: &Connection, current_version: i64) -> bool {
         return false;
     }
 
-    !table_has_column(conn, "second_brain_sessions", "alter_id")
+    false
 }
 
 pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
@@ -135,14 +116,10 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
         .ok()
         .and_then(|value| value.parse::<i64>().ok())
         .unwrap_or(0);
-
     let reset_for_version = current_version != INDEX_SCHEMA_VERSION;
     let reset_for_shape = !reset_for_version && schema_shape_needs_reset(conn, current_version);
 
     if reset_for_version || reset_for_shape {
-        log_index(&format!(
-            "schema:reset old_version={current_version} new_version={INDEX_SCHEMA_VERSION} reset_for_shape={reset_for_shape}"
-        ));
         conn.execute_batch(
             r#"
       DROP TABLE IF EXISTS note_embeddings_vec;
@@ -259,7 +236,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
       title TEXT NOT NULL DEFAULT '',
       provider TEXT NOT NULL DEFAULT '',
       model TEXT NOT NULL DEFAULT '',
-      alter_id TEXT NOT NULL DEFAULT '',
       created_at_ms INTEGER NOT NULL DEFAULT 0,
       updated_at_ms INTEGER NOT NULL DEFAULT 0
     );

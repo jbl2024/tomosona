@@ -111,19 +111,6 @@ describe('useAppShellCommands', () => {
     scope.stop()
   })
 
-  it('opens Alter Exploration in a dedicated single-instance surface', async () => {
-    const { api, scope, workspacePort, panePort, actionPort } = createCommands()
-    workspacePort.allWorkspaceFiles.value = []
-
-    expect(await api.openAlterExplorationViewFromPalette()).toBe(true)
-    expect(panePort.openSurfaceInPane).toHaveBeenCalledWith('alter-exploration')
-    expect(actionPort.loadAllFiles).toHaveBeenCalledTimes(1)
-
-    workspacePort.hasWorkspace.value = false
-    expect(await api.openAlterExplorationViewFromPalette()).toBe(false)
-    scope.stop()
-  })
-
   it('adds and removes the active favorite through the favorites domain port', async () => {
     const { api, scope, favoritesPort, workspacePort } = createCommands()
 

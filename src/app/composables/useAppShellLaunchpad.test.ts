@@ -16,8 +16,6 @@ function createLaunchpad(overrides: Partial<Parameters<typeof useAppShellLaunchp
     openCommandPalette: vi.fn(async () => true),
     openTodayNote: vi.fn(async () => true),
     openSecondBrainView: vi.fn(async () => true),
-    openAlterExplorationView: vi.fn(async () => true),
-    openAltersView: vi.fn(async () => true)
   }
 
   const scope = effectScope()
@@ -167,14 +165,12 @@ describe('useAppShellLaunchpad', () => {
     await api.openCommandPaletteFromLaunchpad()
     await api.launchQuickStart('today')
     await api.launchQuickStart('second-brain')
-    await api.launchQuickStart('alters')
     await api.launchQuickStart('command-palette')
 
     expect(actionPort.openQuickOpen).toHaveBeenCalledWith('')
     expect(actionPort.openCommandPalette).toHaveBeenCalledTimes(2)
     expect(actionPort.openTodayNote).toHaveBeenCalledTimes(1)
     expect(actionPort.openSecondBrainView).toHaveBeenCalledTimes(1)
-    expect(actionPort.openAltersView).toHaveBeenCalledTimes(1)
     scope.stop()
   })
 })

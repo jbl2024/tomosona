@@ -19,11 +19,6 @@ const SETTINGS_FILE: &str = "conf.json";
 const EMBEDDINGS_MODE_INTERNAL: &str = "internal";
 const EMBEDDINGS_MODE_EXTERNAL: &str = "external";
 const EMBEDDINGS_PROVIDER_OPENAI: &str = "openai";
-const ALTER_DEFAULT_MODE_NEUTRAL: &str = "neutral";
-const ALTER_DEFAULT_MODE_LAST_USED: &str = "last_used";
-const ALTER_DEFAULT_INTENSITY_LIGHT: &str = "light";
-const ALTER_DEFAULT_INTENSITY_BALANCED: &str = "balanced";
-const ALTER_DEFAULT_INTENSITY_STRONG: &str = "strong";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingProviderProfile {
@@ -56,25 +51,6 @@ impl Default for EmbeddingsSettings {
 pub struct AppSettings {
     pub llm: SecondBrainConfig,
     pub embeddings: EmbeddingsSettings,
-    #[serde(default)]
-    pub alters: AltersSettings,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AltersSettings {
-    pub default_mode: String,
-    pub show_badge_in_chat: bool,
-    pub default_influence_intensity: String,
-}
-
-impl Default for AltersSettings {
-    fn default() -> Self {
-        Self {
-            default_mode: ALTER_DEFAULT_MODE_NEUTRAL.to_string(),
-            show_badge_in_chat: true,
-            default_influence_intensity: ALTER_DEFAULT_INTENSITY_BALANCED.to_string(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -119,7 +95,6 @@ pub struct AppSettingsView {
     pub path: String,
     pub llm: Option<LlmConfigView>,
     pub embeddings: EmbeddingsSettingsView,
-    pub alters: AltersSettings,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -172,7 +147,6 @@ pub struct SaveEmbeddingsInput {
 pub struct SaveAppSettingsPayload {
     pub llm: SaveLlmConfigInput,
     pub embeddings: SaveEmbeddingsInput,
-    pub alters: SaveAltersInput,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -198,18 +172,10 @@ pub struct DiscoverEmbeddingModelsInput {
     pub base_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct SaveAltersInput {
-    pub default_mode: String,
-    pub show_badge_in_chat: bool,
-    pub default_influence_intensity: String,
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct WriteAppSettingsResult {
     pub path: String,
     pub embeddings_changed: bool,
-    pub alters: AltersSettings,
 }
 
 fn conf_path() -> Result<PathBuf> {
@@ -317,26 +283,6 @@ fn validate_settings(settings: &AppSettings) -> Result<()> {
         AppError::InvalidOperation(format!("LLM configuration error: {message}"))
     })?;
     validate_embeddings(&settings.embeddings)?;
-    validate_alters(&settings.alters)?;
-    Ok(())
-}
-
-fn validate_alters(settings: &AltersSettings) -> Result<()> {
-    let default_mode = settings.default_mode.trim().to_lowercase();
-    if default_mode != ALTER_DEFAULT_MODE_NEUTRAL && default_mode != ALTER_DEFAULT_MODE_LAST_USED {
-        return Err(AppError::InvalidOperation(
-            "Alters default mode must be neutral or last_used.".to_string(),
-        ));
-    }
-    let intensity = settings.default_influence_intensity.trim().to_lowercase();
-    if intensity != ALTER_DEFAULT_INTENSITY_LIGHT
-        && intensity != ALTER_DEFAULT_INTENSITY_BALANCED
-        && intensity != ALTER_DEFAULT_INTENSITY_STRONG
-    {
-        return Err(AppError::InvalidOperation(
-            "Alters default intensity must be light, balanced, or strong.".to_string(),
-        ));
-    }
     Ok(())
 }
 
@@ -520,15 +466,6 @@ fn apply_save_payload(
     let settings = AppSettings {
         llm,
         embeddings: EmbeddingsSettings { mode, external },
-        alters: AltersSettings {
-            default_mode: payload.alters.default_mode.trim().to_lowercase(),
-            show_badge_in_chat: payload.alters.show_badge_in_chat,
-            default_influence_intensity: payload
-                .alters
-                .default_influence_intensity
-                .trim()
-                .to_lowercase(),
-        },
     };
     validate_settings(&settings)?;
     Ok(settings)
@@ -562,10 +499,6 @@ pub fn write_llm_only(config: SecondBrainConfig) -> Result<PathBuf> {
             .as_ref()
             .map(|item| item.embeddings.clone())
             .unwrap_or_default(),
-        alters: existing
-            .as_ref()
-            .map(|item| item.alters.clone())
-            .unwrap_or_default(),
     };
     validate_settings(&settings)?;
     let path = conf_path()?;
@@ -584,7 +517,6 @@ pub fn read_app_settings() -> Result<AppSettingsView> {
             path: path.to_string_lossy().to_string(),
             llm: None,
             embeddings: view_embeddings(&EmbeddingsSettings::default()),
-            alters: AltersSettings::default(),
         });
     }
     let settings = read_settings_file()?;
@@ -593,7 +525,6 @@ pub fn read_app_settings() -> Result<AppSettingsView> {
         path: path.to_string_lossy().to_string(),
         llm: Some(view_llm(&settings.llm)),
         embeddings: view_embeddings(&settings.embeddings),
-        alters: settings.alters,
     })
 }
 
@@ -613,7 +544,6 @@ pub fn write_app_settings(payload: SaveAppSettingsPayload) -> Result<WriteAppSet
     Ok(WriteAppSettingsResult {
         path: path.to_string_lossy().to_string(),
         embeddings_changed: previous_identity != next_identity,
-        alters: settings.alters,
     })
 }
 
@@ -736,7 +666,6 @@ mod tests {
                     base_url: None,
                 }),
             },
-            alters: AltersSettings::default(),
         };
         assert!(validate_settings(&settings).is_err());
     }
@@ -755,11 +684,6 @@ mod tests {
             embeddings: SaveEmbeddingsInput {
                 mode: EMBEDDINGS_MODE_INTERNAL.to_string(),
                 external: None,
-            },
-            alters: SaveAltersInput {
-                default_mode: ALTER_DEFAULT_MODE_NEUTRAL.to_string(),
-                show_badge_in_chat: true,
-                default_influence_intensity: ALTER_DEFAULT_INTENSITY_BALANCED.to_string(),
             },
         };
         assert!(apply_save_payload(payload, None).is_err());
@@ -814,11 +738,6 @@ mod tests {
             embeddings: SaveEmbeddingsInput {
                 mode: EMBEDDINGS_MODE_INTERNAL.to_string(),
                 external: None,
-            },
-            alters: SaveAltersInput {
-                default_mode: ALTER_DEFAULT_MODE_NEUTRAL.to_string(),
-                show_badge_in_chat: true,
-                default_influence_intensity: ALTER_DEFAULT_INTENSITY_BALANCED.to_string(),
             },
         };
         let settings = apply_save_payload(payload, None).expect("codex settings");

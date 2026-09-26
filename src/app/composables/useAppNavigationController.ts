@@ -60,8 +60,8 @@ export type AppNavigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => void
   revealDocumentInPane: (path: string, paneId?: string) => void
   setActivePathInPane: (paneId: string, path: string) => void
-  openSurfaceInPane: (type: 'home' | 'second-brain-chat' | 'alters', paneId?: string) => void
-  findPaneContainingSurface: (type: 'home' | 'second-brain-chat' | 'alters') => string | null
+  openSurfaceInPane: (type: 'home' | 'second-brain-chat', paneId?: string) => void
+  findPaneContainingSurface: (type: 'home' | 'second-brain-chat') => string | null
 }
 
 /**

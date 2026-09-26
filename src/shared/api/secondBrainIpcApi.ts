@@ -58,7 +58,6 @@ export async function listSecondBrainSessions(limit = 80): Promise<SecondBrainSe
 export async function createSecondBrainSession(payload: {
   title?: string
   context_paths: string[]
-  alter_id?: string | null
 }): Promise<{ session_id: string; created_at_ms: number }> {
   return await invokeSecondBrain('create_second_brain_session', { payload })
 }
@@ -94,18 +93,9 @@ export async function sendSecondBrainMessage(payload: {
   session_id: string
   mode: string
   message: string
-  alter_id?: string | null
   attachments?: SecondBrainAttachmentMeta[]
 }): Promise<{ user_message_id: string; assistant_message_id: string }> {
   return await invokeSecondBrain('send_second_brain_message', { payload })
-}
-
-/** Sets the active Alter for a session. */
-export async function setSecondBrainSessionAlter(payload: {
-  session_id: string
-  alter_id?: string | null
-}): Promise<{ alter_id: string }> {
-  return await invokeSecondBrain('set_second_brain_session_alter', { payload })
 }
 
 /** Saves the current draft markdown for a session. */

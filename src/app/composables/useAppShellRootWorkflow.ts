@@ -197,18 +197,6 @@ export function useAppShellRootWorkflow(options: RootOptions) {
     await options.editor.editorRef.value?.revealOutlineHeading(payload.index)
   }
 
-  function onAlterExplorationNotify(payload: { tone: 'info' | 'success' | 'error'; message: string }) {
-    if (payload.tone === 'error') {
-      options.filesystem.notifyError(payload.message)
-      return
-    }
-    if (payload.tone === 'success') {
-      options.filesystem.notifySuccess(payload.message)
-      return
-    }
-    options.filesystem.notifyInfo(payload.message)
-  }
-
   function toggleSpellcheckFromPalette() {
     options.modal.toggleSpellcheckEnabled()
     return true
@@ -264,7 +252,6 @@ export function useAppShellRootWorkflow(options: RootOptions) {
     onExplorerPathsMoved,
     openActiveNoteHistory,
     onOutlineHeadingClick,
-    onAlterExplorationNotify,
     toggleSpellcheckFromPalette,
     openSpellcheckDictionaryFromPalette
   }

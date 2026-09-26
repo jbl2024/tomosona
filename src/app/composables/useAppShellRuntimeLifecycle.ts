@@ -13,11 +13,6 @@ export type AppShellRuntimePersistencePort = {
   initializeShellPersistence: () => void
 }
 
-/** Groups the alter-settings refresh hook used during runtime startup. */
-export type AppShellRuntimeAlterSettingsPort = {
-  syncAlterSettingsFromDisk: () => Promise<void>
-}
-
 /** Groups the workspace lifecycle hooks that need runtime start/stop orchestration. */
 export type AppShellRuntimeWorkspaceLifecyclePort = {
   start: () => Promise<void>
@@ -47,7 +42,6 @@ export type AppShellRuntimeThemePort = {
 export type UseAppShellRuntimeLifecycleOptions = {
   persistencePort: AppShellRuntimePersistencePort
   spellcheckPort: AppShellRuntimeSpellcheckPort
-  alterSettingsPort: AppShellRuntimeAlterSettingsPort
   workspaceLifecyclePort: AppShellRuntimeWorkspaceLifecyclePort
   windowPort: AppShellRuntimeWindowPort
   themePort: AppShellRuntimeThemePort
@@ -93,8 +87,6 @@ export function useAppShellRuntimeLifecycle(options: UseAppShellRuntimeLifecycle
       options.persistencePort.initializeShellPersistence()
       options.spellcheckPort.loadSpellcheckPreference()
       addGlobalListeners()
-      if (currentGeneration !== lifecycleGeneration) return
-      await options.alterSettingsPort.syncAlterSettingsFromDisk()
       if (currentGeneration !== lifecycleGeneration) return
       await options.workspaceLifecyclePort.start()
     })()

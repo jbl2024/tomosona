@@ -254,13 +254,6 @@ describe('useAppShellRootWorkflow', () => {
     })
     expect(mounted.handlePathsMoved).toHaveBeenCalledWith([{ from: '/a.md', to: '/b.md' }])
 
-    mounted.api.onAlterExplorationNotify({ tone: 'success', message: 'ok' })
-    mounted.api.onAlterExplorationNotify({ tone: 'info', message: 'heads up' })
-    mounted.api.onAlterExplorationNotify({ tone: 'error', message: 'boom' })
-    expect(mounted.notifySuccess).toHaveBeenCalledWith('ok')
-    expect(mounted.notifyInfo).toHaveBeenCalledWith('heads up')
-    expect(mounted.notifyError).toHaveBeenCalledWith('boom')
-
     expect(mounted.api.toggleSpellcheckFromPalette()).toBe(true)
     expect(mounted.toggleSpellcheckEnabled).toHaveBeenCalledTimes(1)
     expect(mounted.api.openSpellcheckDictionaryFromPalette()).toBe(true)

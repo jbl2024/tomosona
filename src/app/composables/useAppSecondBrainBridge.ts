@@ -62,8 +62,6 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
   const secondBrainRequestedSessionNonce = ref(0)
   const secondBrainRequestedPrompt = ref('')
   const secondBrainRequestedPromptNonce = ref(0)
-  const secondBrainRequestedAlterId = ref('')
-  const secondBrainRequestedAlterNonce = ref(0)
 
   function currentWorkspacePath() {
     return secondBrainWorkspacePort.workingFolderPath.value.trim()
@@ -122,13 +120,6 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
     secondBrainRequestedPrompt.value = prompt
     if (optionsArg?.bumpNonce) {
       secondBrainRequestedPromptNonce.value += 1
-    }
-  }
-
-  function setSecondBrainAlterId(alterId: string, optionsArg?: { bumpNonce?: boolean }) {
-    secondBrainRequestedAlterId.value = alterId.trim()
-    if (optionsArg?.bumpNonce) {
-      secondBrainRequestedAlterNonce.value += 1
     }
   }
 
@@ -212,8 +203,6 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
     () => {
       secondBrainRequestedSessionId.value = ''
       secondBrainRequestedSessionNonce.value += 1
-      secondBrainRequestedAlterId.value = ''
-      secondBrainRequestedAlterNonce.value += 1
     },
     { immediate: true }
   )
@@ -223,12 +212,9 @@ export function useAppSecondBrainBridge(options: UseAppSecondBrainBridgeOptions)
     secondBrainRequestedSessionNonce,
     secondBrainRequestedPrompt,
     secondBrainRequestedPromptNonce,
-    secondBrainRequestedAlterId,
-    secondBrainRequestedAlterNonce,
     readPersistedSecondBrainSessionId,
     setSecondBrainSessionId,
     setSecondBrainPrompt,
-    setSecondBrainAlterId,
     primeRequestedSecondBrainSessionFromStorage,
     resolveSecondBrainSessionForPath,
     ensurePathInSecondBrainSession,

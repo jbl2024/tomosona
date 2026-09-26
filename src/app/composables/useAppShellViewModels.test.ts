@@ -1,7 +1,6 @@
 import { computed, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
-import type { AppSettingsAlters } from '../../shared/api/apiTypes'
 import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import {
@@ -98,11 +97,6 @@ describe('useAppShellViewModels', () => {
         recentUpdatedNotes: ref<LaunchpadRecentNote[]>([]),
         showWizardAction: ref(false)
       },
-      altersSettings: ref({
-        default_mode: 'neutral',
-        show_badge_in_chat: true,
-        default_influence_intensity: 'balanced'
-      } satisfies AppSettingsAlters),
       secondBrain: {
         workspacePath: ref('/vault'),
         allWorkspaceFiles: ref([]),
@@ -110,8 +104,6 @@ describe('useAppShellViewModels', () => {
         requestedSessionNonce: ref(0),
         requestedPrompt: ref(''),
         requestedPromptNonce: ref(0),
-        requestedAlterId: ref(''),
-        requestedAlterNonce: ref(0),
         echoesRefreshToken: ref(0)
       },
       labels: {

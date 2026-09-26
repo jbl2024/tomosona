@@ -18,8 +18,6 @@ function createHarness(options: { isFavorite?: boolean; activeFilePath?: string 
     openHomeViewFromPalette: vi.fn(async () => true),
     openFavoritesPanelFromPalette: vi.fn(async () => true),
     openSecondBrainViewFromPalette: vi.fn(async () => true),
-    openAlterExplorationViewFromPalette: vi.fn(async () => true),
-    openAltersViewFromPalette: vi.fn(async () => true),
     addActiveNoteToSecondBrainFromPalette: vi.fn(async () => true),
     addActiveNoteToFavoritesFromPalette: vi.fn(async () => true),
     removeActiveNoteFromFavoritesFromPalette: vi.fn(async () => true),
@@ -106,7 +104,6 @@ describe('useAppShellPaletteActions', () => {
       'add-active-note-to-favorites',
       'open-settings'
     ])
-    expect(actionIds).not.toContain('open-alters-view')
     expect(actionIds).toContain('theme-select')
     expect(actionIds).toContain('theme-system')
     expect(actionIds.indexOf('theme-system')).toBeLessThan(actionIds.indexOf('theme-tomosona-light'))

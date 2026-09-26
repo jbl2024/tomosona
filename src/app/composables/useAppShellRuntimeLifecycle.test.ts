@@ -22,7 +22,6 @@ describe('useAppShellRuntimeLifecycle', () => {
 
     const initializeShellPersistence = vi.fn()
     const loadSpellcheckPreference = vi.fn()
-    const syncAlterSettingsFromDisk = vi.fn(async () => {})
     const workspaceStart = vi.fn(async () => {})
     const workspaceDispose = vi.fn()
     const onSystemThemeChanged = vi.fn()
@@ -39,9 +38,6 @@ describe('useAppShellRuntimeLifecycle', () => {
       },
       spellcheckPort: {
         loadSpellcheckPreference
-      },
-      alterSettingsPort: {
-        syncAlterSettingsFromDisk
       },
       workspaceLifecyclePort: {
         start: workspaceStart,
@@ -65,7 +61,6 @@ describe('useAppShellRuntimeLifecycle', () => {
     expect(initializeShellPersistence).toHaveBeenCalledTimes(1)
     expect(loadSpellcheckPreference).toHaveBeenCalledTimes(1)
     expect(warmupSpellcheckDictionaries).toHaveBeenCalledTimes(1)
-    expect(syncAlterSettingsFromDisk).toHaveBeenCalledTimes(1)
     expect(workspaceStart).toHaveBeenCalledTimes(1)
     expect(mediaQuery.addEventListener).toHaveBeenCalledWith('change', onSystemThemeChanged)
     expect(addEventListenerSpy).toHaveBeenCalledWith('mousedown', onGlobalPointerDown, true)

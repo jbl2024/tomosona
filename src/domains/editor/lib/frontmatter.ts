@@ -9,7 +9,7 @@
  * Does not:
  * - extract the raw markdown envelope structure itself
  * - serve as a generic YAML parser for other domains
- * - encode alter-specific metadata rules
+ * - encode persona-specific metadata rules
  */
 import { resolvePropertyType, type PropertyType, type PropertyTypeSchema } from './propertyTypes'
 import { parseFrontmatterEnvelope } from '../../../shared/lib/markdownFrontmatter'

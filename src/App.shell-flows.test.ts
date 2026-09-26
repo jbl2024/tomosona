@@ -380,7 +380,7 @@ describe('App shell flows', () => {
     const actions = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.modal-item'))
       .map(item => item.textContent).join(' ')
     expect(actions).toContain('Open Home')
-    expect(actions).not.toMatch(/Pulse|Cosmos|Second Brain|Alter/)
+    expect(actions).not.toMatch(/Pulse|Cosmos|Second Brain/)
 
     mounted.app.unmount()
   })

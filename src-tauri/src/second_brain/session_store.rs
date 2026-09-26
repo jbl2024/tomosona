@@ -12,7 +12,6 @@ pub struct SessionSummary {
     pub context_count: usize,
     pub target_note_path: String,
     pub context_paths: Vec<String>,
-    pub alter_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,7 +40,6 @@ pub struct SessionPayload {
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     pub target_note_path: String,
-    pub alter_id: String,
     pub context_items: Vec<ContextItem>,
     pub messages: Vec<MessageRow>,
     pub draft_content: String,
@@ -58,12 +56,11 @@ pub fn create_session(
     title: &str,
     provider: &str,
     model: &str,
-    alter_id: &str,
 ) -> Result<(u64, u64)> {
     let ts = now_ms();
     conn.execute(
-        "INSERT INTO second_brain_sessions (id, title, provider, model, alter_id, created_at_ms, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
-        params![session_id, title, provider, model, alter_id, ts as i64],
+        "INSERT INTO second_brain_sessions (id, title, provider, model, created_at_ms, updated_at_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+        params![session_id, title, provider, model, ts as i64],
     )?;
     Ok((ts, ts))
 }
@@ -72,8 +69,7 @@ pub fn list_sessions(conn: &Connection, limit: usize) -> Result<Vec<SessionSumma
     let mut stmt = conn.prepare(
         "SELECT s.id, s.title, s.created_at_ms, s.updated_at_ms,
                 (SELECT COUNT(*) FROM second_brain_context_items c WHERE c.session_id = s.id) as context_count
-                ,COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), ''),
-                COALESCE(s.alter_id, '')
+                ,COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), '')
          FROM second_brain_sessions s
          ORDER BY s.updated_at_ms DESC
          LIMIT ?1",
@@ -87,7 +83,6 @@ pub fn list_sessions(conn: &Connection, limit: usize) -> Result<Vec<SessionSumma
             updated_at_ms: row.get::<_, i64>(3)? as u64,
             context_count: row.get::<_, i64>(4)? as usize,
             target_note_path: row.get::<_, String>(5)?,
-            alter_id: row.get::<_, String>(6)?,
             context_paths: Vec::new(),
         })
     })?;
@@ -193,8 +188,7 @@ pub fn load_session(
 ) -> Result<SessionPayload> {
     let mut session_stmt = conn.prepare(
         "SELECT s.id, s.title, s.provider, s.model, s.created_at_ms, s.updated_at_ms,
-                COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), ''),
-                COALESCE(s.alter_id, '')
+                COALESCE((SELECT target_note_path FROM second_brain_session_targets t WHERE t.session_id = s.id), '')
          FROM second_brain_sessions s
          WHERE s.id = ?1",
     )?;
@@ -208,11 +202,10 @@ pub fn load_session(
             row.get::<_, i64>(4)? as u64,
             row.get::<_, i64>(5)? as u64,
             row.get::<_, String>(6)?,
-            row.get::<_, String>(7)?,
         ))
     });
 
-    let (id, title, provider, model, created_at_ms, updated_at_ms, target_note_path, alter_id) =
+    let (id, title, provider, model, created_at_ms, updated_at_ms, target_note_path) =
         match row {
             Ok(value) => value,
             Err(_) => {
@@ -269,19 +262,10 @@ pub fn load_session(
         created_at_ms,
         updated_at_ms,
         target_note_path,
-        alter_id,
         context_items,
         messages,
         draft_content,
     })
-}
-
-pub fn set_session_alter_id(conn: &Connection, session_id: &str, alter_id: &str) -> Result<()> {
-    conn.execute(
-        "UPDATE second_brain_sessions SET alter_id = ?2, updated_at_ms = ?3 WHERE id = ?1",
-        params![session_id, alter_id, now_ms() as i64],
-    )?;
-    Ok(())
 }
 
 pub fn delete_session(conn: &Connection, session_id: &str) -> Result<()> {

@@ -42,7 +42,6 @@ describe('useAppShellConstitutedContextActions', () => {
         replaceSessionContext: vi.fn(async () => {}),
         setSecondBrainSessionId: vi.fn(),
         setSecondBrainPrompt: vi.fn(),
-        setSecondBrainAlterId: vi.fn(),
         openSecondBrainViewFromPalette: vi.fn(async () => true)
       },
     })
@@ -100,7 +99,6 @@ describe('useAppShellConstitutedContextActions', () => {
         replaceSessionContext,
         setSecondBrainSessionId: vi.fn(),
         setSecondBrainPrompt: vi.fn(),
-        setSecondBrainAlterId: vi.fn(),
         openSecondBrainViewFromPalette
       },
     })
@@ -111,6 +109,5 @@ describe('useAppShellConstitutedContextActions', () => {
     expect(replaceSessionContext).toHaveBeenCalledWith('session-1', ['/vault/context.md'])
     expect(openSecondBrainViewFromPalette).toHaveBeenCalled()
 
-    await expect(api.openAlterInSecondBrain('alter-1')).resolves.toBe(true)
   })
 })

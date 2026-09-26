@@ -129,7 +129,7 @@ fn apply_profile_system_prompt(profile: &ProviderProfile, system_prompt: &str) -
 
 /// Runs a single Second Brain LLM request.
 ///
-/// Callers pass an optional temperature so alter-scoped tuning can be applied
+/// Callers pass an optional temperature for provider configuration.
 /// without changing the provider default for other generation paths.
 pub async fn run_llm(
 	profile: &ProviderProfile,

@@ -75,7 +75,6 @@ Use this as a quick routing table when you need to make a change.
 | Note history / restore | `src/domains/editor/components/EditorView.vue` | `src/domains/editor/components/editor/EditorNoteHistoryDialog.vue`, `src/shared/api/noteHistoryApi.ts`, `src/app/composables/useWorkspaceMutationEffects.ts` |
 | Editor `@` macro insertion | `src/domains/editor/components/editor/EditorAtMenu.vue` | `src/domains/editor/lib/editorAtMacros.ts`, `src/domains/editor/composables/useEditorInputHandlers.ts`, `src/domains/editor/composables/useEditorChromeRuntime.ts` |
 | Root note persistence | `src/app/composables/useAppNotePersistence.ts` | `src/app/App.vue`, `src/app/composables/useAppWorkspaceController.ts`, `src/shared/api/editorSyncApi.ts` |
-| Root settings / alters sync | `src/app/composables/useAppSettingsWorkflow.ts` | `src/app/App.vue`, `src/app/components/settings/SettingsModal.vue`, `src/shared/api/settingsApi.ts` |
 | Shell keyboard / command routing | `src/app/composables/useAppShellKeyboard.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellPaletteActions.ts`, `src/app/composables/useAppShellModalInteractions.ts` |
 | Command palette catalog | `src/app/composables/useAppShellPaletteActions.ts` | `src/app/composables/useAppShellCommands.ts`, `src/app/composables/useAppShellModalInteractions.ts`, `src/app/ARCHITECTURE.md` |
 | Shell entrypoint bridge | `src/app/composables/useAppShellEntryActions.ts` | `src/app/composables/useAppShellLaunchpad.ts`, `src/app/composables/useAppShellPaletteActions.ts`, `src/app/ARCHITECTURE.md` |
@@ -84,7 +83,6 @@ Use this as a quick routing table when you need to make a change.
 | Search / indexing | `src-tauri/src/markdown_index.rs` | `src-tauri/src/search_index.rs`, `src-tauri/src/index_schema.rs`, `src/app/composables/useAppIndexingController.ts` |
 | Second Brain chat flow | `src/domains/second-brain/components/SecondBrainView.vue` | `src/domains/second-brain/composables/useSecondBrainViewState.ts`, `src/domains/second-brain/composables/useSecondBrainSessionWorkflow.ts`, `src/domains/second-brain/composables/useSecondBrainConversationRuntime.ts`, `src-tauri/src/second_brain/*` |
 | Second Brain config / models | `src/app/components/settings/SettingsModal.vue` | `src/shared/api/settingsApi.ts`, `src-tauri/src/second_brain/config.rs`, `src-tauri/src/second_brain/openai_codex.rs` |
-| Alter manager | `src/domains/alters/components/AlterManagerView.vue` | `src/domains/alters/composables/useAlterManager.ts`, `src-tauri/src/alters.rs` |
 | UI primitives / shared shells | `src/shared/components/ui/ARCHITECTURE.md` | `src/shared/components/ui/*`, `src/assets/tailwind.css` |
 
 ## How Things Fit Together

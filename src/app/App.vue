@@ -49,7 +49,6 @@ import {
   writePropertyTypeSchema
 } from '../shared/api/indexApi'
 import type { PathMove, WorkspaceFsChange } from '../shared/api/apiTypes'
-import type { AppSettingsAlters } from '../shared/api/apiTypes'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
 import { type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
@@ -242,11 +241,6 @@ const topbarRef = ref<AppShellChromeSurfaceExposed | null>(null)
 const propertiesPreview = ref<PropertyPreviewRow[]>([])
 const propertyParseErrorCount = ref(0)
 const virtualDocs = ref<Record<string, VirtualDoc>>({})
-const altersSettings = ref<AppSettingsAlters>({
-  default_mode: 'neutral',
-  show_badge_in_chat: true,
-  default_influence_intensity: 'balanced'
-})
 const overflowMenuOpen = ref(false)
 const closeOverflowMenu = () => {
   overflowMenuOpen.value = false
@@ -694,11 +688,8 @@ const {
   secondBrainRequestedSessionNonce,
   secondBrainRequestedPrompt,
   secondBrainRequestedPromptNonce,
-  secondBrainRequestedAlterId,
-  secondBrainRequestedAlterNonce,
   setSecondBrainSessionId,
   setSecondBrainPrompt,
-  setSecondBrainAlterId,
   addActiveNoteToSecondBrain,
   onSecondBrainContextChanged,
   onSecondBrainSessionChanged
@@ -720,7 +711,6 @@ const constitutedContextActions = useAppShellConstitutedContextActions({
     replaceSessionContext,
     setSecondBrainSessionId,
     setSecondBrainPrompt,
-    setSecondBrainAlterId,
     openSecondBrainViewFromPalette: () => openSecondBrainViewFromPalette()
   },
 })
@@ -731,7 +721,6 @@ const {
   removePinnedPathFromConstitutedContext,
   toggleActiveNoteInConstitutedContext,
   openConstitutedContextInSecondBrain,
-  openAlterInSecondBrain
 } = constitutedContextActions
 
 const search = useAppShellSearch({
@@ -913,7 +902,6 @@ const {
   onOpenDateInputKeydown
 } = shellModals
 const settingsWorkflow = useAppSettingsWorkflow({
-  altersSettings,
   markIndexOutOfSync,
   notifySuccess: (message: string) => filesystem.notifySuccess(message),
   notifyInfo: (message: string) => filesystem.notifyInfo(message),
@@ -1006,8 +994,8 @@ const navigationPanePort = {
   openInspectorInPane: (path: string, paneId?: string) => multiPane.openInspectorInPane(path, paneId),
   revealDocumentInPane: (path: string, paneId?: string) => multiPane.revealDocumentInPane(path, paneId),
   setActivePathInPane: (paneId: string, path: string) => multiPane.setActivePathInPane(paneId, path),
-  openSurfaceInPane: (type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
-  findPaneContainingSurface: (type: 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters') => multiPane.findPaneContainingSurface(type)
+  openSurfaceInPane: (type: 'home' | 'second-brain-chat', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
+  findPaneContainingSurface: (type: 'home' | 'second-brain-chat') => multiPane.findPaneContainingSurface(type)
 }
 
 const navigationHistoryPort = {
@@ -1177,7 +1165,6 @@ const shellViewModels = useAppShellViewModels({
     recentUpdatedNotes,
     showWizardAction: launchpadShowWizardAction
   },
-  altersSettings,
   secondBrain: {
     workspacePath: filesystem.workingFolderPath,
     allWorkspaceFiles,
@@ -1185,8 +1172,6 @@ const shellViewModels = useAppShellViewModels({
     requestedSessionNonce: secondBrainRequestedSessionNonce,
     requestedPrompt: secondBrainRequestedPrompt,
     requestedPromptNonce: secondBrainRequestedPromptNonce,
-    requestedAlterId: secondBrainRequestedAlterId,
-    requestedAlterNonce: secondBrainRequestedAlterNonce,
     echoesRefreshToken: workspaceMutationEchoesToken
   },
   labels: {
@@ -1216,7 +1201,6 @@ const {
   pinnedContextItems,
   noteEchoesForPanel,
   secondBrainPaneViewModel,
-  altersPaneViewModel,
   launchpadPaneViewModel,
   backShortcutLabel,
   forwardShortcutLabel,
@@ -1426,9 +1410,7 @@ const commands = useAppShellCommands({
 })
 const {
   openSecondBrainViewFromPalette,
-  openAlterExplorationViewFromPalette,
   openHomeViewFromPalette,
-  openAltersViewFromPalette,
   openFavoritesPanelFromPalette,
   addActiveNoteToSecondBrainFromPalette,
   addActiveNoteToFavoritesFromPalette,
@@ -1460,16 +1442,12 @@ entryActions.bindLaunchpadActionPort({
   openCommandPalette: () => openCommandPalette(),
   openTodayNote: () => openTodayNote(),
   openSecondBrainView: () => openSecondBrainViewFromPalette(),
-  openAlterExplorationView: () => openAlterExplorationViewFromPalette(),
-  openAltersView: () => openAltersViewFromPalette()
 })
 entryActions.bindShellPaletteActionPort({
   openIntegratedTerminal,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
   openSecondBrainViewFromPalette,
-  openAlterExplorationViewFromPalette,
-  openAltersViewFromPalette,
   addActiveNoteToSecondBrainFromPalette,
   addActiveNoteToFavoritesFromPalette,
   removeActiveNoteFromFavoritesFromPalette,
@@ -1571,9 +1549,6 @@ const appShellRuntimeLifecycle = useAppShellRuntimeLifecycle({
   spellcheckPort: {
     loadSpellcheckPreference
   },
-  alterSettingsPort: {
-    syncAlterSettingsFromDisk: () => settingsWorkflow.syncAlterSettingsFromDisk()
-  },
   workspaceLifecyclePort: {
     start: () => workspaceLifecycle.start(),
     dispose: () => workspaceLifecycle.dispose()
@@ -1662,7 +1637,6 @@ const {
   onExplorerPathsMoved,
   openActiveNoteHistory,
   onOutlineHeadingClick,
-  onAlterExplorationNotify,
 } = rootWorkflow
 const workspaceSetup = useAppShellWorkspaceSetup({
   statePort: {
@@ -1803,7 +1777,6 @@ useAppShellKeyboard({
       @history-target-click="onHistoryTargetClick"
       @open-today="void openHomeViewFromPalette()"
       @open-second-brain="void openSecondBrainViewFromPalette()"
-      @open-alter-exploration="void openAlterExplorationViewFromPalette()"
       @split-right="splitPaneFromPalette('row')"
       @split-down="splitPaneFromPalette('column')"
       @focus-pane="focusPaneFromPalette($event)"
@@ -1918,10 +1891,7 @@ useAppShellKeyboard({
           :all-workspace-files="allWorkspaceFiles"
           :open-file="readTextFile"
           :open-externally="openPathNatively"
-          :save-file="async (path, text) => {
-            await writeTextFile(path, text)
-            return { persisted: true }
-          }"
+          :save-file="async (path, text) => { await writeTextFile(path, text); return { persisted: true } }"
           :spellcheck-enabled="spellcheckEnabled"
           :ruler-visible="editorRulerVisible"
           :get-status="editorState.getStatus"
@@ -1933,7 +1903,6 @@ useAppShellKeyboard({
           :loadPropertyTypeSchema="loadPropertyTypeSchema"
           :savePropertyTypeSchema="savePropertyTypeSchema"
           :openLinkTarget="openWikilinkTarget"
-          :alters="altersPaneViewModel"
           :second-brain="secondBrainPaneViewModel"
           :launchpad="launchpadPaneViewModel"
           @pane-focus="multiPane.setActivePane($event.paneId)"
@@ -1948,9 +1917,6 @@ useAppShellKeyboard({
           @external-reload="filesystem.notifyInfo(`Reloaded ${basenameLabel($event.path)} from disk.`)"
           @second-brain-context-changed="onSecondBrainContextChanged"
           @second-brain-session-changed="onSecondBrainSessionChanged"
-          @second-brain-open-alter-exploration="void openAlterExplorationViewFromPalette()"
-          @alter-exploration-notify="onAlterExplorationNotify"
-          @alter-open-second-brain="void openAlterInSecondBrain($event)"
           @status="onEditorStatus"
           @path-renamed="onEditorPathRenamed"
           @outline="onEditorOutline"

@@ -1,7 +1,7 @@
 //! Frontmatter generation workflow powered by the active Second Brain LLM profile.
 //!
 //! The flow keeps prompt assembly separate from provider execution so the editor
-//! can request structured suggestions without depending on the `alters` system.
+//! can request structured suggestions without depending on persona profiles.
 
 use serde::{Deserialize, Serialize};
 

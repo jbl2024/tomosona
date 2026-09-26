@@ -3,8 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { DocumentIcon, HomeIcon } from '@heroicons/vue/24/outline'
 import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import {
-  ALTERS_SURFACE_ICON,
-  ALTER_EXPLORATION_SURFACE_ICON,
   SECOND_BRAIN_SURFACE_ICON
 } from '../../lib/appShellSurfaceIcons'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
@@ -108,16 +106,12 @@ function tabTitle(tab: PaneTab): string {
   if (tab.type === 'document') return fileName(tab.path)
   if (tab.type === 'file-inspector') return fileName(tab.path)
   if (tab.type === 'home') return 'Home'
-  if (tab.type === 'alter-exploration') return 'Alter Exploration'
-  if (tab.type === 'alters') return 'Alters'
   return 'Second Brain'
 }
 
 function tabIcon(tab: PaneTab) {
   if (tab.type === 'file-inspector') return DocumentIcon
   if (tab.type === 'second-brain-chat') return SECOND_BRAIN_SURFACE_ICON
-  if (tab.type === 'alter-exploration') return ALTER_EXPLORATION_SURFACE_ICON
-  if (tab.type === 'alters') return ALTERS_SURFACE_ICON
   return null
 }
 

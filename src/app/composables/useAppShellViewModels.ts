@@ -1,11 +1,10 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { FileMetadata, SemanticLink } from '../../shared/api/apiTypes'
-import type { AppSettingsAlters } from '../../shared/api/apiTypes'
 import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
 import type { AppThemeDefinition } from '../../shared/lib/themeRegistry'
-import type { AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, AppShellAltersViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
+import type { AppShellLaunchpadViewModel, AppShellSecondBrainViewModel, LaunchpadRecentNote, LaunchpadRecentWorkspace } from '../lib/appShellViewModels'
 import { basenameLabel, buildMetadataRows, buildShortcutSections, buildSystemThemeLabel, buildThemePickerItems, type ShellSurfaceType, type ThemePickerItem } from '../lib/appShellPresentation'
 
 type ShortcutSection = {
@@ -54,7 +53,6 @@ type ViewModelOptions = {
     recentUpdatedNotes: Ref<LaunchpadRecentNote[]>
     showWizardAction: Ref<boolean>
   }
-  altersSettings: Ref<AppSettingsAlters>
   secondBrain: {
     workspacePath: Ref<string>
     allWorkspaceFiles: Ref<string[]>
@@ -62,8 +60,6 @@ type ViewModelOptions = {
     requestedSessionNonce: Ref<number>
     requestedPrompt: Ref<string>
     requestedPromptNonce: Ref<number>
-    requestedAlterId: Ref<string>
-    requestedAlterNonce: Ref<number>
     echoesRefreshToken: Ref<number>
   }
   labels: {
@@ -95,7 +91,6 @@ export type AppShellViewModels = {
   pinnedContextItems: ComputedRef<ConstitutedContextItem[]>
   noteEchoesForPanel: ComputedRef<Array<EchoesItem & { isInContext: boolean }>>
   secondBrainPaneViewModel: ComputedRef<AppShellSecondBrainViewModel>
-  altersPaneViewModel: ComputedRef<AppShellAltersViewModel>
   launchpadPaneViewModel: ComputedRef<AppShellLaunchpadViewModel>
   backShortcutLabel: ComputedRef<string>
   forwardShortcutLabel: ComputedRef<string>
@@ -192,15 +187,8 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
     requestedSessionNonce: options.secondBrain.requestedSessionNonce.value,
     requestedPrompt: options.secondBrain.requestedPrompt.value,
     requestedPromptNonce: options.secondBrain.requestedPromptNonce.value,
-    requestedAlterId: options.secondBrain.requestedAlterId.value,
-    requestedAlterNonce: options.secondBrain.requestedAlterNonce.value,
     activeNotePath: options.workspace.activeFilePath.value,
-    echoesRefreshToken: options.secondBrain.echoesRefreshToken.value,
-    settings: options.altersSettings.value
-  }))
-  const altersPaneViewModel = computed<AppShellAltersViewModel>(() => ({
-    workspacePath: options.workspace.workingFolderPath.value,
-    settings: options.altersSettings.value
+    echoesRefreshToken: options.secondBrain.echoesRefreshToken.value
   }))
   const launchpadPaneViewModel = computed<AppShellLaunchpadViewModel>(() => ({
     workspaceLabel: options.workspace.workingFolderPath.value
@@ -246,7 +234,6 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
     pinnedContextItems,
     noteEchoesForPanel,
     secondBrainPaneViewModel,
-    altersPaneViewModel,
     launchpadPaneViewModel,
     backShortcutLabel,
     forwardShortcutLabel,

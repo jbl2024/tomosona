@@ -137,7 +137,6 @@ pub(super) fn build_user_prompt(
     message: &str,
     history_messages: &[MessageRow],
     context_entries: &[ContextPromptEntry],
-    alter_prompt: Option<&str>,
 ) -> BuiltPrompt {
     let user_tokens = estimate_tokens(message);
     let available_budget = SB_PROMPT_BUDGET_TOKENS
@@ -154,14 +153,6 @@ pub(super) fn build_user_prompt(
         build_history_section(history_messages, history_budget, SB_HISTORY_WINDOW);
 
     let mut prompt = String::new();
-    if let Some(alter_prompt) = alter_prompt
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str("Alter actif:\n");
-        prompt.push_str(alter_prompt);
-        prompt.push_str("\n\n");
-    }
     if !context_section.is_empty() {
         prompt.push_str(&context_section);
         prompt.push_str("\n\n");
@@ -467,7 +458,7 @@ mod tests {
     #[test]
     fn user_prompt_without_context_is_valid() {
         let history = vec![message("m1", "assistant", "old answer")];
-        let built = build_user_prompt("s1", "nouvelle demande", &history, &[], None);
+        let built = build_user_prompt("s1", "nouvelle demande", &history, &[]);
         assert!(built.user_prompt.contains("Historique recent"));
         assert!(built.user_prompt.contains("Demande utilisateur"));
         assert!(built.user_prompt.contains("Reponds en markdown."));
@@ -487,7 +478,7 @@ mod tests {
                 content: "b".repeat(8_000),
             },
         ];
-        let built = build_user_prompt("s1", "question", &history, &contexts, None);
+        let built = build_user_prompt("s1", "question", &history, &contexts);
         assert!(built.user_prompt.contains("--- SOURCE: a.md ---"));
         assert!(built.user_prompt.contains("[CONTENU TRONQUE]"));
         assert!(!built.included_context_paths.is_empty());

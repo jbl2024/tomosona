@@ -33,7 +33,7 @@ const emit = defineEmits<{
   saved: [result: WriteAppSettingsResult]
 }>()
 
-const settingsActiveTab = ref<'llm' | 'embeddings' | 'alters'>('llm')
+const settingsActiveTab = ref<'llm' | 'embeddings'>('llm')
 const settingsConfigPath = ref('~/.tomosona/conf.json')
 const settingsLlmProviderPreset = ref<'openai' | 'anthropic' | 'codex' | 'custom'>('openai')
 const settingsLlmApiKey = ref('')
@@ -63,9 +63,6 @@ const settingsEmbeddingsModelsLoading = ref(false)
 const settingsEmbeddingsModelPickerOpen = ref(false)
 const settingsEmbeddingsModelPickerQuery = ref('')
 const settingsEmbeddingsModelPickerActiveIndex = ref(0)
-const settingsAlterDefaultMode = ref<'neutral' | 'last_used'>('neutral')
-const settingsAlterShowBadgeInChat = ref(true)
-const settingsAlterDefaultIntensity = ref<'light' | 'balanced' | 'strong'>('balanced')
 const settingsModalError = ref('')
 
 const settingsLlmAvailableModelItems = computed<FilterableDropdownItem[]>(() =>
@@ -253,9 +250,6 @@ function applySettingsDefaults() {
   settingsEmbeddingsBaseUrl.value = ''
   settingsEmbeddingsApiKey.value = ''
   settingsEmbeddingsApiKeyVisible.value = false
-  settingsAlterDefaultMode.value = 'neutral'
-  settingsAlterShowBadgeInChat.value = true
-  settingsAlterDefaultIntensity.value = 'balanced'
   settingsModalError.value = ''
 }
 
@@ -434,9 +428,6 @@ function hydrateSettingsFromConfig(view: AppSettingsView) {
     settingsEmbeddingsBaseUrl.value = ''
     settingsEmbeddingsApiKey.value = ''
   }
-  settingsAlterDefaultMode.value = view.alters.default_mode
-  settingsAlterShowBadgeInChat.value = view.alters.show_badge_in_chat
-  settingsAlterDefaultIntensity.value = view.alters.default_influence_intensity
 }
 
 async function initializeSettingsModal() {
@@ -490,11 +481,6 @@ function buildSaveSettingsPayload(): SaveAppSettingsPayload {
     embeddings: {
       mode: settingsEmbeddingsMode.value
     },
-    alters: {
-      default_mode: settingsAlterDefaultMode.value,
-      show_badge_in_chat: settingsAlterShowBadgeInChat.value,
-      default_influence_intensity: settingsAlterDefaultIntensity.value
-    }
   }
   if (settingsEmbeddingsMode.value === 'external') {
     const embeddingApiKeyValue = settingsEmbeddingsApiKey.value.trim()
@@ -603,15 +589,12 @@ watch(() => props.visible, async (visible) => {
               {{
                 settingsActiveTab === 'llm'
                   ? 'LLM SETTINGS'
-                  : settingsActiveTab === 'embeddings'
-                    ? 'EMBEDDINGS SETTINGS'
-                    : 'ALTERS SETTINGS'
+                  : 'EMBEDDINGS SETTINGS'
               }}
             </h3>
             <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
               <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'llm' }" @click="settingsActiveTab = 'llm'">LLM</button>
               <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'embeddings' }" @click="settingsActiveTab = 'embeddings'">Embeddings</button>
-              <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'alters' }" @click="settingsActiveTab = 'alters'">Alters</button>
             </div>
           </header>
 
@@ -858,42 +841,6 @@ watch(() => props.visible, async (visible) => {
                   </template>
                 </UiField>
             </div>
-            <div v-else-if="settingsActiveTab === 'alters'" class="settings-fields">
-              <UiField for-id="settings-alter-default-mode" label="Default Alter behavior">
-                <template #default>
-                  <UiSelect
-                    id="settings-alter-default-mode"
-                    v-model="settingsAlterDefaultMode"
-                    :options="[
-                      { value: 'neutral', label: 'Neutral' },
-                      { value: 'last_used', label: 'Last used' }
-                    ]"
-                  />
-                </template>
-              </UiField>
-              <UiField for-id="settings-alter-default-intensity" label="Default influence intensity">
-                <template #default>
-                  <UiSelect
-                    id="settings-alter-default-intensity"
-                    v-model="settingsAlterDefaultIntensity"
-                    :options="[
-                      { value: 'light', label: 'Light' },
-                      { value: 'balanced', label: 'Balanced' },
-                      { value: 'strong', label: 'Strong' }
-                    ]"
-                  />
-                </template>
-              </UiField>
-              <UiField for-id="settings-alter-badge" label="Show Alter badge in chat">
-                <template #default>
-                  <label class="settings-checkbox-row">
-                    <input id="settings-alter-badge" v-model="settingsAlterShowBadgeInChat" type="checkbox">
-                    <span>Show current Alter label in Second Brain</span>
-                  </label>
-                </template>
-              </UiField>
-            </div>
-
             <div v-else class="settings-fields">
               <fieldset class="settings-mode-group">
                 <legend class="settings-mode-group__legend">Embedding mode</legend>

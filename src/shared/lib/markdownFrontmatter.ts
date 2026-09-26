@@ -9,7 +9,7 @@
  * Does not:
  * - parse YAML into fields
  * - validate frontmatter keys or values
- * - know anything about editor or alter domain rules
+ * - know anything about editor domain rules
  */
 function normalizeNewlines(input: string): string {
   return input.replace(/\r\n?/g, '\n')

@@ -20,9 +20,6 @@ use super::{
     stream_control::consume_stream_cancel,
     AppError, Result, SendMessagePayload, SendMessageResult, StreamEvent,
 };
-use crate::alters::{
-    effective_generation_temperature, resolve_invocation_prompt, resolve_invocation_temperature,
-};
 use crate::ensure_index_schema;
 
 /// Runs the complete assistant message flow while preserving the existing IPC events.
@@ -47,23 +44,6 @@ pub(super) async fn send_message(
         ));
     }
 
-    let session_alter_id: String = conn
-        .query_row(
-            "SELECT COALESCE(alter_id, '') FROM second_brain_sessions WHERE id = ?1",
-            params![payload.session_id.clone()],
-            |row| row.get(0),
-        )
-        .unwrap_or_default();
-    let effective_alter_id = payload
-        .alter_id
-        .as_deref()
-        .unwrap_or(&session_alter_id)
-        .trim()
-        .to_string();
-    let effective_temperature = effective_generation_temperature(resolve_invocation_temperature(
-        Some(&effective_alter_id),
-    )?);
-
     let user_message_id = next_id("sbm-user");
     let assistant_message_id = next_id("sbm-assistant");
     if consume_stream_cancel(&payload.session_id, &assistant_message_id) {
@@ -86,7 +66,6 @@ pub(super) async fn send_message(
         &payload.message,
         &history_messages,
         &context_entries,
-        resolve_invocation_prompt(&conn, Some(&effective_alter_id))?.as_deref(),
     );
 
     emit_assistant_start(&app, &payload.session_id, &assistant_message_id);
@@ -98,7 +77,7 @@ pub(super) async fn send_message(
         &assistant_message_id,
         &mode_prompt,
         &built_prompt.user_prompt,
-        effective_temperature,
+        0.15,
     )
     .await?;
 
@@ -318,7 +297,6 @@ mod tests {
             session_id: "s1".to_string(),
             mode: "freestyle".to_string(),
             message: "   ".to_string(),
-            alter_id: None,
             attachments: Vec::new(),
         };
         let capabilities = ProfileCapabilities {
@@ -334,7 +312,6 @@ mod tests {
             session_id: "s1".to_string(),
             mode: "freestyle".to_string(),
             message: "hello".to_string(),
-            alter_id: None,
             attachments: vec![super::super::AttachmentMeta {
                 id: "a1".to_string(),
                 kind: "image".to_string(),

@@ -32,7 +32,6 @@ export type ContextActionSecondBrainPort = {
   replaceSessionContext: (sessionId: string, paths: string[]) => Promise<unknown>
   setSecondBrainSessionId: (sessionId: string, options?: { bumpNonce?: boolean }) => void
   setSecondBrainPrompt: (prompt: string, options?: { bumpNonce?: boolean }) => void
-  setSecondBrainAlterId: (alterId: string, options?: { bumpNonce?: boolean }) => void
   openSecondBrainViewFromPalette: () => Promise<boolean>
 }
 
@@ -110,16 +109,6 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     }
   }
 
-  async function openAlterInSecondBrain(alterId: string) {
-    if (!options.filesystem.hasWorkspace.value) {
-      options.filesystem.errorMessage.value = 'Open a workspace first.'
-      return false
-    }
-    options.secondBrain.setSecondBrainAlterId(alterId, { bumpNonce: true })
-    await options.secondBrain.openSecondBrainViewFromPalette()
-    return true
-  }
-
   return {
     addPathToConstitutedContext,
     removePathFromConstitutedContext,
@@ -127,6 +116,5 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     removePinnedPathFromConstitutedContext,
     toggleActiveNoteInConstitutedContext,
     openConstitutedContextInSecondBrain,
-    openAlterInSecondBrain
   }
 }

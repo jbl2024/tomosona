@@ -9,7 +9,7 @@ This folder contains the modular frontend surface for the Second Brain view.
 | --- | --- | --- |
 | `SecondBrainView.vue` | render shell, props, emits, local DOM refs | keep the view thin so it does not own backend or workflow state |
 | `useSecondBrainViewState.ts` | façade that assembles the sub-workflows | give the shell one stable surface without merging responsibilities |
-| `useSecondBrainSessionWorkflow.ts` | session loading, explicit context updates, Alter selection, Echoes anchoring, session lifecycle | keep persistence and session state separate from composer and stream timing |
+| `useSecondBrainSessionWorkflow.ts` | session loading, explicit context updates, Echoes anchoring, session lifecycle | keep persistence and session state separate from composer and stream timing |
 | `useSecondBrainStreamRuntime.ts` | stream subscriptions, cancellation, auto-scroll, assistant render buffer | keep backend stream timing and DOM observer details out of the composer |
 | `useSecondBrainConversationRuntime.ts` | composer input, mentions, copy/export | keep user input and export behavior separate from session persistence and stream lifecycle |
 
@@ -22,7 +22,7 @@ This folder contains the modular frontend surface for the Second Brain view.
 - `useSecondBrainViewState.ts` is the façade that stitches the session and
   conversation workflows together.
 - `useSecondBrainSessionWorkflow.ts` owns session loading, explicit context
-  updates, Alter selection, Echoes context anchoring, and session lifecycle
+  updates, Echoes context anchoring, and session lifecycle
   actions.
 - `useSecondBrainStreamRuntime.ts` owns stream subscriptions, cancellation,
   thread scroll state, and assistant message rendering.
@@ -33,7 +33,7 @@ This folder contains the modular frontend surface for the Second Brain view.
 - Backend calls are isolated in `src/domains/second-brain/lib/secondBrainApi.ts`.
 - Modes contract is declared in `src/domains/second-brain/lib/secondBrainModes.ts`.
 - `useSecondBrainAtMentions` resolves inline `@relative/path.md` mentions and extracts context paths before send.
-- Alter sampling temperature is resolved in the backend from the active Alter record and falls back to `0.15` when no Alter is selected, so the neutral/default Second Brain path stays deterministic.
+- The Second Brain uses its configured default generation temperature.
 
 ## Design constraints
 - Keep `App.vue` as integration shell only.

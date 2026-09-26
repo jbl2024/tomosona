@@ -2,10 +2,10 @@ import { computed, ref } from 'vue'
 
 export type PaneId = string
 
-export type SurfaceType = 'document' | 'home' | 'second-brain-chat' | 'alter-exploration' | 'alters'
+export type SurfaceType = 'document' | 'home' | 'second-brain-chat'
 
 export type PaneTab =
-  { id: string; type: 'document'; path: string; pinned: boolean } | { id: string; type: 'file-inspector'; path: string; pinned: boolean } | { id: string; type: 'home'; pinned: boolean } | { id: string; type: 'second-brain-chat'; pinned: boolean } | { id: string; type: 'alter-exploration'; pinned: boolean } | { id: string; type: 'alters'; pinned: boolean }
+  { id: string; type: 'document'; path: string; pinned: boolean } | { id: string; type: 'file-inspector'; path: string; pinned: boolean } | { id: string; type: 'home'; pinned: boolean } | { id: string; type: 'second-brain-chat'; pinned: boolean }
 
 export type PaneState = {
   id: PaneId
@@ -213,7 +213,6 @@ export function hydrateLayout(payload: unknown): MultiPaneLayout | null {
 
   const seenDocumentPaths = new Set<string>()
   const seenInspectorPaths = new Set<string>()
-  const seenSpecialSurfaces = new Set<string>()
   const panesById: Record<PaneId, PaneState> = {}
 
   for (const paneId of paneIds) {
@@ -240,17 +239,12 @@ export function hydrateLayout(payload: unknown): MultiPaneLayout | null {
         openTabs.push({ id: fileInspectorTabId(path), type: 'file-inspector', path, pinned: Boolean(tab.pinned) })
         continue
       }
-      // Backward compatibility: hydrate legacy "second-brain-sessions" tabs as chat tabs.
-      const nextType = tab.type === 'second-brain-sessions' ? 'second-brain-chat' : tab.type
-      if (
-        nextType === 'home' ||
-        nextType === 'second-brain-chat' ||
-        nextType === 'alter-exploration' ||
-        nextType === 'alters'
-      ) {
-        if (seenSpecialSurfaces.has(nextType)) continue
-        seenSpecialSurfaces.add(nextType)
-        openTabs.push({ id: surfaceTabId(nextType), type: nextType, pinned: Boolean(tab.pinned) })
+      // Legacy special surfaces are intentionally ignored when restoring layouts.
+      if (tab.type === 'home' || tab.type === 'second-brain-chat' || tab.type === 'second-brain-sessions') {
+        const nextType = tab.type === 'second-brain-sessions' ? 'second-brain-chat' : tab.type
+        const id = surfaceTabId(nextType)
+        if (openTabs.some((item) => item.id === id)) continue
+        openTabs.push({ id, type: nextType, pinned: Boolean(tab.pinned) })
       }
     }
 

@@ -1,7 +1,5 @@
 //! Tauri command surface for local filesystem, lexical search and semantic search.
 
-mod alters;
-mod alter_exploration;
 mod app_meta;
 mod db;
 mod docx;
@@ -448,21 +446,6 @@ pub fn run() {
             settings::write_app_settings,
             settings::discover_llm_models,
             settings::discover_embedding_models,
-            alters::list_alters,
-            alters::create_alter,
-            alters::load_alter,
-            alters::update_alter,
-            alters::delete_alter,
-            alters::duplicate_alter,
-            alters::list_alter_revisions,
-            alters::load_alter_revision,
-            alters::preview_alter,
-            alters::generate_alter_draft,
-            alter_exploration::create_alter_exploration_session,
-            alter_exploration::load_alter_exploration_session,
-            alter_exploration::list_alter_exploration_sessions,
-            alter_exploration::run_alter_exploration_session,
-            alter_exploration::cancel_alter_exploration_session,
             second_brain::read_second_brain_config_status,
             second_brain::generate_frontmatter_properties,
             second_brain::discover_codex_models,
@@ -474,7 +457,6 @@ pub fn run() {
             second_brain::update_second_brain_context,
             second_brain::cancel_second_brain_stream,
             second_brain::send_second_brain_message,
-            second_brain::set_second_brain_session_alter,
             second_brain::set_second_brain_session_target_note,
             second_brain::insert_second_brain_assistant_into_target_note,
             second_brain::export_second_brain_session_markdown,
@@ -492,7 +474,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{
         fs,
-        path::{Path, PathBuf},
+        path::PathBuf,
     };
 
     use directories::UserDirs;
@@ -512,78 +494,6 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("{prefix}-{nonce}"));
         fs::create_dir_all(&dir).expect("create temp workspace");
         dir
-    }
-
-    struct SettingsBackup {
-        path: PathBuf,
-        original: Option<String>,
-        original_home: Option<String>,
-    }
-
-    impl Drop for SettingsBackup {
-        fn drop(&mut self) {
-            match &self.original_home {
-                Some(value) => std::env::set_var("HOME", value),
-                None => std::env::remove_var("HOME"),
-            }
-
-            if let Some(parent) = self.path.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-            match &self.original {
-                Some(content) => {
-                    let _ = fs::write(&self.path, content);
-                }
-                None => {
-                    let _ = fs::remove_file(&self.path);
-                }
-            }
-        }
-    }
-
-    fn install_test_second_brain_settings() -> SettingsBackup {
-        let original_home = std::env::var("HOME").ok();
-        let test_home = create_temp_workspace("tomosona-home");
-        std::env::set_var("HOME", &test_home);
-
-        let settings_view = settings::read_app_settings().expect("read app settings");
-        let path = PathBuf::from(settings_view.path);
-        let original = fs::read_to_string(&path).ok();
-
-        settings::write_app_settings(settings::SaveAppSettingsPayload {
-            llm: settings::SaveLlmConfigInput {
-                active_profile: "codex".to_string(),
-                profiles: vec![settings::SaveLlmProfileInput {
-                    id: "codex".to_string(),
-                    label: "Codex".to_string(),
-                    provider: "openai-codex".to_string(),
-                    model: "gpt-5.2-codex".to_string(),
-                    api_key: None,
-                    default_temperature: 0.15,
-                    system_prompt: String::new(),
-                    preserve_existing_api_key: false,
-                    base_url: None,
-                    default_mode: Some("freestyle".to_string()),
-                    capabilities: second_brain::config::ProfileCapabilities::default(),
-                }],
-            },
-            embeddings: settings::SaveEmbeddingsInput {
-                mode: "internal".to_string(),
-                external: None,
-            },
-            alters: settings::SaveAltersInput {
-                default_mode: "neutral".to_string(),
-                show_badge_in_chat: true,
-                default_influence_intensity: "balanced".to_string(),
-            },
-        })
-        .expect("write test app settings");
-
-        SettingsBackup {
-            path,
-            original,
-            original_home,
-        }
     }
 
     #[test]
@@ -1076,140 +986,6 @@ mod tests {
                 .expect("collect embedding columns")
         };
         assert!(embedding_columns.iter().any(|name| name == "content_hash"));
-
-        clear_active_workspace().expect("clear workspace");
-        fs::remove_dir_all(&workspace).expect("cleanup workspace");
-    }
-
-    #[test]
-    fn create_second_brain_session_recovers_from_pre_alter_schema() {
-        let _guard = workspace_test_guard();
-        let _settings = install_test_second_brain_settings();
-        let workspace = create_temp_workspace("tomosona-second-brain-schema-migrate");
-        let root = workspace.to_string_lossy().to_string();
-        let internal_dir = workspace.join(INTERNAL_DIR_NAME);
-        fs::create_dir_all(&internal_dir).expect("create internal dir");
-
-        let db_path = internal_dir.join(DB_FILE_NAME);
-        let conn = rusqlite::Connection::open(&db_path).expect("open legacy db");
-        conn.execute_batch(
-            r#"
-            CREATE TABLE IF NOT EXISTS internal_meta (
-              key TEXT PRIMARY KEY,
-              value TEXT NOT NULL
-            );
-            INSERT OR REPLACE INTO internal_meta(key, value) VALUES ('index_schema_version', '2');
-            CREATE TABLE IF NOT EXISTS second_brain_sessions (
-              id TEXT PRIMARY KEY,
-              title TEXT NOT NULL DEFAULT '',
-              provider TEXT NOT NULL DEFAULT '',
-              model TEXT NOT NULL DEFAULT '',
-              created_at_ms INTEGER NOT NULL DEFAULT 0,
-              updated_at_ms INTEGER NOT NULL DEFAULT 0
-            );
-            "#,
-        )
-        .expect("seed legacy schema");
-
-        set_active_workspace(&root).expect("set workspace");
-
-        let created =
-            second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
-                title: None,
-                context_paths: vec![],
-                alter_id: None,
-            })
-            .expect("create session");
-
-        let reopened = open_db().expect("reopen db");
-        let session_columns: Vec<String> = {
-            let mut stmt = reopened
-                .prepare("PRAGMA table_info(second_brain_sessions)")
-                .expect("prepare session pragma");
-            let rows = stmt
-                .query_map([], |row| row.get::<_, String>(1))
-                .expect("query session pragma");
-            rows.collect::<std::result::Result<Vec<_>, _>>()
-                .expect("collect session columns")
-        };
-
-        assert!(session_columns.iter().any(|name| name == "alter_id"));
-
-        let persisted_alter_id: String = reopened
-            .query_row(
-                "SELECT alter_id FROM second_brain_sessions WHERE id = ?1",
-                params![created.session_id],
-                |row| row.get(0),
-            )
-            .expect("read created session");
-        assert_eq!(persisted_alter_id, "");
-
-        clear_active_workspace().expect("clear workspace");
-        fs::remove_dir_all(&workspace).expect("cleanup workspace");
-    }
-
-    #[test]
-    fn create_second_brain_session_recovers_from_schema_v3_without_alter_id_column() {
-        let _guard = workspace_test_guard();
-        let _settings = install_test_second_brain_settings();
-        let workspace = create_temp_workspace("tomosona-second-brain-shape-migrate");
-        let root = workspace.to_string_lossy().to_string();
-        let internal_dir = workspace.join(INTERNAL_DIR_NAME);
-        fs::create_dir_all(&internal_dir).expect("create internal dir");
-
-        let db_path = internal_dir.join(DB_FILE_NAME);
-        let conn = rusqlite::Connection::open(&db_path).expect("open legacy db");
-        conn.execute_batch(
-            r#"
-            CREATE TABLE IF NOT EXISTS internal_meta (
-              key TEXT PRIMARY KEY,
-              value TEXT NOT NULL
-            );
-            INSERT OR REPLACE INTO internal_meta(key, value) VALUES ('index_schema_version', '3');
-            CREATE TABLE IF NOT EXISTS second_brain_sessions (
-              id TEXT PRIMARY KEY,
-              title TEXT NOT NULL DEFAULT '',
-              provider TEXT NOT NULL DEFAULT '',
-              model TEXT NOT NULL DEFAULT '',
-              created_at_ms INTEGER NOT NULL DEFAULT 0,
-              updated_at_ms INTEGER NOT NULL DEFAULT 0
-            );
-            "#,
-        )
-        .expect("seed drifted schema");
-
-        set_active_workspace(&root).expect("set workspace");
-
-        let created =
-            second_brain::create_second_brain_session(second_brain::CreateSessionPayload {
-                title: None,
-                context_paths: vec![],
-                alter_id: None,
-            })
-            .expect("create session");
-
-        let reopened = open_db().expect("reopen db");
-        let session_columns: Vec<String> = {
-            let mut stmt = reopened
-                .prepare("PRAGMA table_info(second_brain_sessions)")
-                .expect("prepare session pragma");
-            let rows = stmt
-                .query_map([], |row| row.get::<_, String>(1))
-                .expect("query session pragma");
-            rows.collect::<std::result::Result<Vec<_>, _>>()
-                .expect("collect session columns")
-        };
-
-        assert!(session_columns.iter().any(|name| name == "alter_id"));
-
-        let persisted_alter_id: String = reopened
-            .query_row(
-                "SELECT alter_id FROM second_brain_sessions WHERE id = ?1",
-                params![created.session_id],
-                |row| row.get(0),
-            )
-            .expect("read created session");
-        assert_eq!(persisted_alter_id, "");
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

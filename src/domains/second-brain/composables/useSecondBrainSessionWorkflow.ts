@@ -2,19 +2,15 @@
  * Session and explicit-context workflow for the Second Brain view.
  *
  * This module owns the state that must survive across view interactions:
- * selected session, context chips, Alter selection, Echoes anchor, and session
+ * selected session, context chips, Echoes anchor, and session
  * list refreshes. Keeping that logic here prevents the composer and stream
  * runtimes from learning persistence details.
  */
-import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, onMounted, ref, watch, type Ref } from 'vue'
 import type {
-  AlterSummary,
-  AppSettingsAlters,
   SecondBrainMessage,
   SecondBrainSessionSummary
 } from '../../../shared/api/apiTypes'
-import { fetchAlterList } from '../../alters/lib/altersApi'
-import { useAlterCatalogSync } from '../../alters/composables/useAlterCatalogSync'
 import { useEchoesPack } from '../../echoes/composables/useEchoesPack'
 import type { EchoesItem } from '../../echoes/lib/echoes'
 import {
@@ -23,26 +19,16 @@ import {
   fetchSecondBrainSessions,
   loadDeliberationSession,
   removeDeliberationSession,
-  replaceSessionContext,
-  setDeliberationSessionAlter
+  replaceSessionContext
 } from '../lib/secondBrainApi'
 import { normalizeContextPathsForUpdate, toAbsoluteWorkspacePath } from '../lib/secondBrainContextPaths'
-
-const DEFAULT_ALTER_SETTINGS: AppSettingsAlters = {
-  default_mode: 'neutral',
-  show_badge_in_chat: true,
-  default_influence_intensity: 'balanced'
-}
 
 export type UseSecondBrainSessionWorkflowOptions = {
   workspacePath: Ref<string>
   allWorkspaceFiles: Ref<string[]>
   requestedSessionId: Ref<string>
   requestedSessionNonce: Ref<number>
-  requestedAlterId: Ref<string>
-  requestedAlterNonce: Ref<number>
   echoesRefreshToken: Ref<number>
-  settings: ComputedRef<AppSettingsAlters>
   emitContextChanged: (paths: string[]) => void
   emitSessionChanged: (sessionId: string) => void
   emitOpenNote: (path: string) => void
@@ -56,8 +42,8 @@ type ReplaceContextOptions = {
 /**
  * Owns the session-and-context workflow for the Second Brain view.
  *
- * This composable keeps the session lifecycle, explicit context state, Alter
- * selection, and Echoes anchors together so `SecondBrainView.vue` can stay a
+ * This composable keeps the session lifecycle, explicit context state, and
+ * Echoes anchors together so `SecondBrainView.vue` can stay a
  * render shell and the conversation runtime can consume a stable session API.
  */
 export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWorkflowOptions) {
@@ -75,12 +61,7 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
   const mentionInfo = ref('')
   const composerContextPaths = ref<string[]>([])
   const sessionsIndex = ref<SecondBrainSessionSummary[]>([])
-  const availableAlters = ref<AlterSummary[]>([])
-  const selectedAlterId = ref('')
   const selectedEchoesContextPath = ref('')
-
-  const alterSettings = computed<AppSettingsAlters>(() => options.settings.value ?? DEFAULT_ALTER_SETTINGS)
-  const alterCatalogSync = useAlterCatalogSync()
 
   /**
    * Converts a workspace path to a display-friendly relative path.
@@ -164,11 +145,6 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     return deduped
   })
 
-  const activeAlterLabel = computed(() => {
-    if (!selectedAlterId.value) return 'Neutral'
-    return availableAlters.value.find((item) => item.id === selectedAlterId.value)?.name ?? 'Neutral'
-  })
-
   /**
    * Returns whether a path is already part of the active session context.
    */
@@ -204,7 +180,6 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     messages.value = []
     streamByMessage.value = {}
     composerContextPaths.value = []
-    selectedAlterId.value = alterSettings.value.default_mode === 'last_used' ? selectedAlterId.value : ''
     mentionInfo.value = ''
     options.emitContextChanged([])
   }
@@ -296,8 +271,8 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
   /**
    * Loads a persisted session into the current session shell.
    *
-   * The load step is where persisted messages, title, Alter selection, and
-   * context chips re-enter the local state.
+   * The load step is where persisted messages, title, and context chips
+   * re-enter the local state.
    */
   async function loadSession(nextSessionId: string) {
     if (!nextSessionId.trim()) return
@@ -310,7 +285,6 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
       sessionId.value = payload.session_id
       options.emitSessionChanged(sessionId.value)
       sessionTitle.value = payload.title || 'Second Brain Session'
-      selectedAlterId.value = payload.alter_id || ''
       contextPaths.value = payload.context_items.map((item) => toAbsoluteWorkspacePath(options.workspacePath.value, item.path))
 
       const nextTokens: Record<string, number> = {}
@@ -341,49 +315,13 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
   }
 
   /**
-   * Refreshes the available Alter list for the header selector.
-   */
-  async function refreshAlterList() {
-    try {
-      availableAlters.value = await fetchAlterList()
-    } catch {
-      availableAlters.value = []
-    }
-  }
-
-  watch(
-    () => alterCatalogSync.revision.value,
-    () => {
-      void refreshAlterList()
-    }
-  )
-
-  /**
-   * Persists the selected Alter for the active session.
-   */
-  async function applySelectedAlter(alterId: string) {
-    const normalized = (alterId ?? '').trim()
-    selectedAlterId.value = normalized
-    if (!sessionId.value) return
-    try {
-      await setDeliberationSessionAlter(sessionId.value, normalized || null)
-    } catch (err) {
-      mentionInfo.value = err instanceof Error ? err.message : 'Could not update Alter.'
-    }
-  }
-
-  /**
    * Creates a new blank session and makes it the active session.
    */
   async function onCreateSession() {
     if (creatingSession.value) return
     creatingSession.value = true
     try {
-      const created = await createDeliberationSession(
-        selectedAlterId.value
-          ? { contextPaths: [], title: '', alterId: selectedAlterId.value }
-          : { contextPaths: [], title: '' }
-      )
+      const created = await createDeliberationSession({ contextPaths: [], title: '' })
       sessionId.value = created.sessionId
       options.emitSessionChanged(sessionId.value)
       sessionTitle.value = 'Second Brain Session'
@@ -423,16 +361,12 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
   async function initializeSessionOnFirstOpen() {
     if (sessionId.value) return
 
-    void refreshAlterList()
     await refreshSessionsIndex()
     if (sessionId.value) return
 
     if (options.requestedSessionId.value.trim()) {
       await loadSession(options.requestedSessionId.value.trim())
     } else {
-      selectedAlterId.value = alterSettings.value.default_mode === 'last_used'
-        ? options.requestedAlterId.value.trim()
-        : ''
       resetConversationState({ emitSessionChange: false })
     }
   }
@@ -464,7 +398,6 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
   }
 
   onMounted(async () => {
-    await refreshAlterList()
     try {
       const status = await fetchSecondBrainConfigStatus()
       if (!status.configured) {
@@ -486,23 +419,9 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     }
   )
 
-  watch(
-    () => `${options.requestedAlterNonce.value}::${options.requestedAlterId.value}`,
-    (value) => {
-      const [nonce] = value.split('::')
-      if (!nonce.trim()) return
-      void applySelectedAlter(options.requestedAlterId.value)
-    },
-    { immediate: true }
-  )
-
   return {
-    activeAlterLabel,
     addEchoesSuggestion,
     addPathToContext,
-    alterSettings,
-    applySelectedAlter,
-    availableAlters,
     configError,
     contextCards,
     contextPaths,
@@ -521,12 +440,10 @@ export function useSecondBrainSessionWorkflow(options: UseSecondBrainSessionWork
     onCreateSession,
     onDeleteSession,
     openContextNote,
-    refreshAlterList,
     refreshSessionsIndex,
     removeContextPath,
     replaceContextPaths,
     resetConversationState,
-    selectedAlterId,
     selectedEchoesContextPath,
     sessionId,
     sessionTitle,

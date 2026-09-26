@@ -51,7 +51,6 @@ const emit = defineEmits<{
   historyTargetClick: [targetIndex: number]
   openToday: []
   openSecondBrain: []
-  openAlterExploration: []
   splitRight: []
   splitDown: []
   focusPane: [index: number]
@@ -127,7 +126,6 @@ defineExpose<AppShellChromeSurfaceExposed>({
       @history-target-click="emit('historyTargetClick', $event)"
       @open-today="emit('openToday')"
       @open-second-brain="emit('openSecondBrain')"
-      @open-alter-exploration="emit('openAlterExploration')"
       @split-right="emit('splitRight')"
       @split-down="emit('splitDown')"
       @focus-pane="emit('focusPane', $event)"

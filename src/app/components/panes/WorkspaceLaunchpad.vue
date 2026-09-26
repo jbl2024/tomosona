@@ -61,7 +61,7 @@ const emit = defineEmits<{
   openQuickOpen: []
   createNote: []
   openRecentNote: [path: string]
-  quickStart: [kind: 'today' | 'command-palette' | 'alters']
+  quickStart: [kind: 'today' | 'command-palette']
 }>()
 
 function noteLocationLabel(path: string): string {

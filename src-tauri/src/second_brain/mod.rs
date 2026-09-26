@@ -36,7 +36,7 @@ use frontmatter_generation::{
 use message_flow::send_message;
 use openai_codex::{discover_models, has_codex_tokens, CodexDiscoveredModel};
 use session_store::{
-    create_session, delete_session, list_sessions, load_session, set_session_alter_id,
+    create_session, delete_session, list_sessions, load_session,
     upsert_context,
 };
 use stream_control::request_stream_cancel;
@@ -57,7 +57,6 @@ pub struct AttachmentMeta {
 pub struct CreateSessionPayload {
     pub title: Option<String>,
     pub context_paths: Vec<String>,
-    pub alter_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -82,20 +81,8 @@ pub struct SendMessagePayload {
     pub session_id: String,
     pub mode: String,
     pub message: String,
-    pub alter_id: Option<String>,
     #[serde(default)]
     pub attachments: Vec<AttachmentMeta>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct SetSessionAlterPayload {
-    pub session_id: String,
-    pub alter_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SetSessionAlterResult {
-    pub alter_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -311,7 +298,6 @@ pub fn create_second_brain_session(payload: CreateSessionPayload) -> Result<Crea
         &title,
         &active.provider,
         &active.model,
-        payload.alter_id.as_deref().unwrap_or("").trim(),
     )?;
 
     let context_items = load_context_items(&payload.context_paths)?;
@@ -322,25 +308,6 @@ pub fn create_second_brain_session(payload: CreateSessionPayload) -> Result<Crea
         session_id,
         created_at_ms,
     })
-}
-
-#[tauri::command]
-pub fn set_second_brain_session_alter(
-    payload: SetSessionAlterPayload,
-) -> Result<SetSessionAlterResult> {
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    if !session_exists(&conn, &payload.session_id)? {
-        return Err(AppError::InvalidOperation(
-            "Second Brain session not found.".to_string(),
-        ));
-    }
-    let alter_id = payload.alter_id.unwrap_or_default().trim().to_string();
-    if !alter_id.is_empty() {
-        let _ = crate::alters::resolve_invocation_prompt(&conn, Some(&alter_id))?;
-    }
-    set_session_alter_id(&conn, &payload.session_id, &alter_id)?;
-    Ok(SetSessionAlterResult { alter_id })
 }
 
 #[tauri::command]

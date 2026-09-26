@@ -41,13 +41,12 @@ describe('useMultiPaneWorkspaceState', () => {
   it('keeps special surfaces unique across panes', () => {
     const store = useMultiPaneWorkspaceState()
     store.openSurfaceInPane('home')
-    store.openSurfaceInPane('alter-exploration')
+    store.openSurfaceInPane('second-brain-chat')
     const pane2 = store.splitPane('pane-1', 'row')
     store.openSurfaceInPane('home', pane2!)
-    store.openSurfaceInPane('alter-exploration', pane2!)
+    store.openSurfaceInPane('second-brain-chat', pane2!)
 
     expect(store.layout.value.activePaneId).toBe('pane-1')
-    expect(store.findPaneContainingSurface('alter-exploration')).toBe('pane-1')
   })
 
   it('closes tabs to the left of the requested tab and activates the clicked tab when needed', () => {

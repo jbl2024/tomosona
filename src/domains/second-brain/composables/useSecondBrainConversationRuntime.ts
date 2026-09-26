@@ -30,7 +30,6 @@ export type UseSecondBrainConversationRuntimeOptions = {
   composerContextPaths: Ref<string[]>
   sessionId: Ref<string>
   sessionTitle: Ref<string>
-  selectedAlterId: Ref<string>
   sessionsIndex: Ref<SecondBrainSessionSummary[]>
   requestInFlight: Ref<boolean>
   sending: Ref<boolean>
@@ -371,20 +370,11 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     void options.scrollThreadToBottom({ force: true })
 
     try {
-      const result = await runDeliberation(
-        options.selectedAlterId.value
-          ? {
-              sessionId: options.sessionId.value,
-              mode: 'freestyle',
-              message: outgoing,
-              alterId: options.selectedAlterId.value
-            }
-          : {
-              sessionId: options.sessionId.value,
-              mode: 'freestyle',
-              message: outgoing
-            }
-      )
+      const result = await runDeliberation({
+        sessionId: options.sessionId.value,
+        mode: 'freestyle',
+        message: outgoing
+      })
 
       options.messages.value = options.messages.value.map((message) =>
         message.id === tempUserId ? { ...message, id: result.userMessageId } : message

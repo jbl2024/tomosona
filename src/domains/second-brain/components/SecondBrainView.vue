@@ -5,12 +5,9 @@
  * This component owns layout and event wiring only; the actual session,
  * stream, and composer behavior live in the domain composables.
  */
-import { computed, ref, watch } from 'vue'
-import { ClipboardDocumentIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline'
-import type { AppSettingsAlters } from '../../../shared/api/apiTypes'
-import UiButton from '../../../shared/components/ui/UiButton.vue'
+import { computed } from 'vue'
+import { ClipboardDocumentIcon, PlusIcon } from '@heroicons/vue/24/outline'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
-import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import WorkspaceComposerActionButton from '../../../shared/components/workspace/WorkspaceComposerActionButton.vue'
 import WorkspaceContextChips from '../../../shared/components/workspace/WorkspaceContextChips.vue'
 import WorkspaceSessionDropdown, { type WorkspaceSessionDropdownItem } from '../../../shared/components/workspace/WorkspaceSessionDropdown.vue'
@@ -25,34 +22,20 @@ const props = withDefaults(defineProps<{
   requestedSessionNonce: number
   requestedPrompt: string
   requestedPromptNonce: number
-  requestedAlterId?: string
-  requestedAlterNonce?: number
   activeNotePath?: string
   echoesRefreshToken?: number
-  settings?: AppSettingsAlters
 }>(), {
-  requestedAlterId: '',
-  requestedAlterNonce: 0,
-  settings: () => ({
-    default_mode: 'neutral',
-    show_badge_in_chat: true,
-    default_influence_intensity: 'balanced'
-  })
 })
 
 const emit = defineEmits<{
   'open-note': [path: string]
-  'open-alter-exploration': []
   'context-changed': [paths: string[]]
   'session-changed': [sessionId: string]
 }>()
 
 const {
-  activeAlterLabel,
   addEchoesSuggestion,
   applyMentionSuggestion,
-  applySelectedAlter,
-  availableAlters,
   canCopyConversation,
   composerRef,
   configError,
@@ -83,7 +66,6 @@ const {
   removeContextPath,
   renderAssistantMarkdown,
   requestInFlight,
-  selectedAlterId,
   selectedEchoesContextPath,
   sessionLoadError,
   sendError,
@@ -104,39 +86,11 @@ const {
   requestedSessionNonce: computed(() => props.requestedSessionNonce),
   requestedPrompt: computed(() => props.requestedPrompt),
   requestedPromptNonce: computed(() => props.requestedPromptNonce),
-  requestedAlterId: computed(() => props.requestedAlterId ?? ''),
-  requestedAlterNonce: computed(() => props.requestedAlterNonce ?? 0),
   echoesRefreshToken: computed(() => props.echoesRefreshToken ?? 0),
-  settings: computed(() => props.settings ?? {
-    default_mode: 'neutral',
-    show_badge_in_chat: true,
-    default_influence_intensity: 'balanced'
-  }),
   emitContextChanged: (paths) => emit('context-changed', paths),
   emitSessionChanged: (nextSessionId) => emit('session-changed', nextSessionId),
   emitOpenNote: (path) => emit('open-note', path)
 })
-
-type AlterDropdownItem = FilterableDropdownItem & {
-  alterId: string
-}
-
-const alterDropdownOpen = ref(false)
-const alterDropdownQuery = ref('')
-const alterDropdownActiveIndex = ref(0)
-
-const alterDropdownItems = computed<AlterDropdownItem[]>(() => [
-  {
-    id: '',
-    label: 'Neutral',
-    alterId: ''
-  },
-  ...availableAlters.value.map((item) => ({
-    id: item.id,
-    label: item.name,
-    alterId: item.id
-  }))
-])
 
 const sessionDropdownItems = computed<WorkspaceSessionDropdownItem[]>(() =>
   sessionsIndex.value.map((session) => ({
@@ -149,37 +103,6 @@ const sessionDropdownItems = computed<WorkspaceSessionDropdownItem[]>(() =>
   }))
 )
 
-function selectedAlterIndex(): number {
-  if (!selectedAlterId.value) return 0
-  const index = alterDropdownItems.value.findIndex((item) => item.alterId === selectedAlterId.value)
-  return index >= 0 ? index : 0
-}
-
-function syncAlterDropdownActiveIndex() {
-  alterDropdownActiveIndex.value = selectedAlterIndex()
-}
-
-function onAlterDropdownOpenChange(value: boolean) {
-  alterDropdownOpen.value = value
-  if (value) {
-    syncAlterDropdownActiveIndex()
-  }
-}
-
-function onAlterDropdownSelect(item: AlterDropdownItem) {
-  void applySelectedAlter(item.alterId)
-  alterDropdownOpen.value = false
-  alterDropdownQuery.value = ''
-}
-
-function openAlterExploration() {
-  emit('open-alter-exploration')
-}
-
-watch(selectedAlterId, () => {
-  syncAlterDropdownActiveIndex()
-}, { immediate: true })
-
 void composerRef
 void threadBottomSentinel
 void threadRef
@@ -188,6 +111,7 @@ void threadRef
 <template>
   <div class="sb-layout">
     <section class="sb-center">
+
       <header class="sb-center-head">
         <div class="sb-center-head-main">
           <h2>{{ sessionTitle }}</h2>
@@ -203,37 +127,6 @@ void threadRef
           >
             <ClipboardDocumentIcon class="h-4 w-4" />
           </UiIconButton>
-          <UiFilterableDropdown
-            class="sb-alter-dropdown"
-            :items="alterDropdownItems"
-            :model-value="alterDropdownOpen"
-            :query="alterDropdownQuery"
-            :active-index="alterDropdownActiveIndex"
-            filter-placeholder="Filter alters..."
-            :show-filter="true"
-            :close-on-select="true"
-            :menu-mode="'portal'"
-            :menu-class="'sb-alter-dropdown-menu'"
-            :disabled="loading || creatingSession"
-            @open-change="onAlterDropdownOpenChange"
-            @query-change="alterDropdownQuery = $event"
-            @active-index-change="alterDropdownActiveIndex = $event"
-            @select="onAlterDropdownSelect($event as AlterDropdownItem)"
-          >
-            <template #trigger="{ toggleMenu }">
-              <button
-                type="button"
-                class="sb-toolbar-btn sb-alter-trigger"
-                title="Change alter"
-                aria-label="Change alter"
-                :disabled="loading || creatingSession"
-                @click="toggleMenu"
-              >
-                <span class="sb-alter-trigger-label">{{ activeAlterLabel }}</span>
-                <span class="sb-alter-trigger-caret" aria-hidden="true">▾</span>
-              </button>
-            </template>
-          </UiFilterableDropdown>
           <button
             type="button"
             class="sb-session-create-btn"
@@ -256,18 +149,6 @@ void threadRef
             @select="loadSession"
             @delete="onDeleteSession"
           />
-          <UiButton
-            size="sm"
-            variant="secondary"
-            class="sb-explore-btn"
-            :disabled="loading || creatingSession || !props.workspacePath"
-            @click="openAlterExploration()"
-          >
-            <template #leading>
-              <SparklesIcon class="h-4 w-4" />
-            </template>
-            Explore with Alters
-          </UiButton>
         </div>
       </header>
       <p v-if="configError || sessionLoadError" class="sb-error">{{ configError || sessionLoadError }}</p>
@@ -434,15 +315,6 @@ void threadRef
   color: var(--sb-button-text);
 }
 
-.sb-alter-dropdown {
-  display: inline-flex;
-  align-items: center;
-}
-
-.sb-alter-dropdown-menu {
-  z-index: 70;
-}
-
 .sb-session-create-btn {
   width: 32px;
   height: 32px;
@@ -461,10 +333,6 @@ void threadRef
   cursor: not-allowed;
 }
 
-.sb-explore-btn {
-  white-space: nowrap;
-}
-
 .sb-center-head h2 {
   margin: 0;
   flex: 0 1 auto;
@@ -474,45 +342,6 @@ void threadRef
 
 .sb-center-head .sb-error {
   margin: 0 0 0 12px;
-}
-
-.sb-toolbar-btn {
-  min-width: 0;
-  height: 32px;
-  border: 1px solid var(--sb-button-border);
-  border-radius: 10px;
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 10px;
-}
-
-.sb-alter-trigger {
-  min-width: 0;
-}
-
-.sb-alter-trigger-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 16ch;
-}
-
-.sb-alter-trigger-caret {
-  font-size: 10px;
-  line-height: 1;
-  color: var(--sb-text-dim);
-}
-
-.sb-alter-dropdown-menu .ui-filterable-dropdown-option[data-active='true'] {
-  color: var(--sb-active-text);
-}
-
-.sb-alter-dropdown-menu {
-  min-width: 180px;
 }
 
 .sb-thread {

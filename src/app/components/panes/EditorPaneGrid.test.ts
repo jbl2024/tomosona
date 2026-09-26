@@ -193,8 +193,8 @@ describe('EditorPaneGrid', () => {
         },
         'pane-4': {
           id: 'pane-4',
-          activeTabId: 'alters-1',
-          openTabs: [{ id: 'alters-1', type: 'alters', pinned: false }],
+          activeTabId: 'home-2',
+          openTabs: [{ id: 'home-2', type: 'home', pinned: false }],
           activePath: ''
         }
       },
@@ -225,14 +225,6 @@ describe('EditorPaneGrid', () => {
             loadPropertyTypeSchema: async () => ({}),
             savePropertyTypeSchema: async () => {},
             openLinkTarget: async () => true,
-            alters: {
-              workspacePath: '',
-              settings: {
-                default_mode: 'neutral',
-                show_badge_in_chat: true,
-                default_influence_intensity: 'balanced'
-              }
-            },
             secondBrain: {
               workspacePath: '/vault',
               allWorkspaceFiles: ['notes/a.md'],
@@ -302,7 +294,7 @@ describe('EditorPaneGrid', () => {
         openDocumentPaths: [],
         launchpadMode: 'workspace-launchpad',
         showExperience: false,
-        activeTabId: 'alters-1'
+        activeTabId: 'home-2'
       }
     ])
 
@@ -431,14 +423,6 @@ describe('EditorPaneGrid', () => {
             loadPropertyTypeSchema: async () => ({}),
             savePropertyTypeSchema: async () => {},
             openLinkTarget: async () => true,
-            alters: {
-              workspacePath: '',
-              settings: {
-                default_mode: 'neutral',
-                show_badge_in_chat: true,
-                default_influence_intensity: 'balanced'
-              }
-            },
             secondBrain: {
               workspacePath: '/vault',
               allWorkspaceFiles: ['notes/a.md'],
