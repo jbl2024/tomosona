@@ -5,7 +5,6 @@ import {
   canContinueEditorAtMacroArgument,
   editorAtMacroMatchesQuery,
   type EditorAtMacroEntry,
-  type EditorAtPulseAction
 } from '../lib/editorAtMacros'
 import { markdownToEditorData, type EditorBlock } from '../lib/markdownBlocks'
 import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
@@ -46,7 +45,6 @@ export type UseEditorAtMenuOptions = {
     userName?: string
     templates?: Array<{ path: string; label: string; relativePath: string; group: string }>
   }
-  openPulseMacro?: (action: EditorAtPulseAction) => void
   readTemplateContent?: (path: string) => Promise<string>
   now?: () => Date
 }
@@ -215,13 +213,6 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
       const doc = toTiptapDoc(parsed.blocks as EditorBlock[])
       const content = Array.isArray(doc.content) && doc.content.length ? doc.content : templateContent
       editor.chain().focus().deleteRange({ from: trigger.start, to: trigger.end }).insertContent(content).run()
-      closeAtMenu()
-      return true
-    }
-
-    if (entry.kind === 'open_pulse' && entry.pulse) {
-      editor.chain().focus().deleteRange({ from: trigger.start, to: trigger.end }).run()
-      options.openPulseMacro?.(entry.pulse)
       closeAtMenu()
       return true
     }

@@ -1,4 +1,4 @@
-//! Prompt assembly and token-budget rules for Second Brain and Pulse.
+//! Prompt assembly and token-budget rules for Second Brain.
 //!
 //! The functions here stay intentionally pure. They own formatting, truncation and
 //! ordering rules, but never perform I/O or talk to the LLM provider directly.
@@ -7,7 +7,6 @@ use super::{
     context::ContextPromptEntry,
     frontmatter_generation::{FrontmatterGenerationExistingField, FrontmatterGenerationMode},
     session_store::{estimate_tokens, MessageRow},
-    AppError, PulseSourceKind, Result, RunPulseTransformationPayload,
 };
 
 #[derive(Debug, Clone)]
@@ -196,74 +195,6 @@ pub(super) fn normalize_title_from_first_message(raw: &str) -> String {
         compact.push_str("...");
     }
     compact
-}
-
-pub(super) fn normalize_pulse_action_id(raw: &str) -> Result<String> {
-    let normalized = raw.trim().to_lowercase().replace('-', "_");
-    let allowed = [
-        "format",
-        "rewrite",
-        "condense",
-        "expand",
-        "change_tone",
-        "synthesize",
-        "outline",
-        "brief",
-        "extract_themes",
-        "identify_tensions",
-    ];
-    if allowed.contains(&normalized.as_str()) {
-        Ok(normalized)
-    } else {
-        Err(AppError::InvalidOperation(
-            "Pulse action is not supported.".to_string(),
-        ))
-    }
-}
-
-pub(super) fn pulse_action_prompt(action_id: &str) -> &'static str {
-    match action_id {
-        "format" => {
-            "Reformate la matiere fournie en changeant uniquement sa forme (structure, longueur, presentation), sans jugement ni ajout de contenu. Reponds en markdown."
-        }
-        "rewrite" => {
-            "Reecris la matiere fournie pour la rendre plus claire et plus fluide sans changer le fond. Reponds en markdown."
-        }
-        "condense" => {
-            "Condense la matiere fournie en conservant les informations essentielles. Reponds en markdown."
-        }
-        "expand" => {
-            "Developpe la matiere fournie avec plus de structure et de details utiles, sans inventer de faits. Reponds en markdown."
-        }
-        "change_tone" => {
-            "Reformule la matiere fournie en adaptant le ton selon l'instruction utilisateur. Si aucun ton n'est precise, choisis un ton sobre et professionnel. Reponds en markdown."
-        }
-        "synthesize" => {
-            "Produis une synthese structuree de la matiere fournie. Fais ressortir les idees principales, les limites et les incertitudes. Reponds en markdown."
-        }
-        "outline" => {
-            "Transforme la matiere fournie en plan structure et exploitable. Reponds en markdown."
-        }
-        "brief" => {
-            "Transforme la matiere fournie en brief de travail clair: objectif, points saillants, tensions, prochaines questions si necessaire. Reponds en markdown."
-        }
-        "extract_themes" => {
-            "Fais emerger les themes dominants de la matiere fournie, avec une formulation concise et exploitable. Reponds en markdown."
-        }
-        "identify_tensions" => {
-            "Identifie les tensions, contradictions, angles morts ou arbitrages visibles dans la matiere fournie. Reponds en markdown."
-        }
-        _ => "Transforme la matiere fournie en sortie utile et structuree. Reponds en markdown.",
-    }
-}
-
-fn pulse_source_label(kind: &PulseSourceKind) -> &'static str {
-    match kind {
-        PulseSourceKind::EditorSelection => "Selection editeur",
-        PulseSourceKind::EditorNote => "Note editeur",
-        PulseSourceKind::SecondBrainContext => "Contexte Second Brain",
-        PulseSourceKind::CosmosFocus => "Focus Cosmos",
-    }
 }
 
 fn frontmatter_candidates() -> &'static [(&'static str, &'static str)] {
@@ -498,98 +429,6 @@ pub(super) fn frontmatter_generation_system_prompt() -> &'static str {
     "Tu es un générateur de properties frontmatter. Retourne uniquement un objet JSON valide, fidèle à la note, avec des clefs canoniques et des valeurs dans la langue dominante de la note."
 }
 
-/// Builds the Pulse prompt while keeping action-specific guidance and context budgeting explicit.
-pub(super) fn build_pulse_user_prompt(
-    payload: &RunPulseTransformationPayload,
-    action_id: &str,
-    context_entries: &[ContextPromptEntry],
-) -> BuiltPrompt {
-    let mut prompt = String::new();
-    prompt.push_str("Pulse est un moteur de transformation redactionnelle.\n");
-    prompt.push_str("Travaille uniquement a partir de la matiere fournie. ");
-    prompt.push_str("Ne fais pas de retrieval implicite et ne presente pas le resultat comme une validation de verite.\n\n");
-    prompt.push_str(&format!(
-        "Source: {}\nAction: {}\n",
-        pulse_source_label(&payload.source_kind),
-        action_id
-    ));
-    if let Some(label) = payload
-        .selection_label
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str(&format!("Libelle: {label}\n"));
-    }
-    if let Some(session_id) = payload
-        .session_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str(&format!("Session: {session_id}\n"));
-    }
-    if let Some(node_id) = payload
-        .cosmos_selected_node_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str(&format!("Cosmos node: {node_id}\n"));
-    }
-    if !payload.cosmos_neighbor_paths.is_empty() {
-        prompt.push_str("Cosmos neighbors:\n");
-        for path in &payload.cosmos_neighbor_paths {
-            prompt.push_str(&format!("- {path}\n"));
-        }
-    }
-    if let Some(instructions) = payload
-        .instructions
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str("\nInstruction supplementaire:\n");
-        prompt.push_str(instructions);
-        prompt.push('\n');
-    }
-    if let Some(source_text) = payload
-        .source_text
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str("\nMatiere source explicite:\n");
-        prompt.push_str(source_text);
-        prompt.push('\n');
-    }
-
-    let mut included_context_paths = Vec::new();
-    if !context_entries.is_empty() {
-        let (context_section, paths) =
-            build_context_section("pulse", context_entries, SB_CONTEXT_BUDGET_TOKENS);
-        if !context_section.is_empty() {
-            prompt.push('\n');
-            prompt.push_str(&context_section);
-            prompt.push('\n');
-            included_context_paths = paths;
-        }
-    }
-
-    prompt.push_str("\nTache:\n");
-    prompt.push_str(pulse_action_prompt(action_id));
-    prompt.push_str("\n\nExigences:\n");
-    prompt.push_str("- Reponds en markdown.\n");
-    prompt.push_str("- Signale les incertitudes lorsque la matiere est incomplete.\n");
-    prompt.push_str("- Reste fidele a la matiere fournie.\n");
-
-    BuiltPrompt {
-        user_prompt: prompt,
-        included_context_paths,
-        language_hint: String::new(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -652,45 +491,6 @@ mod tests {
         assert!(built.user_prompt.contains("--- SOURCE: a.md ---"));
         assert!(built.user_prompt.contains("[CONTENU TRONQUE]"));
         assert!(!built.included_context_paths.is_empty());
-    }
-
-    #[test]
-    fn normalizes_supported_pulse_actions() {
-        assert_eq!(normalize_pulse_action_id("format").unwrap(), "format");
-        assert_eq!(normalize_pulse_action_id("rewrite").unwrap(), "rewrite");
-        assert_eq!(
-            normalize_pulse_action_id("identify-tensions").unwrap(),
-            "identify_tensions"
-        );
-        assert!(normalize_pulse_action_id("freestyle").is_err());
-    }
-
-    #[test]
-    fn pulse_prompt_includes_explicit_source_text() {
-        let payload = RunPulseTransformationPayload {
-            request_id: Some("pulse-test".to_string()),
-            source_kind: PulseSourceKind::EditorSelection,
-            action_id: "rewrite".to_string(),
-            instructions: Some("Use a diplomatic tone.".to_string()),
-            context_paths: Vec::new(),
-            source_text: Some("Original paragraph".to_string()),
-            selection_label: Some("Selected paragraph".to_string()),
-            session_id: None,
-            cosmos_selected_node_id: None,
-            cosmos_neighbor_paths: Vec::new(),
-        };
-
-        let built = build_pulse_user_prompt(&payload, "rewrite", &[]);
-        assert!(built.user_prompt.contains("Pulse est un moteur"));
-        assert!(built.user_prompt.contains("Original paragraph"));
-        assert!(built.user_prompt.contains("Use a diplomatic tone."));
-        assert!(built.user_prompt.contains("Selection editeur"));
-        assert!(built.included_context_paths.is_empty());
-    }
-
-    #[test]
-    fn format_prompt_emphasizes_shape_without_judgment() {
-        assert!(pulse_action_prompt("format").contains("sans ajouter de jugement"));
     }
 
     #[test]

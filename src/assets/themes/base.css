@@ -326,7 +326,6 @@
   --editor-menu-active-bg: var(--surface-subtle);
   --editor-menu-disabled: var(--text-faint);
   --editor-menu-section-border: color-mix(in srgb, var(--border-strong) 72%, transparent);
-  --editor-pulse-indicator: #22c55e;
   --editor-overlay-backdrop: rgba(255, 255, 255, 0.75);
   --editor-overlay-panel: rgba(255, 255, 255, 0.95);
   --editor-progress-track: #e2e8f0;
@@ -644,7 +643,6 @@ html[data-theme='tomosona-dark'] {
   --editor-marker-muted: #5c6370;
   --editor-marker-faint: #8b93a3;
   --editor-checkbox-accent: #61afef;
-  --editor-pulse-indicator: #4ade80;
   --editor-table-bg: #282c34;
   --editor-table-border: #3e4451;
   --editor-table-cell-border: #4b5263;

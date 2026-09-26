@@ -84,7 +84,6 @@ Use this as a quick routing table when you need to make a change.
 | Search / indexing | `src-tauri/src/markdown_index.rs` | `src-tauri/src/search_index.rs`, `src-tauri/src/index_schema.rs`, `src/app/composables/useAppIndexingController.ts` |
 | Cosmos graph behavior | `src/domains/cosmos/components/CosmosView.vue` | `src/domains/cosmos/composables/useCosmosController.ts`, `src-tauri/src/wikilink_graph.rs` |
 | Second Brain chat flow | `src/domains/second-brain/components/SecondBrainView.vue` | `src/domains/second-brain/composables/useSecondBrainViewState.ts`, `src/domains/second-brain/composables/useSecondBrainSessionWorkflow.ts`, `src/domains/second-brain/composables/useSecondBrainConversationRuntime.ts`, `src-tauri/src/second_brain/*` |
-| Pulse actions / transformations | `src/domains/pulse/lib/pulse.ts` | `src/domains/editor/composables/useEditorChromeRuntime.ts`, `src/domains/editor/components/EditorView.vue`, `src/domains/second-brain/composables/useSecondBrainConversationRuntime.ts`, `src/domains/cosmos/components/CosmosSidebarPanel.vue` |
 | Second Brain config / models | `src/app/components/settings/SettingsModal.vue` | `src/shared/api/settingsApi.ts`, `src-tauri/src/second_brain/config.rs`, `src-tauri/src/second_brain/openai_codex.rs` |
 | Alter manager | `src/domains/alters/components/AlterManagerView.vue` | `src/domains/alters/composables/useAlterManager.ts`, `src-tauri/src/alters.rs` |
 | UI primitives / shared shells | `src/shared/components/ui/ARCHITECTURE.md` | `src/shared/components/ui/*`, `src/assets/tailwind.css` |
@@ -205,7 +204,7 @@ Start in:
 
 ### Second Brain
 
-Use this when the change touches chat sessions, context injection, streamed responses, Pulse presets, or prompt composition.
+Use this when the change touches chat sessions, context injection, streamed responses, or prompt composition.
 
 Start in:
 

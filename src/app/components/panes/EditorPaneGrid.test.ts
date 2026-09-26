@@ -20,7 +20,6 @@ const harnessState = vi.hoisted(() => ({
         reloadCurrent: ReturnType<typeof vi.fn>
         applyWorkspaceFsChanges: ReturnType<typeof vi.fn>
         focusEditor: ReturnType<typeof vi.fn>
-        getPulseDrawerState: ReturnType<typeof vi.fn>
         revealSnippet: ReturnType<typeof vi.fn>
         revealOutlineHeading: ReturnType<typeof vi.fn>
         revealAnchor: ReturnType<typeof vi.fn>
@@ -89,19 +88,6 @@ vi.mock('./PaneSurfaceHost.vue', () => ({
         reloadCurrent: vi.fn(async () => {}),
         applyWorkspaceFsChanges: vi.fn(async () => {}),
         focusEditor: vi.fn(),
-        getPulseDrawerState: vi.fn(() => ({
-          open: props.activeTab?.type === 'document',
-          sourceKind: 'editor_note',
-          actionId: 'synthesize',
-          instruction: '',
-          previewMarkdown: '',
-          provenancePaths: [],
-          running: false,
-          error: '',
-          sourceText: '',
-          applyModes: [],
-          primaryApplyMode: null
-        })),
         revealSnippet: vi.fn(async () => {}),
         revealOutlineHeading: vi.fn(async () => {}),
         revealAnchor: vi.fn(async () => true),
@@ -529,111 +515,6 @@ describe('EditorPaneGrid', () => {
     const secondSurfaceMethods = harnessState.surfaceMethods.find((entry) => entry.paneId === 'pane-2')?.methods
     expect(firstSurfaceMethods).toBeTruthy()
     expect(secondSurfaceMethods).toBeTruthy()
-
-    app.unmount()
-  })
-
-  it('emits the active pulse drawer state when the active tab changes in the same pane', async () => {
-    const layout = ref<MultiPaneLayout>({
-      root: { kind: 'pane', paneId: 'pane-1' },
-      panesById: {
-        'pane-1': {
-          id: 'pane-1',
-          activeTabId: 'doc-1',
-          openTabs: [
-            { id: 'doc-1', type: 'document', path: 'notes/a.md', pinned: false },
-            { id: 'home-1', type: 'home', pinned: false }
-          ],
-          activePath: 'notes/a.md'
-        }
-      },
-      activePaneId: 'pane-1'
-    })
-    const pulseStates: Array<{ open: boolean }> = []
-
-    const app = createApp(defineComponent({
-      setup() {
-        return () =>
-          h(EditorPaneGrid, {
-            layout: layout.value,
-            activeDocumentPath: 'notes/a.md',
-            getStatus: () => ({ dirty: false, saving: false, saveError: '' }),
-            renameFileFromTitle: async (path: string, title: string) => ({ path, title }),
-            loadLinkTargets: async () => [],
-            loadLinkHeadings: async () => [],
-            loadPropertyTypeSchema: async () => ({}),
-            savePropertyTypeSchema: async () => {},
-            openLinkTarget: async () => true,
-            cosmos: {
-              graph: { nodes: [], edges: [], generated_at_ms: 0 },
-              loading: false,
-              error: '',
-              selectedNodeId: '',
-              focusMode: false,
-              focusDepth: 1,
-              summary: { nodes: 0, edges: 0 },
-              query: '',
-              matches: [],
-              showSemanticEdges: false,
-              selectedNode: null,
-              selectedLinkCount: 0,
-              preview: '',
-              previewLoading: false,
-              previewError: '',
-              outgoingNodes: [],
-              incomingNodes: []
-            },
-            alters: {
-              workspacePath: '',
-              settings: {
-                default_mode: 'neutral',
-                show_badge_in_chat: true,
-                default_influence_intensity: 'balanced'
-              }
-            },
-            secondBrain: {
-              workspacePath: '/vault',
-              allWorkspaceFiles: ['notes/a.md'],
-              requestedSessionId: '',
-              requestedSessionNonce: 0,
-              requestedPrompt: '',
-              requestedPromptNonce: 0,
-              activeNotePath: '',
-              echoesRefreshToken: 0
-            },
-            launchpad: {
-              workspaceLabel: 'vault',
-              recentWorkspaces: [],
-              recentViewedNotes: [],
-              recentUpdatedNotes: [],
-              showWizardAction: true
-            },
-            onPulseStateChange: (state: { open: boolean }) => {
-              pulseStates.push(state)
-            }
-          })
-      }
-    }))
-
-    const root = document.createElement('div')
-    document.body.appendChild(root)
-    app.mount(root)
-    await nextTick()
-
-    layout.value = {
-      ...layout.value,
-      panesById: {
-        'pane-1': {
-          ...layout.value.panesById['pane-1'],
-          activeTabId: 'home-1',
-          activePath: ''
-        }
-      }
-    }
-    await nextTick()
-    await nextTick()
-
-    expect(pulseStates[pulseStates.length - 1]?.open).toBe(false)
 
     app.unmount()
   })

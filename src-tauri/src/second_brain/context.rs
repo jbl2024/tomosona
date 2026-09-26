@@ -96,12 +96,6 @@ pub(super) fn load_prioritized_session_entries(
     load_context_entries_from_items(&prioritized)
 }
 
-/// Reads explicit Pulse context paths after validation.
-pub(super) fn load_context_entries_from_paths(paths: &[String]) -> Result<Vec<ContextPromptEntry>> {
-    let items = load_context_items(paths)?;
-    load_context_entries_from_items(&items)
-}
-
 fn load_context_entries_from_items(items: &[ContextItem]) -> Result<Vec<ContextPromptEntry>> {
     let root = active_workspace_root()?;
     let mut entries = Vec::with_capacity(items.len());

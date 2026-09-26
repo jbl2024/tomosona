@@ -49,7 +49,6 @@ const emit = defineEmits<{
 
 const {
   activeAlterLabel,
-  activePulseAction,
   addEchoesSuggestion,
   applyMentionSuggestion,
   applySelectedAlter,
@@ -58,7 +57,6 @@ const {
   composerRef,
   configError,
   contextCards,
-  contextPaths,
   copiedByMessageId,
   copyToast,
   creatingSession,
@@ -78,16 +76,10 @@ const {
   onCopyConversation,
   onCreateSession,
   onDeleteSession,
-  onPulseDropdownSelect,
   onSendMessage,
   onStopStreaming,
   onThreadScroll,
   openContextNote,
-  pulseDropdownActiveIndex,
-  pulseDropdownItems,
-  pulseDropdownMatcher,
-  pulseDropdownOpen,
-  pulseDropdownQuery,
   removeContextPath,
   renderAssistantMarkdown,
   requestInFlight,
@@ -329,42 +321,6 @@ void threadRef
             />
           </transition>
 
-          <div class="sb-pulse-bar">
-            <div class="sb-pulse-bar-head">
-              <SparklesIcon class="h-4 w-4" />
-              <span>Pulse</span>
-            </div>
-            <UiFilterableDropdown
-              class="sb-pulse-dropdown"
-              :items="pulseDropdownItems"
-              :model-value="pulseDropdownOpen"
-              :query="pulseDropdownQuery"
-              :active-index="pulseDropdownActiveIndex"
-              :matcher="pulseDropdownMatcher"
-              :show-filter="true"
-              :close-on-select="true"
-              :menu-mode="'portal'"
-              :menu-class="'sb-pulse-dropdown-menu'"
-              :disabled="!contextPaths.length || requestInFlight"
-              filter-placeholder="Filter Pulse actions..."
-              @open-change="pulseDropdownOpen = $event"
-              @query-change="pulseDropdownQuery = $event"
-              @active-index-change="pulseDropdownActiveIndex = $event"
-              @select="onPulseDropdownSelect($event)"
-            >
-              <template #trigger="{ toggleMenu }">
-                <button
-                  type="button"
-                  class="sb-pulse-trigger"
-                  :disabled="!contextPaths.length || requestInFlight"
-                  @click="toggleMenu"
-                >
-                  {{ activePulseAction?.label || 'Choose action' }}
-                </button>
-              </template>
-            </UiFilterableDropdown>
-          </div>
-
           <SecondBrainAtMentionsMenu
             :open="mentions.isOpen.value"
             :suggestions="mentions.suggestions.value"
@@ -387,7 +343,7 @@ void threadRef
             :value="inputMessage"
             class="sb-textarea"
             rows="1"
-            :placeholder="`Ask a question, or guide Pulse before clicking ${activePulseAction?.label || 'an action'}...`"
+            placeholder="Ask a question..."
             @input="onComposerInput"
             @keydown="onComposerKeydown"
             @click="updateMentionTriggerFromComposer"
@@ -783,45 +739,6 @@ void threadRef
   background: var(--sb-input-bg);
   padding: 10px;
   box-shadow: var(--sb-composer-shadow);
-}
-
-.sb-pulse-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.sb-pulse-bar-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sb-text);
-}
-
-.sb-pulse-trigger {
-  border: 1px solid var(--sb-button-border);
-  background: var(--sb-button-bg);
-  color: var(--sb-button-text);
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 10px;
-}
-
-.sb-pulse-dropdown {
-  min-width: 0;
-}
-
-.sb-pulse-dropdown-menu {
-  --ui-dropdown-bg: var(--sb-input-bg);
-  --ui-dropdown-border: var(--sb-border);
-  --ui-dropdown-text: var(--sb-text);
-  --ui-dropdown-muted: var(--sb-text-dim);
-  --ui-dropdown-hover: var(--sb-assistant-bg);
 }
 
 .sb-composer .sb-textarea {

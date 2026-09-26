@@ -243,34 +243,6 @@ describe('useEditorAtMenu', () => {
     ])
   })
 
-  it('opens Pulse for AI macros after removing the trigger token', async () => {
-    const { editor, chain } = createEditor('Draft @summarize')
-    const openPulseMacro = vi.fn()
-    const menu = useEditorAtMenu({
-      getEditor: () => editor,
-      currentTextSelectionContext: () => ({
-        text: 'Draft @summarize',
-        nodeType: 'paragraph',
-        from: 1,
-        to: 17,
-        offset: 16,
-        marks: []
-      }),
-      closeCompetingMenus: vi.fn(),
-      getDocumentMetadata: () => ({ title: 'Planning note', path: 'notes/planning.md' }),
-      openPulseMacro
-    })
-
-    const applied = await menu.insertAtMacro(menu.atEntries.value.find((entry) => entry.id === 'summarize')!)
-    expect(applied).toBe(true)
-    expect(chain.deleteRange).toHaveBeenCalledWith({ from: 7, to: 17 })
-    expect(chain.insertContent).not.toHaveBeenCalled()
-    expect(openPulseMacro).toHaveBeenCalledWith({
-      actionId: 'synthesize',
-      instruction: 'Summarize the provided material into a concise, useful synthesis.'
-    })
-  })
-
   it('stays open when a valid @ query has no matching macro', () => {
     const { editor } = createEditor('Draft @zzzz')
     const menu = useEditorAtMenu({

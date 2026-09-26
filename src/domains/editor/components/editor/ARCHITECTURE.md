@@ -9,9 +9,9 @@
 - Interaction runtime (Tiptap/slash/wikilink/caret): `useEditorInteractionRuntime`
   Internal organization should stay in a few local flow zones (`slashAndInsertion`, `wikilinkFlow`, `caretAndOutline`, `editorInputAndNavigation`) rather than more public runtime layers.
   Selection extraction into linked notes also belongs here: the toolbar only emits the intent, while the runtime validates block-complete selections, creates the note, and replaces the selection with a note embed block.
-- Chrome runtime (toolbars/overlays/layout/pulse): `useEditorChromeRuntime`
-  Internal organization should stay in a few local zones (`toolbars`, `blockAndTableControls`, `layoutAndZoom`, `pulseAndDialogs`) rather than new public mini-runtimes.
-  Public API should stay grouped by usage (`loading`, `toolbars`, `blockAndTable`, `layout`, `pulse`, `dialogsAndLifecycle`) instead of being flattened back into `EditorView.vue`.
+- Chrome runtime (toolbars/overlays/layout): `useEditorChromeRuntime`
+  Internal organization should stay in a few local zones (`toolbars`, `blockAndTableControls`, `layoutAndZoom`, `dialogs`) rather than new public mini-runtimes.
+  Public API should stay grouped by usage (`loading`, `toolbars`, `blockAndTable`, `layout`, `dialogsAndLifecycle`) instead of being flattened back into `EditorView.vue`.
   The block gutter is selection-driven: one controller owns target, anchor, visibility, and menu pinning so hover timing does not become a second source of truth.
 - Session lifecycle/status/autosave/request token: `useEditorSessionLifecycle`
 - Session status mutation bridge for session store + lifecycle emits: `useEditorSessionStatus`

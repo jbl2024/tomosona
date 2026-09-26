@@ -1,17 +1,15 @@
 /**
  * Composer workflow for the Second Brain chat surface.
  *
- * This module owns user input, mention resolution, Pulse prompt prep, and
+ * This module owns user input, mention resolution, and
  * clipboard/export helpers. It deliberately does not own stream lifecycle,
  * which stays in the sibling stream runtime.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
-import type { FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
-import type { PulseActionId, SecondBrainMessage, SecondBrainSessionSummary } from '../../../shared/api/apiTypes'
+import type { SecondBrainMessage, SecondBrainSessionSummary } from '../../../shared/api/apiTypes'
 import { writeClipboardText } from '../../../shared/api/clipboardApi'
 import { readTextFile } from '../../../shared/api/workspaceApi'
 import { toWorkspaceRelativePath } from '../../explorer/lib/workspacePaths'
-import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../pulse/lib/pulse'
 import { runDeliberation } from '../lib/secondBrainApi'
 import { useSecondBrainAtMentions, type SecondBrainAtMentionItem } from './useSecondBrainAtMentions'
 
@@ -51,7 +49,7 @@ export type UseSecondBrainConversationRuntimeOptions = {
 /**
  * Owns the Second Brain composer surface.
  *
- * This composable keeps prompt input, mention resolution, Pulse presets, and
+ * This composable keeps prompt input, mention resolution, and
  * clipboard/export helpers together. Streaming state is owned by the sibling
  * stream runtime.
  */
@@ -67,10 +65,6 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     message: ''
   })
   const composerRef = ref<HTMLTextAreaElement | null>(null)
-  const pulseActionId = ref<PulseActionId>('synthesize')
-  const pulseDropdownOpen = ref(false)
-  const pulseDropdownQuery = ref('')
-  const pulseDropdownActiveIndex = ref(0)
 
   const copyFeedbackTimers: Record<string, ReturnType<typeof setTimeout>> = {}
   let copyToastTimer: ReturnType<typeof setTimeout> | null = null
@@ -79,12 +73,6 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     workspacePath: options.workspacePath,
     allWorkspaceFiles: options.allWorkspaceFiles
   })
-
-  const pulseActions = computed(() => PULSE_ACTIONS_BY_SOURCE.second_brain_context)
-  const pulseDropdownItems = computed(() => getPulseDropdownItems('second_brain_context', { grouped: true }))
-  const activePulseAction = computed(
-    () => pulseActions.value.find((item) => item.id === pulseActionId.value) ?? pulseActions.value[0]
-  )
 
   const canCopyConversation = computed(() =>
     Boolean(options.sessionId.value && !options.requestInFlight.value && (options.contextPaths.value.length > 0 || options.messages.value.length > 0))
@@ -321,58 +309,6 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
   }
 
   /**
-   * Matches dropdown aliases against the search query.
-   */
-  function pulseDropdownMatcher(item: FilterableDropdownItem, query: string): boolean {
-    const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry).toLowerCase()) : []
-    return aliases.some((token) => token.includes(query))
-  }
-
-  /**
-   * Rewrites the composer into a Pulse prompt for the current context.
-   *
-   * The goal is to help the user steer the next generation without forcing a
-   * modal flow or losing any extra guidance already typed.
-   */
-  async function runPulseFromSecondBrain() {
-    if (!options.contextPaths.value.length) {
-      options.mentionInfo.value = 'Add note context before using Pulse.'
-      return
-    }
-    const nextInstruction = inputMessage.value.trim()
-    const pulsePrompts: Partial<Record<PulseActionId, string>> = {
-      format: 'Reformat the current context by changing only its shape (structure, length, presentation), not its content or judgment.',
-      rewrite: 'Rewrite the current context into a clearer version while preserving meaning.',
-      condense: 'Condense the current context into a shorter version that keeps the key information.',
-      expand: 'Expand the current context into a fuller draft with clearer structure and supporting detail.',
-      change_tone: 'Rewrite the current context in a different tone while keeping the substance intact.',
-      synthesize: 'Synthesize the current context into a concise, structured summary. Highlight key themes and uncertainties.',
-      outline: 'Turn the current context into a clear outline with sections and logical progression.',
-      brief: 'Draft a working brief from the current context, including objective, key points, and open questions.',
-      extract_themes: 'Extract the dominant themes from the current context and explain how they relate.',
-      identify_tensions: 'Identify tensions, contradictions, or open questions in the current context.'
-    }
-    const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the current context into a useful written output.'
-    inputMessage.value = nextInstruction ? `${basePrompt}\n\nAdditional guidance: ${nextInstruction}` : basePrompt
-    void nextTick(() => composerRef.value?.focus())
-  }
-
-  /**
-   * Selects a Pulse action and injects its prompt into the composer.
-   */
-  async function onPulseAction(actionId: PulseActionId) {
-    pulseActionId.value = actionId
-    await runPulseFromSecondBrain()
-  }
-
-  /**
-   * Translates dropdown selection into a Pulse action selection.
-   */
-  function onPulseDropdownSelect(item: FilterableDropdownItem) {
-    void onPulseAction(item.id as PulseActionId)
-  }
-
-  /**
    * Adds a path to the current session context while keeping rollback explicit.
    */
   async function addPathToContext(path: string): Promise<boolean> {
@@ -519,7 +455,6 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
   })
 
   return {
-    activePulseAction,
     applyMentionSuggestion,
     canCopyConversation,
     composerRef,
@@ -533,14 +468,7 @@ export function useSecondBrainConversationRuntime(options: UseSecondBrainConvers
     onComposerKeydown,
     onCopyAssistantMessage,
     onCopyConversation,
-    onPulseAction,
-    onPulseDropdownSelect,
     onSendMessage,
-    pulseDropdownActiveIndex,
-    pulseDropdownItems,
-    pulseDropdownMatcher,
-    pulseDropdownOpen,
-    pulseDropdownQuery,
     updateMentionTriggerFromComposer
   }
 }

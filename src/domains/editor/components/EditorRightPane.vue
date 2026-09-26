@@ -109,7 +109,6 @@ const activeNoteExpanded = ref(true)
       </template>
     </section>
 
-
     <section class="pane-card pane-section">
       <button type="button" class="section-toggle" @click="outlineExpanded = !outlineExpanded">
         <h3 class="section-title">Outline</h3>
@@ -208,56 +207,6 @@ const activeNoteExpanded = ref(true)
   padding: 10px 8px 8px 10px;
   box-shadow: inset 0 0 0 1px var(--right-pane-card-border);
   transition: box-shadow 160ms ease, background-color 160ms ease;
-}
-
-.pulse-drawer-view {
-  min-height: 0;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pulse-drawer-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 2px 0;
-}
-
-.pulse-drawer-back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--right-pane-text-soft);
-}
-
-.pulse-drawer-back:hover {
-  background: var(--right-pane-item-hover);
-  color: var(--right-pane-text);
-}
-
-.pulse-drawer-back svg {
-  width: 16px;
-  height: 16px;
-}
-
-.pulse-drawer-title {
-  margin: 0;
-}
-
-.pulse-drawer-subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--right-pane-text-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pane-section {

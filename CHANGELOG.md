@@ -14,6 +14,8 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Removed
 
+- Pulse transformation engine, editor AI macros, interface integrations, IPC commands, and dedicated styles/tests.
+
 ### Fixed
 
 ### Security

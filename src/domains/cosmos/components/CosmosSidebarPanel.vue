@@ -7,11 +7,8 @@
  */
 import { computed, nextTick, ref } from 'vue'
 import type { CosmosGraphNode } from '../lib/graphIndex'
-import { XMarkIcon, MapPinIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { XMarkIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import { applySearchMode, detectSearchMode, type SearchMode } from '../../../shared/lib/searchMode'
-import { PULSE_ACTIONS_BY_SOURCE, getPulseDropdownItems } from '../../pulse/lib/pulse'
-import type { PulseActionId } from '../../../shared/api/apiTypes'
-import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../shared/components/ui/UiFilterableDropdown.vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 
 type GraphSummary = {
@@ -48,20 +45,9 @@ const emit = defineEmits<{
   'locate-selected': []
   'reset-view': []
   'add-to-context': [path: string]
-  'pulse-open-second-brain': [payload: { contextPaths: string[]; prompt?: string }]
 }>()
 
 const searchInputEl = ref<HTMLInputElement | null>(null)
-const pulseActionId = ref<PulseActionId>('synthesize')
-const pulseInstruction = ref('')
-const pulseDropdownOpen = ref(false)
-const pulseDropdownQuery = ref('')
-const pulseDropdownActiveIndex = ref(0)
-const pulseActions = computed(() => PULSE_ACTIONS_BY_SOURCE.cosmos_focus)
-const pulseDropdownItems = computed(() => getPulseDropdownItems('cosmos_focus', { grouped: true }))
-const activePulseAction = computed(
-  () => pulseActions.value.find((item) => item.id === pulseActionId.value) ?? pulseActions.value[0]
-)
 const activeSearchMode = computed<SearchMode>(() => detectSearchMode(props.query))
 const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'hybrid', label: 'Hybrid' },
@@ -101,47 +87,6 @@ function onSearchModeSelect(mode: SearchMode) {
     input.focus()
     input.setSelectionRange(next.caret, next.caret)
   })
-}
-
-const pulseContextPaths = computed(() => {
-  const paths = new Set<string>()
-  if (props.selectedNode?.path) paths.add(props.selectedNode.path)
-  for (const node of props.outgoingNodes) {
-    if (node.path) paths.add(node.path)
-  }
-  for (const node of props.incomingNodes) {
-    if (node.path) paths.add(node.path)
-  }
-  return Array.from(paths)
-})
-
-function openPulseInSecondBrain() {
-  if (!props.selectedNode) return
-  const pulsePrompts: Partial<Record<PulseActionId, string>> = {
-    format: 'Reformat the selected graph context by changing only its shape (structure, length, presentation), not its content or judgment.',
-    synthesize: 'Synthesize the selected graph context into a concise, structured summary. Highlight key themes and uncertainties.',
-    outline: 'Turn the selected graph context into a clear outline with sections and logical progression.',
-    brief: 'Draft a working brief from the selected graph context, including objective, key points, and open questions.',
-    extract_themes: 'Extract the dominant themes from the selected graph context and explain how they relate.',
-    identify_tensions: 'Identify tensions, contradictions, or open questions in the selected graph context.'
-  }
-  const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the selected graph context into a useful written output.'
-  const guidance = pulseInstruction.value.trim()
-  const sourceText = props.preview.trim()
-  const quotedSource = sourceText ? `\n\nSelected note preview:\n"""\n${sourceText}\n"""` : ''
-  emit('pulse-open-second-brain', {
-    contextPaths: pulseContextPaths.value,
-    prompt: guidance ? `${basePrompt}\n\nAdditional guidance: ${guidance}${quotedSource}` : `${basePrompt}${quotedSource}`
-  })
-}
-
-function pulseDropdownMatcher(item: FilterableDropdownItem, query: string): boolean {
-  const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry).toLowerCase()) : []
-  return aliases.some((token) => token.includes(query))
-}
-
-function onPulseDropdownSelect(item: FilterableDropdownItem) {
-  pulseActionId.value = item.id as PulseActionId
 }
 </script>
 
@@ -285,64 +230,7 @@ function onPulseDropdownSelect(item: FilterableDropdownItem) {
         </div>
       </div>
 
-      <section v-if="selectedNode" class="cosmos-pulse-card">
-        <div class="cosmos-pulse-head">
-          <div class="cosmos-pulse-title">
-            <SparklesIcon class="h-4 w-4" />
-            <span>Pulse</span>
-          </div>
-          <UiFilterableDropdown
-            class="cosmos-pulse-dropdown"
-            :items="pulseDropdownItems"
-            :model-value="pulseDropdownOpen"
-            :query="pulseDropdownQuery"
-            :active-index="pulseDropdownActiveIndex"
-            :matcher="pulseDropdownMatcher"
-            :show-filter="true"
-            :close-on-select="true"
-            :menu-mode="'portal'"
-            filter-placeholder="Filter Pulse actions..."
-            @open-change="pulseDropdownOpen = $event"
-            @query-change="pulseDropdownQuery = $event"
-            @active-index-change="pulseDropdownActiveIndex = $event"
-            @select="onPulseDropdownSelect($event)"
-          >
-            <template #trigger="{ toggleMenu }">
-              <button
-                type="button"
-                class="cosmos-pulse-trigger"
-                :disabled="!pulseContextPaths.length"
-                @click="toggleMenu"
-              >
-                {{ activePulseAction?.label || 'Choose action' }}
-              </button>
-            </template>
-          </UiFilterableDropdown>
-          <button
-            type="button"
-            class="cosmos-pulse-send"
-            :disabled="!pulseContextPaths.length"
-            @click="openPulseInSecondBrain"
-          >
-            Open in Second Brain
-          </button>
-        </div>
-
-        <p class="cosmos-pulse-help">
-          {{ activePulseAction?.description }}
-        </p>
-
-        <label class="cosmos-pulse-field">
-          <span>Instruction</span>
-          <textarea
-            :value="pulseInstruction"
-            class="cosmos-pulse-textarea"
-            placeholder="Optional guidance for Pulse..."
-            @input="pulseInstruction = ($event.target as HTMLTextAreaElement).value"
-          ></textarea>
-        </label>
-      </section>
-    </div>
+      </div>
   </section>
 </template>
 
@@ -374,89 +262,6 @@ function onPulseDropdownSelect(item: FilterableDropdownItem) {
   flex-direction: column;
   gap: 8px;
   padding: 0 4px 8px;
-}
-
-.cosmos-pulse-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid var(--cosmos-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--cosmos-card-bg) 82%, var(--cosmos-panel-bg));
-  padding: 10px;
-}
-
-.cosmos-pulse-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.cosmos-pulse-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--cosmos-text-primary);
-}
-
-.cosmos-pulse-trigger,
-.cosmos-pulse-send,
-.cosmos-pulse-textarea {
-  border: 1px solid var(--cosmos-border);
-  border-radius: 8px;
-  background: var(--cosmos-input-bg);
-  color: var(--cosmos-text-primary);
-}
-
-.cosmos-pulse-trigger,
-.cosmos-pulse-send {
-  padding: 5px 9px;
-  font-size: 11px;
-  line-height: 1.2;
-}
-
-.cosmos-pulse-send {
-  background: var(--cosmos-input-bg);
-  color: var(--cosmos-text-secondary);
-  white-space: nowrap;
-}
-
-.cosmos-pulse-dropdown {
-  min-width: 0;
-}
-
-.cosmos-pulse-dropdown :deep(.ui-filterable-dropdown-menu) {
-  --ui-dropdown-bg: var(--cosmos-input-bg);
-  --ui-dropdown-border: var(--cosmos-border);
-  --ui-dropdown-text: var(--cosmos-text-primary);
-  --ui-dropdown-muted: var(--cosmos-text-muted);
-  --ui-dropdown-hover: var(--cosmos-chip-active-bg);
-}
-
-.cosmos-pulse-help {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--cosmos-text-muted);
-}
-
-.cosmos-pulse-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--cosmos-text-secondary);
-}
-
-.cosmos-pulse-textarea {
-  min-height: 72px;
-  width: 100%;
-  padding: 7px 9px;
-  font-size: 11px;
-  resize: vertical;
 }
 
 .cosmos-focus-controls {

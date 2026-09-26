@@ -16,8 +16,7 @@ import {
   turnIntoAll
 } from '../lib/tiptap/blockMenu/actions'
 import { extractSelectionClipboardPayload, writeSelectionPayloadToClipboard, type CopyAsFormat } from '../lib/editorClipboard'
-import { markdownToEditorData, sanitizeExternalHref } from '../lib/markdownBlocks'
-import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
+import { sanitizeExternalHref } from '../lib/markdownBlocks'
 import { useInlineFormatToolbar } from './useInlineFormatToolbar'
 import { useEditorFindToolbar } from './useEditorFindToolbar'
 import { useBlockMenuControls } from './useBlockMenuControls'
@@ -31,10 +30,6 @@ import { useEditorContentFocus } from './useEditorContentFocus'
 import { useMermaidPreviewDialog } from './useMermaidPreviewDialog'
 import { useAssetPreviewDialog } from './useAssetPreviewDialog'
 import { useMermaidReplaceDialog } from './useMermaidReplaceDialog'
-import { usePulseTransformation } from '../../pulse/composables/usePulseTransformation'
-import { PULSE_ACTIONS_BY_SOURCE } from '../../pulse/lib/pulse'
-import type { PulseDrawerSourceKind } from '../../pulse/lib/pulseDrawer'
-import type { PulseActionId } from '../../../shared/api/apiTypes'
 import type { DocumentSession } from './useDocumentEditorSessions'
 import type { SpellcheckLanguage } from '../lib/spellcheck'
 import {
@@ -47,7 +42,7 @@ import {
 
 /**
  * Chrome here means the editor UI surrounding document content itself:
- * toolbars, menus, overlays, layout helpers, zoom, Pulse, and DOM listener wiring.
+ * toolbars, menus, overlays, layout helpers, zoom, and DOM listener wiring.
  *
  * This stays as one runtime because those features share transient state and mount/unmount
  * side effects. The simplification goal is internal readability, not splitting more files.
@@ -57,7 +52,6 @@ import {
 export type EditorChromeRuntimeHostPort = {
   holder: Ref<HTMLDivElement | null>
   contentShell: Ref<HTMLDivElement | null>
-  pulsePanelWrap: Ref<HTMLDivElement | null>
   currentPath: Ref<string>
   getCurrentPath: () => string
   getEditor: () => Editor | null
@@ -88,27 +82,18 @@ export type EditorChromeRuntimeInteractionPort = {
   }
 }
 
-/** Emits shell-facing chrome actions without leaking internal UI wiring. */
-export type EditorChromeRuntimeEmitPort = {
-  emitPulseOpenSecondBrain: (payload: { contextPaths: string[]; prompt?: string }) => void
-}
-
 /**
- * Owns toolbars, overlays, Pulse UI, and holder/document event wiring around the editor.
+ * Owns toolbars, overlays, and holder/document event wiring around the editor.
  */
 export type UseEditorChromeRuntimeOptions = {
   chromeHostPort: EditorChromeRuntimeHostPort
   chromeInteractionPort: EditorChromeRuntimeInteractionPort
-  chromeOutputPort: EditorChromeRuntimeEmitPort
 }
 
 /**
  * Coordinates editor-adjacent UI concerns behind a grouped public API so
  * EditorView can consume stable sub-systems instead of a flat callback bag.
  *
- * The grouped API is intentionally a usage boundary, not yet a file/module
- * extraction boundary. In particular, `pulse` is a stable public surface but
- * still lives inside chrome until its ownership is proven independent.
  */
 export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
   const TABLE_EDGE_SHOW_THRESHOLD = 20
@@ -140,7 +125,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
   }
   const host = options.chromeHostPort
   const interaction = options.chromeInteractionPort
-  const output = options.chromeOutputPort
   let mountSequence = 0
   let pendingDocumentMouseDownRaf: number | null = null
 
@@ -150,16 +134,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
   const loadProgressPercent = ref(0)
   const loadProgressIndeterminate = ref(false)
   const loadDocumentStats = ref<{ chars: number; lines: number } | null>(null)
-
-  const pulse = usePulseTransformation()
-  const pulseOpen = ref(false)
-  const pulseSourceKind = ref<PulseDrawerSourceKind>('editor_selection')
-  const pulseActionId = ref<PulseActionId>('rewrite')
-  const pulseInstruction = ref('')
-  const pulseInstructionDirty = ref(false)
-  const pulseSelectionRange = ref<{ from: number; to: number } | null>(null)
-  const pulseSourceText = ref('')
-  const pulseContextPaths = ref<string[]>([])
   const blockMenuFloatingEl = ref<HTMLDivElement | null>(null)
   const blockMenuPos = ref({ x: 0, y: 0 })
   const tableToolbarFloatingEl = ref<HTMLDivElement | null>(null)
@@ -616,315 +590,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     layoutResizeObserver = null
   })
 
-  function pulseDefaultInstruction(actionId: PulseActionId): string {
-    return PULSE_ACTIONS_BY_SOURCE[pulseSourceKind.value].find((item) => item.id === actionId)?.description
-      ?? 'Transform the provided material into a useful written output.'
-  }
-
-  function setPulseInstruction(value: string, pulseOptions?: { markDirty?: boolean }) {
-    pulseInstruction.value = value
-    if (pulseOptions?.markDirty !== undefined) {
-      pulseInstructionDirty.value = pulseOptions.markDirty
-    }
-  }
-
-  watch(pulseActionId, (next, previous) => {
-    if (next === previous) return
-    if (!pulseInstructionDirty.value) {
-      setPulseInstruction(pulseDefaultInstruction(next), { markDirty: false })
-    }
-    if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-      resetPulseResult()
-    }
-  })
-
-  watch(pulseSourceText, (next, previous) => {
-    if (next === previous) return
-    if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-      resetPulseResult()
-    }
-  })
-
-  function onPulseActionChange(value: PulseActionId) {
-    pulseActionId.value = value
-  }
-
-  function onPulseInstructionChange(value: string) {
-    pulseInstruction.value = value
-    pulseInstructionDirty.value = true
-    if (pulseOpen.value && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-      resetPulseResult()
-    }
-  }
-
-  function resetPulseResult() {
-    pulse.reset()
-  }
-
-  function currentEditorSelectionSource(): { range: { from: number; to: number }; text: string } | null {
-    const editor = host.getEditor()
-    if (!editor) return null
-    const { from, to, empty } = editor.state.selection
-    if (empty || from === to) return null
-    const text = editor.state.doc.textBetween(from, to, '\n', '\n').trim()
-    if (!text) return null
-    return { range: { from, to }, text }
-  }
-
-  function closePulsePanel() {
-    if (pulse.running.value) {
-      void pulse.cancel()
-    }
-    pulseOpen.value = false
-  }
-
-  /**
-   * Opens Pulse only from a real text selection so actions stay anchored to user intent.
-   */
-  function openPulseForSelection() {
-    const source = currentEditorSelectionSource()
-    if (!source) return
-    const { range, text } = source
-    const sameSelection =
-      pulseSourceKind.value === 'editor_selection' &&
-      pulseSelectionRange.value?.from === range.from &&
-      pulseSelectionRange.value?.to === range.to &&
-      pulseSourceText.value === text
-    pulseSourceKind.value = 'editor_selection'
-    pulseContextPaths.value = []
-    pulseSelectionRange.value = range
-    pulseSourceText.value = text
-    if (!sameSelection) {
-      pulseActionId.value = 'rewrite'
-      setPulseInstruction(pulseDefaultInstruction('rewrite'), { markDirty: false })
-      resetPulseResult()
-    }
-    pulseOpen.value = true
-  }
-
-  /**
-   * Keeps an open selection-based Pulse session aligned with the live editor selection.
-   */
-  function syncPulseSelectionFromEditor() {
-    if (!pulseOpen.value) return
-    const source = currentEditorSelectionSource()
-    if (source && pulseSourceKind.value !== 'editor_selection') {
-      pulseSourceKind.value = 'editor_selection'
-      pulseContextPaths.value = []
-      pulseSelectionRange.value = source.range
-      pulseSourceText.value = source.text
-      if (!pulse.running.value && pulse.previewMarkdown.value.trim()) {
-        resetPulseResult()
-      }
-      return
-    }
-    if (pulseSourceKind.value !== 'editor_selection') return
-    if (!source) {
-      syncPulseNoteSourceFromEditor()
-      return
-    }
-    const sameSelection =
-      pulseSelectionRange.value?.from === source.range.from &&
-      pulseSelectionRange.value?.to === source.range.to &&
-      pulseSourceText.value === source.text
-    if (sameSelection) return
-    pulseSelectionRange.value = source.range
-    pulseSourceText.value = source.text
-    if (!pulse.running.value && pulse.previewMarkdown.value.trim()) {
-      resetPulseResult()
-    }
-  }
-
-  function syncPulseNoteSourceFromEditor(options: { resetDefaults?: boolean } = {}) {
-    const editor = host.getEditor()
-    if (!editor) return false
-    const text = editor.getText().trim()
-    const nextPaths = [host.getCurrentPath()].filter(Boolean)
-    if (!text && !nextPaths.length) return false
-    const sameNote =
-      pulseSourceKind.value === 'editor_note' &&
-      pulseSourceText.value === text &&
-      pulseContextPaths.value.length === nextPaths.length &&
-      pulseContextPaths.value.every((path, index) => path === nextPaths[index])
-
-    pulseSourceKind.value = 'editor_note'
-    pulseContextPaths.value = nextPaths
-    pulseSelectionRange.value = null
-    pulseSourceText.value = text
-
-    if (!sameNote && options.resetDefaults) {
-      pulseActionId.value = 'synthesize'
-      setPulseInstruction(pulseDefaultInstruction('synthesize'), { markDirty: false })
-      resetPulseResult()
-    } else if (!sameNote && !pulse.running.value && pulse.previewMarkdown.value.trim()) {
-      resetPulseResult()
-    }
-    return true
-  }
-
-  function syncPulseSourceFromActiveSession() {
-    if (!pulseOpen.value) return
-    const source = currentEditorSelectionSource()
-    if (source) {
-      syncPulseSelectionFromEditor()
-      return
-    }
-    if (pulseSourceKind.value === 'editor_selection' || pulseSourceKind.value === 'editor_note') {
-      syncPulseNoteSourceFromEditor()
-    }
-  }
-
-  /**
-   * Opens Pulse for the current note content so note-level actions can work on
-   * the full document instead of a selection.
-   */
-  function openPulseForNote() {
-    if (!syncPulseNoteSourceFromEditor({ resetDefaults: true })) return
-    pulseOpen.value = true
-  }
-
-  /**
-   * Opens Pulse for the shell's constituted context while applying any result
-   * back through the active editor.
-   */
-  function openPulseForContext(paths: string[]) {
-    const normalizedPaths = paths.map((path) => path.trim()).filter(Boolean)
-    if (!normalizedPaths.length) return
-    const sameContext =
-      pulseSourceKind.value === 'second_brain_context' &&
-      pulseContextPaths.value.length === normalizedPaths.length &&
-      pulseContextPaths.value.every((path, index) => path === normalizedPaths[index])
-    pulseSourceKind.value = 'second_brain_context'
-    pulseContextPaths.value = normalizedPaths
-    pulseSelectionRange.value = null
-    pulseSourceText.value = host.getEditor()?.getText().trim() ?? ''
-    if (!sameContext) {
-      pulseActionId.value = 'synthesize'
-      setPulseInstruction(pulseDefaultInstruction('synthesize'), { markDirty: false })
-      resetPulseResult()
-    }
-    pulseOpen.value = true
-  }
-
-  /**
-   * Opens Pulse from an `@` macro without running the model immediately.
-   *
-   * Selection text is preferred when available; otherwise the action targets the
-   * current note. The macro-supplied instruction is kept editable in Pulse.
-   */
-  function openPulseFromMacro(actionId: PulseActionId, instruction: string) {
-    const editor = host.getEditor()
-    if (!editor) return
-    const { from, to, empty } = editor.state.selection
-    const selectedText = empty || from === to
-      ? ''
-      : editor.state.doc.textBetween(from, to, '\n', '\n').trim()
-
-    if (selectedText) {
-      pulseSourceKind.value = 'editor_selection'
-      pulseContextPaths.value = []
-      pulseSelectionRange.value = { from, to }
-      pulseSourceText.value = selectedText
-    } else {
-      const noteText = editor.getText().trim()
-      if (!noteText) return
-      pulseSourceKind.value = 'editor_note'
-      pulseContextPaths.value = [host.getCurrentPath()].filter(Boolean)
-      pulseSelectionRange.value = null
-      pulseSourceText.value = noteText
-    }
-
-    pulseActionId.value = actionId
-    setPulseInstruction(instruction || pulseDefaultInstruction(actionId), { markDirty: Boolean(instruction.trim()) })
-    resetPulseResult()
-    pulseOpen.value = true
-  }
-
-  /**
-   * Runs the current Pulse request from the active note or explicit text selection.
-   */
-  async function runPulseFromEditor() {
-    if (pulse.running.value) return
-    if (!host.getCurrentPath() && pulseSourceKind.value !== 'editor_selection' && pulseSourceKind.value !== 'second_brain_context') return
-    const sourceText = pulseSourceKind.value === 'editor_selection'
-      ? pulseSourceText.value
-      : (pulseSourceText.value || (host.getEditor()?.getText().trim() ?? ''))
-    await pulse.run({
-      source_kind: pulseSourceKind.value,
-      action_id: pulseActionId.value,
-      instructions: pulseInstruction.value.trim() || undefined,
-      context_paths: pulseSourceKind.value === 'editor_selection' ? [] : pulseContextPaths.value,
-      source_text: sourceText || undefined,
-      selection_label: pulseSourceKind.value === 'editor_selection'
-        ? 'Editor selection'
-        : pulseSourceKind.value === 'second_brain_context' ? 'Current context' : 'Current note'
-    })
-  }
-
-  /**
-   * Builds a Second Brain prompt from the current Pulse action, guidance, and source text.
-   */
-  function buildSecondBrainPulsePrompt(): string {
-    const pulsePrompts: Partial<Record<PulseActionId, string>> = {
-      format: 'Reformat the provided material by changing only its shape (structure, length, presentation), not its content or judgment.',
-      rewrite: 'Rewrite the provided material into a clearer version while preserving the original meaning.',
-      condense: 'Condense the provided material into a shorter version that keeps the key information.',
-      expand: 'Expand the provided material into a fuller draft with clearer transitions and supporting detail.',
-      change_tone: 'Rewrite the provided material in a more appropriate tone while keeping the substance intact.',
-      synthesize: 'Synthesize the provided material into a concise, structured summary.',
-      outline: 'Turn the provided material into a clear outline with sections and logical progression.',
-      brief: 'Draft a working brief from the provided material, including objective, key points, and open questions.'
-    }
-    const basePrompt = pulsePrompts[pulseActionId.value] ?? 'Transform the provided material into a useful written output.'
-    const guidance = pulseInstruction.value.trim()
-    const sourceText = (pulseSourceText.value || host.getEditor()?.getText() || '').trim()
-    const quotedSource = sourceText ? `\n\nSource material:\n"""\n${sourceText}\n"""` : ''
-    return guidance ? `${basePrompt}\n\nAdditional guidance: ${guidance}${quotedSource}` : `${basePrompt}${quotedSource}`
-  }
-
-  function pulseMarkdownToInsertableContent(markdown: string) {
-    const parsed = markdownToEditorData(markdown)
-    if (!parsed.blocks.length) return []
-    const doc = toTiptapDoc(parsed.blocks)
-    return Array.isArray(doc.content) ? doc.content : []
-  }
-
-  function replaceSelectionWithPulseOutput() {
-    const editor = host.getEditor()
-    if (!editor || !pulse.previewMarkdown.value.trim() || !pulseSelectionRange.value) return
-    const content = pulseMarkdownToInsertableContent(pulse.previewMarkdown.value)
-    if (!content.length) return
-    editor.chain().focus().setTextSelection(pulseSelectionRange.value).insertContent(content).run()
-    closePulsePanel()
-  }
-
-  function insertPulseBelow() {
-    const editor = host.getEditor()
-    if (!editor || !pulse.previewMarkdown.value.trim()) return
-    const content = pulseMarkdownToInsertableContent(pulse.previewMarkdown.value)
-    if (!content.length) return
-    if (pulseSelectionRange.value) {
-      editor
-        .chain()
-        .focus()
-        .setTextSelection({ from: pulseSelectionRange.value.to, to: pulseSelectionRange.value.to })
-        .insertContent(content)
-        .run()
-    } else {
-      editor.chain().focus('end').insertContent(content).run()
-    }
-    closePulsePanel()
-  }
-
-  function sendPulseContextToSecondBrain() {
-    if (!host.getCurrentPath() && pulseSourceKind.value !== 'editor_selection' && pulseSourceKind.value !== 'second_brain_context') return
-    output.emitPulseOpenSecondBrain({
-      contextPaths: pulseSourceKind.value === 'editor_selection' ? [] : pulseContextPaths.value,
-      prompt: buildSecondBrainPulsePrompt()
-    })
-    closePulsePanel()
-  }
-
   function closeTransientMenus() {
     interaction.menus.dismissSlashMenu()
     interaction.menus.closeWikilinkMenu()
@@ -976,8 +641,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
         if (target instanceof Element && target.closest('.tomosona-table-control')) return
         tableInteractions.hideTableToolbar()
       }
-
-      if (pulseOpen.value && target instanceof Element && target.closest('.ui-filterable-dropdown-menu')) return
     },
 
     onDocumentPointerUp(event: PointerEvent) {
@@ -995,10 +658,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
         event.preventDefault()
         event.stopPropagation()
         findToolbar.closeToolbar({ focusEditor: true })
-        return
-      }
-      if (event.key === 'Escape' && pulseOpen.value) {
-        closePulsePanel()
         return
       }
       if (event.key === 'Escape' && mermaidPreviewDialog.value.visible) {
@@ -1206,7 +865,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     blockGutter.clear()
     blockGutter.syncSelectionTarget()
     findToolbar.syncFromEditor()
-    syncPulseSourceFromActiveSession()
   }
 
   function onDocumentContentChanged() {
@@ -1218,7 +876,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     inlineFormatToolbar,
     findToolbar,
     updateFormattingToolbar,
-    syncPulseSelectionFromEditor,
     onInlineToolbarCopyAs,
     onActiveSessionChanged,
     onDocumentContentChanged
@@ -1260,15 +917,7 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     focusFirstEditableBlock: contentFocus.focusFirstEditableBlock,
     updateGutterHitboxStyle: layoutMetrics.updateGutterHitboxStyle
   }
-  const pulseAndDialogs = {
-    pulse,
-    pulseOpen,
-    pulseSourceKind,
-    pulseActionId,
-    pulseInstruction,
-    pulseSourceText,
-    pulseSelectionRange,
-    pulseContextPaths,
+  const dialogs = {
     mermaidReplaceDialog,
     mermaidPreviewDialog,
     assetPreviewDialog,
@@ -1279,18 +928,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     closeAssetPreview,
     exportMermaidSvg,
     exportMermaidPng,
-    openPulseForSelection,
-    openPulseForNote,
-    openPulseForContext,
-    openPulseFromMacro,
-    runPulseFromEditor,
-    replaceSelectionWithPulseOutput,
-    insertPulseBelow,
-    sendPulseContextToSecondBrain,
-    closePulsePanel,
-    onPulseActionChange,
-    onPulseInstructionChange,
-    setPulseInstruction
   }
 
   const loading = {
@@ -1385,40 +1022,18 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     onHolderScroll: layoutAndZoom.layoutMetrics.onHolderScroll,
     updateGutterHitboxStyle: layoutAndZoom.updateGutterHitboxStyle
   }
-  const pulseApi = {
-    pulse: pulseAndDialogs.pulse,
-    pulseOpen: pulseAndDialogs.pulseOpen,
-    pulseSourceKind: pulseAndDialogs.pulseSourceKind,
-    pulseActionId: pulseAndDialogs.pulseActionId,
-    pulseInstruction: pulseAndDialogs.pulseInstruction,
-    pulseSourceText: pulseAndDialogs.pulseSourceText,
-    pulseSelectionRange: pulseAndDialogs.pulseSelectionRange,
-    pulseContextPaths: pulseAndDialogs.pulseContextPaths,
-    openPulseForSelection: pulseAndDialogs.openPulseForSelection,
-    openPulseForNote: pulseAndDialogs.openPulseForNote,
-    openPulseForContext: pulseAndDialogs.openPulseForContext,
-    openPulseFromMacro: pulseAndDialogs.openPulseFromMacro,
-    runPulseFromEditor: pulseAndDialogs.runPulseFromEditor,
-    replaceSelectionWithPulseOutput: pulseAndDialogs.replaceSelectionWithPulseOutput,
-    insertPulseBelow: pulseAndDialogs.insertPulseBelow,
-    sendPulseContextToSecondBrain: pulseAndDialogs.sendPulseContextToSecondBrain,
-    closePulsePanel: pulseAndDialogs.closePulsePanel,
-    onPulseActionChange: pulseAndDialogs.onPulseActionChange,
-    onPulseInstructionChange: pulseAndDialogs.onPulseInstructionChange,
-    setPulseInstruction: pulseAndDialogs.setPulseInstruction
-  }
   const dialogsAndLifecycle = {
-    mermaidReplaceDialog: pulseAndDialogs.mermaidReplaceDialog,
-    mermaidPreviewDialog: pulseAndDialogs.mermaidPreviewDialog,
-    assetPreviewDialog: pulseAndDialogs.assetPreviewDialog,
+    mermaidReplaceDialog: dialogs.mermaidReplaceDialog,
+    mermaidPreviewDialog: dialogs.mermaidPreviewDialog,
+    assetPreviewDialog: dialogs.assetPreviewDialog,
     resolveMermaidReplaceDialog,
-    requestMermaidReplaceConfirm: pulseAndDialogs.requestMermaidReplaceConfirm,
-    openMermaidPreview: pulseAndDialogs.openMermaidPreview,
-    closeMermaidPreview: pulseAndDialogs.closeMermaidPreview,
-    openAssetPreview: pulseAndDialogs.openAssetPreview,
-    closeAssetPreview: pulseAndDialogs.closeAssetPreview,
-    exportMermaidSvg: pulseAndDialogs.exportMermaidSvg,
-    exportMermaidPng: pulseAndDialogs.exportMermaidPng,
+    requestMermaidReplaceConfirm: dialogs.requestMermaidReplaceConfirm,
+    openMermaidPreview: dialogs.openMermaidPreview,
+    closeMermaidPreview: dialogs.closeMermaidPreview,
+    openAssetPreview: dialogs.openAssetPreview,
+    closeAssetPreview: dialogs.closeAssetPreview,
+    exportMermaidSvg: dialogs.exportMermaidSvg,
+    exportMermaidPng: dialogs.exportMermaidPng,
     resetTransientUiState,
     onMountInit,
     onUnmountCleanup
@@ -1431,7 +1046,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
       inlineFormatToolbar: toolbars.inlineFormatToolbar,
       findToolbar: toolbars.findToolbar,
       updateFormattingToolbar: toolbars.updateFormattingToolbar,
-      syncPulseSelectionFromEditor: toolbars.syncPulseSelectionFromEditor,
       onInlineToolbarCopyAs: toolbars.onInlineToolbarCopyAs,
       onActiveSessionChanged: toolbars.onActiveSessionChanged,
       onDocumentContentChanged: toolbars.onDocumentContentChanged
@@ -1439,7 +1053,6 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
     blockAndTable,
     spellcheck,
     layout,
-    pulse: pulseApi,
     dialogsAndLifecycle
   }
 }

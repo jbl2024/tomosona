@@ -70,11 +70,9 @@ function mountHarness() {
             onActiveNoteAddToContext: () => events.push('add-context'),
             onActiveNoteRemoveFromContext: () => events.push('remove-context'),
             onActiveNoteOpenCosmos: () => events.push('open-cosmos'),
-            onActiveNoteOpenPulse: () => events.push('open-pulse'),
             onActiveNoteOpenHistory: () => events.push('open-history'),
             onContextOpenSecondBrain: () => events.push('context-second-brain'),
             onContextOpenCosmos: () => events.push('context-cosmos'),
-            onContextOpenPulse: () => events.push('context-pulse'),
             onContextPin: () => events.push('context-pin'),
             onContextClearLocal: () => events.push('context-clear-local'),
             onContextClearPinned: () => events.push('context-clear-pinned'),
@@ -128,7 +126,8 @@ describe('AppShellWorkspaceSurface', () => {
     mounted.root.querySelector<HTMLDivElement>('.splitter')?.dispatchEvent(
       new MouseEvent('mousedown', { bubbles: true })
     )
-    mounted.root.querySelector<HTMLButtonElement>('.echoes-mark-btn')?.click()
+    expect(mounted.root.querySelector('.echoes-mark-btn')).toBeNull()
+    expect(mounted.root.textContent).not.toContain('Pulse')
 
     expect(mounted.events).toEqual([
       'mode:explorer',
@@ -137,7 +136,7 @@ describe('AppShellWorkspaceSurface', () => {
       'open-history',
       'resize:left'
     ])
-    expect(mounted.enqueueMarkdownReindex).toHaveBeenCalledWith('/vault/a.md')
+    expect(mounted.enqueueMarkdownReindex).not.toHaveBeenCalled()
 
     mounted.app.unmount()
   })

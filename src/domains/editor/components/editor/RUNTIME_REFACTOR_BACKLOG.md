@@ -16,12 +16,7 @@ What remains is mostly surface cleanup, not architecture rescue.
 
 ## `useEditorChromeRuntime`
 
-### 1. Re-evaluate `Pulse` extraction after the grouped API settles
-- Why: `pulse` now has a clear public boundary, but it still lives inside the chrome runtime.
-- Impact: if Pulse keeps changing independently from toolbars/table/drag state, extraction would reduce local complexity and test setup cost.
-- Priority: `medium`
-
-### 2. Trim `EditorView.vue` aliases and local pass-throughs if they stop earning their keep
+### 1. Trim `EditorView.vue` aliases and local pass-throughs if they stop earning their keep
 - Why: the grouped API reduced noise, but `EditorView.vue` still carries a few compatibility-oriented local bindings.
 - Impact: small readability gain; avoids the shell slowly drifting back toward glue code.
 - Priority: `low`

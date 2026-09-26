@@ -150,39 +150,6 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     return true
   }
 
-  async function openConstitutedContextInPulse() {
-    if (!options.constitutedContext.paths.value.length) return false
-    return await openConstitutedContextInSecondBrain(
-      'Transform the current constituted context into a useful written output. Use Pulse from the Second Brain context surface.'
-    )
-  }
-
-  async function openPulseContextInSecondBrain(payload: { contextPaths: string[]; prompt?: string }) {
-    if (!options.filesystem.hasWorkspace.value) {
-      options.filesystem.errorMessage.value = 'Open a workspace first.'
-      return false
-    }
-
-    const normalized = options.normalizeContextPathsForUpdate(options.filesystem.workingFolderPath.value, payload.contextPaths)
-    const seedPath = normalized[0] || options.activeFilePath.value
-    if (!seedPath) {
-      options.filesystem.errorMessage.value = 'No note context available for Second Brain.'
-      return false
-    }
-
-    try {
-      const sessionId = await options.secondBrain.resolveSecondBrainSessionForPath(seedPath)
-      await options.secondBrain.replaceSessionContext(sessionId, normalized)
-      options.secondBrain.setSecondBrainSessionId(sessionId, { bumpNonce: true })
-      options.secondBrain.setSecondBrainPrompt(payload.prompt?.trim() ?? '', { bumpNonce: true })
-      await options.secondBrain.openSecondBrainViewFromPalette()
-      return true
-    } catch (err) {
-      options.filesystem.errorMessage.value = err instanceof Error ? err.message : 'Could not open Second Brain with Pulse context.'
-      return false
-    }
-  }
-
   async function openAlterInSecondBrain(alterId: string) {
     if (!options.filesystem.hasWorkspace.value) {
       options.filesystem.errorMessage.value = 'Open a workspace first.'
@@ -201,8 +168,6 @@ export function useAppShellConstitutedContextActions(options: UseAppShellConstit
     toggleActiveNoteInConstitutedContext,
     openConstitutedContextInSecondBrain,
     openConstitutedContextInCosmos,
-    openConstitutedContextInPulse,
-    openPulseContextInSecondBrain,
     openAlterInSecondBrain
   }
 }

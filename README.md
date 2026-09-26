@@ -48,7 +48,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 
 ### 4. AI in service of the workspace
 
-`Second Brain` and `Pulse` use your notes as explicit context. They are meant to support writing and analysis, not replace your knowledge base.
+`Second Brain` uses your notes as explicit context. It is meant to support writing and analysis, not replace your knowledge base.
 
 ## Core Features
 
@@ -113,7 +113,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - explicit links from wikilinks;
 - inferred semantic links when embeddings are available;
 - search, focus, recentering, and neighborhood exploration;
-- open a note from the graph or send graph context into Pulse / Second Brain.
+- open a note from the graph or send graph context into Second Brain.
 
 ### Echoes
 
@@ -126,7 +126,6 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - a dedicated chat surface for the workspace;
 - persistent sessions;
 - explicit context injection via `@relative/path.md`;
-- grouped Pulse action menus for both text transformation and context analysis;
 - streamed responses;
 - open referenced notes in another pane when appropriate;
 - local LLM provider configuration in `~/.tomosona/conf.json`.
@@ -138,15 +137,6 @@ Currently supported providers:
 - OpenAI-compatible
 - Groq
 - Anthropic
-
-### Pulse
-
-- an AI transformation layer for reworking text or explicit note context;
-- available from the editor, Second Brain, and Cosmos;
-- available from editor selections or whole-note context, with note-level entrypoints where appropriate;
-- actions such as `format`, `rewrite`, `condense`, `expand`, `outline`, `brief`, `extract_themes`, and `identify_tensions`;
-- preview-first output before applying changes, with copy/apply flows in the UI;
-- flows to replace a selection, insert output, or hand off to Second Brain.
 
 ### Theming and ergonomics
 
@@ -266,7 +256,7 @@ Application settings are stored in:
 
 The file contains two main sections:
 
-- `llm` for `Second Brain` and `Pulse`
+- `llm` for `Second Brain`
 - `embeddings` for semantic search
 
 Useful notes:
@@ -292,7 +282,6 @@ The project is evolving quickly. Recent notable additions include:
 
 - the launchpad and workspace setup wizard;
 - Echoes contextual suggestions;
-- Pulse and its transformation workflows;
 - Codex model discovery in settings;
 - inline find in the editor;
 - the multi-pane shell and tighter Cosmos / Second Brain integration.

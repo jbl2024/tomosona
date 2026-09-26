@@ -11,7 +11,7 @@ This folder contains the modular frontend surface for the Second Brain view.
 | `useSecondBrainViewState.ts` | façade that assembles the sub-workflows | give the shell one stable surface without merging responsibilities |
 | `useSecondBrainSessionWorkflow.ts` | session loading, explicit context updates, Alter selection, Echoes anchoring, session lifecycle | keep persistence and session state separate from composer and stream timing |
 | `useSecondBrainStreamRuntime.ts` | stream subscriptions, cancellation, auto-scroll, assistant render buffer | keep backend stream timing and DOM observer details out of the composer |
-| `useSecondBrainConversationRuntime.ts` | composer input, mentions, Pulse prompts, copy/export | keep user input and export behavior separate from session persistence and stream lifecycle |
+| `useSecondBrainConversationRuntime.ts` | composer input, mentions, copy/export | keep user input and export behavior separate from session persistence and stream lifecycle |
 
 ## Components
 - `SecondBrainView.vue`: render shell for the chat surface.
@@ -27,7 +27,7 @@ This folder contains the modular frontend surface for the Second Brain view.
 - `useSecondBrainStreamRuntime.ts` owns stream subscriptions, cancellation,
   thread scroll state, and assistant message rendering.
 - `useSecondBrainConversationRuntime.ts` owns assistant streaming,
-  copy/export helpers, Pulse prompt presets, and mention-driven context
+  copy/export helpers and mention-driven context
   orchestration.
 - `SecondBrainView.vue` should only bind props, emits, and render the surface.
 - Backend calls are isolated in `src/domains/second-brain/lib/secondBrainApi.ts`.

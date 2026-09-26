@@ -1,6 +1,6 @@
 //! Filesystem validation and normalization helpers for Second Brain workflows.
 //!
-//! This module owns all path-sensitive rules so message/pulse/draft flows can stay
+//! This module owns all path-sensitive rules so message/draft flows can stay
 //! focused on their business logic instead of repeating workspace boundary checks.
 
 use std::{

@@ -62,7 +62,6 @@ export type EditorInteractionRuntimeChromePort = {
   }
   toolbars: {
     updateFormattingToolbar: () => void
-    syncPulseSelectionFromEditor: () => void
     updateTableToolbar: () => void
     inlineFormatToolbar: {
       updateFormattingToolbar: () => void
@@ -74,9 +73,6 @@ export type EditorInteractionRuntimeChromePort = {
   zoom: {
     zoomEditorBy: (delta: number) => number
     resetEditorZoom: () => number
-  }
-  pulse: {
-    openPulseFromMacro: (payload: { actionId: import('../../../shared/api/apiTypes').PulseActionId; instruction: string }) => void
   }
 }
 
@@ -161,7 +157,6 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
       updatedAt: readSessionUpdatedAt(documentPort.getSession(documentPort.currentPath.value)),
       templates: documentPort.getTemplateMacros()
     }),
-    openPulseMacro: (action) => chromePort.pulse.openPulseFromMacro(action),
     readTemplateContent: documentPort.readTemplateContent
   })
 
@@ -316,7 +311,6 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
     shouldCaptureCaret: shouldCaptureCaretForActiveEditor,
     updateFormattingToolbar: () => {
       chromePort.toolbars.updateFormattingToolbar()
-      chromePort.toolbars.syncPulseSelectionFromEditor()
     },
     onEditorDocChanged: (path) => documentPort.onEditorDocChanged(path),
     requestMermaidReplaceConfirm: editorPort.requestMermaidReplaceConfirm,

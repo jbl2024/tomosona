@@ -67,7 +67,6 @@ function kindForItem(item: unknown): string {
   if (macro?.templatePath) return 'TPL'
   const kind = macro?.kind ?? 'insert_text'
   if (kind === 'insert_markdown') return 'MD'
-  if (kind === 'open_pulse') return 'AI'
   if (kind === 'dynamic_pick') return 'CTX'
   return 'TXT'
 }

@@ -104,11 +104,12 @@ describe('useAppShellPaletteActions', () => {
     expect(actionIds.slice(0, 5)).toEqual([
       'open-home-view',
       'open-favorites',
-      'open-cosmos-view',
-      'open-second-brain-view',
-      'open-alter-exploration-view'
+      'convert-to-word',
+      'add-active-note-to-favorites',
+      'open-settings'
     ])
-    expect(actionIds).toContain('open-alters-view')
+    expect(actionIds).not.toContain('open-alters-view')
+    expect(actionIds.some(id => /pulse|cosmos|second-brain|alter/.test(id))).toBe(false)
     expect(actionIds).toContain('theme-select')
     expect(actionIds).toContain('theme-system')
     expect(actionIds.indexOf('theme-system')).toBeLessThan(actionIds.indexOf('theme-tomosona-light'))

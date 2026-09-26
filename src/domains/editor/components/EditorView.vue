@@ -14,8 +14,6 @@ import {
   readNoteHistorySnapshot,
   restoreNoteHistorySnapshot
 } from '../../../shared/api/noteHistoryApi'
-import type { PulseApplyMode } from '../../pulse/lib/pulse'
-import type { PulseDrawerState } from '../../pulse/lib/pulseDrawer'
 import type { DocumentSession } from '../composables/useDocumentEditorSessions'
 import { captureHeavyRenderEpoch, hasPendingHeavyRender, waitForHeavyRenderIdle } from '../lib/tiptap/renderStabilizer'
 import { useEditorChromeRuntime } from '../composables/useEditorChromeRuntime'
@@ -102,8 +100,6 @@ const emit = defineEmits([
   'outline',
   'properties',
   'signal-summary',
-  'pulse-state-change',
-  'pulse-open-second-brain',
   'external-reload'
 ])
 
@@ -128,14 +124,6 @@ function emitSignalSummary(payload: EditorSignalSummary) {
   emit('signal-summary', payload)
 }
 
-function emitPulseOpenSecondBrain(payload: { contextPaths: string[]; prompt?: string }) {
-  emit('pulse-open-second-brain', payload)
-}
-
-function emitPulseStateChange(payload: PulseDrawerState) {
-  emit('pulse-state-change', payload)
-}
-
 function emitExternalReload(payload: { path: string }) {
   emit('external-reload', payload)
 }
@@ -143,7 +131,6 @@ function emitExternalReload(payload: { path: string }) {
 const holder = ref<HTMLDivElement | null>(null)
 const contentShell = ref<HTMLDivElement | null>(null)
 const blockGutterEl = ref<HTMLDivElement | null>(null)
-const pulsePanelWrap = ref<HTMLDivElement | null>(null)
 const rulerRef = ref<InstanceType<typeof EditorRuler> | null>(null)
 const blockGutterWidth = ref(72)
 let blockGutterResizeObserver: ResizeObserver | null = null
@@ -232,7 +219,6 @@ chromeRuntime = useEditorChromeRuntime({
   chromeHostPort: {
     holder,
     contentShell,
-    pulsePanelWrap,
     currentPath: currentPathSource,
     getCurrentPath: () => currentPathSource.value,
     getEditor: () => activeEditor.value,
@@ -266,9 +252,6 @@ chromeRuntime = useEditorChromeRuntime({
       refreshForPath: (path: string) => interactionRuntime?.refreshSpellcheckForPath(path)
     }
   },
-  chromeOutputPort: {
-    emitPulseOpenSecondBrain
-  }
 })
 
 sourceRuntime = useSourceEditorRuntime({
@@ -324,7 +307,6 @@ interactionRuntime = useEditorInteractionRuntime({
     },
     toolbars: {
       updateFormattingToolbar: () => chromeRuntime.toolbars.updateFormattingToolbar(),
-      syncPulseSelectionFromEditor: () => chromeRuntime.toolbars.syncPulseSelectionFromEditor(),
       updateTableToolbar: () => chromeRuntime.blockAndTable.updateTableToolbar(),
       inlineFormatToolbar: {
         updateFormattingToolbar: chromeRuntime.toolbars.inlineFormatToolbar.updateFormattingToolbar,
@@ -337,9 +319,6 @@ interactionRuntime = useEditorInteractionRuntime({
       zoomEditorBy: (delta) => chromeRuntime.layout.zoomEditorBy(delta),
       resetEditorZoom: () => chromeRuntime.layout.resetEditorZoom()
     },
-    pulse: {
-      openPulseFromMacro: ({ actionId, instruction }) => chromeRuntime.pulse.openPulseFromMacro(actionId, instruction)
-    }
   },
   interactionIoPort: {
     loadLinkTargets: props.loadLinkTargets,
@@ -432,16 +411,10 @@ const activeRichTextEditor = computed(() => renderedEditorsByPath.value[currentP
 const isActiveMountedPath = documentRuntime.isActiveMountedPath
 const isSourceSurface = computed(() => Boolean(currentPath.value && sourceMode.isSourceMode(currentPath.value)))
 const isMarkdownNote = computed(() => Boolean(currentPath.value && isMarkdownPath(currentPath.value)))
-const { loading, toolbars, blockAndTable, layout, pulse, dialogsAndLifecycle } = chromeRuntime
+const { loading, toolbars, blockAndTable, layout, dialogsAndLifecycle } = chromeRuntime
 const getZoom = layout.getZoom
 const onTitleInput = documentRuntime.onTitleInput
 const onTitleCommit = documentRuntime.onTitleCommit
-// Kept as local bindings so Pulse contract tests can reach them through setupState
-// without reintroducing a broader public API on the component itself.
-const setPulseInstruction = pulse.setPulseInstruction
-const pulseSelectionRange = pulse.pulseSelectionRange
-void setPulseInstruction
-void pulseSelectionRange
 const {
   propertyEditorMode,
   activeParseErrors,
@@ -612,66 +585,6 @@ watch(
     interactionRuntime?.refreshSpellcheckForPath(path)
   },
   { immediate: true, flush: 'post' }
-)
-const {
-  pulseOpen,
-  pulse: pulseState,
-  pulseSourceKind,
-  pulseActionId,
-  pulseInstruction,
-  pulseSourceText,
-  openPulseForSelection,
-  replaceSelectionWithPulseOutput,
-  insertPulseBelow,
-  sendPulseContextToSecondBrain
-} = pulse
-
-const pulseApplyModes = computed<PulseApplyMode[]>(() =>
-  pulseSourceKind.value === 'editor_selection'
-    ? ['replace_selection', 'insert_below', 'send_to_second_brain']
-    : ['insert_below', 'send_to_second_brain']
-)
-const pulsePrimaryApplyMode = computed<PulseApplyMode>(() =>
-  pulseSourceKind.value === 'editor_selection' ? 'replace_selection' : 'insert_below'
-)
-const pulseDrawerState = computed<PulseDrawerState>(() => ({
-  open: pulseOpen.value,
-  sourceKind: pulseSourceKind.value,
-  actionId: pulseActionId.value,
-  instruction: pulseInstruction.value,
-  previewMarkdown: pulseState.previewMarkdown.value,
-  provenancePaths: pulseState.provenancePaths.value,
-  running: pulseState.running.value,
-  error: pulseState.error.value,
-  sourceText: pulseSourceText.value,
-  applyModes: pulseApplyModes.value,
-  primaryApplyMode: pulsePrimaryApplyMode.value
-}))
-
-function applyPulseMode(mode: PulseApplyMode) {
-  if (mode === 'replace_selection') replaceSelectionWithPulseOutput()
-  if (mode === 'insert_below') insertPulseBelow()
-  if (mode === 'send_to_second_brain') sendPulseContextToSecondBrain()
-}
-
-function setExposedPulseInstruction(value: string, options?: { markDirty?: boolean }) {
-  if (options) {
-    pulse.setPulseInstruction(value, options)
-    return
-  }
-  pulse.onPulseInstructionChange(value)
-}
-
-watch(
-  pulseDrawerState,
-  (state) => {
-    emitPulseStateChange({
-      ...state,
-      provenancePaths: [...state.provenancePaths],
-      applyModes: [...state.applyModes]
-    })
-  },
-  { immediate: true, deep: true }
 )
 const {
   mermaidReplaceDialog,
@@ -999,20 +912,6 @@ defineExpose({
   zoomOut: () => zoomEditorBy(-0.1),
   resetZoom: () => resetEditorZoom(),
   getZoom,
-  getPulseDrawerState: () => pulseDrawerState.value,
-  pulseOpen: pulse.pulseOpen,
-  pulseSourceKind: pulse.pulseSourceKind,
-  pulseActionId: pulse.pulseActionId,
-  pulseSourceText: pulse.pulseSourceText,
-  pulseSelectionRange: pulse.pulseSelectionRange,
-  openPulseForNote: pulse.openPulseForNote,
-  openPulseForContext: pulse.openPulseForContext,
-  setPulseAction: pulse.onPulseActionChange,
-  setPulseInstruction: setExposedPulseInstruction,
-  runPulseFromEditor: pulse.runPulseFromEditor,
-  cancelPulse: pulse.pulse.cancel,
-  closePulsePanel: pulse.closePulsePanel,
-  applyPulseMode,
   setMarkdownSourceSurfaceEnabled,
   isSourceSurface: () => isSourceSurface.value
 })

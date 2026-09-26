@@ -101,14 +101,14 @@ describe('editorAtMacros', () => {
     expect(editorAtMacroMatchesQuery(template!, 'template')).toBe(true)
   })
 
-  it('resolves AI actions', () => {
-    const summarize = resolveEditorAtMacro('summarize', context)
-    expect(summarize).toMatchObject({
-      kind: 'open_pulse',
-      group: 'AI',
-      preview: 'Open Pulse',
-      pulse: { actionId: 'synthesize' }
-    })
+  it('does not register or resolve removed AI transformation macros', () => {
+    const removed = ['summarize', 'summary', 'rewrite', 'expand', 'extract.tasks', 'extract.decisions', 'extract.risks', 'ask', 'brief', 'title.ai', 'tags.auto']
+    const entries = buildEditorAtMacroEntries(context)
+    for (const id of removed) {
+      expect(listEditorAtMacroIds()).not.toContain(id)
+      expect(entries.some(entry => entry.id === id)).toBe(false)
+      expect(resolveEditorAtMacro(id, context)).toBeNull()
+    }
   })
 
   it('matches aliases and exposes argument-capable query detection', () => {
@@ -120,7 +120,7 @@ describe('editorAtMacros', () => {
 
   it('exposes stable macro ids', () => {
     expect(listEditorAtMacroIds()).toContain('today')
-    expect(listEditorAtMacroIds()).toContain('extract.tasks')
-    expect(listEditorAtMacroIds()).toContain('tags.auto')
+    expect(listEditorAtMacroIds()).toContain('task')
+    expect(listEditorAtMacroIds()).toContain('tags')
   })
 })

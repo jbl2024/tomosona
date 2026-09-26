@@ -252,7 +252,6 @@ function createRuntimeHarness(input?: {
       },
       toolbars: {
         updateFormattingToolbar: vi.fn(),
-        syncPulseSelectionFromEditor: vi.fn(),
         updateTableToolbar: vi.fn(),
         inlineFormatToolbar: {
           updateFormattingToolbar: vi.fn(),
@@ -265,9 +264,6 @@ function createRuntimeHarness(input?: {
         zoomEditorBy: vi.fn(() => 1),
         resetEditorZoom: vi.fn(() => 1)
       },
-      pulse: {
-        openPulseFromMacro: vi.fn()
-      }
     },
     interactionIoPort: {
       loadLinkTargets: async () => ['a.md'],

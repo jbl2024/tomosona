@@ -538,48 +538,6 @@ export type SecondBrainStreamEvent = {
   error: string | null
 }
 
-export type PulseSourceKind = 'editor_selection' | 'editor_note' | 'second_brain_context' | 'cosmos_focus'
-
-export type PulseActionId =
-  | 'format'
-  | 'rewrite'
-  | 'condense'
-  | 'expand'
-  | 'change_tone'
-  | 'synthesize'
-  | 'outline'
-  | 'brief'
-  | 'extract_themes'
-  | 'identify_tensions'
-
-export type PulseTransformationRequest = {
-  request_id?: string
-  source_kind: PulseSourceKind
-  action_id: PulseActionId
-  instructions?: string
-  context_paths: string[]
-  source_text?: string
-  selection_label?: string
-  session_id?: string
-  cosmos_selected_node_id?: string
-  cosmos_neighbor_paths?: string[]
-}
-
-export type PulseTransformationResponse = {
-  request_id: string
-  output_id: string
-}
-
-export type PulseStreamEvent = {
-  request_id: string
-  output_id: string
-  chunk: string
-  done: boolean
-  error: string | null
-  title: string | null
-  provenance_paths: string[]
-}
-
 export type WikilinkGraphNode = {
   id: string
   path: string

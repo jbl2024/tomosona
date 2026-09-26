@@ -21,9 +21,9 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const searchValue = ref('Pulse')
+const searchValue = ref('Notes')
 const emailValue = ref('hello@tomosona.app')
-const notesValue = ref('Pulse agit comme un moteur. Il doit se comporter comme un assistant d\'edition.')
+const notesValue = ref('Organisez vos notes et retrouvez vos idees.')
 const selectValue = ref('rewrite')
 const checkboxValue = ref(true)
 const contentRef = ref<HTMLElement | null>(null)
@@ -34,7 +34,6 @@ const sectionIds = [
   'forms',
   'badges',
   'cards',
-  'panels',
   'alerts',
   'navigation',
   'code'
@@ -87,19 +86,13 @@ const tokenSections = [
 ] as const
 
 const codeSample = computed(() => [
-  '// Pulse AI - state machine',
-  "type PulseState = 'config' | 'generating' | 'result'",
-  '',
-  'interface PulsePanel {',
-  '  state: PulseState',
-  '  prompt: string',
-  '  output?: string',
+  '// Note metadata',
+  'interface Note {',
+  '  title: string',
+  '  tags: string[]',
   '}',
   '',
-  'const generate = async (panel: PulsePanel) => {',
-  "  if (!panel.prompt.trim()) return 'Prompt required'",
-  "  return 'Generated preview ready'",
-  '}'
+  'const label = (note: Note) => note.title.trim()',
 ].join('\n'))
 </script>
 
@@ -107,7 +100,7 @@ const codeSample = computed(() => [
   <UiModalShell
     :model-value="visible"
     title="Tomosona Design System"
-    description="Debug reference for tokens, primitives, patterns, and Pulse-aligned application surfaces."
+    description="Debug reference for tokens, primitives, patterns, and application surfaces."
     width="xl"
     panel-class="design-system-debug-modal"
     @close="emit('close')"
@@ -128,7 +121,6 @@ const codeSample = computed(() => [
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('forms')">Forms</button>
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('badges')">Badges</button>
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('cards')">Cards</button>
-          <button type="button" class="ds-debug-nav-link" @click="scrollToSection('panels')">Panels</button>
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('alerts')">Alerts</button>
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('navigation')">Navigation</button>
           <button type="button" class="ds-debug-nav-link" @click="scrollToSection('code')">Code</button>
@@ -173,9 +165,9 @@ const codeSample = computed(() => [
           </div>
           <UiPanel class-name="ds-type-panel">
             <div class="ds-type-serif-xl">Tomosona keeps the shell quiet and the writing surface clear.</div>
-            <div class="ds-type-serif-lg">Pulse should feel editorial, not ornamental.</div>
+            <div class="ds-type-serif-lg">Writing should feel focused and comfortable.</div>
             <div class="ds-type-sans-lg">Shared UI should be calm, crisp, and compact.</div>
-            <div class="ds-type-sans-md">Pulse agit comme un moteur. Il doit se comporter comme un assistant d'edition — suggerer, previsualiser, puis appliquer sur demande.</div>
+            <div class="ds-type-sans-md">Organisez vos notes et retrouvez vos idees.</div>
             <div class="ds-type-sans-sm">Secondary copy stays soft and readable inside panels, menus, and settings surfaces.</div>
             <code class="ds-type-mono">const mode = 'rewrite'</code>
           </UiPanel>
@@ -210,7 +202,7 @@ const codeSample = computed(() => [
           </div>
           <div class="ds-form-grid">
             <UiPanel class-name="ds-form-panel">
-              <UiField for-id="debug-search" label="Ask Pulse..." help="Prompt first, apply only on demand.">
+              <UiField for-id="debug-search" label="Search notes..." help="Find notes by title or content.">
                 <template #default="{ describedBy }">
                   <UiInput id="debug-search" :model-value="searchValue" :aria-describedby="describedBy" @update:model-value="searchValue = $event" />
                 </template>
@@ -234,12 +226,12 @@ const codeSample = computed(() => [
                   <UiTextarea id="debug-notes" :model-value="notesValue" :aria-describedby="describedBy" @update:model-value="notesValue = $event" />
                 </template>
               </UiField>
-              <UiCheckbox :model-value="checkboxValue" @update:model-value="checkboxValue = $event">Enable Pulse preview before apply</UiCheckbox>
+              <UiCheckbox :model-value="checkboxValue" @update:model-value="checkboxValue = $event">Show note preview</UiCheckbox>
             </UiPanel>
             <UiPanel tone="subtle" class-name="ds-form-panel">
               <div class="ds-preview-head">
                 <span class="ds-panel-kicker">Preview</span>
-                <UiBadge tone="accent">Pulse</UiBadge>
+                <UiBadge tone="accent">Note</UiBadge>
               </div>
               <p class="ds-preview-copy">The shared field pattern keeps label, help, and error semantics aligned across settings, modals, and editor-side controls.</p>
               <div class="ds-inline-meta">
@@ -276,11 +268,11 @@ const codeSample = computed(() => [
               <div class="ds-card-header">
                 <div>
                   <div class="ds-card-title">Editorial roadmap</div>
-                  <div class="ds-card-subtitle">notes/product/pulse.md</div>
+                  <div class="ds-card-subtitle">notes/product/editor.md</div>
                 </div>
                 <UiBadge tone="accent">Draft</UiBadge>
               </div>
-              <p class="ds-card-copy">Revoir la hierarchie de la home, ameliorer l'etat vide du panneau Pulse avec un skeleton anime, et clarifier la configuration des providers.</p>
+              <p class="ds-card-copy">Revoir la hierarchie de la home et ameliorer la navigation entre les notes.</p>
               <div class="ds-card-footer">
                 <span>Updated 2h ago</span>
                 <UiButton size="sm" variant="ghost">Open note</UiButton>
@@ -294,47 +286,6 @@ const codeSample = computed(() => [
           </div>
         </section>
 
-        <section id="panels" class="ds-debug-section">
-          <div class="ds-debug-section-label">
-            <h2>Panels & Overlays</h2>
-            <span>shell patterns</span>
-          </div>
-          <div class="ds-panel-grid">
-            <UiPanel class-name="ds-pulse-panel">
-              <div class="ds-pulse-panel-head">
-                <div>
-                  <div class="ds-card-title">Pulse AI</div>
-                  <div class="ds-card-subtitle">State 1 — Configuration</div>
-                </div>
-                <UiBadge tone="accent">Rewrite</UiBadge>
-              </div>
-              <UiField label="Prompt">
-                <template #default>
-                  <UiInput model-value="Make this intro clearer and shorter." />
-                </template>
-              </UiField>
-              <div class="ds-row">
-                <UiButton size="sm" variant="ghost">Cancel</UiButton>
-                <UiButton size="sm" variant="primary">Generate</UiButton>
-              </div>
-            </UiPanel>
-            <UiPanel tone="raised" class-name="ds-pulse-panel">
-              <div class="ds-pulse-panel-head">
-                <div>
-                  <div class="ds-card-title">Pulse AI</div>
-                  <div class="ds-card-subtitle">State 3 — Result</div>
-                </div>
-                <UiBadge tone="success">Ready</UiBadge>
-              </div>
-              <p class="ds-card-copy">This revision trims repetition, sharpens the CTA, and preserves the note's original tone. Apply it directly or keep iterating.</p>
-              <div class="ds-row">
-                <UiButton size="sm" variant="secondary">Keep editing</UiButton>
-                <UiButton size="sm" variant="primary">Apply</UiButton>
-              </div>
-            </UiPanel>
-          </div>
-        </section>
-
         <section id="alerts" class="ds-debug-section">
           <div class="ds-debug-section-label">
             <h2>Alerts & Feedback</h2>
@@ -343,11 +294,11 @@ const codeSample = computed(() => [
           <div class="ds-alert-grid">
             <UiPanel tone="subtle" class-name="ds-alert ds-alert-info">
               <div class="ds-alert-title">Index rebuild in progress</div>
-              <div class="ds-alert-copy">Pulse generating embeddings for new notes. Results remain available while the queue drains.</div>
+              <div class="ds-alert-copy">Indexing new notes. Results remain available while the queue drains.</div>
             </UiPanel>
             <UiPanel tone="subtle" class-name="ds-alert ds-alert-warning">
-              <div class="ds-alert-title">Provider needs review</div>
-              <div class="ds-alert-copy">The selected model is unavailable. Update the provider configuration before using Pulse actions.</div>
+              <div class="ds-alert-title">Workspace needs review</div>
+              <div class="ds-alert-copy">The selected folder is unavailable. Choose an accessible workspace.</div>
             </UiPanel>
           </div>
         </section>
@@ -639,8 +590,7 @@ const codeSample = computed(() => [
 }
 
 .ds-preview-head,
-.ds-card-header,
-.ds-pulse-panel-head {
+.ds-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -667,7 +617,6 @@ const codeSample = computed(() => [
 
 .ds-card,
 .ds-stat-card,
-.ds-pulse-panel,
 .ds-alert {
   display: flex;
   flex-direction: column;

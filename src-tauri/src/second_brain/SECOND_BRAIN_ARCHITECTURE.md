@@ -11,7 +11,7 @@
   - markdown path normalization
   - safe publish filename/date helpers
 - `stream_control.rs`
-  - process-local cancellation state for streamed assistant and Pulse flows
+  - process-local cancellation state for streamed assistant flows
 - `context.rs`
   - session context lookup
   - mention extraction and prioritization
@@ -19,12 +19,9 @@
 - `prompt_builder.rs`
   - prompt text assembly
   - token budgeting
-  - Pulse action normalization
   - frontmatter generation prompt assembly
 - `message_flow.rs`
   - `send_second_brain_message` workflow
-- `pulse_flow.rs`
-  - `run_pulse_transformation` workflow
 - `frontmatter_generation.rs`
   - AI-assisted frontmatter property generation workflow
   - strict JSON response parsing
@@ -41,7 +38,7 @@ The goal is to keep each module easy to read and cheap to change:
 - prompt rules change in `prompt_builder.rs`
 - path rules change in `paths.rs`
 - stream cancel behavior changes in `stream_control.rs`
-- message or Pulse flow changes stay in their dedicated workflow modules
+- message flow changes stay in their dedicated workflow module
 
 ## What Stays In `mod.rs`
 

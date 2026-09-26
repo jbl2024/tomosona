@@ -137,11 +137,6 @@ describe('useAppShellConstitutedContextActions', () => {
     expect(selectNode).toHaveBeenCalledWith('context-md')
     expect(recordCosmosHistorySnapshot).toHaveBeenCalled()
 
-    await expect(api.openConstitutedContextInPulse()).resolves.toBe(true)
-    await expect(api.openPulseContextInSecondBrain({
-      contextPaths: ['/vault/context.md'],
-      prompt: 'Pulse'
-    })).resolves.toBe(true)
     await expect(api.openAlterInSecondBrain('alter-1')).resolves.toBe(true)
   })
 })

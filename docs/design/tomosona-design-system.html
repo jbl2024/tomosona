@@ -45,10 +45,10 @@
   --info:           #1e5fa0;
   --info-bg:        #e8f0fa;
 
-  /* Pulse AI accent */
-  --pulse:          #7c5cbf;
-  --pulse-bg:       #f2eefa;
-  --pulse-hover:    #6847ad;
+  /* Violet accent */
+  --violet:          #7c5cbf;
+  --violet-bg:       #f2eefa;
+  --violet-hover:    #6847ad;
 
   /* Typography */
   --font-sans:  'Geist', sans-serif;
@@ -103,10 +103,10 @@
   --info:           #56b6c2;
   --info-bg:        #1a252a;
 
-  /* Pulse */
-  --pulse:          #c678dd;
-  --pulse-bg:       #251d2e;
-  --pulse-hover:    #d48eea;
+  /* Violet accent */
+  --violet:          #c678dd;
+  --violet-bg:       #251d2e;
+  --violet-hover:    #d48eea;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
@@ -374,8 +374,8 @@ body {
 .t-mono {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--pulse);
-  background: var(--pulse-bg);
+  color: var(--violet);
+  background: var(--violet-bg);
   padding: 2px 6px;
   border-radius: var(--r-sm);
 }
@@ -448,13 +448,13 @@ body {
 }
 .btn-danger:hover { background: var(--danger); color: #fff; }
 
-.btn-pulse {
-  background: var(--pulse);
+.btn-violet {
+  background: var(--violet);
   color: #fff;
-  border-color: var(--pulse);
+  border-color: var(--violet);
   box-shadow: 0 1px 2px rgba(0,0,0,0.15);
 }
-.btn-pulse:hover { background: var(--pulse-hover); border-color: var(--pulse-hover); }
+.btn-violet:hover { background: var(--violet-hover); border-color: var(--violet-hover); }
 
 .btn-outline {
   background: transparent;
@@ -680,7 +680,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
 .badge-success  { background: var(--success-bg); color: var(--success); }
 .badge-warning  { background: var(--warning-bg); color: var(--warning); }
 .badge-danger   { background: var(--danger-bg); color: var(--danger); }
-.badge-pulse    { background: var(--pulse-bg); color: var(--pulse); }
+.badge-violet    { background: var(--violet-bg); color: var(--violet); }
 .badge-mono     { font-family: var(--font-mono); font-size: 10px; }
 
 .dot {
@@ -881,154 +881,6 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
   gap: 8px;
 }
 
-/* Pulse panel */
-.pulse-panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-panel);
-  width: 320px;
-  overflow: hidden;
-}
-
-.pulse-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.pulse-dropdown {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
-  transition: all 0.15s;
-}
-
-.pulse-dropdown:hover { background: var(--bg-sunken); }
-
-.pulse-close {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-sm);
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s;
-  border: none;
-  background: transparent;
-  font-size: 16px;
-}
-
-.pulse-close:hover { background: var(--bg-sunken); color: var(--text-primary); }
-
-.pulse-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-.pulse-prompt-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-family: var(--font-mono);
-}
-
-.pulse-prompt-field {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-md);
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  line-height: 1.5;
-  resize: none;
-  min-height: 72px;
-  width: 100%;
-  outline: none;
-  transition: all 0.15s;
-}
-
-.pulse-prompt-field:focus {
-  border-color: var(--pulse);
-  box-shadow: 0 0 0 3px var(--pulse-bg);
-}
-
-.pulse-hint {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  line-height: 1.5;
-}
-
-.pulse-generate {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: var(--r-md);
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  justify-content: center;
-}
-
-.pulse-generate:hover { background: var(--accent-hover); }
-
-.pulse-preview-section {
-  border-top: 1px solid var(--border-subtle);
-  padding: 16px;
-}
-
-.pulse-preview-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  margin-bottom: 10px;
-}
-
-.pulse-preview-empty {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  padding: 8px 0;
-  line-height: 1.5;
-}
-
-.pulse-preview-content {
-  font-size: 13px;
-  color: var(--text-primary);
-  line-height: 1.65;
-  background: var(--bg-sunken);
-  border-radius: var(--r-md);
-  padding: 12px;
-  border: 1px solid var(--border-subtle);
-}
-
-.pulse-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 12px;
-}
-
 /* ============================================================
    ALERTS
    ============================================================ */
@@ -1168,7 +1020,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
   transition: width 0.3s ease;
 }
 
-.progress-bar.pulse-bar { background: var(--pulse); }
+.progress-bar.violet-bar { background: var(--violet); }
 .progress-bar.success-bar { background: var(--success); }
 
 .skeleton {
@@ -1254,7 +1106,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
   overflow-x: auto;
 }
 
-.code-block .kw { color: var(--pulse); }
+.code-block .kw { color: var(--violet); }
 .code-block .str { color: var(--success); }
 .code-block .cm { color: var(--text-tertiary); font-style: italic; }
 .code-block .fn { color: var(--accent); }
@@ -1401,8 +1253,8 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
         <div class="swatch-info"><span class="swatch-name">accent</span></div>
       </div>
       <div class="token-swatch">
-        <div class="swatch-color" style="background:var(--pulse)"></div>
-        <div class="swatch-info"><span class="swatch-name">pulse</span></div>
+        <div class="swatch-color" style="background:var(--violet)"></div>
+        <div class="swatch-info"><span class="swatch-name">violet</span></div>
       </div>
       <div class="token-swatch">
         <div class="swatch-color" style="background:var(--success)"></div>
@@ -1433,7 +1285,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       <div class="t-serif-xl">The knowledge graph<br><em>emerges from your notes.</em></div>
       <div class="t-serif-lg">Spec de design, Query Blocks natifs</div>
       <div class="t-sans-lg">Interface & Interaction Design</div>
-      <div class="t-sans-md">Pulse agit comme un moteur. Il doit se comporter comme un assistant d'édition — suggérer, prévisualiser, puis appliquer sur demande.</div>
+      <div class="t-sans-md">Organisez vos notes et retrouvez vos idées.</div>
       <div class="t-sans-sm">Will transform only the selected text. Nothing changes until you apply.</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
         <span class="t-mono">--accent: #1e3a5f</span>
@@ -1462,7 +1314,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       <button class="btn btn-ghost btn-md">Ghost</button>
       <button class="btn btn-outline btn-md">Outline</button>
       <button class="btn btn-danger btn-md">Danger</button>
-      <button class="btn btn-pulse btn-md">✦ Pulse AI</button>
+      <button class="btn btn-violet btn-md">✦ Preview</button>
       <button class="btn btn-primary btn-md" disabled>Disabled</button>
     </div>
 
@@ -1488,7 +1340,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       <button class="btn btn-primary btn-md btn-loading">
         <span class="btn-spinner"></span> Generating...
       </button>
-      <button class="btn btn-pulse btn-md btn-loading">
+      <button class="btn btn-violet btn-md btn-loading">
         <span class="btn-spinner"></span> Thinking...
       </button>
     </div>
@@ -1561,7 +1413,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
         </div>
 
         <div class="form-group">
-          <label class="form-label">Ask Pulse...</label>
+          <label class="form-label">Search notes...</label>
           <textarea placeholder="Clarify the selected passage without changing its meaning.">Clarify the selected passage without changing its meaning.</textarea>
           <span class="form-hint">Will transform only the selected text.</span>
         </div>
@@ -1619,7 +1471,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       <span class="badge badge-success"><span class="dot"></span>Indexed</span>
       <span class="badge badge-warning"><span class="dot"></span>Syncing</span>
       <span class="badge badge-danger"><span class="dot"></span>Error</span>
-      <span class="badge badge-pulse"><span class="dot"></span>Pulse AI</span>
+      <span class="badge badge-violet"><span class="dot"></span>Preview</span>
       <span class="badge badge-default badge-mono">v0.1.0</span>
       <span class="badge badge-accent badge-mono">gpt-5.2</span>
       <span class="badge badge-success badge-mono">saved</span>
@@ -1653,7 +1505,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       </div>
       <div class="stat-card">
         <div class="stat-value">3</div>
-        <div class="stat-label">pulse runs today</div>
+        <div class="stat-label">notes edited today</div>
         <div class="stat-delta down">↓ 2 vs yesterday</div>
       </div>
     </div>
@@ -1675,7 +1527,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
         <div class="note-card-inner">
           <div class="note-card-title">Améliorations à faire</div>
           <div class="note-card-path">/ improvements.md</div>
-          <div class="note-card-excerpt">Revoir la hiérarchie de la Home, améliorer l'état vide du panneau Pulse avec un skeleton animé...</div>
+          <div class="note-card-excerpt">Revoir la hiérarchie de la Home, améliorer la navigation entre les notes...</div>
         </div>
         <div class="note-card-footer">
           <span class="note-card-time">13m ago</span>
@@ -1757,52 +1609,6 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       </div>
     </div>
 
-    <div class="t-label">Pulse AI panel (State 1 — Configuration)</div>
-    <div class="pulse-panel">
-      <div class="pulse-panel-header">
-        <div class="pulse-dropdown">Rewrite <span style="font-size:10px;margin-left:2px;">▾</span></div>
-        <button class="pulse-close">✕</button>
-      </div>
-      <div class="pulse-body">
-        <div>
-          <div class="pulse-prompt-label" style="margin-bottom:6px;">Prompt</div>
-          <textarea class="pulse-prompt-field">Clarify the selected passage without changing its meaning.</textarea>
-        </div>
-        <div class="pulse-hint">Will transform only the selected text. Nothing changes until you apply.</div>
-        <button class="pulse-generate">✦ Generate</button>
-      </div>
-      <div class="pulse-preview-section">
-        <div class="pulse-preview-label">Preview</div>
-        <div class="pulse-preview-empty">Choose an action, refine the prompt, then generate a preview.</div>
-      </div>
-    </div>
-
-    <div class="t-label">Pulse AI panel (State 3 — Result)</div>
-    <div class="pulse-panel">
-      <div class="pulse-panel-header">
-        <div class="pulse-dropdown">Rewrite <span style="font-size:10px;margin-left:2px;">▾</span></div>
-        <button class="pulse-close">✕</button>
-      </div>
-      <div class="pulse-body">
-        <div>
-          <div class="pulse-prompt-label" style="margin-bottom:6px;">Prompt</div>
-          <textarea class="pulse-prompt-field">Clarify the selected passage without changing its meaning.</textarea>
-        </div>
-        <button class="pulse-generate" style="background:var(--bg-sunken);color:var(--text-secondary);border:1px solid var(--border-subtle);">↺ Regenerate</button>
-      </div>
-      <div class="pulse-preview-section">
-        <div class="pulse-preview-label">Preview</div>
-        <div class="pulse-preview-content">
-          The product's core promise can be expressed as follows: I write my notes naturally, and Tomosona understands their connections — surfacing dynamic, contextual views without interrupting my flow.
-        </div>
-        <div class="pulse-actions">
-          <button class="btn btn-primary btn-sm" style="flex:1;">↑ Replace selection</button>
-          <button class="btn btn-secondary btn-sm">↓ Insert below</button>
-          <button class="btn btn-ghost btn-sm btn-icon">⎘</button>
-        </div>
-      </div>
-    </div>
-
     <div class="t-label">Command palette</div>
     <div class="cmd-palette">
       <div class="cmd-input-wrap">
@@ -1869,10 +1675,10 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-          <span class="form-hint">Pulse generating</span>
+          <span class="form-hint">Indexing notes</span>
           <span class="form-hint">45%</span>
         </div>
-        <div class="progress"><div class="progress-bar pulse-bar" style="width:45%"></div></div>
+        <div class="progress"><div class="progress-bar violet-bar" style="width:45%"></div></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -1908,7 +1714,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       </div>
       <div class="tab-content">
         <div class="tab-panel active" id="tab-llm">
-          Configure your language model provider. Supports OpenAI, Anthropic, Mistral, and local Ollama instances. The model is used for Pulse AI features including rewrite, summarize, and expand.
+          Configure your language model provider. Supports OpenAI, Anthropic, Mistral, and local Ollama instances. The model is used for Second Brain conversations.
         </div>
         <div class="tab-panel" id="tab-embed">
           Embeddings power the semantic search and Second Brain features. Choose a provider and model for generating vector embeddings from your notes.
@@ -1928,7 +1734,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
         <div class="sidebar-item"><span class="sidebar-icon">🧠</span>Second Brain</div>
         <div class="sidebar-section">files</div>
         <div class="sidebar-item"><span class="sidebar-icon">📄</span>dataview.md</div>
-        <div class="sidebar-item"><span class="sidebar-icon">📄</span>pulse.md</div>
+        <div class="sidebar-item"><span class="sidebar-icon">📄</span>notes.md</div>
         <div class="sidebar-item"><span class="sidebar-icon">📄</span>Laws of UX.md</div>
         <div class="sidebar-item"><span class="sidebar-icon">📄</span>todo.md</div>
         <div class="sidebar-section">journal</div>
@@ -1968,22 +1774,11 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
       <span>DM MONO</span>
     </div>
     <div class="code-block">
-<span class="cm">// Pulse AI — state machine</span>
-<span class="kw">type</span> <span class="fn">PulseState</span> = <span class="str">'config'</span> | <span class="str">'generating'</span> | <span class="str">'result'</span>;
-
-<span class="kw">interface</span> <span class="fn">PulsePanel</span> {
-  state:  <span class="fn">PulseState</span>;
-  action: <span class="str">'rewrite'</span> | <span class="str">'summarize'</span> | <span class="str">'expand'</span>;
-  prompt: <span class="kw">string</span>;
-  result: <span class="kw">string</span> | <span class="kw">null</span>;
+<span class="cm">// Note metadata</span>
+<span class="kw">interface</span> Note {
+  title: <span class="kw">string</span>;
+  tags: <span class="kw">string</span>[];
 }
-
-<span class="kw">const</span> <span class="fn">generate</span> = <span class="kw">async</span> (panel: <span class="fn">PulsePanel</span>) => {
-  panel.state = <span class="str">'generating'</span>;
-  <span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">pulse</span>.run(panel.prompt);
-  panel.state = <span class="str">'result'</span>;
-  panel.result = result;
-};
     </div>
   </section>
 

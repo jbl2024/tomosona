@@ -1,15 +1,10 @@
 /**
- * Editor `@` macro registry and resolution helpers.
- *
- * This module owns the pure macro catalog: static values, markdown templates,
- * task snippets, context snippets, and AI action descriptors. Runtime code is
- * responsible for Tiptap insertion or opening Pulse from the resolved entry.
+ * Pure editor macro catalog for text, markdown templates, tasks and note context.
+ * Runtime insertion is owned by the editor menu composable.
  */
-import type { PulseActionId } from '../../../shared/api/apiTypes'
+export type EditorAtMacroKind = 'insert_text' | 'insert_markdown' | 'dynamic_pick'
 
-export type EditorAtMacroKind = 'insert_text' | 'insert_markdown' | 'open_pulse' | 'dynamic_pick'
-
-export type EditorAtMacroGroup = 'Time' | 'Document' | 'Templates' | 'Tasks' | 'Context' | 'AI'
+export type EditorAtMacroGroup = 'Time' | 'Document' | 'Templates' | 'Tasks' | 'Context'
 
 export type EditorAtTemplateMacro = {
   path: string
@@ -31,11 +26,6 @@ export type EditorAtMacroContext = {
   templates?: EditorAtTemplateMacro[]
 }
 
-export type EditorAtPulseAction = {
-  actionId: PulseActionId
-  instruction: string
-}
-
 export type EditorAtMacroEntry = {
   id: string
   label: string
@@ -46,7 +36,6 @@ export type EditorAtMacroEntry = {
   preview: string
   aliases: string[]
   templatePath?: string
-  pulse?: EditorAtPulseAction
 }
 
 type MacroDefinition = {
@@ -57,9 +46,7 @@ type MacroDefinition = {
   description: string
   aliases: string[]
   acceptsArgument?: boolean
-  resolve: (context: NormalizedMacroContext, argument: string) => Pick<EditorAtMacroEntry, 'replacement' | 'preview'> & {
-    pulse?: EditorAtPulseAction
-  }
+  resolve: (context: NormalizedMacroContext, argument: string) => Pick<EditorAtMacroEntry, 'replacement' | 'preview'>
 }
 
 type NormalizedMacroContext = Required<Omit<EditorAtMacroContext, 'createdAt' | 'updatedAt'>> & {
@@ -100,17 +87,6 @@ const MACRO_IDS = [
   'quote',
   'context',
   'related',
-  'summarize',
-  'summary',
-  'rewrite',
-  'expand',
-  'extract.tasks',
-  'extract.decisions',
-  'extract.risks',
-  'ask',
-  'brief',
-  'title.ai',
-  'tags.auto'
 ] as const
 
 const FRENCH_MONTHS = [
@@ -232,14 +208,6 @@ function text(value: string): Pick<EditorAtMacroEntry, 'replacement' | 'preview'
 
 function markdown(value: string, preview?: string): Pick<EditorAtMacroEntry, 'replacement' | 'preview'> {
   return { replacement: value, preview: preview ?? value.split('\n')[0] ?? '' }
-}
-
-function pulse(actionId: PulseActionId, instruction: string): Pick<EditorAtMacroEntry, 'replacement' | 'preview'> & { pulse: EditorAtPulseAction } {
-  return {
-    replacement: '',
-    preview: 'Open Pulse',
-    pulse: { actionId, instruction }
-  }
 }
 
 const TASK_TEMPLATE = '- [ ] '
@@ -538,105 +506,6 @@ const MACRO_DEFINITIONS: MacroDefinition[] = [
     aliases: ['related', 'notes liees'],
     resolve: ({ backlinks }) => markdown(['### Related', ...backlinks.slice(0, 5).map((path) => `- [[${path}]]`)].join('\n'), 'Related notes')
   },
-  {
-    id: 'summarize',
-    label: 'Summarize',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to summarize the selection or note',
-    aliases: ['summarize', 'summary', 'resume', 'synthese'],
-    resolve: () => pulse('synthesize', 'Summarize the provided material into a concise, useful synthesis.')
-  },
-  {
-    id: 'summary',
-    label: 'Summary',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to create a short summary',
-    aliases: ['summary', 'doc.summary', 'resume court'],
-    resolve: () => pulse('synthesize', 'Create a short summary of the current document or selection.')
-  },
-  {
-    id: 'rewrite',
-    label: 'Rewrite',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to rewrite the selection or note',
-    aliases: ['rewrite', 'rephrase', 'clarify'],
-    resolve: () => pulse('rewrite', 'Rewrite the provided material for clarity while preserving meaning.')
-  },
-  {
-    id: 'expand',
-    label: 'Expand',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to expand the selection or note',
-    aliases: ['expand', 'developper'],
-    resolve: () => pulse('expand', 'Expand the provided material into a fuller draft with clear transitions.')
-  },
-  {
-    id: 'extract.tasks',
-    label: 'Extract tasks',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to extract action items',
-    aliases: ['extract tasks', 'actions', 'todo ai'],
-    resolve: () => pulse('brief', 'Extract concrete action items as markdown checkboxes. Include owner, due date, and priority only when explicit.')
-  },
-  {
-    id: 'extract.decisions',
-    label: 'Extract decisions',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to extract decisions',
-    aliases: ['extract decisions', 'decisions'],
-    resolve: () => pulse('brief', 'Extract decisions from the material. For each decision, include context, decision, rationale, and impact.')
-  },
-  {
-    id: 'extract.risks',
-    label: 'Extract risks',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to extract risks',
-    aliases: ['extract risks', 'risks', 'risk'],
-    resolve: () => pulse('identify_tensions', 'Extract risks, blockers, gaps, and unresolved tensions from the provided material.')
-  },
-  {
-    id: 'ask',
-    label: 'Ask document',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse with a document question prompt',
-    aliases: ['ask', 'question', 'qa'],
-    resolve: () => pulse('synthesize', 'Answer a focused question about the provided material. If the question is missing, identify the most useful open questions.')
-  },
-  {
-    id: 'brief',
-    label: 'Brief',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to produce a brief',
-    aliases: ['brief', 'synthese courte'],
-    resolve: () => pulse('brief', 'Produce a concise working brief with objective, key points, decisions, risks, and next actions.')
-  },
-  {
-    id: 'title.ai',
-    label: 'Generate title',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to generate title options',
-    aliases: ['title ai', 'generate title', 'titre'],
-    resolve: () => pulse('condense', 'Generate 5 concise title options for the provided material.')
-  },
-  {
-    id: 'tags.auto',
-    label: 'Suggest tags',
-    group: 'AI',
-    kind: 'open_pulse',
-    description: 'Open Pulse to suggest tags',
-    aliases: ['tags auto', 'suggest tags', 'auto tags'],
-    resolve: () => pulse('extract_themes', 'Suggest 5 to 8 lowercase tags for the provided material. Return only a comma-separated list.')
-  }
 ]
 
 function splitToken(token: string): { id: string; argument: string } {
@@ -666,7 +535,6 @@ function resolveDefinition(definition: MacroDefinition, context: NormalizedMacro
     aliases: definition.aliases,
     replacement: resolved.replacement,
     preview: resolved.preview,
-    ...(resolved.pulse ? { pulse: resolved.pulse } : {})
   }
 }
 

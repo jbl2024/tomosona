@@ -1,4 +1,4 @@
-//! Shared cancellation state for message and Pulse streaming flows.
+//! Shared cancellation state for message streaming flows.
 //!
 //! The state is intentionally small and process-local. We keep separate buckets for
 //! session/request ids and message/output ids because the frontend can cancel either

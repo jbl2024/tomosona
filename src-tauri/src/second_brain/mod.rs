@@ -18,7 +18,6 @@ pub mod modes;
 pub mod openai_codex;
 mod paths;
 mod prompt_builder;
-mod pulse_flow;
 pub mod session_store;
 mod stream_control;
 
@@ -36,7 +35,6 @@ use frontmatter_generation::{
 };
 use message_flow::send_message;
 use openai_codex::{discover_models, has_codex_tokens, CodexDiscoveredModel};
-use pulse_flow::run_pulse;
 use session_store::{
     create_session, delete_session, list_sessions, load_session, set_session_alter_id,
     upsert_context,
@@ -115,48 +113,6 @@ pub struct StreamEvent {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum PulseSourceKind {
-    EditorSelection,
-    EditorNote,
-    SecondBrainContext,
-    CosmosFocus,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RunPulseTransformationPayload {
-    pub request_id: Option<String>,
-    pub source_kind: PulseSourceKind,
-    pub action_id: String,
-    pub instructions: Option<String>,
-    #[serde(default)]
-    pub context_paths: Vec<String>,
-    pub source_text: Option<String>,
-    pub selection_label: Option<String>,
-    pub session_id: Option<String>,
-    pub cosmos_selected_node_id: Option<String>,
-    #[serde(default)]
-    pub cosmos_neighbor_paths: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct RunPulseTransformationResult {
-    pub request_id: String,
-    pub output_id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PulseStreamEvent {
-    pub request_id: String,
-    pub output_id: String,
-    pub chunk: String,
-    pub done: bool,
-    pub error: Option<String>,
-    pub title: Option<String>,
-    pub provenance_paths: Vec<String>,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct CancelStreamPayload {
     pub session_id: String,
@@ -219,12 +175,6 @@ pub struct InsertAssistantIntoTargetResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct ExportSessionMarkdownResult {
     pub path: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct CancelPulseStreamPayload {
-    pub request_id: String,
-    pub output_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -445,25 +395,6 @@ pub fn cancel_second_brain_stream(payload: CancelStreamPayload) -> Result<()> {
     }
     request_stream_cancel(&payload.session_id, payload.message_id.as_deref());
     Ok(())
-}
-
-#[tauri::command]
-pub fn cancel_pulse_stream(payload: CancelPulseStreamPayload) -> Result<()> {
-    if payload.request_id.trim().is_empty() {
-        return Err(AppError::InvalidOperation(
-            "Pulse request not found.".to_string(),
-        ));
-    }
-    request_stream_cancel(&payload.request_id, payload.output_id.as_deref());
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn run_pulse_transformation(
-    app: AppHandle,
-    payload: RunPulseTransformationPayload,
-) -> Result<RunPulseTransformationResult> {
-    run_pulse(app, payload).await
 }
 
 #[tauri::command]

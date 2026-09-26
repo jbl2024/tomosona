@@ -263,14 +263,6 @@ async function runPaletteCommand(root: HTMLElement, query: string) {
   await flushUi()
 }
 
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  const promise = new Promise<T>((innerResolve) => {
-    resolve = innerResolve
-  })
-  return { promise, resolve }
-}
-
 describe('App shell flows', () => {
   afterEach(() => {
     document.body.innerHTML = ''
@@ -385,27 +377,15 @@ describe('App shell flows', () => {
     mounted.app.unmount()
   })
 
-  it('shows the Cosmos loading modal while the palette command is still running', async () => {
-    const graphRequest = deferred<{ nodes: []; edges: []; generated_at_ms: number }>()
-    hoisted.getWikilinkGraph.mockImplementationOnce(() => graphRequest.promise)
-
+  it('does not expose removed intelligence commands in the palette', async () => {
     const mounted = mountApp()
     await flushUi()
 
-    await openCommandPalette(mounted.root, '>open cosmos view')
-    const actionButton = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.modal-item'))
-      .find((item) => item.textContent?.includes('Open Cosmos View'))
-    if (!actionButton) throw new Error('Expected Open Cosmos View action')
-
-    actionButton.click()
-    await flushUi()
-
-    expect(document.querySelector('[data-modal="cosmos-command-loading"]')).toBeTruthy()
-    expect(document.body.textContent).toContain('Loading graph...')
-
-    graphRequest.resolve({ nodes: [], edges: [], generated_at_ms: Date.now() })
-    await flushUi()
-
+    await openCommandPalette(mounted.root, '>')
+    const actions = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.modal-item'))
+      .map(item => item.textContent).join(' ')
+    expect(actions).toContain('Open Home')
+    expect(actions).not.toMatch(/Pulse|Cosmos|Second Brain|Alter/)
     expect(document.querySelector('[data-modal="cosmos-command-loading"]')).toBeNull()
 
     mounted.app.unmount()
