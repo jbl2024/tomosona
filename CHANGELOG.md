@@ -24,6 +24,40 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260926.1] - 2026-09-26
+
+### Added
+- feat(ai): remove semantic search, Second Brain, and LLM residue (f307a054)
+- feat: remove ai (659d6e49)
+- feat: integrated terminal (b216ca20)
+
+### Changed
+- test: remove stale expectations for retired features (7b70080e)
+- refactor: remove legacy feature residue (e7b3722a)
+- docs: remove legacy AI references (868c8e7e)
+- docs: remove legacy AI references (fb4c3a63)
+- refactor(index): remove dead semantic/embedding code and disabled test module (6c234006)
+- refactor(search): remove dead LLM/embedding helpers after semantic feature removal (dc579b06)
+- refactor(ai): remove second brain settings and property generation (1e03dd34)
+- refactor(settings): remove AI settings modal and loading (6c5a473c)
+- refactor(properties): remove AI property generation controls (a3723c5e)
+- refactor(ai): remove second brain backend and LLM services (7349d3cd)
+- refactor(index): remove embeddings and semantic links (1928f6e3)
+- refactor(alters): remove alter domain and integrations (e12b5348)
+- refactor(cosmos)!: remove graph view and dedicated backend (092a532f)
+- refactor(pulse)!: remove transformation engine and integrations (4dd6800a)
+- refactor(editor): remove pulse selection toolbar action (406a00b4)
+- chore: remove retired intelligence docs and dedicated tests (16572a3d)
+- refactor(ui): remove retired intelligence surfaces (b937f246)
+- chore: changelog (a2b32b02)
+
+### Fixed
+- fix(index): remove stale semantic path-context test and import from AI cleanup (8694208d)
+- fix(index): preserve legacy databases after vector removal (ca9f0c75)
+- fix(theme): restore Atom One Dark shell surface hierarchy (e43ba0ec)
+- fix(terminal): preserve escape and toggle panel with cmd+j (1268666d)
+- fix(editor): enable at macros in headings (8a6ee80c)
+
 ## [20260813.1] - 2026-08-13
 
 ### Changed
