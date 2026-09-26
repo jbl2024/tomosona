@@ -48,10 +48,10 @@ describe('WorkspaceOverflowMenu', () => {
     const mounted = mountHarness()
     const buttons = mounted.root.querySelectorAll<HTMLButtonElement>('.overflow-item')
 
-    buttons[0]?.click()
-    buttons[2]?.click()
-    buttons[6]?.click()
-    buttons[9]?.click()
+    Array.from(buttons).find((button) => button.textContent?.includes('Command palette'))?.click()
+    Array.from(buttons).find((button) => button.textContent?.includes('About'))?.click()
+    Array.from(buttons).find((button) => button.textContent?.includes('Zoom in'))?.click()
+    Array.from(buttons).find((button) => button.textContent?.includes('Theme picker'))?.click()
     await nextTick()
 
     expect(mounted.events).toEqual(['palette', 'about', 'zoom-in', 'theme-picker'])

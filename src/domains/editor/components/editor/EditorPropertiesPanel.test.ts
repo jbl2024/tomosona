@@ -126,7 +126,7 @@ describe('EditorPropertiesPanel', () => {
     app.unmount()
   })
 
-  it('renders generation controls when expanded', async () => {
+  it('renders structured property fields when expanded', async () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
 
@@ -155,8 +155,8 @@ describe('EditorPropertiesPanel', () => {
     app.mount(root)
     await flushUi()
 
-    expect(root.querySelector('.properties-auto-btn')).toBeTruthy()
-    expect(root.querySelector('.properties-sparkle-btn')).toBeTruthy()
+    expect(root.querySelector('.property-row')).toBeTruthy()
+    expect(root.querySelector('.properties-remove-btn')).toBeTruthy()
 
     app.unmount()
   })

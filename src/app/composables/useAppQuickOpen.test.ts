@@ -77,8 +77,7 @@ describe('useAppQuickOpen', () => {
     ])
     expect(api.quickOpenBrowseActionResults.value.map((item) => item.id)).toEqual([
       'open-home-view',
-      'create-new-file',
-      'open-settings'
+      'create-new-file'
     ])
   })
 
@@ -98,8 +97,7 @@ describe('useAppQuickOpen', () => {
       'open-home-view',
       'open-today',
       'create-new-file',
-      'open-favorites',
-      'open-settings'
+      'open-favorites'
     ])
   })
 
@@ -291,12 +289,12 @@ describe('useAppQuickOpen', () => {
 
     api.moveQuickOpenSelection(-1)
 
-    expect(api.quickOpenActiveIndex.value).toBe(3)
+    expect(api.quickOpenActiveIndex.value).toBe(2)
 
     api.quickOpenQuery.value = 'md'
     api.moveQuickOpenSelection(-1)
 
-    expect(api.quickOpenActiveIndex.value).toBe(0)
+    expect(api.quickOpenActiveIndex.value).toBe(1)
   })
 
   it('does not move selection when nothing is visible', () => {
@@ -305,7 +303,7 @@ describe('useAppQuickOpen', () => {
 
     api.moveQuickOpenSelection(1)
 
-    expect(api.quickOpenActiveIndex.value).toBe(0)
+    expect(api.quickOpenActiveIndex.value).toBe(3)
   })
 
   it('resets the active index when the visible mode changes', async () => {
