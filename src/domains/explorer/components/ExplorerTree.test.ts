@@ -332,7 +332,7 @@ describe('ExplorerTree', () => {
         ]
       }
       if (dirPath === '/vault/features') {
-        return [fileNode('/vault/features/echoes.md')]
+        return [fileNode('/vault/features/related.md')]
       }
       return []
     })
@@ -343,18 +343,18 @@ describe('ExplorerTree', () => {
     await nextTick()
     const input = mounted.root.querySelector('input[placeholder="Filter files and folders..."]') as HTMLInputElement
 
-    input.value = 'ech'
+    input.value = 'rel'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await nextTick()
 
-    expect(mounted.root.querySelector('[data-explorer-path="/vault/features/echoes.md"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-explorer-path="/vault/features/related.md"]')).toBeNull()
 
     await vi.advanceTimersByTimeAsync(180)
     await nextTick()
     await nextTick()
 
     expect(mounted.root.querySelector('[data-explorer-path="/vault/features"]')).toBeTruthy()
-    expect(mounted.root.querySelector('[data-explorer-path="/vault/features/echoes.md"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-explorer-path="/vault/features/related.md"]')).toBeTruthy()
     expect(mounted.root.querySelector('[data-explorer-path="/vault/inbox.md"]')).toBeNull()
 
     mounted.app.unmount()

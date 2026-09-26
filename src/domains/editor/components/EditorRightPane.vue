@@ -496,37 +496,6 @@ const activeNoteExpanded = ref(true)
   font-weight: 500;
 }
 
-.semantic-link-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.semantic-link-path {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.semantic-link-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-}
-
-.semantic-link-direction {
-  font-size: 10px;
-  line-height: 1;
-  border-radius: 999px;
-  padding: 2px 6px;
-  font-weight: 600;
-  color: var(--right-pane-text-soft);
-  background: var(--right-pane-item-hover);
-}
-
 .metadata-grid {
   display: flex;
   flex-direction: column;

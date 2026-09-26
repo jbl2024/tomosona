@@ -32,7 +32,7 @@ describe('filterExplorerRows', () => {
       fileNode('/vault/Project Notes.md')
     ],
     '/vault/features': [
-      fileNode('/vault/features/echoes.md')
+      fileNode('/vault/features/related.md')
     ],
     '/vault/journal': [
       fileNode('/vault/journal/2026/03/2026-03-12.md'),
@@ -60,9 +60,9 @@ describe('filterExplorerRows', () => {
   })
 
   it('keeps ancestor directories for fuzzy child matches', () => {
-    expect(filterExplorerRows('ech', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
+    expect(filterExplorerRows('rel', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
       { path: '/vault/features', depth: 0 },
-      { path: '/vault/features/echoes.md', depth: 1 }
+      { path: '/vault/features/related.md', depth: 1 }
     ])
   })
 
@@ -134,7 +134,7 @@ describe('filterExplorerRows', () => {
       ]
     }
 
-    expect(filterExplorerRows('echoes', visibleRows, { rootPath: '/vault', childrenByDir: partiallyLoadedTree })).toEqual([])
+    expect(filterExplorerRows('related', visibleRows, { rootPath: '/vault', childrenByDir: partiallyLoadedTree })).toEqual([])
   })
 
   it('preserves row order from the tree traversal', () => {

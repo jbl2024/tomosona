@@ -362,7 +362,7 @@ Example:
 ```vue
 <UiPanel tone="subtle" class-name="space-y-3">
   <h3 class="text-sm font-semibold">Workspace status</h3>
-  <p class="text-sm">Semantic index is ready.</p>
+  <p class="text-sm">Workspace index is ready.</p>
 </UiPanel>
 ```
 

@@ -31,7 +31,7 @@ describe('pathMoves', () => {
       [
         '/vault/journal/2026/03/2026-03-06.md',
         '/vault/journal/2026/03/2026-03-07.md',
-        '/vault/features/echoes.md'
+        '/vault/features/related.md'
       ]
     )).toEqual([
       {

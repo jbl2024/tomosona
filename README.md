@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  A local-first second brain for writing, linking, exploring, and transforming your Markdown notes.
+  A local-first Markdown workspace for writing, linking, and organizing your notes.
 </p>
 
 ## Overview
@@ -28,7 +28,7 @@ It works directly on a workspace of Markdown files stored on your machine.
 The idea is straightforward:
 
 - your notes stay as plain `.md` files that remain readable outside the app;
-- the app adds a local index under `.tomosona/` to power search, backlinks, and graph features;
+- the app adds a local index under `.tomosona/` to power search and backlinks;
 - no cloud layer is required to organize, retrieve, and connect your notes.
 
 ## Product Principles
@@ -43,7 +43,7 @@ Notes are stored as `.md` files, with frontmatter support for properties. UI met
 
 ### 3. Navigation through links and context
 
-The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, hybrid search, and contextual suggestions.
+The app is not limited to a file tree. It combines an explorer, wikilinks, backlinks, and search.
 
 ## Core Features
 
@@ -76,7 +76,7 @@ The app is not limited to a file tree. It combines an explorer, wikilinks, backl
 - guided wikilink rewrite flows on rename;
 - local per-note history with a right-pane snapshot browser and restore flow;
 - heading overview and document navigation;
-- a right panel for backlinks, properties, and Echoes.
+- a right panel for backlinks, properties, history, and document navigation.
 
 ### Convert to Word
 
@@ -225,6 +225,5 @@ Your notes themselves remain standard `.md` files in your normal workspace tree.
 The project is evolving quickly. Recent notable additions include:
 
 - the launchpad and workspace setup wizard;
-- Echoes contextual suggestions;
 - inline find in the editor;
 - the multi-pane shell.

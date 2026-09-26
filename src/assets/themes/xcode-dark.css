@@ -171,16 +171,4 @@ html[data-theme='xcode-dark'] {
   --sb-danger-border: #5a3035;
   --sb-danger-bg: #2d1d20;
   --sb-danger-text: #f8b8bd;
-  --echoes-card-bg: #2a3038;
-  --echoes-card-border: rgba(75, 86, 100, 0.34);
-  --echoes-card-hover-border: rgba(75, 163, 255, 0.42);
-  --echoes-title: #bcc7d3;
-  --echoes-copy: #c6d0db;
-  --echoes-empty-bg: rgba(75, 86, 100, 0.24);
-  --echoes-item-hover-bg: #303741;
-  --echoes-item-hover-border: rgba(75, 163, 255, 0.22);
-  --echoes-item-title: #e3eaf3;
-  --echoes-item-path: #9aa7b6;
-  --echoes-icon: #bcc7d3;
-  --echoes-icon-secondary: #8ea0b1;
 }

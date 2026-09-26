@@ -114,16 +114,4 @@ html[data-theme='catppuccin-mocha'] {
   --sb-danger-border: #5b3143;
   --sb-danger-bg: #2f1f28;
   --sb-danger-text: #f5bde6;
-  --echoes-card-bg: #202131;
-  --echoes-card-border: rgba(69, 71, 90, 0.35);
-  --echoes-card-hover-border: rgba(137, 180, 250, 0.42);
-  --echoes-title: #bac2de;
-  --echoes-copy: #c2c9e4;
-  --echoes-empty-bg: rgba(69, 71, 90, 0.24);
-  --echoes-item-hover-bg: #292b3f;
-  --echoes-item-hover-border: rgba(137, 180, 250, 0.22);
-  --echoes-item-title: #e1e8ff;
-  --echoes-item-path: #a6adc8;
-  --echoes-icon: #bac2de;
-  --echoes-icon-secondary: #9399b2;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Shared session switcher used by Second Brain-style workspace surfaces.
+ * Shared session switcher for workspace surfaces.
  *
  * The parent owns session loading and selection. This component only provides
  * a compact filterable dropdown with an optional delete action.

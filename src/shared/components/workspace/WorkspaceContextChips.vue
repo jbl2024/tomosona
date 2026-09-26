@@ -3,7 +3,7 @@
  * Shared horizontal chip row for workspace context notes.
  *
  * This component owns the repeated "main chip + Open + Remove" affordance
- * used by Second Brain. The parent keeps the data and
+ * used by workspace context surfaces. The parent keeps the data and
  * selection state; this component only renders the row and emits actions.
  */
 export type WorkspaceContextChipItem = {

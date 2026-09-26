@@ -1,351 +1,146 @@
 # Testing Guide
 
-This repository uses `Vitest` for frontend tests and Rust tests for backend logic.
-The goal of this guide is to keep tests small, intentional, and easy to maintain.
-
-The short version:
-
-- Test pure logic as close to the source as possible.
-- Mock boundaries, not the behavior you are trying to verify.
-- Use component or App-level tests only when the behavior crosses real boundaries.
-- Prefer one focused test per behavior, not one giant test that proves everything.
+This repository uses Vitest for frontend tests and Rust tests for backend logic. Keep tests small, intentional, and easy to maintain.
 
 ## What To Test Where
 
-Use the cheapest test that gives you confidence.
+Use the least expensive test that provides confidence.
 
 ### Unit tests
 
-Use a unit test when the logic is:
+Use unit tests for pure or nearly pure logic, deterministic transformations, and focused state transitions. Keep these tests near the code they protect.
 
-- Pure or almost pure
-- Deterministic
-- Easy to isolate
-- Worth protecting from regression on its own
+Examples in this repository:
 
-Typical examples:
-
-- Path normalization helpers
-- Markdown parsing helpers
-- Session store functions
-- Composable state transitions that accept injected ports
-
-Examples in this repo:
-
-- [`src/domains/second-brain/lib/secondBrainContextPaths.test.ts`](../../src/domains/second-brain/lib/secondBrainContextPaths.test.ts)
-- [`src/app/composables/useAppSecondBrainBridge.test.ts`](../../src/app/composables/useAppSecondBrainBridge.test.ts)
-- [`src/shared/lib/markdownFrontmatter.test.ts`](../../src/shared/lib/markdownFrontmatter.test.ts)
+- `src/app/lib/appShellPaths.test.ts`
+- `src/shared/lib/markdownFrontmatter.test.ts`
+- `src/domains/editor/lib/editorAtMacros.test.ts`
 
 ### Component tests
 
-Use a component test when the behavior depends on:
+Use component tests for Vue rendering, props and emits, DOM interaction, lifecycle behavior, and narrow child-component boundaries.
 
-- Vue rendering
-- Props and emits
-- DOM interaction
-- Lifecycle hooks
-- Child component boundaries you want to keep narrow
+Examples in this repository:
 
-Typical examples:
-
-- A list component that filters items and emits `select`
-- A pane surface that forwards props to children
-- A dialog that handles keyboard and click interactions
-
-Examples in this repo:
-
-- [`src/domains/second-brain/components/SecondBrainView.test.ts`](../../src/domains/second-brain/components/SecondBrainView.test.ts)
-- [`src/app/components/panes/PaneSurfaceHost.test.ts`](../../src/app/components/panes/PaneSurfaceHost.test.ts)
-- [`src/domains/editor/components/EditorRightPane.test.ts`](../../src/domains/editor/components/EditorRightPane.test.ts)
+- `src/app/components/app/QuickOpenModal.test.ts`
+- `src/app/components/panes/PaneSurfaceHost.test.ts`
+- `src/domains/editor/components/EditorRightPane.test.ts`
 
 ### Integration tests
 
-Use an integration test when the behavior crosses multiple boundaries:
-
-- App shell to composables
-- Component to shared API wrappers
-- UI action to persistence and reopening
-- Multiple composables that coordinate a user-visible workflow
-
-Typical examples:
-
-- “Add active note to Second Brain, then reopen the pane and keep the session”
-- “Open a workspace, then restore recent note state”
-
-Examples in this repo:
-
-- [`src/App.constituted-context.test.ts`](../../src/App.constituted-context.test.ts)
-- [`src/App.second-brain-context.test.ts`](../../src/App.second-brain-context.test.ts)
-- [`src/App.multi-pane.test.ts`](../../src/App.multi-pane.test.ts)
+Use integration tests when a workflow crosses the app shell, composables, shared APIs, or persistence. Examples include restoring recent-note state or opening a workspace and navigating between panes.
 
 ## Mocking Rules
 
-Mock the boundary that is not under test.
+Mock the boundary that is not under test, never the behavior the test is meant to verify.
 
-Do not mock:
+Mock when appropriate:
 
-- The function or composable whose behavior you want to verify
-- The state transitions you are trying to protect
-- The result that is the point of the test
+- Tauri IPC wrappers
+- filesystem or backend adapters
+- browser APIs unavailable in JSDOM
+- large child components that would make a test too broad
 
-Do mock:
-
-- IPC wrappers
-- File system calls
-- Network-facing or backend-facing adapters
-- Child components that would otherwise make the test too broad
+Avoid mocking a small pure function or the state transition under test.
 
 ### Good `vi.mock` usage
 
-Use `vi.mock` for:
-
-- Shared API wrappers
-- Tauri-facing adapters
-- Large child components
-- Browser APIs that are not available or not stable in JSDOM
-
-Example: mock a shared API module while keeping the composable under test real.
+Keep mock spies in a hoisted container when a mock factory needs them:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
-import { useEchoesPack } from './useEchoesPack'
 
 const api = vi.hoisted(() => ({
-  computeEchoesPack: vi.fn()
+  readRecentNotes: vi.fn()
 }))
 
-vi.mock('../../../shared/api/indexApi', () => api)
+vi.mock('../shared/api/workspaceApi', () => api)
 
-it('returns the mocked echo pack result', async () => {
-  api.computeEchoesPack.mockResolvedValue({
-    anchorPath: '/vault/a.md',
-    generatedAtMs: 1,
-    items: []
-  })
+it('returns the notes supplied by the workspace adapter', async () => {
+  api.readRecentNotes.mockResolvedValue(['/vault/today.md'])
 
-  // Exercise the real composable, not the API.
-  const result = await useEchoesPack(/* injected refs */)
-  expect(result.items.value).toEqual([])
+  await expect(api.readRecentNotes()).resolves.toEqual(['/vault/today.md'])
 })
 ```
 
-Example: mock child Vue components in a parent/component test.
+For child components, keep the stub focused on the parent contract:
 
 ```ts
-import { createApp, defineComponent, h } from 'vue'
-import { vi } from 'vitest'
+import { defineComponent, h, vi } from 'vue'
 
 vi.mock('./ChildPane.vue', () => ({
   default: defineComponent({
     props: ['value'],
     emits: ['select'],
     setup(props, { emit }) {
-      return () =>
-        h('button', {
-          type: 'button',
-          onClick: () => emit('select', String(props.value))
-        }, 'child-stub')
+      return () => h('button', {
+        type: 'button',
+        onClick: () => emit('select', String(props.value))
+      }, 'child-stub')
     }
   })
 }))
 ```
-
-Example: keep a top-level `vi.hoisted` container for spies that are referenced by the mock factory.
-
-```ts
-const api = vi.hoisted(() => ({
-  loadDeliberationSession: vi.fn(),
-  createDeliberationSession: vi.fn()
-}))
-
-vi.mock('./secondBrainApi', () => ({
-  loadDeliberationSession: api.loadDeliberationSession,
-  createDeliberationSession: api.createDeliberationSession
-}))
-```
-
-### When not to mock
-
-Avoid mocking when:
-
-- The code under test is already a small pure function
-- The test becomes less meaningful than the implementation
-- You are mocking the exact thing you want confidence in
-
-Bad example:
-
-- Mocking `normalizeContextPathsForUpdate` while testing `useAppSecondBrainBridge`
-
-Good example:
-
-- Mocking `loadDeliberationSession` and `replaceSessionContext` while testing the bridge logic that orchestrates them
 
 ## Common Patterns
 
-### 1. Pure function test
+### Pure function test
 
-Keep these direct and boring.
+Keep pure-function tests direct and focused on observable results.
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { workspaceScopedSecondBrainSessionKey } from './secondBrainContextPaths'
+import { toRelativePath } from './appShellPaths'
 
-describe('workspaceScopedSecondBrainSessionKey', () => {
-  it('encodes the workspace path into a stable storage key', () => {
-    expect(workspaceScopedSecondBrainSessionKey('/vault/my ws')).toBe(
-      'tomosona:second-brain:last-session-id:%2Fvault%2Fmy%20ws'
-    )
+describe('toRelativePath', () => {
+  it('returns a workspace-relative path', () => {
+    expect(toRelativePath('/vault', '/vault/notes/today.md')).toBe('notes/today.md')
   })
 })
 ```
 
-### 2. Composable test with injected ports
+### Composable test with injected ports
 
-Prefer dependency injection for stateful logic. That keeps the test focused and avoids broad app setup.
+Prefer explicit dependency injection for stateful workflows. It keeps the test focused and avoids broad app setup.
 
 ```ts
-import { nextTick, ref } from 'vue'
+import { ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { useAppSecondBrainBridge } from './useAppSecondBrainBridge'
 
-const bridge = useAppSecondBrainBridge({
-  secondBrainWorkspacePort: {
-    workingFolderPath: ref('/vault'),
-    activeFilePath: ref('/vault/a.md')
-  },
-  secondBrainContextPort: {
-    storageKeyForWorkspace: (workspacePath) => `sb:${workspacePath}`,
-    toAbsoluteWorkspacePath: (_workspacePath, path) => path,
-    normalizeContextPathsForUpdate: (_workspacePath, paths) => paths
-  },
-  secondBrainSessionPort: {
-    createDeliberationSession: vi.fn(async () => ({ sessionId: 'session-new' })),
-    loadDeliberationSession: vi.fn(async () => ({ session_id: 'session-new', context_items: [] })),
-    replaceSessionContext: vi.fn(async () => {})
-  },
-  secondBrainUiEffectsPort: {
-    errorMessage: ref(''),
-    notifySuccess: vi.fn()
-  }
-})
+const saveNote = vi.fn(async () => {})
+const state = ref('draft')
 
-it('persists the session id when one is selected', async () => {
-  bridge.setSecondBrainSessionId('session-1')
-  await nextTick()
-
-  expect(bridge.secondBrainRequestedSessionId.value).toBe('session-1')
+it('saves the active note', async () => {
+  await saveNote(state.value)
+  expect(saveNote).toHaveBeenCalledWith('draft')
 })
 ```
 
-### 3. Component test with DOM interaction
+### App-level integration test
 
-Use a component test when the logic is mostly in the Vue template and events.
+Use this when several shell pieces must cooperate:
 
-```ts
-import { createApp, defineComponent, h, nextTick } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
-import MyList from './MyList.vue'
-
-it('emits the selected item', async () => {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-
-  const app = createApp(defineComponent({
-    setup() {
-      return () => h(MyList, {
-        items: ['a', 'b'],
-        onSelect: vi.fn()
-      })
-    }
-  }))
-
-  app.mount(root)
-  await nextTick()
-
-  root.querySelector<HTMLButtonElement>('button')?.click()
-  await nextTick()
-
-  app.unmount()
-})
-```
-
-### 4. App-level integration test
-
-Use this only when the workflow needs several shells pieces to cooperate.
-
-This repo already uses that style for:
-
-- constituted context flows
-- workspace lifecycle flows
-- multi-pane behavior
-
-Pattern:
-
-1. Mock the large child surfaces
-2. Mount `App.vue`
-3. Drive the UI through real clicks or keyboard events
-4. Assert the cross-boundary effect
-
-```ts
-import { createApp, defineComponent, h, nextTick } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
-import App from './app/App.vue'
-
-vi.mock('./domains/second-brain/components/SecondBrainView.vue', () => ({
-  default: defineComponent(() => () => h('div', { 'data-second-brain': 'stub' }))
-}))
-
-it('opens Second Brain with the current request state', async () => {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-
-  const app = createApp(App)
-  app.mount(root)
-
-  root.querySelector<HTMLButtonElement>('[data-open-context-second-brain="true"]')?.click()
-  await nextTick()
-
-  expect(root.querySelector('[data-second-brain="stub"]')).toBeTruthy()
-  app.unmount()
-})
-```
+1. Mock only large child surfaces.
+2. Mount `App.vue`.
+3. Drive the UI through clicks or keyboard events.
+4. Assert the resulting cross-boundary effect.
 
 ## Handling Async UI
 
-Async Vue tests often need explicit flushing.
-
-Use a local helper instead of scattering arbitrary waits everywhere.
+Async Vue tests often need explicit flushing after watcher updates or resolved promises:
 
 ```ts
 async function flushUi() {
-  await nextTick()
   await Promise.resolve()
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
-  await nextTick()
 }
 ```
 
-Use it when:
-
-- A watcher updates state
-- A mock `Promise` resolves and the DOM should re-render
-- An action emits events that trigger another async effect
-
-If you need timers:
-
-```ts
-import { vi } from 'vitest'
-
-vi.useFakeTimers()
-// trigger debounce
-vi.advanceTimersByTime(260)
-```
+Use fake timers for debounced behavior, and restore real timers in cleanup.
 
 ## State Reset And Cleanup
 
-Tests should clean up after themselves.
-
-Common cleanup tasks:
+Clean up browser and mock state after every test that changes it:
 
 - `window.localStorage.clear()`
 - `window.sessionStorage.clear()`
@@ -354,97 +149,14 @@ Common cleanup tasks:
 - `vi.clearAllMocks()`
 - `vi.useRealTimers()`
 
-If a test mutates browser globals, restore them inside `beforeEach` or `afterEach`.
-
 ## Naming And File Layout
 
-Prefer the naming that describes the behavior:
-
-- `*.test.ts` for focused unit or component tests
-- `*.integration.test.ts` for broader workflow tests when the distinction helps
-- `*.contract.test.ts` for shape or compatibility checks
-
-Keep tests near the code they protect.
-
-Examples:
-
-- `src/domains/second-brain/lib/secondBrainContextPaths.test.ts`
-- `src/app/composables/useAppSecondBrainBridge.test.ts`
-- `src/App.constituted-context.test.ts`
-
-## Good Test Shape
-
-A good test usually reads like this:
-
-1. Arrange
-2. Act
-3. Assert
-
-Keep the assertion focused on the behavior that matters most.
-
-Example:
-
-```ts
-it('adds the active note to the requested session context', async () => {
-  const { bridge, replaceSessionContext, notifySuccess } = createBridge()
-  bridge.setSecondBrainSessionId('session-1')
-
-  const ok = await bridge.addActiveNoteToSecondBrain()
-
-  expect(ok).toBe(true)
-  expect(replaceSessionContext).toHaveBeenCalledWith('session-1', ['/vault/notes/a.md'])
-  expect(notifySuccess).toHaveBeenCalledWith('Active note added to Second Brain context.')
-})
-```
+Use `*.test.ts` for focused tests, `*.integration.test.ts` for broader workflows, and `*.contract.test.ts` for compatibility checks. Keep each test close to the code it protects.
 
 ## Anti-Patterns
 
-Avoid these when possible:
-
-- Giant tests that cover many unrelated behaviors
-- Snapshotting large DOM trees just because it is easy
-- Mocking the entire world and then asserting implementation details
-- Copying the production logic into the test
-- Using real network or file system calls when an injected port is enough
-
-## Second Brain Specific Advice
-
-Second Brain has a few useful patterns worth reusing:
-
-- Persist the requested session id at the shell boundary.
-- Let the pane read session requests from explicit props.
-- Test the orchestration in the shell, not just the inner pane.
-- Keep session-store logic and UI loading logic covered separately.
-
-This is the reason the repo now has layered tests for:
-
-- session persistence in the bridge
-- palette and command wiring in the shell
-- App-level constituted context flows
-- view-level session loading and message rendering
+Avoid giant tests, broad snapshots, duplicate production logic in tests, and real filesystem or network calls when an injected adapter is sufficient.
 
 ## When A Test Feels Too Hard
 
-If a test becomes awkward, usually one of three things is happening:
-
-- The code under test owns too many concerns.
-- The boundary is wrong.
-- The test is trying to cover too much at once.
-
-Preferred fix order:
-
-1. Split the production code along real ownership boundaries.
-2. Inject the dependencies you need.
-3. Move the test one layer down if the behavior is mostly pure.
-4. Move the test one layer up if the real behavior is a user workflow.
-
-## Reference Files
-
-Useful examples in this repository:
-
-- [`src/app/composables/useAppSecondBrainBridge.test.ts`](../../src/app/composables/useAppSecondBrainBridge.test.ts)
-- [`src/app/composables/useAppShellCommands.test.ts`](../../src/app/composables/useAppShellCommands.test.ts)
-- [`src/App.constituted-context.test.ts`](../../src/App.constituted-context.test.ts)
-- [`src/domains/second-brain/components/SecondBrainView.test.ts`](../../src/domains/second-brain/components/SecondBrainView.test.ts)
-- [`src/app/components/panes/PaneSurfaceHost.test.ts`](../../src/app/components/panes/PaneSurfaceHost.test.ts)
-- [`src/domains/editor/components/EditorView.smoke.test.ts`](../../src/domains/editor/components/EditorView.smoke.test.ts)
+When a test is awkward, the code often owns too many concerns or the boundary is wrong. Prefer splitting ownership, injecting dependencies, or moving the test to the layer that owns the behavior.

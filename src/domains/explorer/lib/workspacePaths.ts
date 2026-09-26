@@ -3,7 +3,7 @@
  *
  * Purpose:
  * - Centralize pure frontend helpers that normalize and compare workspace
- *   paths across Explorer, editor shell, and Second Brain features.
+ *   paths across Explorer and editor-shell features.
  *
  * Invariants:
  * - All helpers normalize to forward slashes.

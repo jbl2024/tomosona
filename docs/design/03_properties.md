@@ -122,7 +122,7 @@ Reserved keys (`tags`, `aliases`, `cssclasses`) are type-locked in UI.
 Property keys autocomplete from the workspace index, and property values
 reuse the same indexed suggestions in the editor.
 
-The quick-add menu stays intentionally small and second-brain-oriented:
+The quick-add menu stays intentionally small and focused on common note metadata:
 
 - `tags`
 - `aliases`
