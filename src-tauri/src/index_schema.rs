@@ -103,31 +103,11 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
         .ok()
         .and_then(|value| value.parse::<i64>().ok())
         .unwrap_or(0);
-    let reset_for_version = current_version != INDEX_SCHEMA_VERSION;
-    let reset_for_shape = !reset_for_version && schema_shape_needs_reset(conn, current_version);
-
-    if reset_for_version || reset_for_shape {
-        conn.execute_batch(
-            r#"
-      DROP TABLE IF EXISTS note_embeddings_vec;
-      DROP TABLE IF EXISTS embeddings;
-      DROP TABLE IF EXISTS chunks_fts;
-      DROP TABLE IF EXISTS chunks;
-      DROP TABLE IF EXISTS note_embeddings;
-      DROP TABLE IF EXISTS note_processing;
-      DROP TABLE IF EXISTS note_links;
-      DROP TABLE IF EXISTS note_properties;
-      DROP TABLE IF EXISTS semantic_edges;
-      DROP TABLE IF EXISTS second_brain_session_targets;
-      DROP TABLE IF EXISTS second_brain_drafts;
-      DROP TABLE IF EXISTS second_brain_messages;
-      DROP TABLE IF EXISTS second_brain_context_items;
-      DROP TABLE IF EXISTS second_brain_sessions;
-      DELETE FROM internal_meta WHERE key IN ('last_index_run_finished_at_ms', 'last_index_run_title', 'last_index_run_duration_ms');
-      DELETE FROM internal_meta WHERE key = 'index_schema_version';
-    "#,
-        )?;
-    }
+    // Version 3 databases can include a `vec0` virtual table.  Its extension is
+    // intentionally no longer loaded, so attempting to drop that table makes
+    // SQLite reject the migration.  The lexical tables remain compatible and
+    // are retained while the schema version advances below.
+    let _legacy_schema_version = current_version;
 
     conn.execute_batch(
         r#"
