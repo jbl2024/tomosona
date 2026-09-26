@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api/core'
 import type {
   AppSettingsView,
   CodexDiscoveredModel,
-  DiscoverEmbeddingModelsPayload,
   DiscoverLlmModelsPayload,
+  DiscoverEmbeddingModelsPayload,
   LlmDiscoveredModel,
   SaveAppSettingsPayload,
   WriteAppSettingsResult
@@ -18,7 +18,10 @@ export async function readAppSettings(): Promise<AppSettingsView> {
   return await invoke('read_app_settings')
 }
 
-/** Writes app settings and reports whether embedding identity changed. */
+/** Embedding model discovery is no longer available. */
+export async function discoverEmbeddingModels(_payload: DiscoverEmbeddingModelsPayload): Promise<LlmDiscoveredModel[]> { return [] }
+
+/** Writes app settings. */
 export async function writeAppSettings(payload: SaveAppSettingsPayload): Promise<WriteAppSettingsResult> {
   return await invoke('write_app_settings', { payload })
 }
@@ -31,9 +34,4 @@ export async function discoverCodexModels(): Promise<CodexDiscoveredModel[]> {
 /** Discovers models available through an OpenAI-compatible LLM endpoint. */
 export async function discoverLlmModels(payload: DiscoverLlmModelsPayload): Promise<LlmDiscoveredModel[]> {
   return await invoke('discover_llm_models', { payload })
-}
-
-/** Discovers embedding models available through an OpenAI-compatible endpoint. */
-export async function discoverEmbeddingModels(payload: DiscoverEmbeddingModelsPayload): Promise<LlmDiscoveredModel[]> {
-  return await invoke('discover_embedding_models', { payload })
 }

@@ -111,18 +111,8 @@ export type FavoriteEntry = {
   exists: boolean
 }
 
-export type IndexRuntimeStatus = {
-  model_name: string
-  model_state: string
-  model_init_attempts: number
-  model_last_started_at_ms: number | null
-  model_last_finished_at_ms: number | null
-  model_last_duration_ms: number | null
-  model_last_error: string | null
-}
-
 export type IndexOverviewStats = {
-  semantic_links_count: number
+  semantic_links_count?: number
   processed_notes_count: number
   workspace_notes_count: number
   last_run_finished_at_ms: number | null
@@ -133,12 +123,6 @@ export type IndexOverviewStats = {
 export type IndexLogEntry = {
   ts_ms: number
   message: string
-}
-
-export type SemanticLink = {
-  path: string
-  score: number | null
-  direction: 'incoming' | 'outgoing'
 }
 
 export type PathMove = {
@@ -188,25 +172,11 @@ export type AppSettingsLlm = {
   profiles: AppSettingsLlmProfile[]
 }
 
-export type AppSettingsEmbeddingProfile = {
-  id: string
-  label: string
-  provider: string
-  model: string
-  api_key: string
-  base_url: string | null
-}
-
-export type AppSettingsEmbeddings = {
-  mode: 'internal' | 'external'
-  external: AppSettingsEmbeddingProfile | null
-}
-
 export type AppSettingsView = {
   exists: boolean
   path: string
   llm: AppSettingsLlm | null
-  embeddings: AppSettingsEmbeddings
+  embeddings: { mode: 'internal' | 'external'; external: { id: string; label: string; provider: string; model: string; api_key: string; base_url: string | null } | null }
 }
 
 export type SaveAppSettingsPayload = {
@@ -232,23 +202,12 @@ export type SaveAppSettingsPayload = {
       }
     }>
   }
-  embeddings: {
-    mode: 'internal' | 'external'
-    external?: {
-      id: string
-      label: string
-      provider: string
-      model: string
-      api_key?: string
-      preserve_existing_api_key: boolean
-      base_url?: string | null
-    } | null
-  }
+  embeddings: { mode: 'internal' | 'external'; external?: { id: string; label: string; provider: string; model: string; api_key?: string; preserve_existing_api_key: boolean; base_url?: string | null } | null }
 }
 
 export type WriteAppSettingsResult = {
   path: string
-  embeddings_changed: boolean
+  embeddings_changed?: boolean
 }
 
 export type CodexDiscoveredModel = {
@@ -275,6 +234,16 @@ export type DiscoverEmbeddingModelsPayload = {
   api_key?: string
   preserve_existing_api_key: boolean
   base_url?: string | null
+}
+
+export type IndexRuntimeStatus = {
+  model_name: string
+  model_state: string
+  model_init_attempts: number
+  model_last_started_at_ms: number | null
+  model_last_finished_at_ms: number | null
+  model_last_duration_ms: number | null
+  model_last_error: string | null
 }
 
 export type SecondBrainAttachmentMeta = {

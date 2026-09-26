@@ -1,4 +1,4 @@
-//! Tauri command surface for local filesystem, lexical search and semantic search.
+//! Tauri command surface for local filesystem and lexical search.
 
 mod app_meta;
 mod db;
@@ -12,7 +12,6 @@ mod markdown_index;
 pub(crate) mod note_history;
 mod search_index;
 mod second_brain;
-mod semantic;
 mod settings;
 mod wikilink_graph;
 mod workspace_paths;
@@ -26,7 +25,7 @@ use std::{
     io::Write,
     process::{Command, Stdio},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::AtomicBool,
         Mutex, OnceLock,
     },
     time::{SystemTime, UNIX_EPOCH},
@@ -49,17 +48,13 @@ use note_history::{
     list_note_history, move_note_history_entries, read_note_history_snapshot,
     restore_note_history_snapshot,
 };
-pub(crate) use index_schema::refresh_semantic_edges_cache_now_sync;
 use index_schema::{
     ensure_index_schema, init_db as init_db_impl, list_markdown_files_via_find, min_max_normalize,
     read_index_logs as read_index_logs_impl,
     read_index_overview_stats as read_index_overview_stats_impl,
-    read_index_runtime_status as read_index_runtime_status_impl,
     rebuild_workspace_index_sync as rebuild_workspace_index_sync_impl,
-    refresh_semantic_edges_cache,
-    refresh_semantic_edges_cache_now_sync as refresh_semantic_edges_cache_now_sync_impl,
     request_index_cancel as request_index_cancel_impl, IndexLogEntry, IndexOverviewStats,
-    IndexRuntimeStatus, RebuildIndexResult,
+    RebuildIndexResult,
 };
 #[cfg(test)]
 use markdown_index::{
@@ -68,11 +63,11 @@ use markdown_index::{
 };
 use markdown_index::{
     reindex_markdown_file_lexical_sync, reindex_markdown_file_now_sync,
-    reindex_markdown_file_semantic_sync, remove_markdown_file_from_index_sync,
+    remove_markdown_file_from_index_sync,
 };
 #[cfg(test)]
 use search_index::{
-    build_prefix_fts_query, parse_search_query, semantic_snippet_preview, SearchMode,
+    build_prefix_fts_query, parse_search_query, SearchMode,
 };
 use search_index::{
     fts_search_sync as fts_search_sync_impl, read_property_keys as read_property_keys_impl,
@@ -82,10 +77,9 @@ use search_index::{
 };
 use wikilink_graph::{
     backlinks_for_path as backlinks_for_path_impl,
-    semantic_links_for_path as semantic_links_for_path_impl,
     update_wikilinks_for_path_moves as update_wikilinks_for_path_moves_impl,
     update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, PathMoveInput,
-    PathMoveRewriteResult, SemanticLink, WikilinkRewriteResult,
+    PathMoveRewriteResult, WikilinkRewriteResult,
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
@@ -105,17 +99,10 @@ const DB_FILE_NAME: &str = "tomosona.sqlite";
 const PROPERTY_TYPE_SCHEMA_FILE: &str = "property-types.json";
 const RESERVED_WORKSPACE_ERROR: &str =
     "Cannot use this folder as a workspace. Choose a dedicated project folder.";
-const HYBRID_LEXICAL_WEIGHT: f64 = 0.35;
-const HYBRID_SEMANTIC_WEIGHT: f64 = 0.65;
-const SEARCH_CANDIDATE_LIMIT: i64 = 200;
 const SEARCH_RESULT_LIMIT: usize = 25;
-const SEMANTIC_TOP_K_PER_NOTE: i64 = 3;
-const SEMANTIC_THRESHOLD: f32 = 0.62;
 const INDEX_LOG_CAPACITY: usize = 400;
-const INDEX_SCHEMA_VERSION: i64 = 3;
+const INDEX_SCHEMA_VERSION: i64 = 4;
 static INDEX_CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
-static SQLITE_VEC_PROBE_LOGGED: OnceLock<()> = OnceLock::new();
-static INDEX_RUN_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 static INDEX_LOGS: OnceLock<Mutex<VecDeque<IndexLogEntry>>> = OnceLock::new();
 
@@ -124,10 +111,6 @@ pub(crate) fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_millis() as u64)
         .unwrap_or(0)
-}
-
-pub(crate) fn next_index_run_id() -> u64 {
-    INDEX_RUN_SEQUENCE.fetch_add(1, Ordering::Relaxed)
 }
 
 fn index_log_buffer() -> &'static Mutex<VecDeque<IndexLogEntry>> {
@@ -195,19 +178,6 @@ async fn reindex_markdown_file_lexical(path: String) -> Result<()> {
         .map_err(|_| AppError::OperationFailed)?
 }
 
-#[tauri::command]
-async fn reindex_markdown_file_semantic(path: String) -> Result<()> {
-    tauri::async_runtime::spawn_blocking(move || reindex_markdown_file_semantic_sync(path))
-        .await
-        .map_err(|_| AppError::OperationFailed)?
-}
-
-#[tauri::command]
-async fn refresh_semantic_edges_cache_now() -> Result<()> {
-    tauri::async_runtime::spawn_blocking(refresh_semantic_edges_cache_now_sync_impl)
-        .await
-        .map_err(|_| AppError::OperationFailed)?
-}
 
 #[tauri::command]
 async fn remove_markdown_file_from_index(path: String) -> Result<()> {
@@ -226,11 +196,6 @@ async fn rebuild_workspace_index() -> Result<RebuildIndexResult> {
 #[tauri::command]
 fn request_index_cancel() -> Result<()> {
     request_index_cancel_impl()
-}
-
-#[tauri::command]
-fn read_index_runtime_status() -> Result<IndexRuntimeStatus> {
-    read_index_runtime_status_impl()
 }
 
 #[tauri::command]
@@ -341,10 +306,6 @@ fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
     backlinks_for_path_impl(path)
 }
 
-#[tauri::command]
-fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
-    semantic_links_for_path_impl(path)
-}
 
 #[tauri::command]
 fn update_wikilinks_for_rename(
@@ -375,7 +336,6 @@ pub fn run() {
     } else {
         log_index("sqlite_runtime:init_failed");
     }
-    semantic::set_index_logger(log_index);
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -415,19 +375,15 @@ pub fn run() {
             app_meta::open_app_support_dir,
             init_db,
             reindex_markdown_file_lexical,
-            reindex_markdown_file_semantic,
-            refresh_semantic_edges_cache_now,
             remove_markdown_file_from_index,
             fts_search,
             rebuild_workspace_index,
             request_index_cancel,
-            read_index_runtime_status,
             read_index_logs,
             read_property_value_suggestions,
             read_property_keys,
             read_index_overview_stats,
             backlinks_for_path,
-            semantic_links_for_path,
             update_wikilinks_for_rename,
             update_wikilinks_for_path_moves,
             read_property_type_schema,

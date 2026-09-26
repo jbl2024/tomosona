@@ -1,5 +1,5 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
-import type { FileMetadata, SemanticLink } from '../../shared/api/apiTypes'
+import type { FileMetadata } from '../../shared/api/apiTypes'
 import type { EchoesItem } from '../../domains/echoes/lib/echoes'
 import type { ConstitutedContextItem } from '../../domains/editor/composables/useConstitutedContext'
 import type { DocumentHistoryEntry } from '../../domains/editor/composables/useDocumentHistory'
@@ -38,7 +38,7 @@ type ViewModelOptions = {
   notes: {
     noteEchoes: Ref<EchoesItem[]>
     backlinks: Ref<string[]>
-    semanticLinks: Ref<SemanticLink[]>
+    semanticLinks?: Ref<Array<{ path: string }>>
   }
   context: {
     constitutedContext: {
@@ -167,7 +167,7 @@ export function useAppShellViewModels(options: ViewModelOptions): AppShellViewMo
   )
 
   const backlinkCount = computed(() => options.notes.backlinks.value.length)
-  const semanticLinkCount = computed(() => options.notes.semanticLinks.value.length)
+  const semanticLinkCount = computed(() => options.notes.semanticLinks?.value.length ?? 0)
   const activeNoteInContext = computed(() => {
     const path = options.workspace.activeFilePath.value.trim()
     return path ? options.context.constitutedContext.contains(path) : false

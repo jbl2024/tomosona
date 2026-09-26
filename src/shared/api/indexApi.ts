@@ -6,13 +6,21 @@ import type {
   IndexRuntimeStatus,
   PathMove,
   PathMoveRewriteResult,
-  SemanticLink,
 } from './apiTypes'
 
 type ComputeEchoesPackPayload = {
   anchor_path: string
   limit?: number
   include_recent_activity?: boolean
+}
+
+/** Compatibility no-op while older UI state is retired. */
+export async function reindexMarkdownFileSemantic(_path: string): Promise<void> {}
+/** Compatibility no-op while older UI state is retired. */
+export async function refreshSemanticEdgesCacheNow(): Promise<void> {}
+/** Embedding runtime no longer exists. */
+export async function readIndexRuntimeStatus(): Promise<IndexRuntimeStatus> {
+  return { model_name: '', model_state: 'unavailable', model_init_attempts: 0, model_last_started_at_ms: null, model_last_finished_at_ms: null, model_last_duration_ms: null, model_last_error: null }
 }
 
 /**
@@ -29,16 +37,6 @@ export async function reindexMarkdownFileLexical(path: string): Promise<void> {
   await invoke('reindex_markdown_file_lexical', { path })
 }
 
-/** Reindexes a single markdown file in the semantic index. */
-export async function reindexMarkdownFileSemantic(path: string): Promise<void> {
-  await invoke('reindex_markdown_file_semantic', { path })
-}
-
-/** Refreshes derived semantic edge caches without a full rebuild. */
-export async function refreshSemanticEdgesCacheNow(): Promise<void> {
-  await invoke('refresh_semantic_edges_cache_now')
-}
-
 /** Removes a markdown file from the workspace index. */
 export async function removeMarkdownFileFromIndex(path: string): Promise<void> {
   await invoke('remove_markdown_file_from_index', { path })
@@ -52,11 +50,6 @@ export async function ftsSearch(query: string): Promise<Array<{ path: string; sn
 /** Returns backlinks for a given workspace note path. */
 export async function backlinksForPath(path: string): Promise<Array<{ path: string }>> {
   return await invoke('backlinks_for_path', { path })
-}
-
-/** Returns semantic relations for a given workspace note path. */
-export async function semanticLinksForPath(path: string): Promise<SemanticLink[]> {
-  return await invoke('semantic_links_for_path', { path })
 }
 
 /** Updates workspace wikilinks after a note rename. */
@@ -87,11 +80,6 @@ export async function rebuildWorkspaceIndex(): Promise<{ indexed_files: number; 
 /** Requests cancellation for the active indexing run. */
 export async function requestIndexCancel(): Promise<void> {
   await invoke('request_index_cancel')
-}
-
-/** Reads runtime status for indexing and embedding model initialization. */
-export async function readIndexRuntimeStatus(): Promise<IndexRuntimeStatus> {
-  return await invoke('read_index_runtime_status')
 }
 
 /** Reads persisted index overview counts for the active workspace. */

@@ -12,9 +12,9 @@
 import type { WriteAppSettingsResult } from '../../shared/api/apiTypes'
 
 export type UseAppSettingsWorkflowOptions = {
-  markIndexOutOfSync: () => void
+  markIndexOutOfSync?: () => void
   notifySuccess: (message: string) => void
-  notifyInfo: (message: string) => void
+  notifyInfo?: (message: string) => void
   closeSettingsModal: () => void
 }
 
@@ -34,10 +34,6 @@ export function useAppSettingsWorkflow(options: UseAppSettingsWorkflowOptions) {
    */
   function onSettingsSaved(result: WriteAppSettingsResult) {
     options.notifySuccess(`Settings saved at ${result.path}.`)
-    if (result.embeddings_changed) {
-      options.markIndexOutOfSync()
-      options.notifyInfo('Embedding settings changed. Rebuild index to resync semantic search.')
-    }
     options.closeSettingsModal()
   }
 

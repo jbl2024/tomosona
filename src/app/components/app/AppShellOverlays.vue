@@ -11,7 +11,7 @@ import ShortcutsModal from './ShortcutsModal.vue'
 import AboutModal from './AboutModal.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
 import type { ThemePickerItem } from '../../lib/appShellPresentation'
-import type { IndexRuntimeStatus, WriteAppSettingsResult } from '../../../shared/api/apiTypes'
+import type { WriteAppSettingsResult } from '../../../shared/api/apiTypes'
 import type {
   QuickOpenActionGroup,
   QuickOpenBrowseAction,
@@ -39,7 +39,6 @@ defineProps<{
   indexStatusModalVisible: boolean
   indexRunning: boolean
   indexStatusBusy: boolean
-  indexRuntimeStatus: IndexRuntimeStatus | null
   indexStatusBadgeLabel: string
   indexStatusBadgeClass: string
   indexShowProgressBar: boolean
@@ -55,7 +54,6 @@ defineProps<{
   indexModelStatusLabel: string
   indexShowWarmupNote: boolean
   indexAlert: { level: 'error' | 'warning'; title: string; message: string } | null
-  indexSemanticLinksCount: number
   indexProcessedNotesCount: number
   indexNotesTotalCount: number
   indexNotesTotalLoading: boolean
@@ -168,7 +166,6 @@ const emit = defineEmits<{
     :visible="indexStatusModalVisible"
     :running="indexRunning"
     :busy="indexStatusBusy"
-    :runtime-status="indexRuntimeStatus"
     :badge-label="indexStatusBadgeLabel"
     :badge-class="indexStatusBadgeClass"
     :show-progress-bar="indexShowProgressBar"
@@ -184,7 +181,6 @@ const emit = defineEmits<{
     :model-status-label="indexModelStatusLabel"
     :show-warmup-note="indexShowWarmupNote"
     :alert="indexAlert"
-    :semantic-links-count="indexSemanticLinksCount"
     :processed-notes-count="indexProcessedNotesCount"
     :notes-total-count="indexNotesTotalCount"
     :notes-total-loading="indexNotesTotalLoading"

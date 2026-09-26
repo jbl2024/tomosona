@@ -516,7 +516,6 @@ const indexing = useAppIndexingController({
 const {
   indexRunCurrentPath,
   indexStatusBusy,
-  indexRuntimeStatus,
   indexOverviewStats,
   indexLastRunFinishedAtMs,
   indexLastRunTitle,
@@ -544,7 +543,6 @@ const {
   filteredIndexActivityRows,
   indexErrorCount,
   indexSlowCount,
-  markIndexOutOfSync,
   refreshIndexModalData,
   openIndexStatusModal: openIndexStatusModalInternal,
   closeIndexStatusModal: closeIndexStatusModalInternal,
@@ -574,7 +572,6 @@ const {
 
 const indexNotesTotalCount = computed(() => indexOverviewStats.value?.workspace_notes_count ?? allWorkspaceFiles.value.length)
 const indexNotesTotalLoading = computed(() => loadingAllFiles.value)
-const indexSemanticLinksCount = computed(() => indexOverviewStats.value?.semantic_links_count ?? 0)
 const indexProcessedNotesCount = computed(() => indexOverviewStats.value?.processed_notes_count ?? 0)
 const indexLastRunFinishedAtLabel = computed(() => indexLastRunFinishedAtMs.value)
 const indexLastRunTitleLabel = computed(() => indexLastRunTitle.value ?? '')
@@ -744,8 +741,6 @@ const {
   dispose: disposeShellSearch
 } = search
 const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
-  { mode: 'hybrid', label: 'Hybrid' },
-  { mode: 'semantic', label: 'Semantic' },
   { mode: 'lexical', label: 'Lexical' }
 ]
 const { paletteActions } = useAppShellPaletteActions({
@@ -902,9 +897,7 @@ const {
   onOpenDateInputKeydown
 } = shellModals
 const settingsWorkflow = useAppSettingsWorkflow({
-  markIndexOutOfSync,
   notifySuccess: (message: string) => filesystem.notifySuccess(message),
-  notifyInfo: (message: string) => filesystem.notifyInfo(message),
   closeSettingsModal: () => closeSettingsModal()
 })
 const workspaceEntries = useAppShellWorkspaceEntries({
@@ -1082,8 +1075,6 @@ const {
   backlinks,
   backlinksLoading,
   backlinksError,
-  semanticLinks,
-  semanticLinksLoading,
   openTodayNote,
   openYesterdayNote,
   showExplorerForActiveFile,
@@ -1154,7 +1145,6 @@ const shellViewModels = useAppShellViewModels({
   notes: {
     noteEchoes: noteEchoes.items,
     backlinks,
-    semanticLinks
   },
   context: {
     constitutedContext
@@ -1520,8 +1510,6 @@ const workspaceLifecycle = useAppShellWorkspaceLifecycle({
     resetInspectorPanels: () => {
       backlinks.value = []
       backlinksLoading.value = false
-      semanticLinks.value = []
-      semanticLinksLoading.value = false
       virtualDocs.value = {}
     },
     closeOverflowMenu
@@ -1964,7 +1952,6 @@ useAppShellKeyboard({
       :index-status-modal-visible="indexStatusModalVisible"
       :index-running="indexRunning"
       :index-status-busy="indexStatusBusy"
-      :index-runtime-status="indexRuntimeStatus"
       :index-status-badge-label="indexStatusBadgeLabel"
       :index-status-badge-class="indexStatusBadgeClass"
       :index-show-progress-bar="indexShowProgressBar"
@@ -1980,7 +1967,6 @@ useAppShellKeyboard({
       :index-model-status-label="indexModelStatusLabel"
       :index-show-warmup-note="indexShowWarmupNote"
       :index-alert="indexAlert"
-      :index-semantic-links-count="indexSemanticLinksCount"
       :index-processed-notes-count="indexProcessedNotesCount"
       :index-notes-total-count="indexNotesTotalCount"
       :index-notes-total-loading="indexNotesTotalLoading"

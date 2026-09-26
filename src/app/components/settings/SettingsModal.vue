@@ -586,15 +586,10 @@ watch(() => props.visible, async (visible) => {
         <div class="settings-panel">
           <header class="settings-panel__header">
             <h3 id="settings-title" class="settings-panel__title">
-              {{
-                settingsActiveTab === 'llm'
-                  ? 'LLM SETTINGS'
-                  : 'EMBEDDINGS SETTINGS'
-              }}
+              LLM SETTINGS
             </h3>
             <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
               <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'llm' }" @click="settingsActiveTab = 'llm'">LLM</button>
-              <button type="button" class="settings-tab-btn" :class="{ active: settingsActiveTab === 'embeddings' }" @click="settingsActiveTab = 'embeddings'">Embeddings</button>
             </div>
           </header>
 

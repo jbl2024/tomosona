@@ -16,12 +16,8 @@ use crate::workspace_paths::{
 };
 use crate::{
     active_workspace_root, ensure_index_schema, ensure_within_root, log_index, open_db,
-    refresh_semantic_edges_cache, refresh_semantic_edges_cache_now_sync, semantic, AppError,
     Result,
 };
-
-// Small semantic embedding batches reduce peak memory on large notes.
-const SEMANTIC_EMBED_BATCH_SIZE: usize = 8;
 
 #[derive(Debug, Clone)]
 pub(crate) struct IndexedProperty {
@@ -610,7 +606,7 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     Ok(())
 }
 
-fn embed_chunk_texts_in_batches<F>(
+/*fn embed_chunk_texts_in_batches<F>(
     path_for_db: &str,
     embed_texts: &[String],
     embed_positions: &[usize],
@@ -819,10 +815,10 @@ pub(crate) fn reindex_markdown_file_semantic_sync(path: String) -> Result<()> {
     Ok(())
 }
 
+*/
+
 pub(crate) fn reindex_markdown_file_now_sync(path: String) -> Result<()> {
-    reindex_markdown_file_lexical_sync(path.clone())?;
-    reindex_markdown_file_semantic_sync(path)?;
-    refresh_semantic_edges_cache_now_sync()
+    reindex_markdown_file_lexical_sync(path)
 }
 
 pub(crate) fn remove_markdown_file_from_index_sync(path: String) -> Result<()> {
@@ -848,29 +844,12 @@ pub(crate) fn remove_markdown_file_from_index_sync(path: String) -> Result<()> {
         "DELETE FROM note_processing WHERE path = ?1",
         params![path_for_db.clone()],
     )?;
-    tx.execute(
-        "DELETE FROM note_embeddings WHERE path = ?1",
-        params![path_for_db.clone()],
-    )?;
-    semantic::try_delete_note_vector(&tx, &path_for_db);
-    tx.execute(
-        "DELETE FROM semantic_edges WHERE source_path = ?1 OR target_path = ?1",
-        params![path_for_db.clone()],
-    )?;
     tx.commit()?;
-
-    if let Err(err) = refresh_semantic_edges_cache(&conn, &root) {
-        log_index(&format!(
-            "semantic_edges:refresh_error phase=remove_markdown_refresh err={} err_debug={:?}",
-            err, err
-        ));
-    }
     log_index(&format!("reindex:removed path={path_for_db}"));
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
+/*mod tests {
     use super::embed_chunk_texts_in_batches;
     use crate::AppError;
     use std::cell::RefCell;
@@ -987,4 +966,4 @@ mod tests {
         assert!(matches!(err, AppError::InvalidOperation(_)));
         assert_eq!(*calls.borrow(), vec![8, 2]);
     }
-}
+}*/

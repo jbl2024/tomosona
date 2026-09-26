@@ -1,6 +1,5 @@
 import { nextTick, ref, watch, type Ref } from 'vue'
-import type { SemanticLink } from '../../shared/api/apiTypes'
-import { backlinksForPath, semanticLinksForPath } from '../../shared/api/indexApi'
+import { backlinksForPath } from '../../shared/api/indexApi'
 import { formatIsoDate } from '../lib/appShellPaths'
 import { parseWikilinkTarget, type WikilinkAnchor } from '../../domains/editor/lib/wikilinks'
 import { type HeadingNode } from '../../domains/editor/composables/useEditorState'
@@ -178,13 +177,12 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
   const backlinks = ref<string[]>([])
   const backlinksLoading = ref(false)
   const backlinksError = ref('')
-  const semanticLinks = ref<SemanticLink[]>([])
+  const semanticLinks = ref<Array<{ path: string; score: number | null; direction: 'incoming' | 'outgoing' }>>([])
   const semanticLinksLoading = ref(false)
   const semanticLinksError = ref('')
 
   let activeNoteEffectsRequestToken = 0
   let backlinksSourcePath = ''
-  let semanticLinksSourcePath = ''
 
   function isCurrentActiveNoteEffectsRequest(requestToken: number, path: string) {
     return requestToken === activeNoteEffectsRequestToken && options.editorPort.activeFilePath.value === path
@@ -195,66 +193,35 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     const path = optionsOverride.path ?? options.editorPort.activeFilePath.value
     if (!root || !path) {
       backlinks.value = []
-      semanticLinks.value = []
       backlinksError.value = ''
-      semanticLinksError.value = ''
       backlinksSourcePath = ''
-      semanticLinksSourcePath = ''
       return
     }
 
     backlinksLoading.value = true
-    semanticLinksLoading.value = true
     backlinksError.value = ''
-    semanticLinksError.value = ''
     try {
-      const [backlinksResult, semanticLinksResult] = await Promise.allSettled([
-        backlinksForPath(path),
-        semanticLinksForPath(path)
-      ])
+      const backlinksResult = await Promise.resolve(backlinksForPath(path))
       if (optionsOverride.requestToken && !isCurrentActiveNoteEffectsRequest(optionsOverride.requestToken, path)) {
         return
       }
 
-      if (backlinksResult.status === 'fulfilled') {
-        backlinks.value = backlinksResult.value.map((item) => item.path)
+      {
+        backlinks.value = backlinksResult.map((item) => item.path)
         backlinksSourcePath = path
-      } else {
-        backlinksError.value = 'Could not load backlinks.'
-        if (backlinksSourcePath !== path) {
-          backlinks.value = []
-          backlinksSourcePath = ''
-        }
-      }
-
-      if (semanticLinksResult.status === 'fulfilled') {
-        semanticLinks.value = semanticLinksResult.value
-        semanticLinksSourcePath = path
-      } else {
-        semanticLinksError.value = 'Could not load semantic links.'
-        if (semanticLinksSourcePath !== path) {
-          semanticLinks.value = []
-          semanticLinksSourcePath = ''
-        }
       }
     } catch {
       if (optionsOverride.requestToken && !isCurrentActiveNoteEffectsRequest(optionsOverride.requestToken, path)) {
         return
       }
       backlinksError.value = 'Could not load backlinks.'
-      semanticLinksError.value = 'Could not load semantic links.'
       if (backlinksSourcePath !== path) {
         backlinks.value = []
         backlinksSourcePath = ''
       }
-      if (semanticLinksSourcePath !== path) {
-        semanticLinks.value = []
-        semanticLinksSourcePath = ''
-      }
     } finally {
       if (!optionsOverride.requestToken || isCurrentActiveNoteEffectsRequest(optionsOverride.requestToken, path)) {
         backlinksLoading.value = false
-        semanticLinksLoading.value = false
       }
     }
   }
@@ -455,11 +422,8 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     if (!path || !options.dataPort.isMarkdownPath(path)) {
       options.editorPort.editorState.setActiveOutline([])
       backlinks.value = []
-      semanticLinks.value = []
       backlinksError.value = ''
-      semanticLinksError.value = ''
       backlinksSourcePath = ''
-      semanticLinksSourcePath = ''
       await options.dataPort.refreshActiveFileMetadata(path)
       return
     }
@@ -500,11 +464,8 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
         if (!path) {
           options.editorPort.editorState.setActiveOutline([])
           backlinks.value = []
-          semanticLinks.value = []
           backlinksError.value = ''
-          semanticLinksError.value = ''
           backlinksSourcePath = ''
-          semanticLinksSourcePath = ''
         }
         void options.dataPort.refreshActiveFileMetadata(path)
         return

@@ -13,10 +13,7 @@ use std::{
 use directories::UserDirs;
 use rusqlite::Connection;
 
-use crate::{
-    db, log_index, semantic, AppError, Result, DB_FILE_NAME, INTERNAL_DIR_NAME,
-    RESERVED_WORKSPACE_ERROR, SQLITE_VEC_PROBE_LOGGED,
-};
+use crate::{db, AppError, Result, DB_FILE_NAME, INTERNAL_DIR_NAME, RESERVED_WORKSPACE_ERROR};
 
 static ACTIVE_WORKSPACE_ROOT: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 
@@ -99,7 +96,6 @@ pub(crate) fn active_workspace_root() -> Result<PathBuf> {
 
 pub(crate) fn open_db() -> Result<Connection> {
     if !db::init_sqlite_runtime() {
-        log_index("sqlite_runtime:init_failed");
         return Err(AppError::OperationFailed);
     }
     let root = active_workspace_root()?;
@@ -109,12 +105,6 @@ pub(crate) fn open_db() -> Result<Connection> {
     let db_path = db_dir.join(DB_FILE_NAME);
     let conn = Connection::open(db_path)?;
     let _ = conn.busy_timeout(Duration::from_millis(3_000));
-    if SQLITE_VEC_PROBE_LOGGED.set(()).is_ok() {
-        match semantic::probe_vec_runtime(&conn) {
-            Ok(version) => log_index(&format!("sqlite_vec:runtime_ready version={version}")),
-            Err(err) => log_index(&format!("sqlite_vec:runtime_unavailable err={err}")),
-        }
-    }
     Ok(conn)
 }
 

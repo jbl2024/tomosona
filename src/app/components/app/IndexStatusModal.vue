@@ -4,15 +4,12 @@ import {
   CheckCircleIcon,
   CircleStackIcon,
   ClockIcon,
-  CpuChipIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
-  LinkIcon
 } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
-import type { IndexRuntimeStatus } from '../../../shared/api/apiTypes'
 
 /**
  * IndexStatusModal
@@ -27,7 +24,6 @@ const props = defineProps<{
   visible: boolean
   running: boolean
   busy: boolean
-  runtimeStatus: IndexRuntimeStatus | null
   badgeLabel: string
   badgeClass: string
   showProgressBar: boolean
@@ -43,7 +39,6 @@ const props = defineProps<{
   modelStatusLabel: string
   showWarmupNote: boolean
   alert: { level: 'error' | 'warning'; title: string; message: string } | null
-  semanticLinksCount: number
   processedNotesCount: number
   notesTotalCount: number
   notesTotalLoading: boolean
@@ -126,14 +121,6 @@ const modelDetail = computed(() => {
   if (props.showWarmupNote) {
     parts.push('First initialization can download model weights and take longer.')
   }
-  if (props.runtimeStatus?.model_last_duration_ms != null) {
-    const lastInit = `Last init ${props.formatDurationMs(props.runtimeStatus.model_last_duration_ms)}`
-    if (props.runtimeStatus.model_last_finished_at_ms != null) {
-      parts.push(`${lastInit} at ${props.formatTimestamp(props.runtimeStatus.model_last_finished_at_ms)}`)
-    } else {
-      parts.push(lastInit)
-    }
-  }
   return parts.join(' · ')
 })
 
@@ -143,12 +130,6 @@ const activityFilters = computed(() => [
 ])
 
 const heroStats = computed(() => [
-  {
-    icon: LinkIcon,
-    label: 'Semantic links',
-    value: String(props.semanticLinksCount),
-    detail: props.semanticLinksCount > 0 ? 'Persisted in the database' : 'No semantic links stored yet'
-  },
   {
     icon: DocumentTextIcon,
     label: 'Notes processed',
@@ -236,12 +217,12 @@ function renderPathPrefix(row: IndexActivityRow) {
             <div class="index-hero-card-top index-model-card-top">
               <div class="index-model-copy">
                 <CpuChipIcon class="index-hero-icon" aria-hidden="true" />
-                <p class="index-hero-label">Model</p>
+                <p class="index-hero-label">Index</p>
               </div>
               <span class="index-model-state" :class="modelStateClass">{{ modelStatusLabel }}</span>
             </div>
 
-            <div class="index-hero-value index-model-name">{{ runtimeStatus?.model_name || 'n/a' }}</div>
+            <div class="index-hero-value index-model-name">Lexical</div>
             <p v-if="modelDetail" class="index-hero-detail index-model-detail">
               {{ modelDetail }}
             </p>

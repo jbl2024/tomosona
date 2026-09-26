@@ -1,4 +1,4 @@
-//! Search query parsing and hybrid search helpers.
+//! Lexical search query parsing and helpers.
 
 use std::{collections::HashSet, path::Path};
 
@@ -8,9 +8,7 @@ use serde::Serialize;
 use crate::markdown_index::{is_iso_date_value, unquote_yaml_scalar};
 use crate::{
     active_workspace_root, ensure_index_schema, min_max_normalize, open_db,
-    property_type_schema_path, semantic, workspace_absolute_path, AppError, Result,
-    HYBRID_LEXICAL_WEIGHT, HYBRID_SEMANTIC_WEIGHT, SEARCH_CANDIDATE_LIMIT, SEARCH_RESULT_LIMIT,
-    SEMANTIC_THRESHOLD,
+    property_type_schema_path, workspace_absolute_path, AppError, Result, SEARCH_RESULT_LIMIT,
 };
 
 #[derive(Serialize)]
@@ -38,15 +36,10 @@ pub(crate) enum PropertyFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SearchMode {
-    Hybrid,
-    Semantic,
-    Lexical,
-}
+pub(crate) enum SearchMode { Lexical }
 
 #[derive(Debug)]
 struct RankedSearchRow {
-    chunk_id: i64,
     path: String,
     snippet: String,
     lexical_score: f64,
@@ -286,20 +279,13 @@ fn parse_property_filter_token(token: &str) -> Option<PropertyFilter> {
 pub(crate) fn parse_search_query(raw: &str) -> (SearchMode, String, Vec<PropertyFilter>) {
     let trimmed = raw.trim();
     let lowered = trimmed.to_ascii_lowercase();
-    let (mode, remainder) = if lowered.starts_with("semantic:") {
-        (
-            SearchMode::Semantic,
-            trimmed["semantic:".len()..].trim_start(),
-        )
-    } else if lowered.starts_with("lexical:") {
+    let (mode, remainder) = if lowered.starts_with("lexical:") {
         (
             SearchMode::Lexical,
             trimmed["lexical:".len()..].trim_start(),
         )
-    } else if lowered.starts_with("hybrid:") {
-        (SearchMode::Hybrid, trimmed["hybrid:".len()..].trim_start())
     } else {
-        (SearchMode::Hybrid, trimmed)
+        (SearchMode::Lexical, trimmed)
     };
 
     let mut text_terms = Vec::new();
@@ -405,8 +391,7 @@ fn collect_lexical_ranked_rows(
 ) -> Result<Vec<RankedSearchRow>> {
     let mut stmt = conn.prepare(
         r#"
-    SELECT chunks.id,
-           chunks.path,
+    SELECT chunks.path,
            snippet(chunks_fts, 2, '<b>', '</b>', '...', 12) AS snip,
            bm25(chunks_fts) AS score
     FROM chunks_fts
@@ -417,7 +402,7 @@ fn collect_lexical_ranked_rows(
   "#,
     )?;
 
-    let mut rows = stmt.query(params![text_query, SEARCH_CANDIDATE_LIMIT])?;
+    let mut rows = stmt.query(params![text_query, SEARCH_RESULT_LIMIT as i64])?;
     let mut ranked_rows = Vec::new();
     while let Some(row) = rows.next()? {
         let path = row.get::<_, String>(1)?;
@@ -425,10 +410,9 @@ fn collect_lexical_ranked_rows(
             continue;
         }
         ranked_rows.push(RankedSearchRow {
-            chunk_id: row.get::<_, i64>(0)?,
             path,
-            snippet: row.get::<_, String>(2)?,
-            lexical_score: row.get::<_, f64>(3)?,
+            snippet: row.get::<_, String>(1)?,
+            lexical_score: row.get::<_, f64>(2)?,
         });
     }
     Ok(ranked_rows)
@@ -489,7 +473,7 @@ fn fallback_lexical_hits(
     Ok(out)
 }
 
-pub(crate) fn semantic_snippet_preview(text: &str) -> String {
+/*pub(crate) fn semantic_snippet_preview(text: &str) -> String {
     let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if compact.is_empty() {
         return "semantic match".to_string();
@@ -499,9 +483,9 @@ pub(crate) fn semantic_snippet_preview(text: &str) -> String {
         preview.push_str("...");
     }
     preview
-}
+}*/
 
-fn load_semantic_snippet(conn: &Connection, path: &str) -> Result<String> {
+/*fn load_semantic_snippet(conn: &Connection, path: &str) -> Result<String> {
     let row = conn.query_row(
         "SELECT text FROM chunks WHERE path = ?1 ORDER BY id ASC LIMIT 1",
         params![path],
@@ -574,6 +558,8 @@ fn semantic_only_hits(
     Ok(Some(out))
 }
 
+*/
+
 pub(crate) fn fts_search_sync(query: String) -> Result<Vec<Hit>> {
     let conn = open_db()?;
     let root_canonical = active_workspace_root()?;
@@ -582,7 +568,7 @@ pub(crate) fn fts_search_sync(query: String) -> Result<Vec<Hit>> {
         return Ok(vec![]);
     }
 
-    let (mode, text_query, property_filters) = parse_search_query(q);
+    let (_mode, text_query, property_filters) = parse_search_query(q);
     let property_paths = if property_filters.is_empty() {
         None
     } else {
@@ -606,17 +592,8 @@ pub(crate) fn fts_search_sync(query: String) -> Result<Vec<Hit>> {
         return Ok(out);
     }
 
-    if mode == SearchMode::Semantic {
-        if let Some(hits) =
-            semantic_only_hits(&conn, &root_canonical, &text_query, property_paths.as_ref())?
-        {
-            return Ok(hits);
-        }
-        return fallback_lexical_hits(&conn, &root_canonical, &text_query, property_paths.as_ref());
-    }
-
     let mut ranked_rows = collect_lexical_ranked_rows(&conn, &text_query, property_paths.as_ref())?;
-    if ranked_rows.is_empty() && mode == SearchMode::Hybrid {
+    if ranked_rows.is_empty() {
         if let Some(prefix_query) = build_prefix_fts_query(&text_query) {
             if prefix_query != text_query {
                 ranked_rows =
@@ -631,51 +608,11 @@ pub(crate) fn fts_search_sync(query: String) -> Result<Vec<Hit>> {
     let lexical_relevance: Vec<f64> = ranked_rows.iter().map(|item| -item.lexical_score).collect();
     let lexical_norm = min_max_normalize(&lexical_relevance);
 
-    let mut scored: Vec<(usize, f64)> = if mode == SearchMode::Lexical {
-        ranked_rows
-            .iter()
-            .enumerate()
-            .map(|(index, _)| (index, lexical_norm[index]))
-            .collect()
-    } else {
-        let mut semantic_norm = vec![0.0f64; ranked_rows.len()];
-        let query_vec = semantic::embed_texts(&[text_query.clone()])
-            .ok()
-            .and_then(|mut items| items.pop());
-
-        if let Some(mut query_vector) = query_vec {
-            semantic::normalize_in_place(&mut query_vector);
-            let mut semantic_scores = vec![0.0f64; ranked_rows.len()];
-            for (index, row) in ranked_rows.iter().enumerate() {
-                let embedding = conn.query_row(
-                    "SELECT vector, dim FROM embeddings WHERE chunk_id = ?1",
-                    params![row.chunk_id],
-                    |db_row| Ok((db_row.get::<_, Vec<u8>>(0)?, db_row.get::<_, i64>(1)?)),
-                );
-                let Ok((blob, dim)) = embedding else {
-                    continue;
-                };
-                let Some(vector) = semantic::blob_to_vector(&blob, dim as usize) else {
-                    continue;
-                };
-                let Some(score) = semantic::cosine_similarity(&query_vector, &vector) else {
-                    continue;
-                };
-                semantic_scores[index] = score as f64;
-            }
-            semantic_norm = min_max_normalize(&semantic_scores);
-        }
-
-        ranked_rows
-            .iter()
-            .enumerate()
-            .map(|(index, _)| {
-                let hybrid = lexical_norm[index] * HYBRID_LEXICAL_WEIGHT
-                    + semantic_norm[index] * HYBRID_SEMANTIC_WEIGHT;
-                (index, hybrid)
-            })
-            .collect()
-    };
+    let mut scored: Vec<(usize, f64)> = ranked_rows
+        .iter()
+        .enumerate()
+        .map(|(index, _)| (index, lexical_norm[index]))
+        .collect();
 
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     let mut out = Vec::new();

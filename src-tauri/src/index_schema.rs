@@ -5,7 +5,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::atomic::Ordering,
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::Instant,
 };
 
 use rusqlite::{params, Connection};
@@ -13,8 +13,7 @@ use serde::Serialize;
 
 use crate::{
     active_workspace_root, ensure_within_root, has_hidden_dir_component, index_log_buffer,
-    log_index, next_index_run_id, open_db, reindex_markdown_file_lexical_sync,
-    reindex_markdown_file_semantic_sync, semantic, AppError, Result, INDEX_CANCEL_REQUESTED,
+    log_index, open_db, reindex_markdown_file_lexical_sync, AppError, Result, INDEX_CANCEL_REQUESTED,
     INDEX_LOG_CAPACITY, INDEX_SCHEMA_VERSION,
 };
 
@@ -31,19 +30,7 @@ pub(crate) struct RebuildIndexResult {
 }
 
 #[derive(Serialize)]
-pub(crate) struct IndexRuntimeStatus {
-    pub model_name: String,
-    pub model_state: String,
-    pub model_init_attempts: u32,
-    pub model_last_started_at_ms: Option<u64>,
-    pub model_last_finished_at_ms: Option<u64>,
-    pub model_last_duration_ms: Option<u64>,
-    pub model_last_error: Option<String>,
-}
-
-#[derive(Serialize)]
 pub(crate) struct IndexOverviewStats {
-    pub semantic_links_count: u64,
     pub processed_notes_count: u64,
     pub workspace_notes_count: u64,
     pub last_run_finished_at_ms: Option<u64>,
@@ -175,23 +162,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
       INSERT INTO chunks_fts(rowid, path, anchor, text) VALUES (new.id, new.path, new.anchor, new.text);
     END;
 
-    CREATE TABLE IF NOT EXISTS embeddings (
-      chunk_id INTEGER PRIMARY KEY,
-      model TEXT NOT NULL,
-      dim INTEGER NOT NULL,
-      content_hash TEXT NOT NULL DEFAULT '',
-      vector BLOB NOT NULL,
-      FOREIGN KEY(chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS note_embeddings (
-      path TEXT PRIMARY KEY,
-      model TEXT NOT NULL,
-      dim INTEGER NOT NULL,
-      vector BLOB NOT NULL,
-      updated_at_ms INTEGER NOT NULL DEFAULT 0
-    );
-
     CREATE TABLE IF NOT EXISTS note_processing (
       path TEXT PRIMARY KEY,
       processed_at_ms INTEGER NOT NULL DEFAULT 0
@@ -219,17 +189,6 @@ pub(crate) fn ensure_index_schema(conn: &Connection) -> Result<()> {
     CREATE INDEX IF NOT EXISTS idx_note_properties_key_num ON note_properties(key, value_num);
     CREATE INDEX IF NOT EXISTS idx_note_properties_key_bool ON note_properties(key, value_bool);
     CREATE INDEX IF NOT EXISTS idx_note_properties_key_date ON note_properties(key, value_date);
-
-    CREATE TABLE IF NOT EXISTS semantic_edges (
-      source_path TEXT NOT NULL,
-      target_path TEXT NOT NULL,
-      score REAL NOT NULL,
-      model TEXT NOT NULL,
-      updated_at_ms INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(source_path, target_path)
-    );
-    CREATE INDEX IF NOT EXISTS idx_semantic_edges_source ON semantic_edges(source_path);
-    CREATE INDEX IF NOT EXISTS idx_semantic_edges_target ON semantic_edges(target_path);
 
     CREATE TABLE IF NOT EXISTS second_brain_sessions (
       id TEXT PRIMARY KEY,
@@ -292,13 +251,6 @@ pub(crate) fn init_db() -> Result<()> {
     ensure_index_schema(&conn)
 }
 
-pub(crate) fn refresh_semantic_edges_cache_now_sync() -> Result<()> {
-    let root = active_workspace_root()?;
-    let conn = open_db()?;
-    ensure_index_schema(&conn)?;
-    refresh_semantic_edges_cache(&conn, &root)
-}
-
 pub(crate) fn min_max_normalize(values: &[f64]) -> Vec<f64> {
     if values.is_empty() {
         return Vec::new();
@@ -320,6 +272,7 @@ pub(crate) fn min_max_normalize(values: &[f64]) -> Vec<f64> {
         .collect()
 }
 
+/*
 pub(crate) fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &Path) -> Result<()> {
     let started_at = Instant::now();
     let run_id = next_index_run_id();
@@ -505,6 +458,7 @@ pub(crate) fn refresh_semantic_edges_cache(conn: &Connection, root_canonical: &P
     );
     Ok(())
 }
+*/
 
 pub(crate) fn rebuild_workspace_index_sync() -> Result<RebuildIndexResult> {
     let rebuild_started_at = Instant::now();
@@ -518,21 +472,16 @@ pub(crate) fn rebuild_workspace_index_sync() -> Result<RebuildIndexResult> {
 
     conn.execute_batch(
         r#"
-    DELETE FROM embeddings;
-    DELETE FROM note_embeddings;
     DELETE FROM note_processing;
     DELETE FROM chunks;
     DELETE FROM note_links;
     DELETE FROM note_properties;
-    DELETE FROM semantic_edges;
   "#,
     )?;
-    let _ = conn.execute("DELETE FROM note_embeddings_vec", []);
 
     let markdown_files = list_markdown_files_via_find(&root_canonical)?;
     let mut indexed_files = 0usize;
     let mut processed_files = 0usize;
-    let mut semantic_indexed = 0usize;
     let mut canceled = false;
     INDEX_CANCEL_REQUESTED.store(false, Ordering::SeqCst);
     for candidate in markdown_files {
@@ -552,36 +501,8 @@ pub(crate) fn rebuild_workspace_index_sync() -> Result<RebuildIndexResult> {
         indexed_files += 1;
     }
 
-    if !canceled {
-        let markdown_files = list_markdown_files_via_find(&root_canonical)?;
-        for candidate in markdown_files {
-            if INDEX_CANCEL_REQUESTED.load(Ordering::SeqCst) {
-                canceled = true;
-                break;
-            }
-            let canonical_candidate = match fs::canonicalize(&candidate) {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
-            if ensure_within_root(&root_canonical, &canonical_candidate).is_err() {
-                continue;
-            }
-            if reindex_markdown_file_semantic_sync(
-                canonical_candidate.to_string_lossy().to_string(),
-            )
-            .is_ok()
-            {
-                semantic_indexed += 1;
-            }
-        }
-    }
-
-    if !canceled {
-        let _ = refresh_semantic_edges_cache_now_sync();
-    }
-
     log_index(&format!(
-        "rebuild:done indexed={indexed_files} semantic_indexed={semantic_indexed} scanned={processed_files} canceled={canceled} total_ms={}",
+        "rebuild:done indexed={indexed_files} scanned={processed_files} canceled={canceled} total_ms={}",
         rebuild_started_at.elapsed().as_millis()
     ));
     if !canceled {
@@ -605,25 +526,9 @@ pub(crate) fn request_index_cancel() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn read_index_runtime_status() -> Result<IndexRuntimeStatus> {
-    let status = semantic::runtime_status();
-    Ok(IndexRuntimeStatus {
-        model_name: status.model_name,
-        model_state: status.model_state,
-        model_init_attempts: status.model_init_attempts,
-        model_last_started_at_ms: status.model_last_started_at_ms,
-        model_last_finished_at_ms: status.model_last_finished_at_ms,
-        model_last_duration_ms: status.model_last_duration_ms,
-        model_last_error: status.model_last_error,
-    })
-}
-
 pub(crate) fn read_index_overview_stats() -> Result<IndexOverviewStats> {
     let conn = open_db()?;
     let root = active_workspace_root()?;
-    let semantic_links_count = conn.query_row("SELECT COUNT(*) FROM semantic_edges", [], |row| {
-        row.get::<_, i64>(0)
-    })? as u64;
     let processed_notes_count = conn.query_row(
         r#"
         SELECT CASE
@@ -660,7 +565,6 @@ pub(crate) fn read_index_overview_stats() -> Result<IndexOverviewStats> {
         .ok()
         .and_then(|value| value.parse::<u64>().ok());
     Ok(IndexOverviewStats {
-        semantic_links_count,
         processed_notes_count,
         workspace_notes_count,
         last_run_finished_at_ms,

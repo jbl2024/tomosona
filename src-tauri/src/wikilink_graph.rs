@@ -1,7 +1,7 @@
 //! Backlinks and rename update helpers.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -9,14 +9,11 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::editor_sync::record_workspace_mutation_write;
-use crate::markdown_index::{
-    reindex_markdown_file_lexical_sync, reindex_markdown_file_semantic_sync,
-};
+use crate::markdown_index::reindex_markdown_file_lexical_sync;
 use crate::{
     active_workspace_root, list_markdown_files_via_find, normalize_note_key,
     normalize_workspace_path,
-    normalize_workspace_relative_path,
-    note_link_target, open_db, refresh_semantic_edges_cache_now_sync,
+    note_link_target, open_db,
     reindex_markdown_file_now_sync, rewrite_wikilinks_for_note, workspace_absolute_path, AppError,
     Result,
 };
@@ -24,13 +21,6 @@ use crate::{
 #[derive(Serialize)]
 pub(crate) struct Backlink {
     pub path: String,
-}
-
-#[derive(Serialize)]
-pub(crate) struct SemanticLink {
-    pub path: String,
-    pub score: Option<f32>,
-    pub direction: String,
 }
 
 #[derive(Serialize)]
@@ -95,7 +85,7 @@ pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
     Ok(out)
 }
 
-pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
+/*pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>> {
     let root_canonical = active_workspace_root()?;
     let mut path_buf = PathBuf::from(path);
     if path_buf.as_os_str().is_empty() {
@@ -149,7 +139,7 @@ pub(crate) fn semantic_links_for_path(path: String) -> Result<Vec<SemanticLink>>
     }
 
     Ok(out)
-}
+}*/
 
 pub(crate) fn update_wikilinks_for_rename(
     old_path: String,
@@ -314,11 +304,6 @@ pub(crate) fn update_wikilinks_for_path_moves(
 
     for path in &reindex_paths {
         reindex_markdown_file_lexical_sync(path.clone())?;
-        reindex_markdown_file_semantic_sync(path.clone())?;
-    }
-
-    if !reindex_paths.is_empty() {
-        refresh_semantic_edges_cache_now_sync()?;
     }
 
     Ok(PathMoveRewriteResult {
