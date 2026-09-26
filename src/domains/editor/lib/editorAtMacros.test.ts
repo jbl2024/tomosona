@@ -101,7 +101,7 @@ describe('editorAtMacros', () => {
     expect(editorAtMacroMatchesQuery(template!, 'template')).toBe(true)
   })
 
-  it('does not register or resolve removed AI transformation macros', () => {
+  it('does not register or resolve removed transformation macros', () => {
     const removed = ['summarize', 'summary', 'rewrite', 'expand', 'extract.tasks', 'extract.decisions', 'extract.risks', 'ask', 'brief', 'title.ai', 'tags.auto']
     const entries = buildEditorAtMacroEntries(context)
     for (const id of removed) {

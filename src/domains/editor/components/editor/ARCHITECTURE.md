@@ -27,7 +27,7 @@
 - Inline `@` macro trigger/insertion: `useEditorAtMenu`
 - Block gutter target/anchor/menu pinning: `useEditorBlockGutterController`
 - Header title state and rename sync: `useEditorTitleState`
-- Frontmatter generation, merge, and AI-assisted property actions: `useFrontmatterProperties`
+- Frontmatter generation, merge, and property actions: `useFrontmatterProperties`
 - Block menu action derivation: `useBlockMenuControls`
 - Table edge visibility + sticky timing: `useTableToolbarControls`
 - Table toolbar/hover/action orchestration: `useEditorTableInteractions`
@@ -60,7 +60,6 @@
 - Source mode owns raw file text exactly as loaded, including non-markdown text files and markdown files explicitly switched to source editing.
 - Rich markdown mode and source mode must not both mutate the same path at the same time; the shell chooses one surface per path.
 - Markdown source mode is a path preference stored separately from the note content so switching back to rich mode preserves the user's choice.
-- AI-assisted property generation stays inside the frontmatter runtime and updates the same property state used by manual edits.
 - Loading overlays for complex docs should remain visible until `waitForHeavyRenderIdle` settles after `setContent`.
 - Overlay trigger is not size-only: heavy markdown complexity and runtime pending render signals can escalate loading UI for below-threshold files.
 

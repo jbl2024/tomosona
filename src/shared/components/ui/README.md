@@ -55,7 +55,7 @@ const error = ref('')
         size="sm"
         :aria-describedby="describedBy"
         :invalid="invalid"
-        placeholder="OpenAI Codex"
+        placeholder="Project notebook"
       />
     </template>
   </UiField>
@@ -278,9 +278,9 @@ Notes:
 Example:
 
 ```vue
-<UiSelect v-model="provider" size="sm">
-  <option value="openai">OpenAI</option>
-  <option value="anthropic">Anthropic</option>
+<UiSelect v-model="storageScope" size="sm">
+  <option value="workspace">Workspace</option>
+  <option value="system">System</option>
 </UiSelect>
 ```
 
@@ -308,7 +308,7 @@ Notes:
 Example:
 
 ```vue
-<UiCheckbox v-model="enabled" label="Enable external embeddings" />
+<UiCheckbox v-model="enabled" label="Enable compact mode" />
 ```
 
 ## `UiBadge`
@@ -726,10 +726,10 @@ Example:
   description="Adjust workspace preferences."
   width="lg"
 >
-  <UiField for-id="provider" label="Provider">
+  <UiField for-id="storage-scope" label="Storage scope">
     <template #default>
-      <UiSelect id="provider" v-model="provider" size="sm">
-        <option value="openai">OpenAI</option>
+      <UiSelect id="storage-scope" v-model="storageScope" size="sm">
+        <option value="workspace">Workspace</option>
       </UiSelect>
     </template>
   </UiField>

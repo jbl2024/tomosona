@@ -617,8 +617,6 @@ const constitutedContextActions = useAppShellConstitutedContextActions({
   noteTitleFromPath,
 })
 const {
-  addPathToConstitutedContext,
-  removePathFromConstitutedContext,
   removeLocalPathFromConstitutedContext,
   removePinnedPathFromConstitutedContext,
   toggleActiveNoteInConstitutedContext,

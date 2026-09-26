@@ -51,7 +51,6 @@ Backend:
 - File IO
 - Indexing
 - Search
-- Embeddings
 - Watcher
 
 Backend never depends on Editor.js JSON.
@@ -152,7 +151,6 @@ Markdown files remain on disk to ensure:
 The local database stores only:
 
 - Index
-- Embeddings
 - Metadata
 
 It is disposable and rebuildable.
