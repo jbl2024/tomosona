@@ -55,8 +55,7 @@ use index_schema::{
 };
 #[cfg(test)]
 use markdown_index::{
-    inject_relative_path_context, parse_note_targets, parse_yaml_frontmatter_properties,
-    strip_yaml_frontmatter,
+    parse_note_targets, parse_yaml_frontmatter_properties, strip_yaml_frontmatter,
 };
 use markdown_index::{
     reindex_markdown_file_lexical_sync, reindex_markdown_file_now_sync,
@@ -861,18 +860,6 @@ mod tests {
     }
 
     #[test]
-    fn inject_relative_path_context_prefixes_first_chunk_only() {
-        let chunks = vec![
-            ("".to_string(), "first".to_string()),
-            ("section".to_string(), "second".to_string()),
-        ];
-        let contextualized = inject_relative_path_context("journal/2026/02/2026-02-16.md", chunks);
-        assert_eq!(contextualized.len(), 2);
-        assert_eq!(contextualized[0].1, "journal/2026/02/2026-02-16.md\nfirst");
-        assert_eq!(contextualized[1].1, "second");
-    }
-
-    #[test]
     fn init_db_uses_new_index_schema_columns() {
         let _guard = workspace_test_guard();
         let workspace = create_temp_workspace("tomosona-schema-test");
@@ -962,34 +949,6 @@ mod tests {
         assert!(props_n >= 2);
         assert_eq!(embedding_n, 0);
         assert_eq!(note_embedding_n, 0);
-
-        clear_active_workspace().expect("clear workspace");
-        fs::remove_dir_all(&workspace).expect("cleanup workspace");
-    }
-
-    #[test]
-    fn lexical_reindex_stores_relative_path_in_first_chunk() {
-        let _guard = workspace_test_guard();
-        let workspace = create_temp_workspace("tomosona-lexical-context-test");
-        let root = workspace.to_string_lossy().to_string();
-        let note_path = workspace.join("nested").join("topic.md");
-        fs::create_dir_all(note_path.parent().expect("parent")).expect("create nested");
-        fs::write(&note_path, "# Heading\nline one\nline two").expect("write note");
-
-        set_active_workspace(&root).expect("set workspace");
-        init_db().expect("init db");
-        reindex_markdown_file_lexical_sync(note_path.to_string_lossy().to_string())
-            .expect("lexical reindex");
-
-        let conn = open_db().expect("open db");
-        let first_chunk: String = conn
-            .query_row(
-                "SELECT text FROM chunks WHERE path = 'nested/topic.md' AND chunk_ord = 0",
-                [],
-                |row| row.get(0),
-            )
-            .expect("query first chunk");
-        assert!(first_chunk.starts_with("nested/topic.md\n"));
 
         clear_active_workspace().expect("clear workspace");
         fs::remove_dir_all(&workspace).expect("cleanup workspace");

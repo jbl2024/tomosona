@@ -504,7 +504,6 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
     ensure_index_schema(&conn)?;
     let tx = conn.unchecked_transaction()?;
     let path_for_db = normalize_workspace_relative_path(&root, &normalized_path)?;
-    let chunks = chunks;
     log_index(&format!("reindex:start path={path_for_db}"));
     let source_key = normalize_note_key(&root, &normalized_path)?;
 
