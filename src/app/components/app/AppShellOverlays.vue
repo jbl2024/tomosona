@@ -5,13 +5,11 @@ import IndexStatusModal from './IndexStatusModal.vue'
 import WorkspaceSpellcheckDictionaryModal from './WorkspaceSpellcheckDictionaryModal.vue'
 import WorkspaceEntryModals from './WorkspaceEntryModals.vue'
 import WorkspaceSetupWizardModal from './WorkspaceSetupWizardModal.vue'
-import SettingsModal from '../settings/SettingsModal.vue'
 import DesignSystemDebugModal from './DesignSystemDebugModal.vue'
 import ShortcutsModal from './ShortcutsModal.vue'
 import AboutModal from './AboutModal.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
 import type { ThemePickerItem } from '../../lib/appShellPresentation'
-import type { WriteAppSettingsResult } from '../../../shared/api/apiTypes'
 import type {
   QuickOpenActionGroup,
   QuickOpenBrowseAction,
@@ -97,7 +95,6 @@ defineProps<{
   spellcheckDictionaryWorkspaceLabel: string
   workspaceSetupWizardVisible: boolean
   workspaceSetupWizardBusy: boolean
-  settingsModalVisible: boolean
   designSystemDebugVisible: boolean
   shortcutsModalVisible: boolean
   shortcutsFilterQuery: string
@@ -139,8 +136,6 @@ const emit = defineEmits<{
   closeSpellcheckDictionary: []
   cancelWorkspaceSetupWizard: []
   submitWorkspaceSetupWizard: [payload: { useCase: WorkspaceSetupUseCase; options: WorkspaceSetupOption[] }]
-  cancelSettings: []
-  settingsSaved: [result: WriteAppSettingsResult]
   closeDesignSystemDebug: []
   closeShortcuts: []
   updateShortcutsFilterQuery: [value: string]
@@ -270,12 +265,6 @@ const emit = defineEmits<{
     :busy="workspaceSetupWizardBusy"
     @cancel="emit('cancelWorkspaceSetupWizard')"
     @submit="emit('submitWorkspaceSetupWizard', $event)"
-  />
-
-  <SettingsModal
-    :visible="settingsModalVisible"
-    @cancel="emit('cancelSettings')"
-    @saved="emit('settingsSaved', $event)"
   />
 
   <DesignSystemDebugModal

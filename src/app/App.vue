@@ -144,7 +144,6 @@ import { useAppShellWorkspaceRouting } from './composables/useAppShellWorkspaceR
 import { useAppModalController } from './composables/useAppModalController'
 import { useAppNotePersistence } from './composables/useAppNotePersistence'
 import { useAppShellRootWorkflow } from './composables/useAppShellRootWorkflow'
-import { useAppSettingsWorkflow } from './composables/useAppSettingsWorkflow'
 import { useAppSecondBrainBridge } from './composables/useAppSecondBrainBridge'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
 import { useAppShellConstitutedContextActions } from './composables/useAppShellConstitutedContextActions'
@@ -896,10 +895,6 @@ const {
   onNewFolderInputKeydown,
   onOpenDateInputKeydown
 } = shellModals
-const settingsWorkflow = useAppSettingsWorkflow({
-  notifySuccess: (message: string) => filesystem.notifySuccess(message),
-  closeSettingsModal: () => closeSettingsModal()
-})
 const workspaceEntries = useAppShellWorkspaceEntries({
   statePort: {
     workingFolderPath: filesystem.workingFolderPath,
@@ -2010,7 +2005,6 @@ useAppShellKeyboard({
       :spellcheck-dictionary-workspace-label="filesystem.workingFolderPath.value || 'none'"
       :workspace-setup-wizard-visible="workspaceSetupWizardVisible"
       :workspace-setup-wizard-busy="workspaceSetupWizardBusy"
-      :settings-modal-visible="settingsModalVisible"
       :design-system-debug-visible="designSystemDebugVisible"
       :shortcuts-modal-visible="shortcutsModalVisible"
       :shortcuts-filter-query="shortcutsFilterQuery"
@@ -2049,8 +2043,6 @@ useAppShellKeyboard({
       @close-spellcheck-dictionary="closeSpellcheckDictionaryModal"
       @cancel-workspace-setup-wizard="workspaceRouting.closeWorkspaceSetupWizard()"
       @submit-workspace-setup-wizard="void workspaceRouting.applyWorkspaceSetupWizard($event)"
-      @cancel-settings="closeSettingsModal"
-      @settings-saved="settingsWorkflow.onSettingsSaved"
       @close-design-system-debug="closeDesignSystemDebugModal"
       @close-shortcuts="closeShortcutsModal"
       @update-shortcuts-filter-query="shortcutsFilterQuery = $event"
