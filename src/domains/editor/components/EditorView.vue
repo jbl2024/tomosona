@@ -425,8 +425,6 @@ const {
   structuredPropertyKeys,
   propertyKeySuggestions,
   propertySuggestionsForField,
-  propertyGenerationLoading,
-  propertyGenerationTargetIndex,
   addPropertyField,
   removePropertyField,
   onPropertyTypeChange,
@@ -439,8 +437,6 @@ const {
   propertiesExpanded,
   togglePropertiesVisibility,
   onRawYamlInput,
-  generateAutoProperties,
-  generatePropertyValue,
   isLoadingLargeDocument,
   loadStageLabel,
   loadProgressPercent,
@@ -996,8 +992,6 @@ defineExpose({
                   :property-suggestions-for-field="propertySuggestionsForField"
                   :effective-type-for-field="effectiveTypeForField"
                   :is-property-type-locked="isPropertyTypeLocked"
-                  :generation-pending="propertyGenerationLoading"
-                  :generation-target-index="propertyGenerationTargetIndex"
                   @toggle-visibility="togglePropertiesVisibility"
                   @set-mode="propertyEditorMode = $event"
                   @property-key-input="void onPropertyKeyInput($event.index, $event.value)"
@@ -1008,8 +1002,6 @@ defineExpose({
                   @remove-property="removePropertyField($event)"
                   @add-property="addPropertyField($event)"
                   @raw-yaml-input="onRawYamlInput($event)"
-                  @auto-generate="void generateAutoProperties()"
-                  @sparkle-property="void generatePropertyValue($event)"
                 />
               </template>
             </div>

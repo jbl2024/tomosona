@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ChevronRightIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { CircleStackIcon } from '@heroicons/vue/24/solid'
 import type { CSSProperties } from 'vue'
 import UiButton from '../../../../shared/components/ui/UiButton.vue'
 import UiCheckbox from '../../../../shared/components/ui/UiCheckbox.vue'
-import UiIconButton from '../../../../shared/components/ui/UiIconButton.vue'
 import UiInput from '../../../../shared/components/ui/UiInput.vue'
 import UiSelect from '../../../../shared/components/ui/UiSelect.vue'
 import UiTextarea from '../../../../shared/components/ui/UiTextarea.vue'
@@ -34,8 +33,6 @@ const props = defineProps<{
   propertySuggestionsForField: (field: FrontmatterField) => string[]
   effectiveTypeForField: (field: FrontmatterField) => PropertyType
   isPropertyTypeLocked: (key: string) => boolean
-  generationPending: boolean
-  generationTargetIndex: number | null
 }>()
 
 const emit = defineEmits<{
@@ -49,8 +46,6 @@ const emit = defineEmits<{
   'remove-property': [index: number]
   'add-property': [key: string]
   'raw-yaml-input': [value: string]
-  'auto-generate': []
-  'sparkle-property': [index: number]
 }>()
 
 const compactModeButtonStyle: CSSProperties = {
@@ -89,19 +84,6 @@ const compactModeButtonStyle: CSSProperties = {
         />
       </button>
       <div v-if="props.expanded" class="flex items-center gap-1.5">
-        <UiIconButton
-          type="button"
-          variant="ghost"
-          size="sm"
-          class-name="properties-auto-btn"
-          title="Auto properties"
-          aria-label="Auto properties"
-          :loading="props.generationPending && props.generationTargetIndex === null"
-          :disabled="props.mode !== 'structured' || !props.canUseStructuredProperties || props.generationPending"
-          @click="emit('auto-generate')"
-        >
-          <SparklesIcon class="h-4 w-4" aria-hidden="true" />
-        </UiIconButton>
         <UiButton
           type="button"
           size="sm"
@@ -192,19 +174,6 @@ const compactModeButtonStyle: CSSProperties = {
               </UiCheckbox>
             </div>
             <div class="flex items-center gap-1">
-              <UiIconButton
-                type="button"
-                variant="ghost"
-                size="sm"
-                class-name="properties-sparkle-btn"
-                title="Sparkle"
-                aria-label="Sparkle"
-                :loading="props.generationPending && props.generationTargetIndex === index"
-                :disabled="props.generationPending || !field.key.trim()"
-                @click="emit('sparkle-property', index)"
-              >
-                <SparklesIcon class="h-4 w-4" aria-hidden="true" />
-              </UiIconButton>
               <UiButton
                 type="button"
                 size="sm"
