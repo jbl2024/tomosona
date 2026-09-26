@@ -140,7 +140,9 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
 
   function readAtContext(): AtMenuTrigger | null {
     const context = options.currentTextSelectionContext() ?? currentEditorSelectionContext()
-    if (!context || context.nodeType !== 'paragraph') return null
+    // Headings are text blocks too: `@` macros should be available there just
+    // as they are in regular paragraphs.
+    if (!context || !['paragraph', 'heading'].includes(context.nodeType)) return null
     if (context.marks?.includes('code')) return null
     const trigger = extractAtTrigger(context.text, context.offset, context.marks)
     return trigger ? toDocumentTrigger(context, trigger) : null

@@ -111,6 +111,34 @@ describe('useEditorAtMenu', () => {
     expect(menu.atOpen.value).toBe(false)
   })
 
+  it('detects and replaces @ macros in headings', async () => {
+    const { editor, chain } = createEditor('Plan @today', 'heading')
+    const menu = useEditorAtMenu({
+      getEditor: () => editor,
+      currentTextSelectionContext: () => ({
+        text: 'Plan @today',
+        nodeType: 'heading',
+        from: 1,
+        to: 12,
+        offset: 11,
+        marks: []
+      }),
+      closeCompetingMenus: vi.fn(),
+      getDocumentMetadata: () => ({ title: 'Planning note', path: 'notes/planning.md' }),
+      now: () => new Date(2026, 3, 12, 14, 32)
+    })
+
+    menu.markAtActivatedByUser()
+    menu.syncAtMenuFromSelection()
+    expect(menu.atOpen.value).toBe(true)
+    expect(menu.visibleAtMacros.value.map((entry) => entry.id)).toContain('today')
+
+    const applied = await menu.insertAtMacro(menu.visibleAtMacros.value.find((entry) => entry.id === 'today')!)
+    expect(applied).toBe(true)
+    expect(chain.deleteRange).toHaveBeenCalledWith({ from: 6, to: 12 })
+    expect(chain.insertContent).toHaveBeenCalledWith('2026-04-12')
+  })
+
   it('allows arguments only for macros that support them', () => {
     const dueMenu = useEditorAtMenu({
       getEditor: () => null,
