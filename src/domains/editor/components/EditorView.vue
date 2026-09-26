@@ -1204,7 +1204,6 @@ defineExpose({
             @wrap-wikilink="inlineFormatToolbar.wrapSelectionWithWikilink"
             @extract-note="void interactionRuntime.extractSelectionToEmbeddedNote()"
             @select-block-action="onBlockMenuSelect($event)"
-            @open-pulse="openPulseForSelection"
             @copy-as="void onInlineToolbarCopyAs($event)"
             @measure="inlineFormatToolbar.setToolbarSize($event)"
             @apply-link="inlineFormatToolbar.applyLink"
