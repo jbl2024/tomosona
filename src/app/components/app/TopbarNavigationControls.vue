@@ -11,9 +11,6 @@ import WorkspaceOverflowMenu from './WorkspaceOverflowMenu.vue'
 import UiIconButton from '../../../shared/components/ui/UiIconButton.vue'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
 import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
-import {
-  ALTER_EXPLORATION_SURFACE_ICON
-} from '../../lib/appShellSurfaceIcons'
 
 /**
  * Module: TopbarNavigationControls
@@ -61,7 +58,6 @@ const emit = defineEmits<{
   historyLongPressCancel: []
   historyTargetClick: [targetIndex: number]
   openToday: []
-  openAlterExploration: []
   splitRight: []
   splitDown: []
   focusPane: [index: number]
@@ -244,15 +240,6 @@ defineExpose({
             @click="emit('openToday')"
           >
             <HomeIcon />
-          </UiIconButton>
-          <UiIconButton
-            class-name="toolbar-icon-btn"
-            :disabled="!hasWorkspace"
-            title="Alter Exploration"
-            aria-label="Alter Exploration"
-            @click="emit('openAlterExploration')"
-          >
-            <component :is="ALTER_EXPLORATION_SURFACE_ICON" />
           </UiIconButton>
         </div>
 

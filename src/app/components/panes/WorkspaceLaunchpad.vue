@@ -10,9 +10,6 @@ import {
   RocketLaunchIcon,
 } from '@heroicons/vue/24/outline'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
-import {
-  ALTERS_SURFACE_ICON
-} from '../../lib/appShellSurfaceIcons'
 
 type RecentWorkspaceCard = {
   path: string
@@ -315,13 +312,6 @@ function shortUpdatedLabel(value: string): string {
             <span class="launchpad-action-copy">
               <strong>Today&apos;s note</strong>
               <span>Write in your daily journal</span>
-            </span>
-          </button>
-          <button type="button" class="launchpad-action-row" @click="emit('quickStart', 'alters')">
-            <span class="launchpad-action-icon launchpad-action-icon-second-brain"><component :is="ALTERS_SURFACE_ICON" /></span>
-            <span class="launchpad-action-copy">
-              <strong>Open Alters</strong>
-              <span>Manage workspace Alter personas</span>
             </span>
           </button>
           <button type="button" class="launchpad-action-row" @click="emit('quickStart', 'command-palette')">
