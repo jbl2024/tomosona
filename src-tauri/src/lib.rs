@@ -11,8 +11,6 @@ mod index_schema;
 mod markdown_index;
 pub(crate) mod note_history;
 mod search_index;
-mod second_brain;
-mod settings;
 mod wikilink_graph;
 mod workspace_paths;
 mod workspace_runtime;
@@ -398,28 +396,6 @@ pub fn run() {
             favorites::remove_favorite,
             favorites::rename_favorite,
             compute_echoes_pack,
-            settings::read_app_settings,
-            settings::write_app_settings,
-            settings::discover_llm_models,
-            settings::discover_embedding_models,
-            second_brain::read_second_brain_config_status,
-            second_brain::generate_frontmatter_properties,
-            second_brain::discover_codex_models,
-            second_brain::write_second_brain_global_config,
-            second_brain::list_second_brain_sessions,
-            second_brain::create_second_brain_session,
-            second_brain::load_second_brain_session,
-            second_brain::delete_second_brain_session,
-            second_brain::update_second_brain_context,
-            second_brain::cancel_second_brain_stream,
-            second_brain::send_second_brain_message,
-            second_brain::set_second_brain_session_target_note,
-            second_brain::insert_second_brain_assistant_into_target_note,
-            second_brain::export_second_brain_session_markdown,
-            second_brain::save_second_brain_draft,
-            second_brain::append_message_to_second_brain_draft,
-            second_brain::publish_second_brain_draft_to_new_note,
-            second_brain::publish_second_brain_draft_to_existing_note
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
