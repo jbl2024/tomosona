@@ -7,8 +7,14 @@ const editorStyles = readFileSync(
   resolve(process.cwd(), 'src/domains/editor/components/editor/EditorViewContent.css'),
   'utf-8'
 )
+const globalStyles = readFileSync(resolve(process.cwd(), 'src/assets/tailwind.css'), 'utf-8')
 
 describe('editor content styles contract', () => {
+  it('shows only the source while editing a quote and only the preview otherwise', () => {
+    expect(globalStyles).toContain('.tomosona-quote.is-editing .tomosona-quote-preview {\n    display: none;')
+    expect(globalStyles).toContain('.tomosona-quote:not(.is-editing) .tomosona-quote-source {\n    display: none;')
+  })
+
   it('keeps EditorView stylesheet import', () => {
     expect(editorViewSource).toContain("import './editor/EditorViewContent.css'")
   })
