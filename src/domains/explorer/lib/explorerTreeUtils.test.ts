@@ -92,9 +92,9 @@ describe('escapeSelectorValue', () => {
     expect(result.length).toBeGreaterThan(0)
   })
 
-  it('does not alter a path with no special characters', () => {
-    // Simple alphanumeric path — no characters need escaping
-    expect(escapeSelectorValue('notes/todo')).toBe('notes/todo')
+  it('does not alter a simple identifier', () => {
+    // A slash is special in a CSS selector and is correctly escaped by CSS.escape.
+    expect(escapeSelectorValue('notes')).toBe('notes')
   })
 
   it('escapes backslashes in the fallback (non-CSS.escape) path', () => {
