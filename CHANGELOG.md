@@ -24,6 +24,15 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260927.1] - 2026-09-27
+
+### Changed
+- chore(deps): remove unused frontend dependencies (3f0a8bd7)
+- chore(deps): remove unused Rust dependencies (050732fb)
+- chore(deps): update frontend dependencies (2b9d3495)
+- style(rust): format backend sources (675d1fd1)
+- chore(deps): update Rust dependencies (971d3132)
+
 ## [20260926.1] - 2026-09-26
 
 ### Added
