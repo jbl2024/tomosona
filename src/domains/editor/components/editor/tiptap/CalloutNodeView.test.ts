@@ -103,6 +103,22 @@ describe('CalloutNodeView', () => {
     harness.app.unmount()
   })
 
+  it('leaves source mode when its node is replaced while opening another note', async () => {
+    const harness = mountHarness({ initialMessage: 'Current note' })
+    await flush()
+
+    ;(harness.root.querySelector('.tomosona-callout-preview') as HTMLDivElement).click()
+    await flush()
+    expect(harness.root.querySelector('.tomosona-callout')?.classList.contains('is-editing')).toBe(true)
+
+    harness.message.value = 'Opened note'
+    await flush()
+
+    expect(harness.root.querySelector('.tomosona-callout')?.classList.contains('is-editing')).toBe(false)
+
+    harness.app.unmount()
+  })
+
   it('autosizes callout textarea from a single-line minimum', async () => {
     const harness = mountHarness({ initialMessage: '' })
     await flush()

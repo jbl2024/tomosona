@@ -29,6 +29,7 @@ const kind = computed(() => normalizeCalloutKind(props.node.attrs.kind))
 const message = computed(() => String(props.node.attrs.message ?? ''))
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
 const isEditingMessage = ref(false)
+let pendingMessageUpdate = ''
 const showKindMenu = ref(false)
 const kindQuery = ref('')
 const activeKindIndex = ref(0)
@@ -94,11 +95,13 @@ function onMessageInput(event: Event) {
   const textarea = event.target as HTMLTextAreaElement | null
   if (textarea) autosizeTextarea(textarea)
   const value = textarea?.value ?? ''
+  pendingMessageUpdate = value
   props.updateAttributes({ message: value })
 }
 
-function editMessage() {
+function editMessage(event: MouseEvent) {
   if (!props.editor.isEditable) return
+  if ((event.target as Element | null)?.closest('a')) return
   isEditingMessage.value = true
   void nextTick().then(() => textareaEl.value?.focus())
 }
@@ -111,8 +114,12 @@ onMounted(() => {
   scheduleAutosize()
 })
 
-watch(message, () => {
+watch(message, (nextMessage) => {
   scheduleAutosize()
+  // A node view can be reused while the editor loads another note. Keep source
+  // mode only for the value emitted by this textarea; otherwise hide stale focus.
+  if (nextMessage !== pendingMessageUpdate) stopEditingMessage()
+  pendingMessageUpdate = ''
 }, { flush: 'post' })
 </script>
 
