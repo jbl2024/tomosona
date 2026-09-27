@@ -18,11 +18,13 @@ defineProps<{
   indexStateLabel: string
   indexStateClass: string
   signalSummary: EditorSignalSummary
+  spellcheckEnabled: boolean
 }>()
 
 const emit = defineEmits<{
   'open-index-status': []
   'navigate-signal': [payload: { kind: EditorSignalKind; direction: EditorSignalDirection }]
+  'toggle-spellcheck': []
 }>()
 
 function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
@@ -40,13 +42,13 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
     </button>
     <div v-if="signalSummary.path" class="status-signals" aria-label="Document signals">
       <button
-        v-if="signalSummary.spellcheckEnabled"
         type="button"
         class="status-signal status-signal--spellcheck"
-        title="Next spelling issue (Shift+click: previous)"
-        @click="navigateSignal('spellcheck', $event)"
+        :class="{ 'status-signal--disabled': !spellcheckEnabled }"
+        :title="spellcheckEnabled ? 'Next spelling issue (Shift+click: previous)' : 'Enable spellcheck'"
+        @click="spellcheckEnabled ? navigateSignal('spellcheck', $event) : emit('toggle-spellcheck')"
       >
-        {{ signalSummary.spellcheckCount }} {{ signalSummary.spellcheckCount === 1 ? 'faute' : 'fautes' }}
+        {{ spellcheckEnabled ? `${signalSummary.spellcheckCount} ${signalSummary.spellcheckCount === 1 ? 'faute' : 'fautes'}` : 'spellcheck off' }}
       </button>
       <button
         v-if="signalSummary.findActive"
@@ -172,6 +174,7 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
 }
 
 .status-signal--spellcheck { color: var(--editor-signal-spellcheck); }
+.status-signal--disabled { color: var(--footer-text); }
 .status-signal--find { color: var(--editor-signal-find); }
 .status-signal--link { color: var(--editor-signal-link); }
 

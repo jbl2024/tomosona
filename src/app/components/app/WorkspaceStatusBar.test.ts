@@ -15,6 +15,7 @@ function mountHarness() {
           activeStateLabel: 'saved',
           indexStateLabel: 'indexed',
           indexStateClass: 'status-item-indexed',
+          spellcheckEnabled: true,
           signalSummary: {
             path: 'notes/test.md',
             spellcheckEnabled: true,
@@ -62,5 +63,31 @@ describe('WorkspaceStatusBar', () => {
     expect(mounted.events).toEqual(['link:-1'])
 
     mounted.app.unmount()
+  })
+
+  it('shows an actionable disabled spellcheck state', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const toggles: string[] = []
+    const app = createApp(defineComponent({
+      setup() {
+        return () => h(WorkspaceStatusBar, {
+          activeFileLabel: 'notes/test.md',
+          activeStateLabel: 'saved',
+          indexStateLabel: 'indexed',
+          indexStateClass: 'status-item-indexed',
+          spellcheckEnabled: false,
+          signalSummary: { path: 'notes/test.md', spellcheckEnabled: false, findActive: false, spellcheckCount: 0, findCount: 0, linkCount: 0 },
+          onToggleSpellcheck: () => toggles.push('toggle')
+        })
+      }
+    }))
+
+    app.mount(root)
+    const button = root.querySelector<HTMLButtonElement>('.status-signal--spellcheck')
+    expect(button?.textContent).toContain('spellcheck off')
+    button?.click()
+    expect(toggles).toEqual(['toggle'])
+    app.unmount()
   })
 })

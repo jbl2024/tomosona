@@ -1776,8 +1776,10 @@ useAppShellKeyboard({
       :index-state-label="indexStateLabel"
       :index-state-class="indexStateClass"
       :signal-summary="activeEditorSignalSummary"
+      :spellcheck-enabled="spellcheckEnabled"
       @open-index-status="openIndexStatusModal"
       @navigate-signal="navigateActiveEditorSignal($event.kind, $event.direction)"
+      @toggle-spellcheck="toggleSpellcheckEnabled"
     />
 
     <AppShellOverlays
