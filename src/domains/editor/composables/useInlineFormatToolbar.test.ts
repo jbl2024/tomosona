@@ -50,10 +50,12 @@ function createFakeEditor(options?: { href?: string; selection?: { from: number;
   const tr = {
     doc: { content: { size: 500 } },
     insertText: vi.fn(),
+    replaceWith: vi.fn(),
     setSelection: vi.fn(),
     setMeta: vi.fn()
   }
   tr.insertText.mockReturnValue(tr)
+  tr.replaceWith.mockReturnValue(tr)
   tr.setSelection.mockReturnValue(tr)
   tr.setMeta.mockReturnValue(tr)
 
@@ -61,8 +63,10 @@ function createFakeEditor(options?: { href?: string; selection?: { from: number;
     state: {
       selection,
       doc: {
-        textBetween: vi.fn(() => 'My selected note')
+        textBetween: vi.fn(() => 'My selected note'),
+        nodesBetween: vi.fn()
       },
+      schema: { text: vi.fn((text: string, marks: unknown) => ({ text, marks })) },
       tr
     },
     view: {
@@ -345,5 +349,24 @@ describe('useInlineFormatToolbar', () => {
     )
     expect(fake.dispatch).toHaveBeenCalledTimes(2)
     expect(toolbar.formatToolbarOpen.value).toBe(false)
+  })
+
+  it('normalizes selected smart punctuation without discarding its marks', () => {
+    const holder = ref<HTMLElement | null>(null)
+    const fake = createFakeEditor({ selection: { from: 2, to: 13, empty: false } })
+    const textNode = { isText: true, text: '“L’outil” —', marks: ['strong'] }
+    ;(fake.editor.state.doc.nodesBetween as ReturnType<typeof vi.fn>).mockImplementation(
+      (_from: number, _to: number, visit: (node: typeof textNode, position: number) => void) => visit(textNode, 2)
+    )
+    const toolbar = useInlineFormatToolbar({
+      holder,
+      getEditor: () => fake.editor,
+      sanitizeHref: (raw) => raw
+    })
+
+    expect(toolbar.unaiSelection()).toBe(true)
+    expect(fake.editor.state.schema.text).toHaveBeenCalledWith('"L\'outil" -', ['strong'])
+    expect(fake.tr.replaceWith).toHaveBeenCalledWith(2, 13, { text: '"L\'outil" -', marks: ['strong'] })
+    expect(fake.dispatch).toHaveBeenCalledWith(fake.tr)
   })
 })

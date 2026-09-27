@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import { NodeSelection } from '@tiptap/pm/state'
 import { WIKILINK_STATE_KEY } from '../lib/tiptap/plugins/wikilinkState'
+import { unaiText } from '../lib/unaiText'
 
 /**
  * Inline text marks controlled by the floating formatting toolbar.
@@ -259,6 +260,46 @@ export function useInlineFormatToolbar(options: UseInlineFormatToolbarOptions) {
   }
 
   /**
+   * Converts typographic punctuation in the selection to plain Markdown-safe
+   * punctuation without flattening its blocks or inline formatting.
+   */
+  function unaiSelection() {
+    const editor = options.getEditor()
+    if (!editor || editor.state.selection instanceof NodeSelection) return false
+    const { from, to, empty } = editor.state.selection
+    if (empty || from === to) return false
+
+    const replacements: Array<{ from: number; to: number; text: string; marks: unknown }> = []
+    editor.state.doc.nodesBetween(from, to, (node, position) => {
+      if (!node.isText || !node.text) return
+      const start = Math.max(0, from - position)
+      const end = Math.min(node.text.length, to - position)
+      const original = node.text.slice(start, end)
+      const normalized = unaiText(original)
+      if (original === normalized) return
+      replacements.push({
+        from: position + start,
+        to: position + end,
+        text: normalized,
+        marks: node.marks
+      })
+    })
+    if (!replacements.length) return false
+
+    let transaction = editor.state.tr
+    for (const replacement of replacements.sort((left, right) => right.from - left.from)) {
+      transaction = transaction.replaceWith(
+        replacement.from,
+        replacement.to,
+        editor.state.schema.text(replacement.text, replacement.marks as never)
+      )
+    }
+    editor.view.dispatch(transaction)
+    updateFormattingToolbar()
+    return true
+  }
+
+  /**
    * Applies link edits:
    * - empty URL => remove link
    * - invalid URL => keep popover open with validation error
@@ -341,6 +382,7 @@ export function useInlineFormatToolbar(options: UseInlineFormatToolbarOptions) {
     setPointerSelectionActive,
     isMarkActive,
     toggleMark,
+    unaiSelection,
     openLinkPopover,
     wrapSelectionWithWikilink,
     applyLink,

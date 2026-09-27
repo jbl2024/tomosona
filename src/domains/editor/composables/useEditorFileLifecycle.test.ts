@@ -1,5 +1,9 @@
 import { nextTick, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { Editor } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import { TextSelection } from '@tiptap/pm/state'
+import { CalloutNode } from '../lib/tiptap/extensions/CalloutNode'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import type { DocumentSession } from './useDocumentEditorSessions'
 import {
@@ -34,6 +38,7 @@ function createSession(path: string): DocumentSession {
     editor: {
       commands: {
         setContent: vi.fn(),
+        command: vi.fn(),
         setTextSelection: vi.fn()
       }
     } as unknown as DocumentSession['editor'],
@@ -180,6 +185,49 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
 }
 
 describe('useEditorFileLifecycle', () => {
+  it.each([
+    'Body\n\n> [!INFO]\n> Last callout',
+    '> [!INFO]\n> First callout\n\nBody\n\n> [!INFO]\n> Last callout',
+    '> [!INFO]\n> Only callout',
+    '- First item\n\n> [!INFO]\n> Last callout',
+    'Body\n\n---',
+    ''
+  ])('opens a note at its first text cursor without selecting the trailing block: %s', async (markdown) => {
+    const editor = new Editor({ extensions: [StarterKit, CalloutNode] })
+    const { options, sessions } = createOptions({
+      ioPort: { openFile: vi.fn(async () => markdown) }
+    })
+    sessions['a.md'].editor = editor
+    const lifecycle = useEditorFileLifecycle(options)
+
+    try {
+      await lifecycle.loadCurrentFile('a.md')
+
+      expect(editor.state.selection).toBeInstanceOf(TextSelection)
+      expect(editor.state.selection.empty).toBe(true)
+      expect(editor.state.selection.$from.parent.isTextblock).toBe(true)
+      expect(editor.state.selection.$from.parentOffset).toBe(0)
+      expect(editor.isFocused).toBe(false)
+
+      editor.commands.setTextSelection(editor.state.selection.from + (markdown ? 2 : 0))
+      const rememberedSelection = editor.state.selection.toJSON()
+      await lifecycle.loadCurrentFile('a.md')
+      expect(editor.state.selection.toJSON()).toEqual(rememberedSelection)
+    } finally {
+      editor.destroy()
+    }
+  })
+
+  it('does not reset the selection when force-reloading an existing session', async () => {
+    const { options, sessions } = createOptions()
+    sessions['a.md'].isLoaded = true
+
+    await useEditorFileLifecycle(options).loadCurrentFile('a.md', { forceReload: true })
+
+    expect(sessions['a.md'].editor.commands.setContent).toHaveBeenCalled()
+    expect(sessions['a.md'].editor.commands.command).not.toHaveBeenCalled()
+  })
+
   it('drops stale load completion when request token changes before content apply', async () => {
     const openFileDeferred = deferred<string>()
     const isCurrentRequest = vi.fn((requestId: number) => requestId === 1)

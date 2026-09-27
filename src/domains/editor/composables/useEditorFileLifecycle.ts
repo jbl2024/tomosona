@@ -1,5 +1,6 @@
 import { nextTick, type Ref } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
+import { Selection } from '@tiptap/pm/state'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import { editorDataToMarkdown, markdownToEditorData } from '../lib/markdownBlocks'
 import { composeMarkdownDocument, serializeFrontmatter, type FrontmatterEnvelope } from '../lib/frontmatter'
@@ -358,6 +359,15 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         sessionPort.setSuppressOnChange(true)
         try {
           session.editor.commands.setContent(toLoadedTiptapDoc(parsed.blocks as EditorBlock[]), { emitUpdate: false })
+          if (!session.isLoaded) {
+            // Replacing the empty document maps its caret to the end, selecting a
+            // trailing atom (for example a callout). Start at the first text cursor.
+            session.editor.commands.command(({ tr }) => {
+              const selection = Selection.findFrom(tr.doc.resolve(0), 1, true)
+              if (selection) tr.setSelection(selection)
+              return true
+            })
+          }
         } finally {
           sessionPort.setSuppressOnChange(false)
         }

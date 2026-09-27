@@ -36,6 +36,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'toggle-mark': [mark: InlineFormatMark]
+  unai: []
   'open-link': []
   'wrap-wikilink': []
   'extract-note': []
@@ -265,6 +266,17 @@ function onSelectBlockAction(item: BlockMenuActionItem) {
       @click="emit('toggle-mark', 'code')"
     >
       <CodeBracketIcon class="h-4 w-4" />
+    </button>
+    <button
+      type="button"
+      class="inline-format-toolbar-btn inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold transition-all duration-150 active:translate-y-px active:scale-[0.98]"
+      data-action="unai"
+      aria-label="UnAI: simplify typography"
+      title="UnAI: replace smart punctuation"
+      @mousedown.prevent
+      @click="emit('unai')"
+    >
+      UnAI
     </button>
     <button
       type="button"

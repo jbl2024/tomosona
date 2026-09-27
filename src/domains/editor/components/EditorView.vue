@@ -1100,6 +1100,7 @@ defineExpose({
             :link-value="inlineFormatToolbar.linkValue.value"
             :link-error="inlineFormatToolbar.linkError.value"
             @toggle-mark="inlineFormatToolbar.toggleMark"
+            @unai="inlineFormatToolbar.unaiSelection"
             @open-link="inlineFormatToolbar.openLinkPopover"
             @wrap-wikilink="inlineFormatToolbar.wrapSelectionWithWikilink"
             @extract-note="void interactionRuntime.extractSelectionToEmbeddedNote()"

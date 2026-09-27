@@ -18,6 +18,7 @@ function mountHarness(options?: {
   document.body.appendChild(root)
 
   const onToggleMark = vi.fn<(mark: string) => void>()
+  const onUnai = vi.fn()
   const onOpenLink = vi.fn()
   const onWrapWikilink = vi.fn()
   const onExtractNote = vi.fn()
@@ -55,6 +56,7 @@ function mountHarness(options?: {
         linkValue: linkValue.value,
         linkError: options?.linkError ?? '',
         onToggleMark,
+        onUnai,
         onOpenLink,
         onWrapWikilink,
         onExtractNote,
@@ -75,6 +77,7 @@ function mountHarness(options?: {
     root,
     linkPopoverOpen,
     onToggleMark,
+    onUnai,
     onOpenLink,
     onWrapWikilink,
     onExtractNote,
@@ -111,11 +114,13 @@ describe('EditorInlineFormatToolbar', () => {
     await flush()
 
     ;(harness.root.querySelector('[data-action="bold"]') as HTMLButtonElement).click()
+    ;(harness.root.querySelector('[data-action="unai"]') as HTMLButtonElement).click()
     ;(harness.root.querySelector('[data-action="wikilink"]') as HTMLButtonElement).click()
     ;(harness.root.querySelector('[data-action="extract-note"]') as HTMLButtonElement).click()
     ;(harness.root.querySelector('[data-action="link"]') as HTMLButtonElement).click()
 
     expect(harness.onToggleMark).toHaveBeenCalledWith('bold')
+    expect(harness.onUnai).toHaveBeenCalledTimes(1)
     expect(harness.onWrapWikilink).toHaveBeenCalledTimes(1)
     expect(harness.onExtractNote).toHaveBeenCalledTimes(1)
     expect(harness.onOpenLink).toHaveBeenCalledTimes(1)
