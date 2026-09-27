@@ -25,7 +25,8 @@ function mountHarness() {
             linkCount: 1
           },
           onOpenIndexStatus: () => events.push('open-index-status'),
-          onNavigateSignal: (payload: { kind: string; direction: number }) => events.push(`${payload.kind}:${payload.direction}`)
+          onNavigateSignal: (payload: { kind: string; direction: number }) => events.push(`${payload.kind}:${payload.direction}`),
+          onToggleSpellcheck: () => events.push('spellcheck:toggle')
         })
     }
   }))
@@ -52,6 +53,14 @@ describe('WorkspaceStatusBar', () => {
     spellingButton?.click()
     expect(mounted.events).toEqual(['spellcheck:1'])
 
+    mounted.app.unmount()
+  })
+
+  it('disables spellcheck from the adjacent close button', () => {
+    const mounted = mountHarness()
+    mounted.root.querySelector<HTMLButtonElement>('.status-signal-dismiss')?.click()
+
+    expect(mounted.events).toEqual(['spellcheck:toggle'])
     mounted.app.unmount()
   })
 

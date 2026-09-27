@@ -11,6 +11,7 @@ import type {
   EditorSignalKind,
   EditorSignalSummary
 } from '../../../domains/editor/lib/editorSignals'
+import { XMarkIcon } from '@heroicons/vue/24/outline'
 
 defineProps<{
   activeFileLabel: string
@@ -49,6 +50,16 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
         @click="spellcheckEnabled ? navigateSignal('spellcheck', $event) : emit('toggle-spellcheck')"
       >
         {{ spellcheckEnabled ? `${signalSummary.spellcheckCount} ${signalSummary.spellcheckCount === 1 ? 'faute' : 'fautes'}` : 'spellcheck off' }}
+      </button>
+      <button
+        v-if="spellcheckEnabled"
+        type="button"
+        class="status-signal-dismiss"
+        title="Disable spellcheck"
+        aria-label="Disable spellcheck"
+        @click.stop="emit('toggle-spellcheck')"
+      >
+        <XMarkIcon aria-hidden="true" />
       </button>
       <button
         v-if="signalSummary.findActive"
@@ -177,6 +188,29 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
 .status-signal--disabled { color: var(--footer-text); }
 .status-signal--find { color: var(--editor-signal-find); }
 .status-signal--link { color: var(--editor-signal-link); }
+
+.status-signal-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 100%;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--editor-signal-spellcheck);
+  cursor: pointer;
+}
+
+.status-signal-dismiss:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.status-signal-dismiss :deep(svg) {
+  width: 0.75rem;
+  height: 0.75rem;
+}
 
 @keyframes statusPulse {
   0%,
