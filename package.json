@@ -16,7 +16,6 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
-    "@floating-ui/vue": "^2.0.1",
     "@heroicons/vue": "^2.2.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-opener": "^2.5.5",
@@ -26,13 +25,8 @@
     "@tiptap/extension-list": "^3.31.3",
     "@tiptap/extension-placeholder": "^3.31.3",
     "@tiptap/extension-table": "^3.31.3",
-    "@tiptap/extension-table-cell": "^3.31.3",
-    "@tiptap/extension-table-header": "^3.31.3",
-    "@tiptap/extension-table-row": "^3.31.3",
-    "@tiptap/extension-underline": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
-    "@tiptap/suggestion": "^3.31.3",
     "@tiptap/vue-3": "^3.31.3",
     "@vue-dnd-kit/core": "^2.4.7",
     "@xterm/addon-fit": "^0.11.0",
@@ -41,7 +35,6 @@
     "dictionary-en": "^4.0.0",
     "dictionary-fr": "^3.0.0",
     "lowlight": "^3.3.0",
-    "marked": "^18.0.14",
     "mermaid": "^11.17.2",
     "nspell": "^2.1.5",
     "vue": "^3.5.43"
