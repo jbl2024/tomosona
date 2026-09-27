@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260927.7] - 2026-09-27
+
+### Fixed
+- fix(terminal): configure Unix shells for Zsh line editing (12c9299e)
+
 ## [20260927.6] - 2026-09-27
 
 ### Fixed
