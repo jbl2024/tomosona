@@ -24,6 +24,14 @@ The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
 
 ### Security
 
+## [20260927.2] - 2026-09-27
+
+### Changed
+- docs: add refactoring roadmap checklist (e9014315)
+
+### Fixed
+- fix(search): return note paths instead of snippets (3ba47751)
+
 ## [20260927.1] - 2026-09-27
 
 ### Changed
