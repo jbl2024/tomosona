@@ -407,7 +407,7 @@ fn collect_lexical_ranked_rows(
     let mut rows = stmt.query(params![text_query, SEARCH_RESULT_LIMIT as i64])?;
     let mut ranked_rows = Vec::new();
     while let Some(row) = rows.next()? {
-        let path = row.get::<_, String>(1)?;
+        let path = row.get::<_, String>(0)?;
         if property_paths.is_some_and(|paths| !paths.contains(&path)) {
             continue;
         }
@@ -508,4 +508,53 @@ pub(crate) fn fts_search_sync(query: String) -> Result<Vec<Hit>> {
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod lexical_result_tests {
+    use super::*;
+
+    fn indexed_notes() -> Connection {
+        let conn = Connection::open_in_memory().expect("open database");
+        ensure_index_schema(&conn).expect("create schema");
+        for path in ["notes/first.md", "notes/second.md"] {
+            conn.execute(
+                "INSERT INTO chunks(path, text) VALUES (?1, ?2)",
+                params![path, "A liste of useful notes"],
+            )
+            .expect("index note");
+        }
+        conn
+    }
+
+    #[test]
+    fn lexical_results_keep_note_paths_separate_from_highlighted_snippets() {
+        let conn = indexed_notes();
+        let rows = collect_lexical_ranked_rows(&conn, "liste", None).expect("search notes");
+        let paths: HashSet<_> = rows.iter().map(|row| row.path.as_str()).collect();
+        assert_eq!(paths, HashSet::from(["notes/first.md", "notes/second.md"]));
+        assert_eq!(rows.len(), 2);
+        for row in rows {
+            assert_eq!(row.snippet, "A <b>liste</b> of useful notes");
+            assert!(row.lexical_score.is_finite());
+        }
+    }
+
+    #[test]
+    fn lexical_results_filter_by_note_path() {
+        let conn = indexed_notes();
+        let allowed_paths = HashSet::from(["notes/second.md".to_string()]);
+        let rows = collect_lexical_ranked_rows(&conn, "liste", Some(&allowed_paths))
+            .expect("search filtered notes");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].path, "notes/second.md");
+
+        let no_paths = HashSet::new();
+        assert!(collect_lexical_ranked_rows(&conn, "liste", Some(&no_paths))
+            .expect("search without matching properties")
+            .is_empty());
+        assert!(collect_lexical_ranked_rows(&conn, "absent", None)
+            .expect("search without matching text")
+            .is_empty());
+    }
 }
