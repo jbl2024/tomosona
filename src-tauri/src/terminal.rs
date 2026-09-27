@@ -57,6 +57,17 @@ fn default_shell() -> String {
     }
 }
 
+/// Configures the child process as an interactive xterm-compatible session.
+///
+/// On Unix, Zsh's line editor needs these properties to own terminal echo and
+/// redraws instead of racing the kernel's line discipline.
+fn configure_terminal_command(command: &mut CommandBuilder) {
+    if !cfg!(target_os = "windows") {
+        command.set_controlling_tty(true);
+        command.env("TERM", "xterm-256color");
+    }
+}
+
 #[tauri::command]
 pub fn start_terminal_session(app: AppHandle, cwd: Option<String>) -> Result<String> {
     let root = active_workspace_root()?;
@@ -72,6 +83,7 @@ pub fn start_terminal_session(app: AppHandle, cwd: Option<String>) -> Result<Str
         .map_err(|_| AppError::OperationFailed)?;
     let mut command = CommandBuilder::new(default_shell());
     command.cwd(cwd);
+    configure_terminal_command(&mut command);
     let child = pair
         .slave
         .spawn_command(command)
@@ -195,4 +207,25 @@ pub fn close_terminal_session(session_id: String) -> Result<()> {
         return Ok(());
     };
     session.child.kill().map_err(|_| AppError::OperationFailed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn configures_unix_shells_for_the_embedded_xterm_renderer() {
+        let mut command = CommandBuilder::new("sh");
+        configure_terminal_command(&mut command);
+
+        if cfg!(target_os = "windows") {
+            assert_eq!(command.get_env("TERM"), None);
+        } else {
+            assert!(command.get_controlling_tty());
+            assert_eq!(
+                command.get_env("TERM"),
+                Some(std::ffi::OsStr::new("xterm-256color"))
+            );
+        }
+    }
 }
