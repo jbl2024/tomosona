@@ -1,5 +1,15 @@
 # Changelog
 
+## [20260927.3] - 2026-09-27
+
+### Added
+- feat(spellcheck): add status bar disable button (b0c6e485)
+- feat(spellcheck): add status bar enable action (128eddeb)
+- feat(editor): elevate raw text editing experience (2388d699)
+
+### Changed
+- chore: changelog format (37ef1fc8)
+
 ## [20260927.2] - 2026-09-27
 
 ### Changed
