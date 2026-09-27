@@ -341,7 +341,6 @@ mod tests {
         assert_eq!(style.list.run.font.as_deref(), Some(DEFAULT_FONT));
         assert_eq!(style.list.paragraph.space_after, Some(4.0));
         assert_eq!(style.list.style_id.as_deref(), Some("ListParagraph"));
-
     }
 
     #[test]

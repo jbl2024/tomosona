@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
+use calamine::{open_workbook_auto, Data, DataType, Reader};
 #[cfg(windows)]
 use std::os::windows::fs::MetadataExt;
 use std::{
@@ -7,8 +9,6 @@ use std::{
     process::Command,
     time::{SystemTime, UNIX_EPOCH},
 };
-use base64::{engine::general_purpose::STANDARD, Engine};
-use calamine::{open_workbook_auto, Data, DataType, Reader};
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use rfd::FileDialog;
@@ -550,11 +550,8 @@ pub fn import_asset_files() -> Result<Vec<String>> {
             continue;
         }
         let file_name = source.file_name().ok_or(AppError::InvalidPath)?;
-        let destination = resolve_destination(
-            assets_dir.join(file_name),
-            ConflictStrategy::Rename,
-            false,
-        )?;
+        let destination =
+            resolve_destination(assets_dir.join(file_name), ConflictStrategy::Rename, false)?;
         fs::copy(&source, &destination)?;
         imported.push(destination.to_string_lossy().to_string());
     }
@@ -821,10 +818,9 @@ fn render_spreadsheet_sheet_html(
         ));
 
         for col_offset in 0..col_count {
-            let value = spreadsheet_cell_text(range.get_value((
-                row_start + row_offset as u32,
-                col_start + col_offset as u32,
-            )));
+            let value = spreadsheet_cell_text(
+                range.get_value((row_start + row_offset as u32, col_start + col_offset as u32)),
+            );
             html.push_str(&format!("<td>{}</td>", escape_html(&value)));
         }
 
@@ -1115,11 +1111,12 @@ fn render_spreadsheet_preview_html_sync(path: String) -> Result<String> {
     let root = active_workspace_root()?;
     let pb = normalize_existing_path(&path)?;
     ensure_within_root(&root, &pb)?;
-    spreadsheet_input_format_for_path(&pb)
-        .ok_or_else(|| AppError::InvalidOperation("Preview unavailable for this file format.".to_string()))?;
+    spreadsheet_input_format_for_path(&pb).ok_or_else(|| {
+        AppError::InvalidOperation("Preview unavailable for this file format.".to_string())
+    })?;
 
-    let mut workbook =
-        open_workbook_auto(&pb).map_err(|err| AppError::InvalidOperation(format!("Spreadsheet preview failed: {err}")))?;
+    let mut workbook = open_workbook_auto(&pb)
+        .map_err(|err| AppError::InvalidOperation(format!("Spreadsheet preview failed: {err}")))?;
 
     let sheet_names = workbook.sheet_names().to_owned();
     if sheet_names.is_empty() {
@@ -1245,7 +1242,10 @@ fn find_open_tag_bounds(html: &str, tag: &str) -> Option<(usize, usize)> {
     let open_tag = format!("<{tag}");
     let start = find_ascii_case_insensitive(html, &open_tag)?;
     let boundary = html.as_bytes().get(start + 1 + tag.len()).copied();
-    if !matches!(boundary, Some(b'>') | Some(b'/') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r')) {
+    if !matches!(
+        boundary,
+        Some(b'>') | Some(b'/') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r')
+    ) {
         return None;
     }
 
@@ -1542,15 +1542,18 @@ fn pandoc_binary_candidates() -> Vec<PathBuf> {
 }
 
 fn resolve_pandoc_binary() -> Option<PathBuf> {
-    pandoc_binary_candidates().into_iter().find(|candidate| candidate.is_file())
+    pandoc_binary_candidates()
+        .into_iter()
+        .find(|candidate| candidate.is_file())
 }
 
 fn render_pandoc_preview_html_sync(path: String) -> Result<String> {
     let root = active_workspace_root()?;
     let pb = normalize_existing_path(&path)?;
     ensure_within_root(&root, &pb)?;
-    let input_format = pandoc_input_format_for_path(&pb)
-        .ok_or_else(|| AppError::InvalidOperation("Preview unavailable for this file format.".to_string()))?;
+    let input_format = pandoc_input_format_for_path(&pb).ok_or_else(|| {
+        AppError::InvalidOperation("Preview unavailable for this file format.".to_string())
+    })?;
 
     let pandoc_binary = resolve_pandoc_binary().unwrap_or_else(|| PathBuf::from("pandoc"));
     let output = Command::new(pandoc_binary)
@@ -1966,16 +1969,17 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use calamine::Data;
     use crate::editor_sync::recent_internal_write_for;
+    use calamine::Data;
 
     use super::{
-        copy_entry, create_entry, create_extracted_note, duplicate_entry, list_children,
-        is_text_file, list_markdown_files, move_entry, open_external_url, open_path_external,
-        pandoc_input_format_for_path, read_pdf_data_url, read_text_file, rename_entry,
-        preview_srcdoc_csp_meta, render_spreadsheet_sheet_html, reveal_in_file_manager,
-        sanitize_external_url, spreadsheet_column_label, trash_entry, ConflictStrategy, EntryKind,
-        decorate_pandoc_html, decorate_spreadsheet_preview_html, unwrap_pandoc_list_blockquotes,
+        copy_entry, create_entry, create_extracted_note, decorate_pandoc_html,
+        decorate_spreadsheet_preview_html, duplicate_entry, is_text_file, list_children,
+        list_markdown_files, move_entry, open_external_url, open_path_external,
+        pandoc_input_format_for_path, preview_srcdoc_csp_meta, read_pdf_data_url, read_text_file,
+        rename_entry, render_spreadsheet_sheet_html, reveal_in_file_manager, sanitize_external_url,
+        spreadsheet_column_label, trash_entry, unwrap_pandoc_list_blockquotes, ConflictStrategy,
+        EntryKind,
     };
 
     fn make_temp_dir() -> PathBuf {
@@ -2027,10 +2031,7 @@ mod tests {
             pandoc_input_format_for_path(Path::new("report.docx")),
             Some("docx")
         );
-        assert_eq!(
-            pandoc_input_format_for_path(Path::new("sheet.xlsx")),
-            None
-        );
+        assert_eq!(pandoc_input_format_for_path(Path::new("sheet.xlsx")), None);
         assert_eq!(
             pandoc_input_format_for_path(Path::new("notes.odt")),
             Some("odt")
@@ -2388,8 +2389,9 @@ mod tests {
         fs::write(&source, "source").expect("write source");
         fs::write(dir.join("Alpha.md"), "existing").expect("write existing");
 
-        let created = create_extracted_note(source.to_string_lossy().to_string(), "Alpha".to_string())
-            .expect("create extracted note");
+        let created =
+            create_extracted_note(source.to_string_lossy().to_string(), "Alpha".to_string())
+                .expect("create extracted note");
 
         assert!(created.path.ends_with("Alpha (1).md"));
         assert_eq!(created.link_target, "Alpha (1)");
@@ -2403,7 +2405,8 @@ mod tests {
         let source = dir.join("source.txt");
         fs::write(&source, "source").expect("write source");
 
-        let result = create_extracted_note(source.to_string_lossy().to_string(), "Alpha".to_string());
+        let result =
+            create_extracted_note(source.to_string_lossy().to_string(), "Alpha".to_string());
 
         assert!(result.is_err());
         fs::remove_dir_all(dir).expect("cleanup");
@@ -2437,7 +2440,8 @@ mod tests {
         let source = dir.join("report.pdf");
         fs::write(&source, b"%PDF-1.4 test").expect("write pdf");
 
-        let data_url = read_pdf_data_url(source.to_string_lossy().to_string()).expect("read pdf data url");
+        let data_url =
+            read_pdf_data_url(source.to_string_lossy().to_string()).expect("read pdf data url");
 
         assert!(data_url.starts_with("data:application/pdf;base64,"));
         assert!(data_url.contains("JVBERi0xLjQgdGVzdA"));

@@ -15,8 +15,7 @@ use crate::workspace_paths::{
     normalize_workspace_relative_from_input, normalize_workspace_relative_path,
 };
 use crate::{
-    active_workspace_root, ensure_index_schema, ensure_within_root, log_index, open_db,
-    Result,
+    active_workspace_root, ensure_index_schema, ensure_within_root, log_index, open_db, Result,
 };
 
 #[derive(Debug, Clone)]
@@ -104,7 +103,6 @@ pub(crate) fn chunk_markdown(markdown: &str) -> Vec<(String, String)> {
 
     chunks
 }
-
 
 fn chunk_content_hash(anchor: &str, text: &str) -> String {
     let mut hasher = DefaultHasher::new();

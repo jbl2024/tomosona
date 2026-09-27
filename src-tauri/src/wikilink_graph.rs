@@ -12,10 +12,8 @@ use crate::editor_sync::record_workspace_mutation_write;
 use crate::markdown_index::reindex_markdown_file_lexical_sync;
 use crate::{
     active_workspace_root, list_markdown_files_via_find, normalize_note_key,
-    normalize_workspace_path,
-    note_link_target, open_db,
-    reindex_markdown_file_now_sync, rewrite_wikilinks_for_note, workspace_absolute_path, AppError,
-    Result,
+    normalize_workspace_path, note_link_target, open_db, reindex_markdown_file_now_sync,
+    rewrite_wikilinks_for_note, workspace_absolute_path, AppError, Result,
 };
 
 #[derive(Serialize)]

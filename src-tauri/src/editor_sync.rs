@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     active_workspace_root,
-    note_history::record_note_history_snapshot,
     fs_ops::{ensure_parent_within_root, ensure_within_root, normalize_path},
+    note_history::record_note_history_snapshot,
     AppError, Result,
 };
 

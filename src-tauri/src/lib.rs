@@ -10,21 +10,18 @@ mod index_schema;
 mod markdown_index;
 pub(crate) mod note_history;
 mod search_index;
+mod terminal;
 mod wikilink_graph;
 mod workspace_paths;
 mod workspace_runtime;
 mod workspace_watch;
-mod terminal;
 
 // Tauri command surface for workspace I/O and index/search.
 use std::{
     collections::{HashMap, VecDeque},
     io::Write,
     process::{Command, Stdio},
-    sync::{
-        atomic::AtomicBool,
-        Mutex, OnceLock,
-    },
+    sync::{atomic::AtomicBool, Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
@@ -33,17 +30,11 @@ use docx::convert_markdown_to_docx;
 use editor_sync::{read_note_snapshot, save_note_buffer};
 use fs_ops::{
     clear_working_folder, copy_entry, create_entry, create_extracted_note, duplicate_entry,
-    import_asset_files, list_children, list_markdown_files, move_entry, open_external_url, open_path_external,
-    path_exists, read_file_metadata, read_image_data_url, read_pdf_data_url, read_text_file,
-    is_text_file,
-    rename_entry,
-    render_pandoc_preview_html, render_spreadsheet_preview_html, reveal_in_file_manager,
-    select_working_folder, set_working_folder, trash_entry,
-    write_text_file,
-};
-use note_history::{
-    list_note_history, move_note_history_entries, read_note_history_snapshot,
-    restore_note_history_snapshot,
+    import_asset_files, is_text_file, list_children, list_markdown_files, move_entry,
+    open_external_url, open_path_external, path_exists, read_file_metadata, read_image_data_url,
+    read_pdf_data_url, read_text_file, rename_entry, render_pandoc_preview_html,
+    render_spreadsheet_preview_html, reveal_in_file_manager, select_working_folder,
+    set_working_folder, trash_entry, write_text_file,
 };
 use index_schema::{
     ensure_index_schema, init_db as init_db_impl, list_markdown_files_via_find, min_max_normalize,
@@ -56,6 +47,10 @@ use index_schema::{
 use markdown_index::{
     reindex_markdown_file_lexical_sync, reindex_markdown_file_now_sync,
     remove_markdown_file_from_index_sync,
+};
+use note_history::{
+    list_note_history, move_note_history_entries, read_note_history_snapshot,
+    restore_note_history_snapshot,
 };
 use search_index::{
     fts_search_sync as fts_search_sync_impl, read_property_keys as read_property_keys_impl,
@@ -71,8 +66,8 @@ use wikilink_graph::{
 };
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
-    normalize_workspace_path, normalize_workspace_relative_from_input, normalize_workspace_relative_path,
-    note_link_target, rewrite_wikilinks_for_note,
+    normalize_workspace_path, normalize_workspace_relative_from_input,
+    normalize_workspace_relative_path, note_link_target, rewrite_wikilinks_for_note,
     workspace_absolute_path,
 };
 pub(crate) use workspace_runtime::{
@@ -164,7 +159,6 @@ async fn reindex_markdown_file_lexical(path: String) -> Result<()> {
         .await
         .map_err(|_| AppError::OperationFailed)?
 }
-
 
 #[tauri::command]
 async fn remove_markdown_file_from_index(path: String) -> Result<()> {
@@ -292,7 +286,6 @@ async fn fts_search(query: String) -> Result<Vec<Hit>> {
 fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
     backlinks_for_path_impl(path)
 }
-
 
 #[tauri::command]
 fn update_wikilinks_for_rename(

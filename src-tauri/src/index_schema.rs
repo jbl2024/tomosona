@@ -13,8 +13,8 @@ use serde::Serialize;
 
 use crate::{
     active_workspace_root, ensure_within_root, has_hidden_dir_component, index_log_buffer,
-    log_index, open_db, reindex_markdown_file_lexical_sync, AppError, Result, INDEX_CANCEL_REQUESTED,
-    INDEX_LOG_CAPACITY, INDEX_SCHEMA_VERSION,
+    log_index, open_db, reindex_markdown_file_lexical_sync, AppError, Result,
+    INDEX_CANCEL_REQUESTED, INDEX_LOG_CAPACITY, INDEX_SCHEMA_VERSION,
 };
 
 #[derive(Clone, Serialize)]

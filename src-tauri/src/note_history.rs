@@ -16,10 +16,10 @@ use atomicwrites::{AllowOverwrite, AtomicFile};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    active_workspace_root, now_ms,
+    active_workspace_root,
     editor_sync::{record_internal_write, version_from_path, SaveNoteResult, SaveNoteSuccess},
     fs_ops::normalize_path,
-    AppError, Result,
+    now_ms, AppError, Result,
 };
 
 const INTERNAL_DIR_NAME: &str = ".tomosona";
@@ -211,7 +211,9 @@ fn write_manifest(root: &Path, path: &Path, manifest: &NoteHistoryManifest) -> R
             Ok(())
         })
         .map_err(|err| match err {
-            atomicwrites::Error::Internal(error) | atomicwrites::Error::User(error) => AppError::Io(error),
+            atomicwrites::Error::Internal(error) | atomicwrites::Error::User(error) => {
+                AppError::Io(error)
+            }
         })
 }
 
@@ -228,15 +230,13 @@ fn write_snapshot(path: &Path, content: &str) -> Result<()> {
             Ok(())
         })
         .map_err(|err| match err {
-            atomicwrites::Error::Internal(error) | atomicwrites::Error::User(error) => AppError::Io(error),
+            atomicwrites::Error::Internal(error) | atomicwrites::Error::User(error) => {
+                AppError::Io(error)
+            }
         })
 }
 
-fn trim_retention(
-    root: &Path,
-    path: &Path,
-    manifest: &mut NoteHistoryManifest,
-) -> Result<()> {
+fn trim_retention(root: &Path, path: &Path, manifest: &mut NoteHistoryManifest) -> Result<()> {
     if manifest.snapshots.len() <= HISTORY_KEEP_LAST {
         return Ok(());
     }
@@ -297,17 +297,26 @@ fn append_snapshot(
     manifest.snapshots.push(stored);
     write_manifest(root, path, &manifest)?;
     trim_retention(root, path, &mut manifest)?;
-    Ok(Some(to_entry(path, manifest.snapshots.last().expect("snapshot just pushed"))))
+    Ok(Some(to_entry(
+        path,
+        manifest.snapshots.last().expect("snapshot just pushed"),
+    )))
 }
 
-fn read_snapshot_content(root: &Path, path: &Path, snapshot_id: &str) -> Result<NoteHistorySnapshot> {
+fn read_snapshot_content(
+    root: &Path,
+    path: &Path,
+    snapshot_id: &str,
+) -> Result<NoteHistorySnapshot> {
     let manifest = read_manifest_strict(root, path)?;
     let Some(entry) = manifest
         .snapshots
         .iter()
         .find(|candidate| candidate.snapshot_id == snapshot_id)
     else {
-        return Err(AppError::InvalidOperation("Note history snapshot not found.".to_string()));
+        return Err(AppError::InvalidOperation(
+            "Note history snapshot not found.".to_string(),
+        ));
     };
 
     let snapshot_file = snapshot_path(root, path, snapshot_id);
@@ -354,20 +363,24 @@ fn merge_history_dirs(root: &Path, from: &Path, to: &Path) -> Result<()> {
         let destination = snapshot_path(root, to, &entry.snapshot_id);
         if seen.insert(entry.snapshot_id.clone()) {
             if !destination.exists() && source.exists() {
-                fs::rename(&source, &destination).or_else(|_| fs::copy(&source, &destination).map(|_| ())).map_err(|err| {
-                    AppError::InvalidOperation(format!(
-                        "Could not move note history snapshot from {} to {}: {}",
-                        source.to_string_lossy(),
-                        destination.to_string_lossy(),
-                        err
-                    ))
-                })?;
+                fs::rename(&source, &destination)
+                    .or_else(|_| fs::copy(&source, &destination).map(|_| ()))
+                    .map_err(|err| {
+                        AppError::InvalidOperation(format!(
+                            "Could not move note history snapshot from {} to {}: {}",
+                            source.to_string_lossy(),
+                            destination.to_string_lossy(),
+                            err
+                        ))
+                    })?;
             }
             to_manifest.snapshots.push(entry);
         }
     }
 
-    to_manifest.snapshots.sort_by_key(|entry| entry.created_at_ms);
+    to_manifest
+        .snapshots
+        .sort_by_key(|entry| entry.created_at_ms);
     to_manifest.note_path = current_note_path_label(to);
     write_manifest(root, to, &to_manifest).map_err(|err| {
         AppError::InvalidOperation(format!(
@@ -397,7 +410,11 @@ pub(crate) fn record_note_history_snapshot(path: &Path, content: &str, reason: &
     }
 
     if let Err(err) = append_snapshot(&root, &note_path, content, reason, false) {
-        log_history(&format!("record_failed path={} error={}", note_path.to_string_lossy(), err));
+        log_history(&format!(
+            "record_failed path={} error={}",
+            note_path.to_string_lossy(),
+            err
+        ));
     }
 }
 
@@ -416,7 +433,10 @@ pub fn list_note_history(path: String) -> Result<Vec<NoteHistoryEntry>> {
 }
 
 #[tauri::command]
-pub fn read_note_history_snapshot(path: String, snapshot_id: String) -> Result<NoteHistorySnapshot> {
+pub fn read_note_history_snapshot(
+    path: String,
+    snapshot_id: String,
+) -> Result<NoteHistorySnapshot> {
     let root = active_workspace_root()?;
     let note_path = note_path_from_input(&path)?;
     ensure_history_path_within_root(&root, &note_path)?;
@@ -546,8 +566,8 @@ mod tests {
             .snapshot_id
             .clone();
 
-        let snapshot =
-            read_note_history_snapshot(note.to_string_lossy().to_string(), entry_id).expect("read snapshot");
+        let snapshot = read_note_history_snapshot(note.to_string_lossy().to_string(), entry_id)
+            .expect("read snapshot");
         assert_eq!(snapshot.content, "alpha\nbeta\n");
         assert_eq!(snapshot.entry.reason, "save");
         fs::remove_dir_all(workspace).expect("cleanup");
@@ -558,7 +578,8 @@ mod tests {
         let _guard = workspace_test_guard();
         let (workspace, note) = setup_note_workspace();
 
-        let result = read_note_history_snapshot(note.to_string_lossy().to_string(), "missing".to_string());
+        let result =
+            read_note_history_snapshot(note.to_string_lossy().to_string(), "missing".to_string());
         assert!(result.is_err());
         fs::remove_dir_all(workspace).expect("cleanup");
     }
@@ -584,13 +605,10 @@ mod tests {
         record_note_history_snapshot(&note, "old\n", "save");
         record_note_history_snapshot(&note, "new\n", "save");
         let entries = list_note_history(note.to_string_lossy().to_string()).expect("list history");
-        let target = entries
-            .last()
-            .expect("target entry")
-            .snapshot_id
-            .clone();
+        let target = entries.last().expect("target entry").snapshot_id.clone();
 
-        let result = restore_note_history_snapshot(note.to_string_lossy().to_string(), target).expect("restore");
+        let result = restore_note_history_snapshot(note.to_string_lossy().to_string(), target)
+            .expect("restore");
         match result {
             SaveNoteResult::Success(success) => {
                 assert!(success.ok);
@@ -599,7 +617,8 @@ mod tests {
             _ => panic!("expected success"),
         }
 
-        let entries_after = list_note_history(note.to_string_lossy().to_string()).expect("list history");
+        let entries_after =
+            list_note_history(note.to_string_lossy().to_string()).expect("list history");
         assert!(entries_after.len() >= 2);
         assert_eq!(entries_after[0].reason, "restore");
         fs::remove_dir_all(workspace).expect("cleanup");

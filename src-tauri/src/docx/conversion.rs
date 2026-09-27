@@ -665,10 +665,22 @@ fn render_list<'a>(
                                 },
                             );
                         }
-                        append_list_paragraph(doc, segments, template, list_type, item_ctx.list_depth);
+                        append_list_paragraph(
+                            doc,
+                            segments,
+                            template,
+                            list_type,
+                            item_ctx.list_depth,
+                        );
                         rendered_primary_paragraph = true;
                     } else {
-                        append_list_paragraph(doc, segments, template, list_type, item_ctx.list_depth);
+                        append_list_paragraph(
+                            doc,
+                            segments,
+                            template,
+                            list_type,
+                            item_ctx.list_depth,
+                        );
                     }
                 }
                 NodeValue::Item(_) | NodeValue::TaskItem(_) | NodeValue::List(_) => {

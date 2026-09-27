@@ -36,7 +36,9 @@ pub(crate) enum PropertyFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SearchMode { Lexical }
+pub(crate) enum SearchMode {
+    Lexical,
+}
 
 #[derive(Debug)]
 struct RankedSearchRow {
