@@ -33,6 +33,7 @@ function createEditorStub() {
   return {
     commands: {
       setContent: vi.fn(),
+      command: vi.fn(() => true),
       focus: vi.fn(),
       setMeta: vi.fn()
     },
@@ -184,6 +185,7 @@ describe('useEditorDocumentRuntime', () => {
     expect(harness.runtime.currentPath.value).toBe('a.md')
     expect(harness.runtime.renderPaths.value).toEqual(['a.md', 'b.md'])
     expect(harness.runtime.getSession('a.md')).toBeTruthy()
+    expect(harness.runtime.getSession('a.md')?.isLoaded).toBe(true)
     expect(harness.activeEditor.value).toBe(harness.runtime.getSession('a.md')?.editor ?? null)
     expect(harness.syncAfterSessionChange).toHaveBeenCalled()
 
@@ -232,6 +234,7 @@ describe('useEditorDocumentRuntime', () => {
     expect(harness.runtime.getSession('b.md')?.loadedText).toContain('Beta')
     expect(harness.runtime.getSession('a.md')?.isLoaded).toBe(false)
     expect(harness.runtime.getSession('a.md')?.loadedText).toBe('')
+    expect(harness.runtime.getSession('a.md')?.editor.commands.setContent).not.toHaveBeenCalled()
 
     harness.app.unmount()
   })
