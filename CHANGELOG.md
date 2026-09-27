@@ -1,29 +1,5 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format follows Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`.
-
-## [Unreleased]
-
-### Added
-
-### Changed
-
-### Deprecated
-
-### Removed
-
-- Cosmos graph view, navigation/history integrations, graph IPC/export, theme tokens, and the force-graph dependency.
-
-- Pulse transformation engine, editor AI macros, interface integrations, IPC commands, and dedicated styles/tests.
-
-- Alters, including persona management, exploration, Second Brain selection, settings, session metadata, IPC commands, built-in assets, and dedicated tests/docs.
-
-### Fixed
-
-### Security
-
 ## [20260927.2] - 2026-09-27
 
 ### Changed
