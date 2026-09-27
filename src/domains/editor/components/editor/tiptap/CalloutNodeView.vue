@@ -121,6 +121,12 @@ watch(message, (nextMessage) => {
   if (nextMessage !== pendingMessageUpdate) stopEditingMessage()
   pendingMessageUpdate = ''
 }, { flush: 'post' })
+
+watch(isEditingMessage, (isEditing) => {
+  // The textarea is hidden until editing starts, so it cannot report its true
+  // scroll height during the initial mount.
+  if (isEditing) scheduleAutosize()
+}, { flush: 'post' })
 </script>
 
 <template>

@@ -136,6 +136,21 @@ describe('CalloutNodeView', () => {
     harness.app.unmount()
   })
 
+  it('autosizes the source when it becomes visible', async () => {
+    const harness = mountHarness({ initialMessage: 'line 1\nline 2\nline 3' })
+    await flush()
+
+    const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 84 })
+
+    ;(harness.root.querySelector('.tomosona-callout-preview') as HTMLDivElement).click()
+    await flush()
+
+    expect(textarea.style.height).toBe('84px')
+
+    harness.app.unmount()
+  })
+
   it('keeps a full single-line height for callout textarea', async () => {
     const harness = mountHarness({ initialMessage: '' })
     await flush()
