@@ -39,6 +39,8 @@ describe('useEditorWikilinkDataSource', () => {
     })
 
     await expect(source.resolveWikilinkTarget('notes/a.md#H1')).resolves.toBe(true)
+    await expect(source.resolveWikilinkTarget('a#H1')).resolves.toBe(true)
+    await expect(source.resolveWikilinkTarget('notes/a')).resolves.toBe(true)
     await expect(source.resolveWikilinkTarget('notes/missing.md')).resolves.toBe(false)
     await expect(source.resolveWikilinkTarget('#heading-only')).resolves.toBe(true)
   })

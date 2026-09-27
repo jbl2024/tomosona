@@ -1,5 +1,8 @@
+/** Builds ranked wikilink suggestions; existing note identities take priority over creation. */
+import { matchesWikilinkNotePath, normalizeWikilinkNotePath, resolveExistingWikilinkPath } from '../wikilinkResolution'
 import type { WikilinkCandidate } from './plugins/wikilinkState'
 
+/** Data loaders and the current draft used to build completion rows. */
 export type BuildWikilinkCandidatesOptions = {
   query: string
   loadTargets: () => Promise<string[]>
@@ -34,6 +37,7 @@ function unique(values: string[]): string[] {
   return out
 }
 
+/** Ranks existing notes before creation and checks identity before limiting results. */
 export async function buildWikilinkCandidates(options: BuildWikilinkCandidatesOptions): Promise<WikilinkCandidate[]> {
   const parsed = parseQuery(options.query)
 
@@ -50,20 +54,23 @@ export async function buildWikilinkCandidates(options: BuildWikilinkCandidatesOp
   }
 
   const targets = await options.loadTargets()
-  const query = parsed.notePart.toLowerCase()
+  const query = normalizeWikilinkNotePath(parsed.notePart)
+  const resolved = query ? resolveExistingWikilinkPath(parsed.notePart, targets) : null
+  const exactMatches = targets.filter((target) => matchesWikilinkNotePath(target, parsed.notePart))
+  const rank = (target: string) => target === resolved ? 0 : matchesWikilinkNotePath(target, parsed.notePart) ? 1 : 2
   const filtered = targets
-    .filter((target) => !query || target.toLowerCase().includes(query))
+    .filter((target) => target === resolved || !query || normalizeWikilinkNotePath(target).includes(query))
+    .sort((a, b) => rank(a) - rank(b))
     .slice(0, 24)
 
-  const candidates = await Promise.all(filtered.map(async (target) => ({
+  const out: WikilinkCandidate[] = await Promise.all(filtered.map(async (target) => ({
     target,
     exists: await options.resolve(target)
   })))
 
-  const out: WikilinkCandidate[] = candidates
-  const exact = out.some((entry) => entry.target.toLowerCase() === query)
-  if (query && !exact) {
-    out.unshift({
+  // Ambiguous titles need a path choice, not an invitation to create a duplicate.
+  if (query && !resolved && !exactMatches.length) {
+    out.push({
       target: parsed.notePart,
       label: `Create "${parsed.notePart}"`,
       exists: false,

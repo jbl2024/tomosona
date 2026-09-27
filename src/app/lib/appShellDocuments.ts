@@ -1,5 +1,6 @@
 import { normalizeWorkspacePath, toWorkspaceRelativePath } from '../../domains/explorer/lib/workspacePaths'
 import { fileName, isMarkdownPath } from './appShellPaths'
+export { resolveExistingWikilinkPath } from '../../domains/editor/lib/wikilinkResolution'
 
 /**
  * Module: appShellDocuments
@@ -204,39 +205,6 @@ export function extractHeadingsFromMarkdown(markdown: string): string[] {
   }
 
   return out
-}
-
-/**
- * Resolves a wikilink target against known markdown files.
- *
- * Priority:
- * - exact file match, such as `tools.md`
- * - directory index match, such as `tools/index.md`
- * - unique basename match
- * - unique suffix match
- */
-export function resolveExistingWikilinkPath(normalizedTarget: string, markdownFiles: string[]): string | null {
-  const withoutExtension = normalizedTarget.replace(/\.(md|markdown)$/i, '').toLowerCase()
-  const exact = markdownFiles.find((path) => path.replace(/\.(md|markdown)$/i, '').toLowerCase() === withoutExtension)
-  if (exact) return exact
-
-  const indexMatch = markdownFiles.find((path) => path.replace(/\.(md|markdown)$/i, '').toLowerCase() === `${withoutExtension}/index`)
-  if (indexMatch) return indexMatch
-
-  const basenameMatches = markdownFiles.filter((path) => {
-    const normalized = path.replace(/\.(md|markdown)$/i, '').toLowerCase()
-    const stem = normalized.split('/').pop() ?? normalized
-    return stem === withoutExtension
-  })
-  if (basenameMatches.length === 1) return basenameMatches[0]
-
-  const suffixMatches = markdownFiles.filter((path) => {
-    const normalized = path.replace(/\.(md|markdown)$/i, '').toLowerCase()
-    return normalized.endsWith(`/${withoutExtension}`)
-  })
-  if (suffixMatches.length === 1) return suffixMatches[0]
-
-  return null
 }
 
 /** Derives a workspace-relative path prefix from a parent directory path. */

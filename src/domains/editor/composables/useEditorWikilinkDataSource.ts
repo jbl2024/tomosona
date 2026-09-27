@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { parseWikilinkTarget } from '../lib/wikilinks'
+import { resolveExistingWikilinkPath } from '../lib/wikilinkResolution'
 
 /**
  * Module: useEditorWikilinkDataSource
@@ -94,8 +95,7 @@ export function useEditorWikilinkDataSource(options: UseEditorWikilinkDataSource
     const parsed = parseWikilinkTarget(target)
     if (!parsed.notePath) return true
     const targets = await loadWikilinkTargets()
-    const wanted = parsed.notePath.toLowerCase()
-    return targets.some((entry) => entry.toLowerCase() === wanted)
+    return resolveExistingWikilinkPath(parsed.notePath, targets) !== null
   }
 
   return {
