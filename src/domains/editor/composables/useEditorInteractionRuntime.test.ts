@@ -1,6 +1,8 @@
 import { ref, type Ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Editor } from '@tiptap/vue-3'
+import { getSchema, type Editor } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import { TextSelection } from '@tiptap/pm/state'
 
 const slashMenuMock = {
   slashOpen: ref(false),
@@ -131,43 +133,19 @@ import { useEditorInteractionRuntime } from './useEditorInteractionRuntime'
 function createEditorStub(options?: {
   from?: number
   to?: number
-  openStart?: number
-  openEnd?: number
   blocks?: unknown[]
 }) {
   const replaceWith = vi.fn((from: number, to: number, node: unknown) => ({
     scrollIntoView: vi.fn(() => ({ from, to, node }))
   }))
+  const schema = getSchema([StarterKit])
+  const doc = schema.nodeFromJSON({
+    type: 'doc',
+    content: options?.blocks ?? [{ type: 'paragraph', content: [{ type: 'text', text: 'Alpha' }] }]
+  })
   return {
     state: {
-      selection: {
-        from: options?.from ?? 1,
-        to: options?.to ?? 2,
-        empty: false,
-        $from: {
-          parentOffset: 0
-        },
-        $to: {
-          parentOffset: 5,
-          parent: {
-            content: {
-              size: 5
-            }
-          }
-        },
-        content: vi.fn(() => ({
-          openStart: options?.openStart ?? 0,
-          openEnd: options?.openEnd ?? 0,
-          content: {
-            toJSON: vi.fn(() => options?.blocks ?? [
-              {
-                type: 'paragraph',
-                content: [{ type: 'text', text: 'Alpha' }]
-              }
-            ])
-          }
-        }))
-      },
+      selection: TextSelection.create(doc, options?.from ?? 1, options?.to ?? 6),
       schema: {
         nodes: {
           noteEmbedBlock: {
@@ -178,10 +156,7 @@ function createEditorStub(options?: {
       tr: {
         replaceWith
       },
-      doc: {
-        textBetween: vi.fn(() => 'Alpha'),
-        descendants: vi.fn()
-      }
+      doc
     },
     view: {
       dispatch: vi.fn()
@@ -338,8 +313,8 @@ describe('useEditorInteractionRuntime', () => {
 
   it('creates an extracted note and replaces the selection with an embed block', async () => {
     const editor = createEditorStub({
-      from: 4,
-      to: 12,
+      from: 1,
+      to: 6,
       blocks: [
         {
           type: 'paragraph',
@@ -357,9 +332,32 @@ describe('useEditorInteractionRuntime', () => {
     expect(result).toBe(true)
     expect(harness.createExtractedNote).toHaveBeenCalledWith('/vault/source.md', 'Alpha')
     expect((editor.state.schema.nodes.noteEmbedBlock.create as any)).toHaveBeenCalledWith({ target: 'notes/extracted' })
-    expect(editor.state.tr.replaceWith).toHaveBeenCalledWith(4, 12, { type: 'noteEmbedBlock', attrs: { target: 'notes/extracted' } })
+    expect(editor.state.tr.replaceWith).toHaveBeenCalledWith(0, 7, { type: 'noteEmbedBlock', attrs: { target: 'notes/extracted' } })
     expect(editor.view.dispatch).toHaveBeenCalled()
     expect(harness.saveCurrentFile).toHaveBeenCalledWith(false)
+  })
+
+  it('does not create a note or replace content for a partial selection', async () => {
+    const editor = createEditorStub({ from: 2, to: 6 })
+    const harness = createRuntimeHarness({ activeEditor: ref(editor) as Ref<Editor | null> })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    expect(await harness.runtime.extractSelectionToEmbeddedNote()).toBe(false)
+    expect(harness.createExtractedNote).not.toHaveBeenCalled()
+    expect(editor.view.dispatch).not.toHaveBeenCalled()
+    warning.mockRestore()
+  })
+
+  it('preserves the source when note creation fails', async () => {
+    const editor = createEditorStub()
+    const harness = createRuntimeHarness({ activeEditor: ref(editor) as Ref<Editor | null> })
+    harness.createExtractedNote.mockRejectedValueOnce(new Error('Write failed'))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(await harness.runtime.extractSelectionToEmbeddedNote()).toBe(false)
+    expect(editor.view.dispatch).not.toHaveBeenCalled()
+    expect(harness.saveCurrentFile).not.toHaveBeenCalled()
+    error.mockRestore()
   })
 
   it('tracks recent interaction time for caret capture gating', () => {

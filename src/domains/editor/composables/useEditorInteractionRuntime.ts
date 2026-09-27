@@ -270,7 +270,7 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
       return false
     }
 
-    const { from, to } = editor.state.selection
+    const { from, to } = extracted
     try {
       const created = await ioPort.createExtractedNote(path, extracted.markdown.trimEnd())
       const nodeType = editor.state.schema.nodes[TIPTAP_NODE_TYPES.noteEmbed]
