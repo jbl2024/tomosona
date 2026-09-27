@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260927.4] - 2026-09-27
+
+### Fixed
+- fix(deps): align Tauri frontend packages with Rust crates (47a8f950)
+
 ## [20260927.3] - 2026-09-27
 
 ### Added
