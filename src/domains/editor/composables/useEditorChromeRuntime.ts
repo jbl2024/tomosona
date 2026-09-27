@@ -709,6 +709,11 @@ export function useEditorChromeRuntime(options: UseEditorChromeRuntimeOptions) {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault()
         event.stopPropagation()
+        const target = event.target instanceof Element ? event.target : null
+        if (target?.closest('.tomosona-source-editor')) {
+          target.dispatchEvent(new CustomEvent('tomosona:source-find', { bubbles: true }))
+          return
+        }
         findToolbar.openToolbar()
         return
       }

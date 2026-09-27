@@ -644,11 +644,15 @@ function getDocumentSession(path: string) {
 
 function focusEditor() {
   if (isSourceSurface.value) {
-    const sourceEditor = holder.value?.querySelector('.tomosona-source-editor .cm-content') as HTMLElement | null
+    const sourceEditor = holder.value?.querySelector('.editor-session-pane[data-active="true"] .tomosona-source-editor .cm-content') as HTMLElement | null
     sourceEditor?.focus()
     return
   }
   layout.focusEditor()
+}
+
+function onSourceEditorViewState(path: string, state: { scrollTop?: number; scrollLeft?: number; wordWrap?: boolean }) {
+  sourceRuntime.setViewState(path, state)
 }
 
 async function loadVisibleDocument(path: string, requestId: number) {
@@ -1022,7 +1026,12 @@ defineExpose({
                   :key="`source-editor-content:${sessionPath}`"
                   :model-value="sourceRuntime.getSession(sessionPath)?.text ?? ''"
                   :language-label="sourceEditorLanguageLabelForPath(sessionPath)"
+                  :word-wrap="sourceRuntime.getSession(sessionPath)?.wordWrap"
+                  :scroll-top="sourceRuntime.getSession(sessionPath)?.scrollTop"
+                  :scroll-left="sourceRuntime.getSession(sessionPath)?.scrollLeft"
                   @update:model-value="sourceRuntime.setText(sessionPath, $event)"
+                  @scroll="onSourceEditorViewState(sessionPath, { scrollTop: $event.top, scrollLeft: $event.left })"
+                  @toggle-word-wrap="onSourceEditorViewState(sessionPath, { wordWrap: !(sourceRuntime.getSession(sessionPath)?.wordWrap ?? true) })"
                 />
               </template>
               <template v-else>

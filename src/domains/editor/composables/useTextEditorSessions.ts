@@ -21,6 +21,8 @@ export type TextEditorSession = {
   saving: boolean
   saveError: string
   scrollTop: number
+  scrollLeft: number
+  wordWrap: boolean
   autosaveTimer: ReturnType<typeof setTimeout> | null
   outlineTimer: ReturnType<typeof setTimeout> | null
 }
@@ -53,6 +55,8 @@ export function useTextEditorSessions(options: UseTextEditorSessionsOptions = {}
       saving: false,
       saveError: '',
       scrollTop: 0,
+      scrollLeft: 0,
+      wordWrap: true,
       autosaveTimer: null,
       outlineTimer: null
     }

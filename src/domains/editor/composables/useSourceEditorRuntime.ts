@@ -104,6 +104,14 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
     sessionStatus.scheduleAutosave(path)
   }
 
+  /** Stores source-surface presentation state with the file session. */
+  function setViewState(path: string, state: { scrollTop?: number; scrollLeft?: number; wordWrap?: boolean }) {
+    const session = ensureSession(path)
+    if (typeof state.scrollTop === 'number') session.scrollTop = state.scrollTop
+    if (typeof state.scrollLeft === 'number') session.scrollLeft = state.scrollLeft
+    if (typeof state.wordWrap === 'boolean') session.wordWrap = state.wordWrap
+  }
+
   async function readSnapshot(path: string): Promise<ReadTextResult> {
     if (options.isSourceMode(path) && isMarkdownPath(path) && options.readNoteSnapshot) {
       const snapshot = await options.readNoteSnapshot(path)
@@ -264,6 +272,7 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
     loadCurrentFile,
     saveCurrentFile,
     setText,
+    setViewState,
     applyWorkspaceFsChanges,
     nextRequestId: lifecycle.nextRequestId,
     isCurrentRequest: lifecycle.isCurrentRequest,

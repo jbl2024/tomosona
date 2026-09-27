@@ -75,6 +75,21 @@ describe('useSourceEditorRuntime', () => {
     harness.app.unmount()
   })
 
+  it('keeps source presentation state with its file session', async () => {
+    const harness = createHarness()
+    harness.app.mount(document.createElement('div'))
+    await flushUi()
+
+    harness.runtime.setViewState('notes/a.txt', { scrollTop: 96, scrollLeft: 24, wordWrap: false })
+
+    expect(harness.runtime.getSession('notes/a.txt')).toMatchObject({
+      scrollTop: 96,
+      scrollLeft: 24,
+      wordWrap: false
+    })
+    harness.app.unmount()
+  })
+
   it('uses markdown snapshot loading for raw markdown source mode', async () => {
     const readNoteSnapshot = vi.fn(async () => ({
       path: 'notes/a.md',

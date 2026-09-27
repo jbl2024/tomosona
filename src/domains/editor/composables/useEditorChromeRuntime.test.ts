@@ -355,6 +355,22 @@ describe('useEditorChromeRuntime', () => {
     await runtime.dialogsAndLifecycle.onUnmountCleanup()
   })
 
+  it('routes Cmd/Ctrl+F from the source surface to its CodeMirror search', async () => {
+    const { runtime, holder } = createRuntimeHarness()
+    await runtime.dialogsAndLifecycle.onMountInit()
+    const source = document.createElement('div')
+    source.className = 'tomosona-source-editor'
+    const onSourceFind = vi.fn()
+    source.addEventListener('tomosona:source-find', onSourceFind)
+    holder.value?.appendChild(source)
+
+    source.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true }))
+
+    expect(onSourceFind).toHaveBeenCalledTimes(1)
+    expect(runtime.toolbars.findToolbar.open.value).toBe(false)
+    await runtime.dialogsAndLifecycle.onUnmountCleanup()
+  })
+
   it('ignores title-field key events so header Enter does not route through body editor handlers', async () => {
     const { runtime, holder, interactionMocks } = createRuntimeHarness()
     await runtime.dialogsAndLifecycle.onMountInit()
