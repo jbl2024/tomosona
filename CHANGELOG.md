@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260927.6] - 2026-09-27
+
+### Fixed
+- fix(editor): prioritize existing wikilink notes over creation (cfd0fc4e)
+
 ## [20260927.5] - 2026-09-27
 
 ### Changed
