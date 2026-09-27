@@ -1,5 +1,18 @@
 # Changelog
 
+## [20260927.5] - 2026-09-27
+
+### Changed
+- test(editor): stabilize document loading and gutter interaction tests (8b7c169b)
+
+### Fixed
+- fix(editor): normalize block boundaries for note extraction (0ef68e20)
+- fix(editor): render quote markdown with live preview (31ce7da6)
+- fix(editor): avoid selecting trailing blocks on note open (8092c4d2)
+- fix(callouts): resize source when opening callout editor (c4e4449b)
+- fix(callouts): clear stale edit state when loading notes (5c438386)
+- fix(callouts): render markdown content in callout previews (cc89fe90)
+
 ## [20260927.4] - 2026-09-27
 
 ### Fixed
