@@ -89,7 +89,10 @@ describe('CalloutNodeView', () => {
     const harness = mountHarness({ initialMessage: 'Before' })
     await flush()
 
-    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    ;(harness.root.querySelector('.tomosona-callout-preview') as HTMLDivElement).click()
+    await flush()
+
+    const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
     textarea.value = 'After update'
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
     await flush()
@@ -104,7 +107,7 @@ describe('CalloutNodeView', () => {
     const harness = mountHarness({ initialMessage: '' })
     await flush()
 
-    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
     Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 84 })
 
     textarea.value = 'line 1\nline 2\nline 3'
@@ -121,7 +124,7 @@ describe('CalloutNodeView', () => {
     const harness = mountHarness({ initialMessage: '' })
     await flush()
 
-    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
     Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 49 })
 
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
@@ -136,7 +139,7 @@ describe('CalloutNodeView', () => {
     const harness = mountHarness({ initialMessage: '' })
     await flush()
 
-    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
+    const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
     Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 0 })
 
     textarea.dispatchEvent(new Event('focus'))
@@ -148,12 +151,15 @@ describe('CalloutNodeView', () => {
   })
 
   it('hides kind selector in readonly mode', async () => {
-    const harness = mountHarness({ editable: false, initialKind: 'TIP' })
+    const harness = mountHarness({ editable: false, initialKind: 'TIP', initialMessage: '**Bold** and [[Notes/Alpha|Alpha]]' })
     await flush()
 
     expect(harness.root.querySelector('.tomosona-callout-title-trigger')).toBeNull()
-    const textarea = harness.root.querySelector('.tomosona-callout-message') as HTMLTextAreaElement
-    expect(textarea.readOnly).toBe(true)
+    expect(harness.root.querySelector('textarea')).toBeNull()
+    expect(harness.root.querySelector('.tomosona-callout-preview strong')?.textContent).toBe('Bold')
+    const wikilink = harness.root.querySelector('.tomosona-callout-preview a') as HTMLAnchorElement
+    expect(wikilink.textContent).toBe('Alpha')
+    expect(wikilink.getAttribute('data-wikilink-target')).toBe('Notes/Alpha')
 
     harness.app.unmount()
   })

@@ -17,6 +17,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../../../shared/components/ui/UiFilterableDropdown.vue'
 import { CANONICAL_CALLOUT_KINDS, calloutKindLabel, normalizeCalloutKind, type CanonicalCalloutKind } from '../../../lib/callouts'
+import { inlineTextToHtml } from '../../../lib/markdownBlocks'
 
 const props = defineProps<{
   node: { attrs: { kind?: string; message?: string } }
@@ -27,6 +28,7 @@ const props = defineProps<{
 const kind = computed(() => normalizeCalloutKind(props.node.attrs.kind))
 const message = computed(() => String(props.node.attrs.message ?? ''))
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
+const isEditingMessage = ref(false)
 const showKindMenu = ref(false)
 const kindQuery = ref('')
 const activeKindIndex = ref(0)
@@ -54,6 +56,7 @@ const kindItems = computed<Array<FilterableDropdownItem & { value: string; alias
   }))
 )
 const currentKindIcon = computed(() => iconByKind[kind.value])
+const renderedMessage = computed(() => inlineTextToHtml(message.value).replace(/\n/g, '<br>'))
 
 function kindMatcher(item: FilterableDropdownItem, query: string): boolean {
   const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry)) : []
@@ -94,6 +97,16 @@ function onMessageInput(event: Event) {
   props.updateAttributes({ message: value })
 }
 
+function editMessage() {
+  if (!props.editor.isEditable) return
+  isEditingMessage.value = true
+  void nextTick().then(() => textareaEl.value?.focus())
+}
+
+function stopEditingMessage() {
+  isEditingMessage.value = false
+}
+
 onMounted(() => {
   scheduleAutosize()
 })
@@ -104,7 +117,11 @@ watch(message, () => {
 </script>
 
 <template>
-  <NodeViewWrapper class="tomosona-callout" :data-callout-kind="kind.toLowerCase()">
+  <NodeViewWrapper
+    class="tomosona-callout"
+    :class="{ 'is-editing': editor.isEditable && isEditingMessage }"
+    :data-callout-kind="kind.toLowerCase()"
+  >
     <div class="tomosona-callout-header">
       <UiFilterableDropdown
         v-if="editor.isEditable"
@@ -149,15 +166,21 @@ watch(message, () => {
         <span class="tomosona-callout-label">{{ calloutKindLabel(kind) }}</span>
       </div>
     </div>
+    <div
+      class="tomosona-callout-message tomosona-callout-preview"
+      @click="editMessage"
+      v-html="renderedMessage"
+    ></div>
     <textarea
+      v-if="editor.isEditable"
       ref="textareaEl"
-      class="tomosona-quote-source tomosona-callout-message"
+      class="tomosona-quote-source tomosona-callout-message tomosona-callout-source"
       :value="message"
-      :readonly="!editor.isEditable"
       rows="1"
       spellcheck="false"
       placeholder="Callout text"
       @focus="scheduleAutosize"
+      @blur="stopEditingMessage"
       @input="onMessageInput"
     />
   </NodeViewWrapper>

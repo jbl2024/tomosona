@@ -764,6 +764,25 @@
     outline: none;
   }
 
+  .editor-holder .tomosona-callout-preview {
+    border-radius: 0.35rem;
+    background: #f8fafc;
+    padding: 0.92rem 1rem;
+    cursor: text;
+  }
+
+  .editor-holder .tomosona-callout-source {
+    display: none;
+  }
+
+  .editor-holder .tomosona-callout.is-editing .tomosona-callout-preview {
+    display: none;
+  }
+
+  .editor-holder .tomosona-callout.is-editing .tomosona-callout-source {
+    display: block;
+  }
+
   .editor-holder .tomosona-callout-message[data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: #64748b;
