@@ -126,7 +126,7 @@
 
 .editor-holder .ProseMirror h1 {
   font-size: calc(var(--editor-heading-1-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.2;
   margin: 0.65rem 0 0.9rem;
@@ -139,7 +139,7 @@
 
 .editor-holder .ProseMirror h2 {
   font-size: calc(var(--editor-heading-2-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.25;
   margin: 1.5rem 0 0.7rem;
@@ -149,7 +149,7 @@
 
 .editor-holder .ProseMirror h3 {
   font-size: calc(var(--editor-heading-3-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.3;
   margin: 1.2rem 0 0.55rem;
@@ -158,7 +158,7 @@
 
 .editor-holder .ProseMirror h4 {
   font-size: calc(var(--editor-heading-4-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
   margin: 1rem 0 0.45rem;
   color: var(--editor-heading-4);
@@ -166,7 +166,7 @@
 
 .editor-holder .ProseMirror h5 {
   font-size: calc(var(--editor-heading-5-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
   margin: 0.85rem 0 0.4rem;
   color: var(--editor-heading-5);
@@ -174,7 +174,7 @@
 
 .editor-holder .ProseMirror h6 {
   font-size: calc(var(--editor-heading-6-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
   margin: 0.75rem 0 0.35rem;
   color: var(--editor-heading-6);
@@ -308,7 +308,7 @@
   border: 1px solid var(--editor-table-border);
   background: var(--editor-table-bg);
   font-size: calc(var(--editor-font-size-base) * var(--editor-zoom, 1));
-  line-height: 1.45;
+  line-height: 1.35;
   table-layout: auto;
 }
 
@@ -316,7 +316,7 @@
 .editor-holder .ProseMirror td {
   border-right: 1px solid var(--editor-table-cell-border);
   border-bottom: 1px solid var(--editor-table-cell-border);
-  padding: 0.38rem 0.65rem;
+  padding: 0.3rem 0.55rem;
   vertical-align: top;
   text-align: left;
   position: relative;
@@ -345,7 +345,7 @@
 }
 
 .editor-holder .ProseMirror th {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .editor-holder .ProseMirror td.selectedCell,

@@ -92,13 +92,13 @@
   --line-height-normal: 1.45;
   --line-height-relaxed: 1.6;
   --font-size-code: 0.82rem;
-  --editor-font-size-base: 0.95rem;
-  --editor-heading-1-size: 1.75rem;
-  --editor-heading-2-size: 1.5rem;
-  --editor-heading-3-size: 1.25rem;
-  --editor-heading-4-size: 1.1rem;
-  --editor-heading-5-size: 1rem;
-  --editor-heading-6-size: 0.9rem;
+  --editor-font-size-base: 0.93rem;
+  --editor-heading-1-size: 1.68rem;
+  --editor-heading-2-size: 1.42rem;
+  --editor-heading-3-size: 1.2rem;
+  --editor-heading-4-size: 1.06rem;
+  --editor-heading-5-size: 0.97rem;
+  --editor-heading-6-size: 0.88rem;
 
   /* Shared component primitives used by the design system components. */
   --button-primary-border: color-mix(in srgb, var(--accent) 75%, transparent);

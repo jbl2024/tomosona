@@ -39,7 +39,7 @@ describe('editor content styles contract', () => {
     expect(editorStyles).toContain('line-height: inherit;')
     expect(editorStyles).toContain('text-align: left;')
     expect(editorStyles).toContain('font-size: calc(var(--editor-font-size-base) * var(--editor-zoom, 1));')
-    expect(editorStyles).toContain('padding: 0.38rem 0.65rem;')
+    expect(editorStyles).toContain('padding: 0.3rem 0.55rem;')
     expect(editorStyles).toContain('table-layout: auto;')
     expect(editorStyles).toContain('li[data-checked="true"] > div > p')
     expect(editorStyles).toContain('.editor-holder .tomosona-quote-source')

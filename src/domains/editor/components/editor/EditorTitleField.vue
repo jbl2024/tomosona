@@ -96,7 +96,7 @@ function onKeydown(event: KeyboardEvent) {
 <style scoped>
 .editor-title-field {
   font-size: calc(var(--editor-heading-1-size) * var(--editor-zoom, 1));
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.2;
   margin: 0 0 0.75rem;
