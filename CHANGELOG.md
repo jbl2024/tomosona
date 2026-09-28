@@ -1,5 +1,13 @@
 # Changelog
 
+## [20260928.5] - 2026-09-28
+
+### Changed
+- style(editor): lighten typography and table density (e8f6142b)
+
+### Fixed
+- fix(markdown): render every blank line (2f46cd78)
+
 ## [20260928.4] - 2026-09-28
 
 ### Changed
