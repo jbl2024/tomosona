@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260928.3] - 2026-09-28
+
+### Changed
+- chore: styles (fb3af68e)
+
 ## [20260928.2] - 2026-09-28
 
 ### Added
