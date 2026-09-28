@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260928.1] - 2026-09-28
+
+### Added
+- feat(editor): add portable emoji macro picker (0dbbacaf)
+
 ## [20260927.7] - 2026-09-27
 
 ### Fixed
