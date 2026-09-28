@@ -2,9 +2,9 @@
  * Pure editor macro catalog for text, markdown templates, tasks and note context.
  * Runtime insertion is owned by the editor menu composable.
  */
-export type EditorAtMacroKind = 'insert_text' | 'insert_markdown' | 'dynamic_pick'
+export type EditorAtMacroKind = 'insert_text' | 'insert_markdown' | 'dynamic_pick' | 'emoji_picker'
 
-export type EditorAtMacroGroup = 'Time' | 'Document' | 'Templates' | 'Tasks' | 'Context'
+export type EditorAtMacroGroup = 'Time' | 'Document' | 'Templates' | 'Tasks' | 'Context' | 'Insert'
 
 export type EditorAtTemplateMacro = {
   path: string
@@ -87,6 +87,7 @@ const MACRO_IDS = [
   'quote',
   'context',
   'related',
+  'emojis',
 ] as const
 
 const FRENCH_MONTHS = [
@@ -440,6 +441,15 @@ const MACRO_DEFINITIONS: MacroDefinition[] = [
     description: 'Insert a waiting status marker',
     aliases: ['waiting', 'attente', 'retour'],
     resolve: () => text('status: waiting')
+  },
+  {
+    id: 'emojis',
+    label: 'Emojis',
+    group: 'Insert',
+    kind: 'emoji_picker',
+    description: 'Browse and insert an emoji',
+    aliases: ['emoji', 'emojis', 'emoticon', 'smiley', 'pictogram'],
+    resolve: () => text('')
   },
   {
     id: 'link',

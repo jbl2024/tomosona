@@ -29,6 +29,7 @@ import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
 import EditorLargeDocOverlay from './editor/EditorLargeDocOverlay.vue'
 import EditorRuler from './editor/EditorRuler.vue'
 import EditorAtOverlay from './editor/EditorAtOverlay.vue'
+import EditorEmojiPicker from './editor/EditorEmojiPicker.vue'
 import EditorMermaidPreviewDialog from './editor/EditorMermaidPreviewDialog.vue'
 import EditorAssetPreviewDialog from './editor/EditorAssetPreviewDialog.vue'
 import EditorMermaidReplaceDialog from './editor/EditorMermaidReplaceDialog.vue'
@@ -615,10 +616,12 @@ const {
   atLeft,
   atTop,
   atQuery,
+  emojiPickerOpen,
   visibleAtMacros,
   dismissAtMenu,
   setAtQuery,
   insertBlockFromDescriptor,
+  insertEmoji,
   wikilinkOpen,
   wikilinkIndex,
   wikilinkLeft,
@@ -1154,7 +1157,15 @@ defineExpose({
             :items="visibleAtMacros"
             @update:index="atIndex = $event"
             @update:query="setAtQuery($event)"
-            @select="dismissAtMenu(); interactionRuntime.insertAtMacro($event)"
+            @select="interactionRuntime.insertAtMacro($event)"
+            @close="dismissAtMenu(); focusEditor()"
+          />
+
+          <EditorEmojiPicker
+            :open="emojiPickerOpen"
+            :left="atLeft"
+            :top="atTop"
+            @select="insertEmoji($event)"
             @close="dismissAtMenu(); focusEditor()"
           />
 

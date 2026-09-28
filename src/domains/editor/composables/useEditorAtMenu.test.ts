@@ -211,6 +211,33 @@ describe('useEditorAtMenu', () => {
     ]))
   })
 
+  it('opens the emoji picker and replaces the macro trigger with the selected Unicode emoji', async () => {
+    const { editor, chain } = createEditor('Draft @emojis')
+    const menu = useEditorAtMenu({
+      getEditor: () => editor,
+      currentTextSelectionContext: () => ({
+        text: 'Draft @emojis',
+        nodeType: 'paragraph',
+        from: 1,
+        to: 14,
+        offset: 13,
+        marks: []
+      }),
+      closeCompetingMenus: vi.fn(),
+      getDocumentMetadata: () => ({ title: 'Planning note', path: 'notes/planning.md' })
+    })
+
+    const opened = await menu.insertAtMacro(menu.atEntries.value.find((entry) => entry.id === 'emojis')!)
+    expect(opened).toBe(true)
+    expect(menu.emojiPickerOpen.value).toBe(true)
+    expect(chain.insertContent).not.toHaveBeenCalled()
+
+    expect(menu.insertEmoji('🎉')).toBe(true)
+    expect(chain.deleteRange).toHaveBeenCalledWith({ from: 7, to: 14 })
+    expect(chain.insertContent).toHaveBeenCalledWith('🎉')
+    expect(menu.emojiPickerOpen.value).toBe(false)
+  })
+
   it('inserts @task as a Tiptap task list instead of plain markdown text', async () => {
     const { editor, chain } = createEditor('Draft @task')
     const menu = useEditorAtMenu({

@@ -66,6 +66,19 @@ describe('editorAtMacros', () => {
     })
   })
 
+  it('exposes the portable emoji picker macro', () => {
+    const emojiPicker = resolveEditorAtMacro('emojis', context)
+
+    expect(emojiPicker).toMatchObject({
+      label: 'Emojis',
+      group: 'Insert',
+      kind: 'emoji_picker',
+      replacement: ''
+    })
+    expect(editorAtMacroMatchesQuery(emojiPicker!, 'smiley')).toBe(true)
+    expect(listEditorAtMacroIds()).toContain('emojis')
+  })
+
   it('falls back to the file name when the note title is empty', () => {
     const title = resolveEditorAtMacro('title', {
       title: '',

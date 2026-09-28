@@ -90,6 +90,7 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
   const atTop = ref(0)
   const atQuery = ref('')
   const atActivatedByUser = ref(false)
+  const emojiPickerOpen = ref(false)
 
   const atEntries = computed(() =>
     buildEditorAtMacroEntries({
@@ -107,6 +108,7 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
     atOpen.value = false
     atIndex.value = 0
     atQuery.value = ''
+    emojiPickerOpen.value = false
   }
 
   function dismissAtMenu() {
@@ -201,6 +203,12 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
     const trigger = readAtContext()
     if (!editor || !trigger) return false
 
+    if (entry.kind === 'emoji_picker') {
+      atOpen.value = false
+      emojiPickerOpen.value = true
+      return true
+    }
+
     if (entry.templatePath) {
       let templateContent = ''
       try {
@@ -231,6 +239,16 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
     return true
   }
 
+  function insertEmoji(emoji: string): boolean {
+    const editor = options.getEditor()
+    const trigger = readAtContext()
+    if (!editor || !trigger || !emoji) return false
+
+    editor.chain().focus().deleteRange({ from: trigger.start, to: trigger.end }).insertContent(emoji).run()
+    closeAtMenu()
+    return true
+  }
+
   return {
     atOpen,
     atIndex,
@@ -238,6 +256,7 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
     atTop,
     atQuery,
     atActivatedByUser,
+    emojiPickerOpen,
     atEntries,
     visibleAtMacros,
     closeAtMenu,
@@ -248,6 +267,7 @@ export function useEditorAtMenu(options: UseEditorAtMenuOptions) {
     openAtSelection,
     setAtQuery,
     syncAtMenuFromSelection,
-    insertAtMacro
+    insertAtMacro,
+    insertEmoji
   }
 }
