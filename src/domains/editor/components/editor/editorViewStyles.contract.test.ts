@@ -26,6 +26,9 @@ describe('editor content styles contract', () => {
   it('keeps required core selectors', () => {
     expect(editorStyles).toContain('.editor-content-shell')
     expect(editorStyles).toContain('.editor-holder .ProseMirror')
+    expect(editorStyles).toContain('text-decoration-thickness: 1px;')
+    expect(editorStyles).toContain('color: var(--tomosona-link-color);')
+    expect(editorStyles).not.toContain('background: var(--editor-signal-link-soft);')
     expect(editorStyles).toContain('.editor-holder .ProseMirror table')
     expect(editorStyles).toContain('width: auto;')
     expect(editorStyles).toContain('border-collapse: collapse;')

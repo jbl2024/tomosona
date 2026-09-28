@@ -536,13 +536,13 @@
   }
 
   .editor-holder a {
-    color: #0b5cad;
+    color: var(--editor-link);
     text-decoration: underline;
     text-underline-offset: 2px;
   }
 
   .editor-holder a:hover {
-    color: #0a4a8a;
+    color: color-mix(in srgb, var(--editor-link) 82%, var(--text-main));
   }
 
   html.dark .editor-holder .ce-paragraph {
@@ -673,11 +673,11 @@
   }
 
   html.dark .editor-holder a {
-    color: #61afef;
+    color: var(--editor-link);
   }
 
   html.dark .editor-holder a:hover {
-    color: #7ec5ff;
+    color: color-mix(in srgb, var(--editor-link) 82%, var(--text-main));
   }
 
   .editor-holder .tomosona-callout {

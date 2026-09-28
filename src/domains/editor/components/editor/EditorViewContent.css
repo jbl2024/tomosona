@@ -41,13 +41,14 @@
 }
 
 .editor-holder .ProseMirror a {
-  border-radius: 0.2rem;
-  background: var(--editor-signal-link-soft);
+  color: var(--tomosona-link-color);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.08em;
 }
 
 .editor-holder a.wikilink {
   color: var(--tomosona-link-color);
-  text-decoration: underline;
 }
 
 .editor-holder a.wikilink.is-missing {
