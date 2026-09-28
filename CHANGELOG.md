@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260928.2] - 2026-09-28
+
+### Added
+- feat(settings): add terminal and appearance preferences (eaaabdb9)
+
 ## [20260928.1] - 2026-09-28
 
 ### Added
