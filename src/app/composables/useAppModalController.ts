@@ -12,6 +12,7 @@ import type { Ref } from 'vue'
 export type UseAppModalControllerOptions = {
   quickOpenVisible: Readonly<Ref<boolean>>
   themePickerVisible: Readonly<Ref<boolean>>
+  settingsModalVisible: Readonly<Ref<boolean>>
   indexStatusModalVisible: Readonly<Ref<boolean>>
   newFileModalVisible: Readonly<Ref<boolean>>
   newFolderModalVisible: Readonly<Ref<boolean>>
@@ -53,6 +54,7 @@ export function useAppModalController(options: UseAppModalControllerOptions) {
     if (options.openDateModalVisible.value) return '[data-modal="open-date"]'
     if (options.newFolderModalVisible.value) return '[data-modal="new-folder"]'
     if (options.newFileModalVisible.value) return '[data-modal="new-file"]'
+    if (options.settingsModalVisible.value) return '[data-modal="settings"]'
     if (options.themePickerVisible.value) return '[data-modal="theme-picker"]'
     if (options.quickOpenVisible.value) return '[data-modal="quick-open"]'
     return null

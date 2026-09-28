@@ -6,9 +6,10 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ThemeColorScheme } from '../../../shared/lib/themeRegistry'
 import { closeTerminalSession, listenTerminalClosed, listenTerminalOutput, resizeTerminalSession, startTerminalSession, writeTerminalSession, type TerminalOutput } from '../../../shared/api/terminalApi'
 import { resolveTerminalBuiltinCommand } from '../../lib/terminalCommands'
+import type { TerminalPreferences } from '../../composables/useAppTerminalPreferences'
 
 /** Owns docked terminal tabs. Hiding the panel preserves their shells and buffers. */
-const props = defineProps<{ visible: boolean; workspacePath: string; currentFilePath: string; colorScheme: ThemeColorScheme }>()
+const props = defineProps<{ visible: boolean; workspacePath: string; currentFilePath: string; colorScheme: ThemeColorScheme; preferences: TerminalPreferences }>()
 const emit = defineEmits<{ close: [] }>()
 
 type TerminalTab = { id: string; label: string; sessionId: string | null; error: string }
@@ -122,7 +123,12 @@ async function createTerminalTab() {
     return
   }
 
-  const terminal = new Terminal({ cursorBlink: true, cursorStyle: 'block', convertEol: true, fontFamily: '"SF Mono", "Cascadia Mono", "Courier New", monospace', fontSize: 13, lineHeight: 1.2, scrollback: 5000, theme: terminalTheme() })
+  const terminal = new Terminal({
+    ...props.preferences,
+    convertEol: true,
+    fontFamily: `"${props.preferences.fontFamily.replace(/"/g, '')}", monospace`,
+    theme: terminalTheme()
+  })
   const fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
   terminal.open(host)
@@ -193,6 +199,18 @@ defineExpose({ focus: focusActiveTab })
 
 watch(activeTabId, () => focusActiveTab())
 watch(() => props.colorScheme, () => { for (const runtime of runtimes.values()) runtime.terminal.options.theme = terminalTheme() })
+watch(() => props.preferences, () => {
+  for (const runtime of runtimes.values()) {
+    runtime.terminal.options.fontFamily = `"${props.preferences.fontFamily.replace(/"/g, '')}", monospace`
+    runtime.terminal.options.fontSize = props.preferences.fontSize
+    runtime.terminal.options.lineHeight = props.preferences.lineHeight
+    runtime.terminal.options.letterSpacing = props.preferences.letterSpacing
+    runtime.terminal.options.cursorStyle = props.preferences.cursorStyle
+    runtime.terminal.options.cursorBlink = props.preferences.cursorBlink
+    runtime.terminal.options.scrollback = props.preferences.scrollback
+    runtime.fitAddon.fit()
+  }
+}, { deep: true })
 watch(() => props.workspacePath, async () => {
   if (!tabs.value.length) return
   await disposeAllTabs()

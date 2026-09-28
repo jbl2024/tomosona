@@ -8,6 +8,7 @@ import WorkspaceSetupWizardModal from './WorkspaceSetupWizardModal.vue'
 import DesignSystemDebugModal from './DesignSystemDebugModal.vue'
 import ShortcutsModal from './ShortcutsModal.vue'
 import AboutModal from './AboutModal.vue'
+import SettingsModal from './SettingsModal.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
 import type { ThemePickerItem } from '../../lib/appShellPresentation'
 import type {
@@ -16,6 +17,8 @@ import type {
   QuickOpenResult
 } from '../../composables/useAppQuickOpen'
 import type { ThemePreference } from '../../composables/useAppTheme'
+import type { TerminalPreferences } from '../../composables/useAppTerminalPreferences'
+import type { AppThemeDefinition } from '../../../shared/lib/themeRegistry'
 import type { WorkspaceSetupOption, WorkspaceSetupUseCase } from '../../lib/workspaceSetupWizard'
 import type { NewNoteTemplateDropdownItem } from '../../lib/newNoteTemplates'
 
@@ -76,6 +79,9 @@ defineProps<{
   themePickerItems: ThemePickerItem[]
   themePickerActiveIndex: number
   themePreference: ThemePreference
+  settingsVisible: boolean
+  availableThemes: readonly AppThemeDefinition[]
+  terminalPreferences: TerminalPreferences
   newFileModalVisible: boolean
   newFilePathInput: string
   newFileModalError: string
@@ -117,6 +123,10 @@ const emit = defineEmits<{
   themePickerPreview: [value: ThemePreference]
   themePickerKeydown: [event: KeyboardEvent]
   themePickerSetActiveIndex: [index: number]
+  closeSettings: []
+  settingsSetTheme: [value: ThemePreference]
+  updateTerminalPreferences: [value: Partial<TerminalPreferences>]
+  resetTerminalPreferences: []
   closeNewFile: []
   updateNewFilePath: [value: string]
   keydownNewFile: [event: KeyboardEvent]
@@ -225,6 +235,17 @@ const emit = defineEmits<{
     @preview="emit('themePickerPreview', $event)"
     @keydown="emit('themePickerKeydown', $event)"
     @set-active-index="emit('themePickerSetActiveIndex', $event)"
+  />
+
+  <SettingsModal
+    :visible="settingsVisible"
+    :theme-preference="themePreference"
+    :available-themes="availableThemes"
+    :terminal-preferences="terminalPreferences"
+    @close="emit('closeSettings')"
+    @set-theme="emit('settingsSetTheme', $event)"
+    @update-terminal-preferences="emit('updateTerminalPreferences', $event)"
+    @reset-terminal-preferences="emit('resetTerminalPreferences')"
   />
 
   <WorkspaceEntryModals

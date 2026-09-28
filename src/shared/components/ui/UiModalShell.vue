@@ -23,12 +23,14 @@ const props = withDefaults(defineProps<{
   describedby?: string
   width?: 'sm' | 'md' | 'lg' | 'xl'
   panelClass?: string
+  hideHeader?: boolean
 }>(), {
   description: '',
   labelledby: '',
   describedby: '',
   width: 'md',
-  panelClass: ''
+  panelClass: '',
+  hideHeader: false
 })
 
 const emit = defineEmits<{
@@ -87,13 +89,17 @@ onBeforeUnmount(() => {
       :aria-describedby="describedby || (description ? 'ui-modal-shell-description' : undefined)"
       tabindex="-1"
     >
-      <header class="ui-modal-shell__header">
+      <header v-if="!hideHeader" class="ui-modal-shell__header">
         <div class="flex min-w-0 flex-col gap-1">
           <h3 :id="labelledby || 'ui-modal-shell-title'" class="ui-modal-shell__title">{{ title }}</h3>
           <p v-if="description" :id="describedby || 'ui-modal-shell-description'" class="ui-modal-shell__description">{{ description }}</p>
         </div>
         <slot name="header" />
       </header>
+      <div v-else class="sr-only">
+        <h3 :id="labelledby || 'ui-modal-shell-title'">{{ title }}</h3>
+        <p v-if="description" :id="describedby || 'ui-modal-shell-description'">{{ description }}</p>
+      </div>
       <div class="ui-modal-shell__body">
         <slot />
       </div>

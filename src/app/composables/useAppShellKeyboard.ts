@@ -8,6 +8,7 @@ export type AppShellKeyboardStatePort = {
   terminalVisible: Readonly<Ref<boolean>>
   quickOpenIsActionMode: Readonly<Ref<boolean>>
   themePickerVisible: Readonly<Ref<boolean>>
+  settingsModalVisible: Readonly<Ref<boolean>>
   historyMenuOpen: Readonly<Ref<AppShellKeyboardHistoryMenuSide | null>>
   overflowMenuOpen: Readonly<Ref<boolean>>
   newFileModalVisible: Readonly<Ref<boolean>>
@@ -39,6 +40,7 @@ export type AppShellKeyboardActionsPort = {
   closeWorkspaceSetupWizard: () => void
   closeIndexStatusModal: () => void
   closeThemePickerModal: () => void
+  closeSettings: () => void
   moveQuickOpenSelection: (delta: number) => void
   onQuickOpenEnter: () => void
   moveThemePickerSelection: (delta: number) => void
@@ -53,6 +55,7 @@ export type AppShellKeyboardActionsPort = {
   createNewFileFromActiveDirectory: () => boolean | void | Promise<boolean | void>
   openQuickOpen: () => boolean | void | Promise<boolean | void>
   openCommandPalette: () => void
+  openSettings: () => boolean | void | Promise<boolean | void>
   openIntegratedTerminal: () => boolean | void | Promise<boolean | void>
   openTodayNote: () => boolean | void | Promise<boolean | void>
   openHomeView: () => boolean | void | Promise<boolean | void>
@@ -98,6 +101,11 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
 
   function handleEscape(event: KeyboardEvent): boolean {
     if (!isEscapeKey(event)) return false
+    if (options.statePort.settingsModalVisible.value) {
+      consume(event)
+      options.actionsPort.closeSettings()
+      return true
+    }
     if (options.statePort.newFileModalVisible.value) {
       consume(event)
       options.actionsPort.closeNewFileModal()
@@ -247,6 +255,11 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
     if (isMod && key === 'p') {
       event.preventDefault()
       options.actionsPort.openCommandPalette()
+      return
+    }
+    if (isMod && !event.shiftKey && !event.altKey && key === ',') {
+      consume(event)
+      void options.actionsPort.openSettings()
       return
     }
     if (options.guardsPort.shouldBlockGlobalShortcutsFromTarget(event.target)) return

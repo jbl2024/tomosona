@@ -56,6 +56,7 @@ export type AppShellPaletteActionPort = {
   toggleEditorRulerFromPalette: () => boolean | Promise<boolean>
   openSpellcheckDictionaryFromPalette: () => boolean | Promise<boolean>
   openThemePickerFromPalette: () => boolean | Promise<boolean>
+  openSettings: () => boolean | Promise<boolean>
   setThemeFromPalette: (next: ThemePreference) => boolean | Promise<boolean>
   openTodayNote: () => boolean | Promise<boolean>
   openYesterdayNote: () => boolean | Promise<boolean>
@@ -127,6 +128,7 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'zoom-out': 33,
   'zoom-reset': 34,
   'theme-select': 35,
+  'open-settings': 35.5,
   'theme-system': 36,
   'theme-tomosona-light': 37,
   'theme-tomosona-dark': 38,
@@ -246,6 +248,12 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       id: 'theme-select',
       label: 'Theme: Select Theme…',
       run: () => options.actionPort.openThemePickerFromPalette()
+    }),
+    createPaletteAction('utilities', {
+      id: 'open-settings',
+      label: 'Open settings',
+      run: () => options.actionPort.openSettings(),
+      closeBeforeRun: true
     }),
     createPaletteAction('theme', {
       id: 'theme-system',

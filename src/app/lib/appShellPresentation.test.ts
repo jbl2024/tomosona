@@ -37,6 +37,7 @@ describe('appShellPresentation', () => {
     })
 
     expect(sections[0].items.map((item) => item.action)).toContain('Command palette')
+    expect(sections[0].items).toContainEqual({ keys: 'Cmd+,', action: 'Open settings' })
     expect(sections[1].items.map((item) => item.keys)).toContain('Cmd+[')
     expect(sections[2].items.map((item) => item.action)).toContain('Join panes')
   })

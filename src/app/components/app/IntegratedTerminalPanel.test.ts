@@ -58,6 +58,7 @@ function mountHarness() {
         workspacePath: '/vault',
         currentFilePath: '/vault/notes/today.md',
         colorScheme: 'dark',
+        preferences: { fontFamily: 'SF Mono', fontSize: 13, lineHeight: 1.2, letterSpacing: 0, cursorStyle: 'block', cursorBlink: true, scrollback: 5000 },
         onClose: () => { visible.value = false }
       })
     }

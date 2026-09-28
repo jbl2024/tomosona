@@ -53,6 +53,7 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     toggleEditorRulerFromPalette: () => false,
     openSpellcheckDictionaryFromPalette: () => false,
     openThemePickerFromPalette: () => false,
+    openSettings: () => false,
     setThemeFromPalette: () => false,
     convertMarkdownToWord: () => Promise.resolve(false),
     openTodayNote: () => false,

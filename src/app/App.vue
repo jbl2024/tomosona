@@ -131,6 +131,7 @@ import { useAppQuickOpen } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
 import { useAppEditorRulerPreference } from './composables/useAppEditorRulerPreference'
+import { useAppTerminalPreferences } from './composables/useAppTerminalPreferences'
 import {
   resolveActiveEditorSignalSummary,
   type EditorSignalDirection,
@@ -187,8 +188,16 @@ const {
   applyThemePreview,
   loadThemePreference,
   persistThemePreference,
+  setThemePreference,
   onSystemThemeChanged
 } = useAppTheme({ storageKey: THEME_STORAGE_KEY })
+const {
+  terminalPreferences,
+  loadTerminalPreferences,
+  setTerminalPreferences,
+  resetTerminalPreferences
+} = useAppTerminalPreferences()
+loadTerminalPreferences()
 const {
   spellcheckEnabled,
   loadSpellcheckPreference,
@@ -211,6 +220,7 @@ const themePickerVisible = ref(false)
 const themePickerQuery = ref('')
 const themePickerActiveIndex = ref(0)
 const themePickerHasPreview = ref(false)
+const settingsModalVisible = ref(false)
 const editorRef = ref<EditorViewExposed | null>(null)
 const explorerRef = ref<ExplorerTreeExposed | null>(null)
 const topbarRef = ref<AppShellChromeSurfaceExposed | null>(null)
@@ -586,6 +596,7 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
 const modalController = useAppModalController({
   quickOpenVisible,
   themePickerVisible,
+  settingsModalVisible,
   indexStatusModalVisible,
   newFileModalVisible,
   newFolderModalVisible,
@@ -604,6 +615,18 @@ const {
   restoreFocusAfterModalClose,
   trapTabWithinActiveModal
 } = modalController
+
+function openSettings() {
+  closeOverflowMenu()
+  rememberFocusBeforeModalOpen()
+  settingsModalVisible.value = true
+  return true
+}
+
+function closeSettings() {
+  settingsModalVisible.value = false
+  void nextTick(() => restoreFocusAfterModalClose())
+}
 const constitutedContextActions = useAppShellConstitutedContextActions({
   activeFilePath,
   constitutedContext,
@@ -1294,6 +1317,7 @@ entryActions.bindLaunchpadActionPort({
   openTodayNote: () => openTodayNote(),
 })
 entryActions.bindShellPaletteActionPort({
+  openSettings,
   openIntegratedTerminal,
   openHomeViewFromPalette,
   openFavoritesPanelFromPalette,
@@ -1528,6 +1552,7 @@ useAppShellKeyboard({
     terminalVisible,
     quickOpenIsActionMode,
     themePickerVisible,
+    settingsModalVisible,
     historyMenuOpen,
     overflowMenuOpen,
     newFileModalVisible,
@@ -1555,6 +1580,7 @@ useAppShellKeyboard({
     closeWorkspaceSetupWizard,
     closeIndexStatusModal,
     closeThemePickerModal,
+    closeSettings,
     moveQuickOpenSelection,
     onQuickOpenEnter,
     moveThemePickerSelection,
@@ -1569,6 +1595,7 @@ useAppShellKeyboard({
     createNewFileFromActiveDirectory,
     openQuickOpen,
     openCommandPalette,
+    openSettings,
     openIntegratedTerminal,
     openTodayNote,
     openHomeView: openHomeViewFromPalette,
@@ -1764,6 +1791,7 @@ useAppShellKeyboard({
           :workspace-path="filesystem.workingFolderPath.value"
           :current-file-path="activeFilePath"
           :color-scheme="activeColorScheme"
+          :preferences="terminalPreferences"
           @close="closeIntegratedTerminal"
         />
       </template>
@@ -1828,6 +1856,9 @@ useAppShellKeyboard({
       :theme-picker-items="themePickerItems"
       :theme-picker-active-index="themePickerActiveIndex"
       :theme-preference="themePreference"
+      :settings-visible="settingsModalVisible"
+      :available-themes="availableThemes"
+      :terminal-preferences="terminalPreferences"
       :new-file-modal-visible="newFileModalVisible"
       :new-file-path-input="newFilePathInput"
       :new-file-modal-error="newFileModalError"
@@ -1866,6 +1897,10 @@ useAppShellKeyboard({
       @theme-picker-preview="previewThemePickerItem"
       @theme-picker-keydown="onThemePickerInputKeydown"
       @theme-picker-set-active-index="themePickerActiveIndex = $event"
+      @close-settings="closeSettings"
+      @settings-set-theme="setThemePreference($event)"
+      @update-terminal-preferences="setTerminalPreferences($event)"
+      @reset-terminal-preferences="resetTerminalPreferences()"
       @close-new-file="closeNewFileModal"
       @update-new-file-path="newFilePathInput = $event"
       @keydown-new-file="onNewFileInputKeydown"

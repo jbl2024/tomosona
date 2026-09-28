@@ -7,6 +7,7 @@ function createKeyboard(isMacOs = false) {
     quickOpenVisible: ref(false),
     terminalVisible: ref(false),
     themePickerVisible: ref(false),
+    settingsModalVisible: ref(false),
     historyMenuOpen: ref<null | 'back' | 'forward'>(null),
     overflowMenuOpen: ref(false),
     newFileModalVisible: ref(false),
@@ -34,6 +35,7 @@ function createKeyboard(isMacOs = false) {
     closeWorkspaceSetupWizard: vi.fn(),
     closeIndexStatusModal: vi.fn(),
     closeThemePickerModal: vi.fn(),
+    closeSettings: vi.fn(),
     moveQuickOpenSelection: vi.fn(),
     onQuickOpenEnter: vi.fn(),
     moveThemePickerSelection: vi.fn(),
@@ -48,6 +50,7 @@ function createKeyboard(isMacOs = false) {
     createNewFileFromActiveDirectory: vi.fn(),
     openQuickOpen: vi.fn(),
     openCommandPalette: vi.fn(),
+    openSettings: vi.fn(),
     openIntegratedTerminal: vi.fn(),
     openTodayNote: vi.fn(),
     openHomeView: vi.fn(),
@@ -92,6 +95,17 @@ describe('useAppShellKeyboard', () => {
 
     expect(actions.closeNewFileModal).toHaveBeenCalledTimes(1)
     expect(actions.closeQuickOpen).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(true)
+    scope.stop()
+  })
+
+  it('opens settings with the primary-modifier comma shortcut', () => {
+    const { scope, actions } = createKeyboard(true)
+    const event = new KeyboardEvent('keydown', { key: ',', metaKey: true, bubbles: true, cancelable: true })
+
+    window.dispatchEvent(event)
+
+    expect(actions.openSettings).toHaveBeenCalledTimes(1)
     expect(event.defaultPrevented).toBe(true)
     scope.stop()
   })
