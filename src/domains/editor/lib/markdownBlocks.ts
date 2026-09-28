@@ -1041,7 +1041,23 @@ export function markdownToEditorData(markdown: string): EditorDocument {
     const line = lines[i]
 
     if (!line.trim()) {
-      i += 1
+      let blankLineCount = 0
+      while (i < lines.length && !lines[i].trim()) {
+        blankLineCount += 1
+        i += 1
+      }
+
+      // Every blank Markdown line is an intentional empty paragraph and must
+      // remain visible in the editor.
+      const hasPreviousBlock = blocks.length > 0
+      const hasNextLine = i < lines.length
+      // A final newline terminates the file; it is not itself an empty line.
+      const emptyParagraphCount = hasPreviousBlock && !hasNextLine
+        ? Math.max(0, blankLineCount - 1)
+        : blankLineCount
+      for (let index = 0; index < emptyParagraphCount; index += 1) {
+        blocks.push({ type: 'paragraph', data: { text: '' } })
+      }
       continue
     }
 
@@ -1443,10 +1459,26 @@ function blockToMarkdown(block: EditorBlock): string {
  */
 export function editorDataToMarkdown(data: { blocks?: EditorBlock[] } | null | undefined): string {
   const blocks = data?.blocks ?? []
-  const lines = blocks
-    .map((block) => blockToMarkdown(block))
-    .map((text) => normalizeMultiline(text))
-    .filter((text) => text.length > 0)
+  let markdown = ''
+  let hasContent = false
+  let pendingEmptyParagraphs = 0
 
-  return `${lines.join('\n\n')}\n`
+  for (const block of blocks) {
+    const text = normalizeMultiline(blockToMarkdown(block))
+    if (!text) {
+      if (block.type === 'paragraph') pendingEmptyParagraphs += 1
+      continue
+    }
+
+    if (!hasContent) {
+      markdown = `${'\n'.repeat(pendingEmptyParagraphs)}${text}`
+      hasContent = true
+    } else {
+      const separatorLength = pendingEmptyParagraphs > 0 ? pendingEmptyParagraphs + 1 : 1
+      markdown += `${'\n'.repeat(separatorLength)}${text}`
+    }
+    pendingEmptyParagraphs = 0
+  }
+
+  return hasContent ? `${markdown}${'\n'.repeat(pendingEmptyParagraphs + 1)}` : ''
 }

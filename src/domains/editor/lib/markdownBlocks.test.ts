@@ -198,6 +198,37 @@ describe('asset markdown blocks', () => {
   })
 })
 
+describe('blank Markdown lines', () => {
+  it('keeps additional blank lines as empty paragraphs', () => {
+    const parsed = markdownToEditorData('First paragraph\n\n\nSecond paragraph')
+
+    expect(parsed.blocks).toEqual([
+      { type: 'paragraph', data: { text: 'First paragraph' } },
+      { type: 'paragraph', data: { text: '' } },
+      { type: 'paragraph', data: { text: '' } },
+      { type: 'paragraph', data: { text: 'Second paragraph' } }
+    ])
+    expect(editorDataToMarkdown(parsed)).toBe('First paragraph\n\n\nSecond paragraph\n')
+  })
+
+  it('keeps one blank line as a visible empty paragraph', () => {
+    const parsed = markdownToEditorData('First paragraph\n\nSecond paragraph')
+
+    expect(parsed.blocks).toEqual([
+      { type: 'paragraph', data: { text: 'First paragraph' } },
+      { type: 'paragraph', data: { text: '' } },
+      { type: 'paragraph', data: { text: 'Second paragraph' } }
+    ])
+    expect(editorDataToMarkdown(parsed)).toBe('First paragraph\n\nSecond paragraph\n')
+  })
+
+  it('does not insert a blank line where none exists', () => {
+    const parsed = markdownToEditorData('## Heading\nParagraph')
+
+    expect(editorDataToMarkdown(parsed)).toBe('## Heading\nParagraph\n')
+  })
+})
+
 describe('markdownToEditorData tables', () => {
   it('parses column alignment markers from separator row', () => {
     const markdown = `
@@ -498,6 +529,10 @@ Ceci est un test
         data: { text: 'Ceci est un test' }
       },
       {
+        type: 'paragraph',
+        data: { text: '' }
+      },
+      {
         type: 'list',
         data: {
           style: 'unordered',
@@ -630,7 +665,7 @@ Ceci est un test
     })
   })
 
-  it('merges adjacent lists of the same style across a blank line', () => {
+  it('keeps a visible blank line between adjacent lists', () => {
     const markdown = `
 - first
 
@@ -638,21 +673,23 @@ Ceci est un test
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks).toHaveLength(1)
+    expect(parsed.blocks).toHaveLength(3)
     expect(parsed.blocks[0]).toEqual({
       type: 'list',
       data: {
         style: 'unordered',
-        items: [
-          { content: 'first', items: [] },
-          { content: 'second', items: [] }
-        ]
+        items: [{ content: 'first', items: [] }]
       }
+    })
+    expect(parsed.blocks[1]).toEqual({ type: 'paragraph', data: { text: '' } })
+    expect(parsed.blocks[2]).toEqual({
+      type: 'list',
+      data: { style: 'unordered', items: [{ content: 'second', items: [] }] }
     })
 
     const output = editorDataToMarkdown(parsed)
-    expect(output.trim()).toBe('- first\n- second')
-    expect(markdownToEditorData(output).blocks).toHaveLength(1)
+    expect(output.trim()).toBe('- first\n\n- second')
+    expect(markdownToEditorData(output).blocks).toHaveLength(3)
   })
 
   it('normalizes unicode newlines and indentation spaces in lists', () => {
@@ -663,6 +700,10 @@ Ceci est un test
       {
         type: 'header',
         data: { level: 2, text: 'Taches' }
+      },
+      {
+        type: 'paragraph',
+        data: { text: '' }
       },
       {
         type: 'list',
@@ -691,7 +732,7 @@ Ceci est un test
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks.map((block) => block.type)).toEqual(['list', 'header', 'list'])
+    expect(parsed.blocks.map((block) => block.type)).toEqual(['list', 'paragraph', 'header', 'paragraph', 'list'])
     expect(parsed.blocks[0]).toEqual({
       type: 'list',
       data: {
@@ -815,9 +856,10 @@ describe('indented blocks', () => {
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks).toHaveLength(2)
+    expect(parsed.blocks).toHaveLength(3)
     expect(parsed.blocks[0].type).toBe('paragraph')
-    expect(parsed.blocks[1]).toEqual({
+    expect(parsed.blocks[1]).toEqual({ type: 'paragraph', data: { text: '' } })
+    expect(parsed.blocks[2]).toEqual({
       type: 'code',
       data: {
         code: '[[showcase/folder_with_underscore/note_in_folder.md]]',
@@ -836,11 +878,12 @@ sddsd
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks).toHaveLength(2)
+    expect(parsed.blocks).toHaveLength(3)
     expect(parsed.blocks[0].type).toBe('html')
     expect(String(parsed.blocks[0].data.html)).toContain('<h1>hello</h1>')
-    expect(parsed.blocks[1].type).toBe('paragraph')
-    expect(String(parsed.blocks[1].data.text)).toBe('sddsd')
+    expect(parsed.blocks[1]).toEqual({ type: 'paragraph', data: { text: '' } })
+    expect(parsed.blocks[2].type).toBe('paragraph')
+    expect(String(parsed.blocks[2].data.text)).toBe('sddsd')
   })
 
   it('round-trips multiline html blocks as raw html markdown', () => {
@@ -889,7 +932,7 @@ describe('blockquote parsing', () => {
 })
 
 describe('markdownToEditorData regressions', () => {
-  it('keeps the reduced dashboard sample as one checklist block without paragraph inserts', () => {
+  it('keeps the reduced dashboard sample as one checklist block with its blank line', () => {
     const markdown = `
 ## Tâches à faire
 
@@ -903,13 +946,14 @@ describe('markdownToEditorData regressions', () => {
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks).toHaveLength(2)
+    expect(parsed.blocks).toHaveLength(3)
     expect(parsed.blocks[0].type).toBe('header')
-    expect(parsed.blocks[1].type).toBe('list')
-    expect(((parsed.blocks[1].data as { items: unknown[] }).items)).toHaveLength(3)
+    expect(parsed.blocks[1]).toEqual({ type: 'paragraph', data: { text: '' } })
+    expect(parsed.blocks[2].type).toBe('list')
+    expect(((parsed.blocks[2].data as { items: unknown[] }).items)).toHaveLength(3)
   })
 
-  it('keeps the larger dashboard sample free of paragraph blocks inside checklist sections', () => {
+  it('keeps visible blank lines between the larger dashboard sections', () => {
     const markdown = `
 ## Tâches à faire
 
@@ -940,6 +984,8 @@ describe('markdownToEditorData regressions', () => {
 `.trim()
 
     const parsed = markdownToEditorData(markdown)
-    expect(parsed.blocks.map((block) => block.type)).toEqual(['header', 'list', 'header', 'header', 'list'])
+    expect(parsed.blocks.map((block) => block.type)).toEqual([
+      'header', 'paragraph', 'list', 'paragraph', 'header', 'paragraph', 'header', 'paragraph', 'list'
+    ])
   })
 })
