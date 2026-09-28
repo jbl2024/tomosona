@@ -1,5 +1,13 @@
 # Changelog
 
+## [20260928.4] - 2026-09-28
+
+### Changed
+- refactor(editor): remove table column resizing (6b8e25e2)
+
+### Fixed
+- fix(editor): restore blue wikilink styling (e8a61049)
+
 ## [20260928.3] - 2026-09-28
 
 ### Changed
