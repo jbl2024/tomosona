@@ -410,7 +410,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
             nested: true
           }
         }),
-        Table.configure({ resizable: true }),
+        Table.configure({ resizable: false }),
         TableRow,
         TableHeader,
         TableCell,

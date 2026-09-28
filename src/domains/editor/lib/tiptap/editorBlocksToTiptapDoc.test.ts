@@ -192,7 +192,7 @@ describe('toTiptapDoc embed block', () => {
 })
 
 describe('toTiptapDoc table metadata', () => {
-  it('maps table align and widths metadata to table cell attrs', () => {
+  it('maps table alignment while ignoring legacy widths metadata', () => {
     const doc = toTiptapDoc([
       {
         type: 'table',
@@ -211,15 +211,15 @@ describe('toTiptapDoc table metadata', () => {
     const table = doc.content?.[0] as any
     const headerRow = table.content[0]
     const bodyRow = table.content[1]
-    expect(headerRow.content[0].attrs).toEqual({ textAlign: 'left', colwidth: [40] })
-    expect(headerRow.content[1].attrs).toEqual({ textAlign: 'center', colwidth: [20] })
-    expect(headerRow.content[2].attrs).toEqual({ textAlign: 'right', colwidth: [40] })
-    expect(bodyRow.content[0].attrs).toEqual({ textAlign: 'left', colwidth: [40] })
-    expect(bodyRow.content[1].attrs).toEqual({ textAlign: 'center', colwidth: [20] })
-    expect(bodyRow.content[2].attrs).toEqual({ textAlign: 'right', colwidth: [40] })
+    expect(headerRow.content[0].attrs).toEqual({ textAlign: 'left' })
+    expect(headerRow.content[1].attrs).toEqual({ textAlign: 'center' })
+    expect(headerRow.content[2].attrs).toEqual({ textAlign: 'right' })
+    expect(bodyRow.content[0].attrs).toEqual({ textAlign: 'left' })
+    expect(bodyRow.content[1].attrs).toEqual({ textAlign: 'center' })
+    expect(bodyRow.content[2].attrs).toEqual({ textAlign: 'right' })
   })
 
-  it('fills missing widths metadata to keep stable table column sizing', () => {
+  it('does not add column widths from legacy metadata', () => {
     const doc = toTiptapDoc([
       {
         type: 'table',
@@ -236,8 +236,8 @@ describe('toTiptapDoc table metadata', () => {
 
     const table = doc.content?.[0] as any
     const headerRow = table.content[0]
-    expect(headerRow.content[0].attrs.colwidth).toEqual([37])
-    expect(headerRow.content[1].attrs.colwidth).toEqual([30])
-    expect(headerRow.content[2].attrs.colwidth).toEqual([33])
+    expect(headerRow.content[0].attrs.colwidth).toBeUndefined()
+    expect(headerRow.content[1].attrs.colwidth).toBeUndefined()
+    expect(headerRow.content[2].attrs.colwidth).toBeUndefined()
   })
 })

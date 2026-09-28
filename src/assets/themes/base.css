@@ -344,7 +344,6 @@
   --editor-table-trigger-text: rgb(71 85 105);
   --editor-table-trigger-focus: rgb(96 165 250 / 0.55);
   --editor-table-plus-hover: rgb(248 250 252 / 0.7);
-  --editor-column-resize: rgb(59 130 246 / 0.55);
   --editor-quote-border: #7ba9d6;
   --editor-preview-bg: rgb(15 23 42 / 0.35);
   --editor-source-border: rgb(203 213 225);
@@ -627,7 +626,6 @@ html[data-theme='tomosona-dark'] {
   --editor-table-trigger-text: rgb(226 232 240);
   --editor-table-trigger-focus: rgb(147 197 253 / 0.65);
   --editor-table-plus-hover: rgb(30 41 59 / 0.55);
-  --editor-column-resize: rgb(96 165 250 / 0.65);
   --editor-quote-border: #5c6370;
   --editor-preview-bg: rgb(15 23 42 / 0.35);
   --editor-source-border: rgb(71 85 105);

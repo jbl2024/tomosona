@@ -81,7 +81,7 @@ describe('fromTiptapDoc asset block', () => {
 })
 
 describe('fromTiptapDoc table metadata', () => {
-  it('maps table cell attrs back to table align and widths metadata', () => {
+  it('maps table alignment while dropping column widths', () => {
     const blocks = fromTiptapDoc({
       type: 'doc',
       content: [
@@ -115,7 +115,6 @@ describe('fromTiptapDoc table metadata', () => {
         data: {
           withHeadings: true,
           align: ['left', 'center', 'right'],
-          widths: [40, 20, 40],
           content: [
             ['Nom', 'Age', 'Ville'],
             ['Alice', '30', 'Lyon']
@@ -125,7 +124,7 @@ describe('fromTiptapDoc table metadata', () => {
     ])
   })
 
-  it('fills missing colwidth values before serializing widths percentages', () => {
+  it('does not serialize colwidth values', () => {
     const blocks = fromTiptapDoc({
       type: 'doc',
       content: [
@@ -145,7 +144,7 @@ describe('fromTiptapDoc table metadata', () => {
       ]
     })
 
-    expect((blocks[0]?.data as Record<string, unknown>).widths).toEqual([37, 30, 33])
+    expect((blocks[0]?.data as Record<string, unknown>).widths).toBeUndefined()
   })
 })
 

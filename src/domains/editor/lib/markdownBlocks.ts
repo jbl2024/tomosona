@@ -109,7 +109,8 @@ type ListLineClassification =
   | { kind: 'blank-in-list' }
   | { kind: 'stop' }
 
-const TABLE_WIDTHS_LINE_RE = /^\{widths:\s*([^}]*)\s*\}$/i
+// Ignore legacy width metadata so opening an old note removes it on the next save.
+const LEGACY_TABLE_WIDTHS_LINE_RE = /^\{widths:\s*[^}]*\}$/i
 
 function normalizeLeadingIndentation(line: string): string {
   const match = line.match(/^[\t \u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]+/)
@@ -832,31 +833,6 @@ function parseTableSeparatorAlignments(line: string, expectedColumns: number): T
   return parsed
 }
 
-function parseTableWidthsLine(line: string, expectedColumns: number): Array<number | null> | null {
-  const match = line.trim().match(TABLE_WIDTHS_LINE_RE)
-  if (!match) return null
-  const raw = match[1] ?? ''
-  const parts = raw.split(',').map((part) => part.trim())
-  if (!parts.length) return null
-  const parsed = Array.from({ length: expectedColumns }, (_, index) => {
-    const token = parts[index] ?? ''
-    if (!token) return null
-    const numeric = Number.parseFloat(token.replace(/%$/, ''))
-    if (!Number.isFinite(numeric) || numeric <= 0) return null
-    return numeric
-  })
-  const defined = parsed.filter((value): value is number => typeof value === 'number')
-  if (!defined.length) return parsed
-
-  const sum = defined.reduce((acc, value) => acc + value, 0)
-  const shouldNormalizeAsWeights = sum > 100 || defined.some((value) => value > 100)
-  if (!shouldNormalizeAsWeights) {
-    return parsed.map((value) => (value === null ? null : Math.max(1, Math.round(value))))
-  }
-
-  return parsed.map((value) => (value === null ? null : Math.max(1, Math.round((value / sum) * 100))))
-}
-
 function isMarkdownTableStart(lines: string[], index: number): boolean {
   if (index + 1 >= lines.length) return false
   const header = parseTableCells(lines[index], { allowEmptyRow: true })
@@ -1164,16 +1140,14 @@ export function markdownToEditorData(markdown: string): EditorDocument {
       }
       const columnCount = Math.max(2, ...rows.map((row) => row.length))
       const normalizedAlign = Array.from({ length: columnCount }, (_, index) => align[index] ?? null)
-      const widths = i < lines.length ? parseTableWidthsLine(lines[i], columnCount) : null
-      if (widths) i += 1
+      if (i < lines.length && LEGACY_TABLE_WIDTHS_LINE_RE.test(lines[i].trim())) i += 1
 
       blocks.push({
         type: 'table',
         data: {
           withHeadings: true,
           content: rows,
-          ...(normalizedAlign.some((item) => item !== null) ? { align: normalizedAlign } : {}),
-          ...(widths && widths.some((item) => item !== null) ? { widths } : {})
+          ...(normalizedAlign.some((item) => item !== null) ? { align: normalizedAlign } : {})
         }
       })
       continue
@@ -1415,22 +1389,11 @@ function blockToMarkdown(block: EditorBlock): string {
         if (token === 'left' || token === 'center' || token === 'right') return token as TableAlign
         return null
       })
-      const widthsRaw = Array.isArray(block.data?.widths) ? block.data.widths : []
-      const widths = Array.from({ length: columnCount }, (_, idx) => {
-        const numeric = Number.parseInt(String(widthsRaw[idx] ?? ''), 10)
-        if (!Number.isFinite(numeric) || numeric <= 0) return null
-        return Math.max(1, Math.min(100, numeric))
-      })
-
       const normalizedRows = rows.map(pad)
       const header = withHeadings ? normalizedRows[0] : Array.from({ length: columnCount }, () => '')
       const bodyRows = withHeadings ? normalizedRows.slice(1) : normalizedRows
       const separator = `| ${align.map((item) => tableSeparatorCell(item)).join(' | ')} |`
-      const markdownLines = [rowToLine(header), separator, ...bodyRows.map(rowToLine)]
-      if (widths.some((item) => item !== null)) {
-        markdownLines.push(`{widths: ${widths.map((item) => (item === null ? '' : `${item}%`)).join(',')}}`)
-      }
-      return markdownLines.join('\n')
+      return [rowToLine(header), separator, ...bodyRows.map(rowToLine)].join('\n')
     }
 
     case 'mermaid': {

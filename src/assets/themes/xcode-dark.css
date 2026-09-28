@@ -115,7 +115,6 @@ html[data-theme='xcode-dark'] {
   --editor-table-trigger-text: rgb(227 234 243);
   --editor-table-trigger-focus: rgb(122 184 255 / 0.62);
   --editor-table-plus-hover: rgb(42 48 56 / 0.56);
-  --editor-column-resize: rgb(75 163 255 / 0.62);
   --editor-quote-border: #4b5664;
   --editor-preview-bg: rgb(12 23 36 / 0.34);
   --editor-source-border: rgb(88 102 120);

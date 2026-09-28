@@ -27,62 +27,6 @@ function normalizeMarks(marks: TiptapMark[]): TiptapMark[] {
   return normalized
 }
 
-function roundPercentagesToHundred(values: number[]): number[] {
-  if (!values.length) return []
-  const floors = values.map((value) => Math.max(1, Math.floor(value)))
-  let total = floors.reduce((acc, value) => acc + value, 0)
-  if (total === 100) return floors
-
-  const remainders = values.map((value, index) => ({ index, fraction: value - Math.floor(value) }))
-  if (total < 100) {
-    remainders.sort((a, b) => b.fraction - a.fraction)
-    let cursor = 0
-    while (total < 100) {
-      floors[remainders[cursor % remainders.length].index] += 1
-      total += 1
-      cursor += 1
-    }
-    return floors
-  }
-
-  remainders.sort((a, b) => a.fraction - b.fraction)
-  let cursor = 0
-  while (total > 100 && remainders.length > 0) {
-    const idx = remainders[cursor % remainders.length].index
-    if (floors[idx] > 1) {
-      floors[idx] -= 1
-      total -= 1
-    }
-    cursor += 1
-    if (cursor > remainders.length * 3) break
-  }
-  return floors
-}
-
-function normalizedTableWidthPercents(widthsRaw: unknown[], columnCount: number): Array<number | null> {
-  const parsed = Array.from({ length: columnCount }, (_, index) => {
-    const numeric = Number.parseFloat(String(widthsRaw[index] ?? '').replace(/%$/, ''))
-    if (!Number.isFinite(numeric) || numeric <= 0) return null
-    return numeric
-  })
-  const defined = parsed.filter((value): value is number => typeof value === 'number')
-  if (!defined.length) return parsed
-
-  const missingCount = parsed.filter((value) => value === null).length
-  if (missingCount > 0) {
-    const fallback = Math.max(1, defined.reduce((acc, value) => acc + value, 0) / defined.length)
-    for (let index = 0; index < parsed.length; index += 1) {
-      if (parsed[index] === null) parsed[index] = fallback
-    }
-  }
-
-  const values = parsed.map((value) => Number(value ?? 0))
-  const sum = values.reduce((acc, value) => acc + value, 0)
-  if (sum <= 0) return parsed
-  const scaled = values.map((value) => (value / sum) * 100)
-  return roundPercentagesToHundred(scaled)
-}
-
 function marksForElement(element: HTMLElement): Array<{ type: string; attrs?: Record<string, unknown> }> {
   const out: Array<{ type: string; attrs?: Record<string, unknown> }> = []
   const tag = element.tagName.toLowerCase()
@@ -292,12 +236,10 @@ function blockToNode(block: EditorBlock): TiptapNode | null {
     case 'table': {
       const rows = Array.isArray(data.content) ? data.content : []
       const alignRaw = Array.isArray(data.align) ? data.align : []
-      const widthsRaw = Array.isArray(data.widths) ? data.widths : []
       const rowNodes: TiptapNode[] = rows.map((row, rowIndex) => {
         const cells = Array.isArray(row) ? row : []
         const cellType = rowIndex === 0 ? 'tableHeader' : 'tableCell'
-        const columnCount = Math.max(cells.length, alignRaw.length, widthsRaw.length)
-        const widthPercents = normalizedTableWidthPercents(widthsRaw, columnCount)
+        const columnCount = Math.max(cells.length, alignRaw.length)
         return {
           type: 'tableRow',
           content: Array.from({ length: columnCount }, (_, colIndex) => {
@@ -305,15 +247,10 @@ function blockToNode(block: EditorBlock): TiptapNode | null {
             const textAlign: TableAlign = rawAlign === 'left' || rawAlign === 'center' || rawAlign === 'right'
               ? (rawAlign as TableAlign)
               : null
-            const widthPercent = Number.parseInt(String(widthPercents[colIndex] ?? ''), 10)
-            const colwidth = Number.isFinite(widthPercent) && widthPercent > 0
-              ? [Math.max(1, widthPercent)]
-              : null
             return {
               type: cellType,
               attrs: {
-                textAlign,
-                colwidth
+                textAlign
               },
               content: [{ type: 'paragraph', content: inlineNodesFromHtml(String(cells[colIndex] ?? '')) }]
             }

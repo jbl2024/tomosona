@@ -221,7 +221,7 @@ describe('markdownToEditorData tables', () => {
     })
   })
 
-  it('parses optional table widths metadata line', () => {
+  it('discards legacy table widths metadata', () => {
     const markdown = `
 | Nom | Age | Ville |
 | --- | :-: | ---: |
@@ -236,7 +236,6 @@ describe('markdownToEditorData tables', () => {
       data: {
         withHeadings: true,
         align: [null, 'center', 'right'],
-        widths: [40, 20, 40],
         content: [
           ['Nom', 'Age', 'Ville'],
           ['Alice', '30', 'Lyon']
@@ -245,7 +244,7 @@ describe('markdownToEditorData tables', () => {
     })
   })
 
-  it('normalizes legacy absolute-like widths into percentages', () => {
+  it('does not retain legacy absolute-like widths', () => {
     const markdown = `
 | A | B | C |
 | --- | --- | --- |
@@ -255,7 +254,7 @@ describe('markdownToEditorData tables', () => {
 
     const parsed = markdownToEditorData(markdown)
     expect(parsed.blocks).toHaveLength(1)
-    expect((parsed.blocks[0].data as Record<string, unknown>).widths).toEqual([47, 19, 35])
+    expect((parsed.blocks[0].data as Record<string, unknown>).widths).toBeUndefined()
   })
 
   it('parses tables that have an empty header row', () => {
@@ -294,11 +293,9 @@ describe('markdownToEditorData tables', () => {
     expect(parsed.blocks[0].type).toBe('table')
     const tableData = parsed.blocks[0].data as {
       align?: Array<'left' | 'center' | 'right' | null>
-      widths?: Array<number | null>
       content: string[][]
     }
     expect(tableData.align).toEqual([null, null, 'center', null])
-    expect(tableData.widths).toEqual([30, 10, 30, 30])
     expect(tableData.content[0]).toEqual(['A', 'B', 'C', ''])
     expect(tableData.content[1]).toHaveLength(4)
     expect(tableData.content[1]?.[0]).toContain('graph/adaptation.md')
@@ -372,7 +369,7 @@ describe('markdownToEditorData tables', () => {
     expect(output).toContain('| x |  |  |')
   })
 
-  it('serializes alignment markers and widths line when explicit widths exist', () => {
+  it('serializes alignment markers without a widths line', () => {
     const output = editorDataToMarkdown({
       blocks: [
         {
@@ -391,7 +388,7 @@ describe('markdownToEditorData tables', () => {
     })
 
     expect(output).toContain('| :--- | :---: | ---: |')
-    expect(output).toContain('{widths: 40%,20%,40%}')
+    expect(output).not.toContain('{widths:')
   })
 
   it('does not serialize widths metadata when no explicit width is provided', () => {
@@ -416,7 +413,7 @@ describe('markdownToEditorData tables', () => {
     expect(output).not.toContain('{widths:')
   })
 
-  it('keeps align and widths across markdown round-trip', () => {
+  it('keeps alignment and drops legacy widths across markdown round-trip', () => {
     const input = `
 | Left | Center | Right |
 | :--- | :---: | ---: |
@@ -428,7 +425,8 @@ describe('markdownToEditorData tables', () => {
     const output = editorDataToMarkdown(parsed)
     const reparsed = markdownToEditorData(output)
     expect((reparsed.blocks[0].data as Record<string, unknown>).align).toEqual(['left', 'center', 'right'])
-    expect((reparsed.blocks[0].data as Record<string, unknown>).widths).toEqual([40, 20, 40])
+    expect(output).not.toContain('{widths:')
+    expect((reparsed.blocks[0].data as Record<string, unknown>).widths).toBeUndefined()
   })
 })
 
