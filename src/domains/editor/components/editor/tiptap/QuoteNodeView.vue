@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import { inlineTextToHtml } from '../../../lib/markdownBlocks'
+import { INLINE_TEXT_COMMAND_HANDLER } from '../../../lib/inlineTextCommands'
 
 const props = defineProps<{
   node: { attrs: { text?: string } }
   updateAttributes: (attrs: Record<string, unknown>) => void
   editor: { isEditable: boolean }
+  getPos?: () => number
 }>()
 
 const text = computed(() => String(props.node.attrs.text ?? ''))
@@ -14,6 +16,18 @@ const renderedText = computed(() => inlineTextToHtml(text.value).replace(/\n/g, 
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
 const isEditing = ref(false)
 let pendingTextUpdate: string | undefined
+const inlineTextCommands = inject(INLINE_TEXT_COMMAND_HANDLER, null)
+
+function commandInput(textarea: HTMLTextAreaElement) {
+  return {
+    element: textarea,
+    value: textarea.value,
+    selectionStart: textarea.selectionStart,
+    selectionEnd: textarea.selectionEnd,
+    getPos: props.getPos ?? (() => 0),
+    setValue: (value: string) => props.updateAttributes({ text: value })
+  }
+}
 
 function startEditing(event: Event) {
   if (!props.editor.isEditable || (event.target as Element | null)?.closest('a')) return
@@ -50,11 +64,22 @@ function onInput(event: Event) {
   const value = textarea?.value ?? ''
   pendingTextUpdate = value
   props.updateAttributes({ text: value })
+  if (textarea) inlineTextCommands?.onInput(commandInput(textarea))
 }
 
 function onFocus() {
   if (props.editor.isEditable) isEditing.value = true
   scheduleAutosize()
+}
+
+function onKeydown(event: KeyboardEvent) {
+  const textarea = event.currentTarget as HTMLTextAreaElement
+  inlineTextCommands?.onKeydown(event, commandInput(textarea))
+}
+
+function onKeyup(event: KeyboardEvent) {
+  const textarea = event.currentTarget as HTMLTextAreaElement
+  inlineTextCommands?.onInput(commandInput(textarea))
 }
 
 onMounted(() => {
@@ -80,7 +105,7 @@ watch(isEditing, (editing) => {
       class="tomosona-quote-preview"
       :tabindex="editor.isEditable ? 0 : undefined"
       :aria-label="editor.isEditable ? 'Edit quote' : undefined"
-      @click="startEditing"
+      @click.stop="startEditing"
       @keydown.enter="startEditing"
       @keydown.space="startEditing"
     >
@@ -98,8 +123,10 @@ watch(isEditing, (editing) => {
       placeholder="Quote text"
       aria-label="Quote Markdown"
       @focus="onFocus"
-      @blur="isEditing = false"
+      @blur="isEditing = false; inlineTextCommands?.onBlur()"
       @input="onInput"
+      @keydown="onKeydown"
+      @keyup="onKeyup"
     />
   </NodeViewWrapper>
 </template>

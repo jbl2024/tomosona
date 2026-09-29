@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Bars3Icon } from '@heroicons/vue/24/outline'
 import { createExtractedNote, importAssetFiles, openExternalUrl } from '../../../shared/api/workspaceApi'
@@ -46,6 +46,7 @@ import { useWorkspaceSpellcheckDictionary } from '../composables/useWorkspaceSpe
 import { sourceEditorLanguageLabelForPath } from '../../../app/lib/appShellDocuments'
 import { isMarkdownPath } from '../../../app/lib/appShellPaths'
 import { buildNewNoteTemplateItems } from '../../../app/lib/newNoteTemplates'
+import { INLINE_TEXT_COMMAND_HANDLER, type InlineTextCommandInput } from '../lib/inlineTextCommands'
 import { useEditorSourceMode } from '../composables/useEditorSourceMode'
 import { useSourceEditorRuntime } from '../composables/useSourceEditorRuntime'
 import {
@@ -634,6 +635,150 @@ const {
   revealAnchor
 } = interactionRuntime
 
+type InlineCompletionKind = 'slash' | 'at' | 'wikilink'
+type InlineCompletion = { kind: InlineCompletionKind; input: InlineTextCommandInput; start: number; end: number }
+const inlineCompletion = ref<InlineCompletion | null>(null)
+const inlineWikilinkRequest = ref(0)
+
+function placeInlineMenu(input: InlineTextCommandInput, left: Ref<number>, top: Ref<number>) {
+  const rect = input.element.getBoundingClientRect()
+  left.value = Math.max(12, Math.min(rect.left, window.innerWidth - 332))
+  top.value = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 292))
+}
+
+function closeInlineCompletion() {
+  inlineCompletion.value = null
+}
+
+function replaceInlineCompletion(replacement: string, selectionOffset = replacement.length) {
+  const completion = inlineCompletion.value
+  if (!completion) return false
+  const { input, start, end } = completion
+  const next = `${input.value.slice(0, start)}${replacement}${input.value.slice(end)}`
+  input.element.value = next
+  input.setValue(next)
+  const caret = start + selectionOffset
+  void nextTick().then(() => {
+    input.element.focus()
+    input.element.setSelectionRange(caret, caret)
+  })
+  closeInlineCompletion()
+  dismissSlashMenu()
+  dismissAtMenu()
+  closeWikilinkMenu()
+  return true
+}
+
+function syncInlineTextCommands(input: InlineTextCommandInput) {
+  const before = input.value.slice(0, input.selectionStart)
+  const wikiStart = before.lastIndexOf('[[')
+  if (wikiStart >= 0 && !before.slice(wikiStart + 2).includes(']]')) {
+    const query = before.slice(wikiStart + 2)
+    inlineCompletion.value = { kind: 'wikilink', input, start: wikiStart, end: input.selectionStart }
+    placeInlineMenu(input, wikilinkLeft, wikilinkTop)
+    wikilinkOpen.value = true
+    const request = ++inlineWikilinkRequest.value
+    void props.loadLinkTargets().then((targets) => {
+      if (request !== inlineWikilinkRequest.value || inlineCompletion.value?.kind !== 'wikilink') return
+      const normalized = query.trim().toLowerCase()
+      const matches = targets.filter((target) => !normalized || target.toLowerCase().includes(normalized)).slice(0, 12)
+      wikilinkResults.value = matches.map((target) => ({ id: `existing:${target}`, label: target, target, isCreate: false }))
+      if (normalized && !matches.some((target) => target.toLowerCase() === normalized)) {
+        wikilinkResults.value.unshift({ id: `create:${query.trim()}`, label: `Create "${query.trim()}"`, target: query.trim(), isCreate: true })
+      }
+    }).catch(() => { wikilinkResults.value = [] })
+    return
+  }
+  const atMatch = before.match(/(?:^|[\s([\{\n])@([a-zA-Z0-9_.+\- ]*)$/)
+  if (atMatch) {
+    const query = atMatch[1] ?? ''
+    inlineCompletion.value = { kind: 'at', input, start: input.selectionStart - query.length - 1, end: input.selectionStart }
+    placeInlineMenu(input, atLeft, atTop)
+    atQuery.value = query
+    atIndex.value = 0
+    atOpen.value = true
+    return
+  }
+  const slashMatch = before.match(/(?:^|\n)\/([a-zA-Z0-9_-]*)$/)
+  if (slashMatch) {
+    const query = slashMatch[1] ?? ''
+    inlineCompletion.value = { kind: 'slash', input, start: input.selectionStart - query.length - 1, end: input.selectionStart }
+    placeInlineMenu(input, slashLeft, slashTop)
+    slashQuery.value = query
+    slashIndex.value = 0
+    slashOpen.value = visibleSlashCommands.value.length > 0
+    return
+  }
+  closeInlineCompletion()
+}
+
+function handleInlineTextKeydown(event: KeyboardEvent, input: InlineTextCommandInput) {
+  const completion = inlineCompletion.value
+  if (!completion || completion.input.element !== input.element) return
+  const items = completion.kind === 'slash' ? visibleSlashCommands.value : completion.kind === 'at' ? visibleAtMacros.value : wikilinkResults.value
+  const index = completion.kind === 'slash' ? slashIndex : completion.kind === 'at' ? atIndex : wikilinkIndex
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (items.length) index.value = (index.value + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    closeInlineCompletion()
+    dismissSlashMenu(); dismissAtMenu(); closeWikilinkMenu()
+  } else if (event.key === 'Enter' && items.length) {
+    event.preventDefault()
+    if (completion.kind === 'at') replaceInlineCompletion(visibleAtMacros.value[atIndex.value]?.replacement ?? '')
+    if (completion.kind === 'wikilink') replaceInlineCompletion(`[[${wikilinkResults.value[wikilinkIndex.value]?.target ?? ''}]]`)
+    if (completion.kind === 'slash') selectInlineSlashCommand(visibleSlashCommands.value[slashIndex.value])
+  }
+}
+
+function selectInlineAtMacro(item: typeof visibleAtMacros.value[number]) {
+  if (inlineCompletion.value?.kind === 'at') {
+    replaceInlineCompletion(item.replacement)
+    return
+  }
+  void interactionRuntime.insertAtMacro(item)
+}
+
+function selectInlineWikilink(target: string) {
+  if (inlineCompletion.value?.kind === 'wikilink') {
+    replaceInlineCompletion(`[[${target}]]`)
+    return
+  }
+  onWikilinkMenuSelect(target)
+}
+
+function selectInlineSlashCommand(command: typeof visibleSlashCommands.value[number] | undefined) {
+  const completion = inlineCompletion.value
+  if (!command || completion?.kind !== 'slash') {
+    if (command) insertBlockFromDescriptor(command.type, command.data)
+    return
+  }
+  const editor = activeEditor.value
+  const node = editor?.state.doc.nodeAt(completion.input.getPos())
+  if (!editor || !node) return
+  replaceInlineCompletion('')
+  const content = (() => {
+    switch (command.type) {
+      case 'header': return { type: 'heading', attrs: { level: Number(command.data.level ?? 2) } }
+      case 'list': return { type: command.data.style === 'checklist' ? 'taskList' : command.data.style === 'ordered' ? 'orderedList' : 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] }
+      case 'callout': return { type: 'calloutBlock', attrs: { kind: String(command.data.kind ?? 'NOTE'), message: '' } }
+      case 'quote': return { type: 'quoteBlock', attrs: { text: '' } }
+      case 'code': return { type: 'codeBlock', attrs: { language: '' } }
+      case 'delimiter': return { type: 'horizontalRule' }
+      case 'table': return { type: 'table', content: [{ type: 'tableRow', content: [{ type: 'tableHeader', content: [{ type: 'paragraph' }] }, { type: 'tableHeader', content: [{ type: 'paragraph' }] }] }] }
+      default: return { type: 'paragraph' }
+    }
+  })()
+  editor.chain().insertContentAt(completion.input.getPos() + node.nodeSize, content).run()
+}
+
+provide(INLINE_TEXT_COMMAND_HANDLER, {
+  onInput: syncInlineTextCommands,
+  onKeydown: handleInlineTextKeydown,
+  onBlur: () => { window.setTimeout(closeInlineCompletion, 120) }
+})
+
 function getSession(path: string) {
   if (sourceMode.isSourceMode(path)) {
     return sourceRuntime?.getSession(path) ?? null
@@ -1144,7 +1289,7 @@ defineExpose({
             :commands="visibleSlashCommands"
             @update:index="slashIndex = $event"
             @update:query="setSlashQuery($event)"
-            @select="dismissSlashMenu(); insertBlockFromDescriptor($event.type, $event.data)"
+            @select="dismissSlashMenu(); selectInlineSlashCommand($event)"
             @close="dismissSlashMenu(); focusEditor()"
           />
 
@@ -1157,7 +1302,7 @@ defineExpose({
             :items="visibleAtMacros"
             @update:index="atIndex = $event"
             @update:query="setAtQuery($event)"
-            @select="interactionRuntime.insertAtMacro($event)"
+            @select="selectInlineAtMacro($event)"
             @close="dismissAtMenu(); focusEditor()"
           />
 
@@ -1176,7 +1321,7 @@ defineExpose({
             :top="wikilinkTop"
             :results="wikilinkResults"
             @update:index="onWikilinkMenuIndexUpdate($event)"
-            @select="onWikilinkMenuSelect($event)"
+            @select="selectInlineWikilink($event)"
           />
 
           <EditorContextOverlays

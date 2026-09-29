@@ -1047,14 +1047,10 @@ export function markdownToEditorData(markdown: string): EditorDocument {
         i += 1
       }
 
-      // Every blank Markdown line is an intentional empty paragraph and must
-      // remain visible in the editor.
+      // One blank line separates Markdown blocks. Only additional blank lines
+      // represent visible empty paragraphs (for example, `A\n\n\nB`).
       const hasPreviousBlock = blocks.length > 0
-      const hasNextLine = i < lines.length
-      // A final newline terminates the file; it is not itself an empty line.
-      const emptyParagraphCount = hasPreviousBlock && !hasNextLine
-        ? Math.max(0, blankLineCount - 1)
-        : blankLineCount
+      const emptyParagraphCount = hasPreviousBlock ? Math.max(0, blankLineCount - 1) : 0
       for (let index = 0; index < emptyParagraphCount; index += 1) {
         blocks.push({ type: 'paragraph', data: { text: '' } })
       }
@@ -1474,7 +1470,7 @@ export function editorDataToMarkdown(data: { blocks?: EditorBlock[] } | null | u
       markdown = `${'\n'.repeat(pendingEmptyParagraphs)}${text}`
       hasContent = true
     } else {
-      const separatorLength = pendingEmptyParagraphs > 0 ? pendingEmptyParagraphs + 1 : 1
+      const separatorLength = pendingEmptyParagraphs + 2
       markdown += `${'\n'.repeat(separatorLength)}${text}`
     }
     pendingEmptyParagraphs = 0

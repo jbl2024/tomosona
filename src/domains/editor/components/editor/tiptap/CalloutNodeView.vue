@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch, type Component } from 'vue'
+import { computed, inject, nextTick, onMounted, ref, watch, type Component } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import {
   BeakerIcon,
@@ -18,11 +18,13 @@ import {
 import UiFilterableDropdown, { type FilterableDropdownItem } from '../../../../../shared/components/ui/UiFilterableDropdown.vue'
 import { CANONICAL_CALLOUT_KINDS, calloutKindLabel, normalizeCalloutKind, type CanonicalCalloutKind } from '../../../lib/callouts'
 import { inlineTextToHtml } from '../../../lib/markdownBlocks'
+import { INLINE_TEXT_COMMAND_HANDLER } from '../../../lib/inlineTextCommands'
 
 const props = defineProps<{
   node: { attrs: { kind?: string; message?: string } }
   updateAttributes: (attrs: Record<string, unknown>) => void
   editor: { isEditable: boolean }
+  getPos?: () => number
 }>()
 
 const kind = computed(() => normalizeCalloutKind(props.node.attrs.kind))
@@ -33,6 +35,7 @@ let pendingMessageUpdate = ''
 const showKindMenu = ref(false)
 const kindQuery = ref('')
 const activeKindIndex = ref(0)
+const inlineTextCommands = inject(INLINE_TEXT_COMMAND_HANDLER, null)
 const iconByKind: Record<CanonicalCalloutKind, Component> = {
   NOTE: DocumentTextIcon,
   ABSTRACT: QueueListIcon,
@@ -58,6 +61,17 @@ const kindItems = computed<Array<FilterableDropdownItem & { value: string; alias
 )
 const currentKindIcon = computed(() => iconByKind[kind.value])
 const renderedMessage = computed(() => inlineTextToHtml(message.value).replace(/\n/g, '<br>'))
+
+function commandInput(textarea: HTMLTextAreaElement) {
+  return {
+    element: textarea,
+    value: textarea.value,
+    selectionStart: textarea.selectionStart,
+    selectionEnd: textarea.selectionEnd,
+    getPos: props.getPos ?? (() => 0),
+    setValue: (value: string) => props.updateAttributes({ message: value })
+  }
+}
 
 function kindMatcher(item: FilterableDropdownItem, query: string): boolean {
   const aliases = Array.isArray(item.aliases) ? item.aliases.map((entry) => String(entry)) : []
@@ -97,6 +111,15 @@ function onMessageInput(event: Event) {
   const value = textarea?.value ?? ''
   pendingMessageUpdate = value
   props.updateAttributes({ message: value })
+  if (textarea) inlineTextCommands?.onInput(commandInput(textarea))
+}
+
+function onMessageKeydown(event: KeyboardEvent) {
+  inlineTextCommands?.onKeydown(event, commandInput(event.currentTarget as HTMLTextAreaElement))
+}
+
+function onMessageKeyup(event: KeyboardEvent) {
+  inlineTextCommands?.onInput(commandInput(event.currentTarget as HTMLTextAreaElement))
 }
 
 function editMessage(event: MouseEvent) {
@@ -181,7 +204,7 @@ watch(isEditingMessage, (isEditing) => {
     </div>
     <div
       class="tomosona-callout-message tomosona-callout-preview"
-      @click="editMessage"
+      @click.stop="editMessage"
       v-html="renderedMessage"
     ></div>
     <textarea
@@ -193,8 +216,10 @@ watch(isEditingMessage, (isEditing) => {
       spellcheck="false"
       placeholder="Callout text"
       @focus="scheduleAutosize"
-      @blur="stopEditingMessage"
+      @blur="stopEditingMessage(); inlineTextCommands?.onBlur()"
       @input="onMessageInput"
+      @keydown="onMessageKeydown"
+      @keyup="onMessageKeyup"
     />
   </NodeViewWrapper>
 </template>
