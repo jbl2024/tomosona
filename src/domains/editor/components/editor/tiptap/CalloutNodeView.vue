@@ -187,7 +187,7 @@ watch(isEditingMessage, (isEditing) => {
     <textarea
       v-if="editor.isEditable"
       ref="textareaEl"
-      class="tomosona-quote-source tomosona-callout-message tomosona-callout-source"
+      class="tomosona-callout-message tomosona-callout-source"
       :value="message"
       rows="1"
       spellcheck="false"

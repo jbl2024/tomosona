@@ -67,6 +67,11 @@ watch(text, (value) => {
   pendingTextUpdate = undefined
   scheduleAutosize()
 }, { flush: 'post' })
+
+watch(isEditing, (editing) => {
+  // The textarea is hidden in preview mode, so measure it only after it opens.
+  if (editing) scheduleAutosize()
+}, { flush: 'post' })
 </script>
 
 <template>

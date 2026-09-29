@@ -93,6 +93,8 @@ describe('CalloutNodeView', () => {
     await flush()
 
     const textarea = harness.root.querySelector('textarea.tomosona-callout-message') as HTMLTextAreaElement
+    expect(textarea.classList).toContain('tomosona-callout-source')
+    expect(textarea.classList).not.toContain('tomosona-quote-source')
     textarea.value = 'After update'
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
     await flush()

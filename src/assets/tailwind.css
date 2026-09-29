@@ -265,15 +265,30 @@
     border-left: 4px solid #7ba9d6;
   }
 
-  .editor-holder .tomosona-quote-preview {
+  .editor-holder .tomosona-quote-preview,
+  .editor-holder .tomosona-quote-source {
+    box-sizing: border-box;
+    width: 100%;
+    border: 0;
     border-radius: 0.35rem;
     background: #f8fafc;
     color: #374151;
-    padding: 0.92rem 1rem 0.9rem;
+    margin: 0;
+    font: inherit;
+    padding: 0.92rem 1rem;
+    font-family: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    font-size: calc(1.01rem * var(--editor-zoom));
+    line-height: 1.65;
+  }
+
+  .editor-holder .tomosona-quote-preview {
     cursor: text;
   }
 
   .editor-holder .tomosona-quote-preview-content {
+    margin: 0;
   }
 
   .editor-holder .tomosona-quote-paragraph {
@@ -304,15 +319,7 @@
   }
 
   .editor-holder .tomosona-quote-source {
-    width: 100%;
-    border: 0;
-    border-radius: 0.35rem;
-    background: #f8fafc;
-    color: #374151;
-    font: inherit;
-    font-size: calc(1.01rem * var(--editor-zoom));
-    line-height: 1.65;
-    padding: 0.92rem 1rem;
+    display: block;
     resize: none;
     white-space: pre-wrap;
     overflow-x: hidden;
@@ -757,6 +764,15 @@
   }
 
   .editor-holder .tomosona-callout-message {
+    box-sizing: border-box;
+    width: 100%;
+    border: 0;
+    border-radius: 0.35rem;
+    background: #f8fafc;
+    padding: 0.92rem 1rem;
+    font-family: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
     margin-top: 0.75rem;
     line-height: 1.65;
     color: #111827;
@@ -765,14 +781,13 @@
   }
 
   .editor-holder .tomosona-callout-preview {
-    border-radius: 0.35rem;
-    background: #f8fafc;
-    padding: 0.92rem 1rem;
     cursor: text;
   }
 
   .editor-holder .tomosona-callout-source {
     display: none;
+    resize: none;
+    overflow: hidden;
   }
 
   .editor-holder .tomosona-callout.is-editing .tomosona-callout-preview {

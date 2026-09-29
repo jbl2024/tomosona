@@ -11,8 +11,15 @@ const globalStyles = readFileSync(resolve(process.cwd(), 'src/assets/tailwind.cs
 
 describe('editor content styles contract', () => {
   it('shows only the source while editing a quote and only the preview otherwise', () => {
+    expect(globalStyles).toContain('.editor-holder .tomosona-quote-source {\n    display: block;')
     expect(globalStyles).toContain('.tomosona-quote.is-editing .tomosona-quote-preview {\n    display: none;')
     expect(globalStyles).toContain('.tomosona-quote:not(.is-editing) .tomosona-quote-source {\n    display: none;')
+  })
+
+  it('keeps quote preview paragraphs free of document paragraph margins', () => {
+    expect(editorStyles).toMatch(
+      /\.editor-holder \.ProseMirror \.tomosona-quote-paragraph\s*\{[\s\S]*?margin:\s*0;/
+    )
   })
 
   it('keeps EditorView stylesheet import', () => {

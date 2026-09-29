@@ -371,7 +371,10 @@
   padding: 0.62rem 0.72rem;
 }
 
-.editor-holder .tomosona-quote-paragraph {
+.editor-holder .ProseMirror .tomosona-quote-paragraph {
+  /* Quotes render their own padded surface; inherited paragraph margins would
+     make the read view taller than its editing textarea. */
+  margin: 0;
   font-size: calc(0.95rem * var(--editor-zoom, 1));
   line-height: 1.48;
 }

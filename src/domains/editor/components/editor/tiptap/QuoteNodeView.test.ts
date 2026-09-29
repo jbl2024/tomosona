@@ -167,6 +167,21 @@ describe('QuoteNodeView', () => {
     harness.app.unmount()
   })
 
+  it('autosizes the quote source after it becomes visible', async () => {
+    const harness = mountHarness({ initialText: 'line 1\nline 2\nline 3' })
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-quote-source') as HTMLTextAreaElement
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 96 })
+
+    ;(harness.root.querySelector('.tomosona-quote-preview') as HTMLElement).click()
+    await flush()
+
+    expect(textarea.style.height).toBe('96px')
+
+    harness.app.unmount()
+  })
+
   it('keeps a full single-line height for quote textarea', async () => {
     const harness = mountHarness({ initialText: '' })
     await flush()
