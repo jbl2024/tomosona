@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260929.1] - 2026-09-29
+
+### Fixed
+- fix: elements do not move when in editing mode (d9de4c9d)
+
 ## [20260928.5] - 2026-09-28
 
 ### Changed
