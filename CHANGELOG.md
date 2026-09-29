@@ -1,5 +1,10 @@
 # Changelog
 
+## [20260929.2] - 2026-09-29
+
+### Added
+- feat(editor): support commands in quote and callout text (74ecab4e)
+
 ## [20260929.1] - 2026-09-29
 
 ### Fixed
