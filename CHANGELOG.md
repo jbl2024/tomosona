@@ -1,5 +1,13 @@
 # Changelog
 
+## [20260930.1] - 2026-09-30
+
+### Changed
+- chore(release): add automated release target (8f9e7af3)
+
+### Fixed
+- fix(editor): preserve inline command context in atomic blocks (fac0af43)
+
 ## [20260929.2] - 2026-09-29
 
 ### Added
