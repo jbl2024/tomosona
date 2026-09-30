@@ -1,4 +1,6 @@
-.PHONY: help install dev tauri-dev build tauri-build tauri-prod-local preflight preflight-full test-front test-front-coverage coverage-front coverage-back coverage clean clean-frontend clean-tauri clean-deps prepare-release
+.PHONY: help install dev tauri-dev build tauri-build tauri-prod-local preflight preflight-full test-front test-front-coverage coverage-front coverage-back coverage clean clean-frontend clean-tauri clean-deps pre-release prepare-release release
+
+VERSION_NO_V ?= $(shell ./scripts/next-version.sh)
 
 # VS Code installed via Snap injects GTK paths/modules that break WebKitGTK child
 # processes on some Ubuntu/Kubuntu setups. Clear them for Tauri launches.
@@ -22,7 +24,9 @@ help:
 	@echo "  make clean-frontend  Remove dist/"
 	@echo "  make clean-tauri  Remove src-tauri/target/"
 	@echo "  make clean-deps   Remove node_modules/"
-	@echo "  make prepare-release  Infer today's next version and build the changelog release entry"
+	@echo "  make pre-release      Infer today's next version and prepare its version files and changelog entry"
+	@echo "  make prepare-release  Alias for pre-release"
+	@echo "  make release          Prepare, commit, tag, and push a release"
 
 install:
 	npm install
@@ -75,11 +79,10 @@ clean-tauri:
 clean-deps:
 	rm -rf node_modules
 
-prepare-release:
-	@VERSION_NO_V=$$(./scripts/next-version.sh); \
-	echo "Preparing release v$$VERSION_NO_V"; \
-	./scripts/prepare-version.sh "$$VERSION_NO_V"; \
-	./scripts/build-changelog.sh --version "$$VERSION_NO_V"; \
+pre-release:
+	@echo "Preparing release v$(VERSION_NO_V)"; \
+	./scripts/prepare-version.sh "$(VERSION_NO_V)"; \
+	./scripts/build-changelog.sh --version "$(VERSION_NO_V)"; \
 	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
 	echo ""; \
 	echo "Release files are prepared. Review changes before committing:"; \
@@ -87,13 +90,22 @@ prepare-release:
 	echo "  git diff"; \
 	echo ""; \
 	echo "Suggested commit message:"; \
-	echo "  chore(release): prepare v$$VERSION_NO_V"; \
+	echo "  chore(release): prepare v$(VERSION_NO_V)"; \
 	echo ""; \
 	echo "Suggested commands:"; \
-	echo "  git commit -m \"chore(release): prepare v$$VERSION_NO_V\""; \
-	echo "  git tag v$$VERSION_NO_V"; \
+	echo "  git commit -m \"chore(release): prepare v$(VERSION_NO_V)\""; \
+	echo "  git tag v$(VERSION_NO_V)"; \
 	echo "  git push origin $$CURRENT_BRANCH"; \
-	echo "  git push origin v$$VERSION_NO_V"; \
+	echo "  git push origin v$(VERSION_NO_V)"; \
 	echo ""; \
 	echo "One-liner command:"; \
-	echo "  git commit -m \"chore(release): prepare v$$VERSION_NO_V\" && git tag v$$VERSION_NO_V && git push origin $$CURRENT_BRANCH && git push origin v$$VERSION_NO_V"
+	echo "  git commit -m \"chore(release): prepare v$(VERSION_NO_V)\" && git tag v$(VERSION_NO_V) && git push origin $$CURRENT_BRANCH && git push origin v$(VERSION_NO_V)"
+
+prepare-release: pre-release
+
+release: pre-release
+	git add CHANGELOG.md package.json package-lock.json index.html src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+	git commit -m "chore(release): prepare v$(VERSION_NO_V)"
+	git tag v$(VERSION_NO_V)
+	git push origin $$(git rev-parse --abbrev-ref HEAD)
+	git push origin v$(VERSION_NO_V)
