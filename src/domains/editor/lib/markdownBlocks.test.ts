@@ -7,6 +7,8 @@ import {
   markdownToEditorData,
   sanitizeExternalHref
 } from './markdownBlocks'
+import { toTiptapDoc } from './tiptap/editorBlocksToTiptapDoc'
+import { fromTiptapDoc } from './tiptap/tiptapDocToEditorBlocks'
 
 describe('sanitizeExternalHref', () => {
   it('allows http/https/mailto', () => {
@@ -220,6 +222,14 @@ describe('blank Markdown lines', () => {
       { type: 'paragraph', data: { text: 'Second paragraph' } }
     ])
     expect(editorDataToMarkdown(parsed)).toBe('First paragraph\n\nSecond paragraph\n')
+  })
+
+  it('keeps blank lines through the editor load and save conversion path', () => {
+    const input = 'First paragraph\n\n\nSecond paragraph\n'
+    const loaded = markdownToEditorData(input)
+    const savedBlocks = fromTiptapDoc(toTiptapDoc(loaded.blocks))
+
+    expect(editorDataToMarkdown({ blocks: savedBlocks })).toBe(input)
   })
 
   it('does not insert a blank line where none exists', () => {
