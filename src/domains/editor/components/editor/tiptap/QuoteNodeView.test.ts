@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import QuoteNodeView from './QuoteNodeView.vue'
 import { editorDataToMarkdown, markdownToEditorData } from '../../../lib/markdownBlocks'
+import { INLINE_TEXT_COMMAND_HANDLER, type InlineTextCommandHandler } from '../../../lib/inlineTextCommands'
 import { toTiptapDoc } from '../../../lib/tiptap/editorBlocksToTiptapDoc'
 import { fromTiptapDoc } from '../../../lib/tiptap/tiptapDocToEditorBlocks'
 
@@ -15,6 +16,7 @@ async function flush() {
 function mountHarness(options?: {
   editable?: boolean
   initialText?: string
+  inlineTextCommands?: InlineTextCommandHandler
 }) {
   const root = document.createElement('div')
   document.body.appendChild(root)
@@ -40,6 +42,7 @@ function mountHarness(options?: {
   const app = createApp(HarnessComponent)
   app.provide('onDragStart', () => {})
   app.provide('decorationClasses', ref(''))
+  if (options?.inlineTextCommands) app.provide(INLINE_TEXT_COMMAND_HANDLER, options.inlineTextCommands)
   app.mount(root)
 
   return { app, root, text, updateAttributes }
@@ -147,6 +150,27 @@ describe('QuoteNodeView', () => {
     expect(harness.updateAttributes).toHaveBeenCalledWith({ text: 'After update' })
     expect(harness.text.value).toBe('After update')
 
+    harness.app.unmount()
+  })
+
+  it('forwards textarea input and keyboard events to inline text commands', async () => {
+    const inlineTextCommands: InlineTextCommandHandler = {
+      onInput: vi.fn(),
+      onKeydown: vi.fn(),
+      onBlur: vi.fn()
+    }
+    const harness = mountHarness({ initialText: 'Before', inlineTextCommands })
+    await flush()
+
+    const textarea = harness.root.querySelector('.tomosona-quote-source') as HTMLTextAreaElement
+    textarea.value = 'Before @'
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await flush()
+
+    expect(inlineTextCommands.onInput).toHaveBeenCalledWith(expect.objectContaining({ value: 'Before @' }))
+    expect(inlineTextCommands.onKeydown).toHaveBeenCalledWith(expect.any(KeyboardEvent), expect.objectContaining({ value: 'Before @' }))
     harness.app.unmount()
   })
 

@@ -650,6 +650,14 @@ function closeInlineCompletion() {
   inlineCompletion.value = null
 }
 
+function dismissTextCommandMenus() {
+  closeInlineCompletion()
+  dismissSlashMenu()
+  dismissAtMenu()
+  closeWikilinkMenu()
+  closeBlockMenu()
+}
+
 function replaceInlineCompletion(replacement: string, selectionOffset = replacement.length) {
   const completion = inlineCompletion.value
   if (!completion) return false
@@ -776,7 +784,10 @@ function selectInlineSlashCommand(command: typeof visibleSlashCommands.value[num
 provide(INLINE_TEXT_COMMAND_HANDLER, {
   onInput: syncInlineTextCommands,
   onKeydown: handleInlineTextKeydown,
-  onBlur: () => { window.setTimeout(closeInlineCompletion, 120) }
+  // The suggestion popover takes focus to support keyboard filtering. Keep the
+  // textarea context until the popover is dismissed so its selection can still
+  // replace the trigger inside the atomic quote/callout node.
+  onBlur: () => undefined
 })
 
 function getSession(path: string) {
@@ -1115,7 +1126,7 @@ defineExpose({
         :style="editorZoomStyle"
         @mousemove="onEditorMouseMove"
         @mouseleave="onEditorMouseLeave"
-        @click="dismissSlashMenu(); dismissAtMenu(); closeWikilinkMenu(); closeBlockMenu()"
+        @click="dismissTextCommandMenus()"
       >
           <div ref="contentShell" class="editor-content-shell">
             <div class="editor-header-shell">
@@ -1290,7 +1301,7 @@ defineExpose({
             @update:index="slashIndex = $event"
             @update:query="setSlashQuery($event)"
             @select="dismissSlashMenu(); selectInlineSlashCommand($event)"
-            @close="dismissSlashMenu(); focusEditor()"
+            @close="closeInlineCompletion(); dismissSlashMenu(); focusEditor()"
           />
 
           <EditorAtOverlay
@@ -1303,7 +1314,7 @@ defineExpose({
             @update:index="atIndex = $event"
             @update:query="setAtQuery($event)"
             @select="selectInlineAtMacro($event)"
-            @close="dismissAtMenu(); focusEditor()"
+            @close="closeInlineCompletion(); dismissAtMenu(); focusEditor()"
           />
 
           <EditorEmojiPicker
