@@ -19,6 +19,11 @@ export type EditorDocument = {
   version: string
 }
 
+/** Controls spacing between non-empty blocks during Markdown serialization. */
+export type EditorMarkdownSerializationOptions = {
+  separateBlocks?: boolean
+}
+
 const HEADING_RE = /^(#{1,6})\s+(.*)$/
 const ORDERED_LIST_RE = /^\s*\d+\.\s+(.+)$/
 // Detect populated and empty bullet items, for example: `- note` and `-`.
@@ -1047,10 +1052,13 @@ export function markdownToEditorData(markdown: string): EditorDocument {
         i += 1
       }
 
-      // One blank line separates Markdown blocks. Only additional blank lines
-      // represent visible empty paragraphs (for example, `A\n\n\nB`).
+      // Every intermediate blank Markdown line is an intentional empty
+      // paragraph. A final newline only terminates the file.
       const hasPreviousBlock = blocks.length > 0
-      const emptyParagraphCount = hasPreviousBlock ? Math.max(0, blankLineCount - 1) : 0
+      const hasNextLine = i < lines.length
+      const emptyParagraphCount = hasPreviousBlock && !hasNextLine
+        ? Math.max(0, blankLineCount - 1)
+        : blankLineCount
       for (let index = 0; index < emptyParagraphCount; index += 1) {
         blocks.push({ type: 'paragraph', data: { text: '' } })
       }
@@ -1453,7 +1461,10 @@ function blockToMarkdown(block: EditorBlock): string {
  *
  * Round-tripping through this function may normalize ambiguous input syntax into a stable form.
  */
-export function editorDataToMarkdown(data: { blocks?: EditorBlock[] } | null | undefined): string {
+export function editorDataToMarkdown(
+  data: { blocks?: EditorBlock[] } | null | undefined,
+  options: EditorMarkdownSerializationOptions = {}
+): string {
   const blocks = data?.blocks ?? []
   let markdown = ''
   let hasContent = false
@@ -1470,7 +1481,9 @@ export function editorDataToMarkdown(data: { blocks?: EditorBlock[] } | null | u
       markdown = `${'\n'.repeat(pendingEmptyParagraphs)}${text}`
       hasContent = true
     } else {
-      const separatorLength = pendingEmptyParagraphs + 2
+      const separatorLength = pendingEmptyParagraphs > 0
+        ? pendingEmptyParagraphs + 1
+        : options.separateBlocks ? 2 : 1
       markdown += `${'\n'.repeat(separatorLength)}${text}`
     }
     pendingEmptyParagraphs = 0

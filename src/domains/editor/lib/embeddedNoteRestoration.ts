@@ -106,7 +106,13 @@ export function resolveEmbeddedNoteMarkdown(markdown: string, target: string): s
 export function embeddedNoteMarkdownToTiptapDoc(markdown: string, target?: string): JSONContent | null {
   const resolvedMarkdown = target ? resolveEmbeddedNoteMarkdown(markdown, target) : parseFrontmatterEnvelope(markdown).body
   if (resolvedMarkdown === null) return null
+  if (!resolvedMarkdown.trim()) return { type: 'doc', content: [] }
 
   const parsed = markdownToEditorData(resolvedMarkdown)
-  return toTiptapDoc(parsed.blocks as EditorBlock[])
+  // Embeds are compact projections inside a host document. Their structural
+  // spacing is represented by the host, not by empty paragraphs in the slice.
+  const blocks = (parsed.blocks as EditorBlock[]).filter((block) =>
+    block.type !== 'paragraph' || String(block.data.text ?? '').trim().length > 0
+  )
+  return toTiptapDoc(blocks)
 }

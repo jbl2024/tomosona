@@ -50,6 +50,6 @@ export function extractSelectedMarkdownBlocks(editor: Editor | null): ExtractedS
     from,
     to,
     blocks,
-    markdown: editorDataToMarkdown({ blocks })
+    markdown: editorDataToMarkdown({ blocks }, { separateBlocks: true })
   }
 }
