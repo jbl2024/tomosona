@@ -1,5 +1,11 @@
 # Changelog
 
+## [20260930.4] - 2026-09-30
+
+### Fixed
+- fix(markdown): preserve blank lines through editor saves (1f8bd256)
+- fix(markdown): preserve visible blank lines (30a64105)
+
 ## [20260930.1] - 2026-09-30
 
 ### Changed
