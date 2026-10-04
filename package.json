@@ -37,7 +37,7 @@
     "@tiptap/extension-placeholder": "^3.31.3",
     "@tiptap/extension-table": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
-    "@tiptap/starter-kit": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.4",
     "@tiptap/vue-3": "^3.31.3",
     "@vue-dnd-kit/core": "^2.4.7",
     "@xterm/addon-fit": "^0.11.0",
