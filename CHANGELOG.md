@@ -16,6 +16,14 @@
 
 ### Security
 
+## [20261031.3] - 2026-10-31
+
+### Added
+- feat(editor): add terminal-style block cursor setting for note editor and source mode (b28476d4)
+
+### Fixed
+- fix(release): keep version stable during publication (82ffd6f1)
+
 ## [20261031.1] - 2026-10-31
 
 ### Added
