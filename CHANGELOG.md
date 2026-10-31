@@ -15,6 +15,33 @@
 
 ### Security
 
+## [20261031.1] - 2026-10-31
+
+### Added
+- feat(protection): add password-protected pages (60317086)
+
+### Changed
+- test(editor): cover newlines in code blocks (8affe733)
+- chore(openspec): update skills to 1.15.0 and add vibe variants (9deed002)
+- docs(agents): never co-author commits (a21db5fa)
+- chore(deps): update frontend dependencies (ec880c5b)
+- chore(deps): upgrade jsdom and use Node 24 (9c1fcd4b)
+- Merge pull request #152 from jbl2024/dependabot/cargo/src-tauri/tauri-plugin-opener-2.7.0 (c5b7c7c7)
+- Merge pull request #154 from jbl2024/dependabot/cargo/src-tauri/tauri-2.12.1 (f4164097)
+- Merge pull request #157 from jbl2024/dependabot/cargo/src-tauri/tauri-build-2.7.1 (b527bc63)
+- Merge pull request #158 from jbl2024/dependabot/npm_and_yarn/vitest/coverage-v8-5.0.3 (69bdcfb1)
+- Merge pull request #160 from jbl2024/dependabot/cargo/src-tauri/comrak-0.56.0 (6ca5de46)
+- Set nodejs version (f6ce1ffa)
+- Add openspec (38ca18cc)
+- chore(deps): bump comrak from 0.55.0 to 0.56.0 in /src-tauri (d5b3b1a2)
+- chore(deps-dev): bump @vitest/coverage-v8 from 5.0.2 to 5.0.3 (edf8180b)
+- chore(deps): bump tauri-build from 2.7.0 to 2.7.1 in /src-tauri (b5c273ce)
+- chore(deps): bump tauri from 2.12.0 to 2.12.1 in /src-tauri (1f68cf29)
+- chore(deps): bump tauri-plugin-opener from 2.6.0 to 2.7.0 in /src-tauri (54d58415)
+
+### Fixed
+- fix(docx): upgrade rdocx to 0.16 (49a9f54a)
+
 ## [20260930.4] - 2026-09-30
 
 ### Fixed
