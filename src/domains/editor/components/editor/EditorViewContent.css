@@ -590,6 +590,15 @@
 }
 
 /*
+ * Single-line inputs inside the edited document (callout kind query, code
+ * language selector, image fields, ...) keep a visible native caret: the
+ * block cursor only targets writing surfaces, never these fields.
+ */
+.editor-cursor-fake .ProseMirror input {
+  caret-color: var(--editor-textarea-caret);
+}
+
+/*
  * The widget is a zero-size inline anchor at the caret: it cannot shift or
  * wrap the text, and the visible block is drawn by ::before with explicit
  * baseline-relative offsets, so the geometry does not depend on
