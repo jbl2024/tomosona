@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import EditorPaneTabs from './EditorPaneTabs.vue'
 import type { PaneState } from '../../composables/useMultiPaneWorkspaceState'
 
+vi.mock('../../../shared/api/pageProtectionApi', () => ({
+  pageProtectionStatus: async (paths: string[]) => paths.map((path) => ({ path, isProtected: path.endsWith('/protected.md'), isLocked: true }))
+}))
+
 function mountTabs(pane: PaneState) {
   const root = document.createElement('div')
   document.body.appendChild(root)
@@ -37,6 +41,18 @@ describe('EditorPaneTabs', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     document.body.innerHTML = ''
+  })
+
+  it('marks protected document tabs', async () => {
+    const pane: PaneState = {
+      id: 'pane-1', activeTabId: 'doc-1', activePath: '/vault/protected.md',
+      openTabs: [{ id: 'doc-1', type: 'document', path: '/vault/protected.md', pinned: false }]
+    }
+    const mounted = mountTabs(pane)
+    await Promise.resolve()
+    await nextTick()
+    expect(mounted.root.querySelector('[aria-label="Password protected"]')).not.toBeNull()
+    mounted.app.unmount()
   })
 
   it('scrolls the active tab into view when document navigation changes it', async () => {

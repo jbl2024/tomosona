@@ -465,6 +465,7 @@ pub(crate) fn parse_yaml_frontmatter_properties(markdown: &str) -> Vec<IndexedPr
 }
 
 pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
+    let _guard = crate::page_protection::page_io_guard()?;
     let started_at = Instant::now();
     let root = active_workspace_root()?;
     let file_path = normalize_existing_file(&path)?;
@@ -476,6 +477,27 @@ pub(crate) fn reindex_markdown_file_lexical_sync(path: String) -> Result<()> {
             "reindex:skip_hidden path={}",
             normalized_path.to_string_lossy()
         ));
+        return Ok(());
+    }
+    if crate::page_protection::is_encrypted_page(&normalized_path)? {
+        let path_for_db = normalize_workspace_relative_path(&root, &normalized_path)?;
+        let conn = open_db()?;
+        ensure_index_schema(&conn)?;
+        let tx = conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM chunks WHERE path = ?1", params![path_for_db])?;
+        tx.execute(
+            "DELETE FROM note_links WHERE source_path = ?1",
+            params![path_for_db],
+        )?;
+        tx.execute(
+            "DELETE FROM note_properties WHERE path = ?1",
+            params![path_for_db],
+        )?;
+        tx.execute(
+            "DELETE FROM note_processing WHERE path = ?1",
+            params![path_for_db],
+        )?;
+        tx.commit()?;
         return Ok(());
     }
     let markdown = fs::read_to_string(&normalized_path)?;

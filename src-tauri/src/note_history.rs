@@ -436,27 +436,55 @@ pub fn list_note_history(path: String) -> Result<Vec<NoteHistoryEntry>> {
 pub fn read_note_history_snapshot(
     path: String,
     snapshot_id: String,
+    password: Option<String>,
 ) -> Result<NoteHistorySnapshot> {
     let root = active_workspace_root()?;
     let note_path = note_path_from_input(&path)?;
     ensure_history_path_within_root(&root, &note_path)?;
-    read_snapshot_content(&root, &note_path, &snapshot_id)
+    let mut snapshot = read_snapshot_content(&root, &note_path, &snapshot_id)?;
+    if crate::page_protection::is_encrypted_content(&snapshot.content) {
+        let password = password.ok_or_else(|| AppError::PageLocked(path))?;
+        snapshot.content = crate::page_protection::decrypt(&snapshot.content, &password)
+            .map_err(crate::page_protection::protection_error)?;
+    }
+    Ok(snapshot)
 }
 
 #[tauri::command]
-pub fn restore_note_history_snapshot(path: String, snapshot_id: String) -> Result<SaveNoteResult> {
+pub fn restore_note_history_snapshot(
+    path: String,
+    snapshot_id: String,
+    password: Option<String>,
+) -> Result<SaveNoteResult> {
+    let guard = crate::page_protection::page_io_guard()?;
     let root = active_workspace_root()?;
     let note_path = note_path_from_input(&path)?;
     ensure_history_path_within_root(&root, &note_path)?;
     let snapshot = read_snapshot_content(&root, &note_path, &snapshot_id)?;
+    let protected = crate::page_protection::is_encrypted_content(&snapshot.content);
+    if protected {
+        let password = password
+            .as_ref()
+            .ok_or_else(|| AppError::PageLocked(path.clone()))?;
+        crate::page_protection::decrypt(&snapshot.content, password)
+            .map_err(crate::page_protection::protection_error)?;
+    }
 
     if let Some(parent) = note_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    write_snapshot(&note_path, &snapshot.content)?;
+    crate::editor_sync::write_atomically(&note_path, &snapshot.content)?;
+    let canonical = fs::canonicalize(&note_path)?;
+    crate::page_protection::lock(&canonical);
+    if protected {
+        crate::page_protection::unlock(&canonical, &snapshot.content, password.as_deref().unwrap())
+            .map_err(crate::page_protection::protection_error)?;
+    }
     let version = version_from_path(&note_path).ok_or(AppError::OperationFailed)?;
     record_internal_write(&note_path, version.clone(), &snapshot.content);
     record_note_history_snapshot(&note_path, &snapshot.content, "restore");
+    drop(guard);
+    crate::markdown_index::reindex_markdown_file_lexical_sync(path)?;
 
     Ok(SaveNoteResult::Success(SaveNoteSuccess {
         ok: true,
@@ -514,6 +542,54 @@ mod tests {
     }
 
     #[test]
+    fn protected_versions_keep_their_own_password_and_restore_encrypted() {
+        let _guard = workspace_test_guard();
+        let (workspace, note) = setup_note_workspace();
+        let name = note.to_string_lossy().to_string();
+        record_note_history_snapshot(&note, "before protection", "save");
+        let before = list_note_history(name.clone()).unwrap()[0]
+            .snapshot_id
+            .clone();
+        crate::page_protection::protect_page(name.clone(), "old".into()).unwrap();
+        let encrypted = fs::read_to_string(&note).unwrap();
+        record_note_history_snapshot(&note, &encrypted, "save");
+        let old = list_note_history(name.clone()).unwrap()[0]
+            .snapshot_id
+            .clone();
+        crate::page_protection::change_page_password(name.clone(), "old".into(), "new".into())
+            .unwrap();
+        assert_eq!(
+            read_note_history_snapshot(name.clone(), before, None)
+                .unwrap()
+                .content,
+            "before protection"
+        );
+        assert!(matches!(
+            read_note_history_snapshot(name.clone(), old.clone(), None),
+            Err(AppError::PageLocked(_))
+        ));
+        assert!(read_note_history_snapshot(name.clone(), old.clone(), Some("new".into())).is_err());
+        assert_eq!(
+            read_note_history_snapshot(name.clone(), old.clone(), Some("old".into()))
+                .unwrap()
+                .content,
+            "# Notes\n"
+        );
+        restore_note_history_snapshot(name.clone(), old.clone(), Some("old".into())).unwrap();
+        let restored = fs::read_to_string(&note).unwrap();
+        assert_eq!(restored, encrypted);
+        assert!(crate::page_protection::decrypt(&restored, "new").is_err());
+        crate::page_protection::unprotect_page(name.clone(), "old".into()).unwrap();
+        assert_eq!(
+            read_note_history_snapshot(name, old, Some("old".into()))
+                .unwrap()
+                .content,
+            "# Notes\n"
+        );
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
     fn list_history_returns_empty_when_absent() {
         let _guard = workspace_test_guard();
         let workspace = create_workspace();
@@ -566,8 +642,9 @@ mod tests {
             .snapshot_id
             .clone();
 
-        let snapshot = read_note_history_snapshot(note.to_string_lossy().to_string(), entry_id)
-            .expect("read snapshot");
+        let snapshot =
+            read_note_history_snapshot(note.to_string_lossy().to_string(), entry_id, None)
+                .expect("read snapshot");
         assert_eq!(snapshot.content, "alpha\nbeta\n");
         assert_eq!(snapshot.entry.reason, "save");
         fs::remove_dir_all(workspace).expect("cleanup");
@@ -578,8 +655,11 @@ mod tests {
         let _guard = workspace_test_guard();
         let (workspace, note) = setup_note_workspace();
 
-        let result =
-            read_note_history_snapshot(note.to_string_lossy().to_string(), "missing".to_string());
+        let result = read_note_history_snapshot(
+            note.to_string_lossy().to_string(),
+            "missing".to_string(),
+            None,
+        );
         assert!(result.is_err());
         fs::remove_dir_all(workspace).expect("cleanup");
     }
@@ -607,8 +687,9 @@ mod tests {
         let entries = list_note_history(note.to_string_lossy().to_string()).expect("list history");
         let target = entries.last().expect("target entry").snapshot_id.clone();
 
-        let result = restore_note_history_snapshot(note.to_string_lossy().to_string(), target)
-            .expect("restore");
+        let result =
+            restore_note_history_snapshot(note.to_string_lossy().to_string(), target, None)
+                .expect("restore");
         match result {
             SaveNoteResult::Success(success) => {
                 assert!(success.ok);

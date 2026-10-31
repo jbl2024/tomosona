@@ -86,4 +86,25 @@ describe('EditorRightPane', () => {
     expect(root.textContent).not.toContain('No backlinks')
     app.unmount()
   })
+
+  it('exposes protection actions appropriate to the page state', () => {
+    const action = vi.fn()
+    const plain = mountPane({ canProtectPage: true, pageProtected: false, onPageProtectionAction: action })
+    const click = (root: HTMLElement, label: string) => {
+      const button = Array.from(root.querySelectorAll('button')).find((item) => item.textContent?.trim() === label)
+      expect(button).toBeTruthy()
+      expect(button!.classList.contains('utility-note-btn')).toBe(true)
+      expect(button!.querySelector('svg')).toBeTruthy()
+      button!.click()
+    }
+    click(plain.root, 'Protect with password')
+    expect(action).toHaveBeenCalledWith('protect')
+    plain.app.unmount()
+    const protectedPage = mountPane({ canProtectPage: true, pageProtected: true, pageLocked: false, onPageProtectionAction: action })
+    click(protectedPage.root, 'Remove protection')
+    click(protectedPage.root, 'Change password')
+    click(protectedPage.root, 'Lock page')
+    expect(action.mock.calls.map(([value]) => value)).toEqual(['protect', 'unprotect', 'change', 'lock'])
+    protectedPage.app.unmount()
+  })
 })

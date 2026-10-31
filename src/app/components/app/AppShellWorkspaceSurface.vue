@@ -43,6 +43,9 @@ defineProps<{
   activeNoteTitle: string
   activeStateLabel: string
   activeNoteSourceToggleLabel?: string
+  pageProtected?: boolean
+  pageLocked?: boolean
+  canProtectPage?: boolean
   backlinkCount: number
   indexingState: 'indexed' | 'indexing' | 'out_of_sync'
   favoriteItems: FavoriteEntry[]
@@ -107,6 +110,7 @@ const emit = defineEmits<{
   launchpadQuickStart: [kind: 'today' | 'command-palette']
   toggleFavorite: []
   activeNoteOpenHistory: []
+  pageProtectionAction: [action: 'protect' | 'unprotect' | 'change' | 'lock']
   activeNoteToggleSourceMode: []
   outlineClick: [payload: { index: number; heading: HeadingNode }]
   backlinkOpen: [path: string]
@@ -189,6 +193,9 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           :active-note-title="activeNoteTitle"
           :active-state-label="activeStateLabel"
           :active-note-source-toggle-label="activeNoteSourceToggleLabel"
+          :page-protected="pageProtected"
+          :page-locked="pageLocked"
+          :can-protect-page="canProtectPage"
           :backlink-count="backlinkCount"
           :indexing-state="indexingState"
           :can-toggle-favorite="canToggleFavorite"
@@ -203,6 +210,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
           :to-relative-path="toRelativePath"
           @toggle-favorite="emit('toggleFavorite')"
           @open-note-history="emit('activeNoteOpenHistory')"
+          @page-protection-action="emit('pageProtectionAction', $event)"
           @active-note-toggle-source-mode="emit('activeNoteToggleSourceMode')"
           @outline-click="emit('outlineClick', $event)"
           @backlink-open="emit('backlinkOpen', $event)"

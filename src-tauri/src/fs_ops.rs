@@ -35,6 +35,8 @@ pub struct TreeNode {
     pub is_dir: bool,
     pub is_markdown: bool,
     pub has_children: bool,
+    #[serde(rename = "isProtected")]
+    pub is_protected: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -472,6 +474,7 @@ fn collect_children(root: &Path, dir: &Path, matcher: Option<&Gitignore>) -> Res
                 is_dir: true,
                 is_markdown: false,
                 has_children: directory_has_visible_children(root, &path, matcher)?,
+                is_protected: false,
             });
             continue;
         }
@@ -486,6 +489,8 @@ fn collect_children(root: &Path, dir: &Path, matcher: Option<&Gitignore>) -> Res
             is_dir: false,
             is_markdown: is_markdown_file(&path),
             has_children: false,
+            is_protected: is_markdown_file(&path)
+                && crate::page_protection::is_encrypted_page(&path)?,
         });
     }
 
@@ -604,7 +609,7 @@ pub fn read_text_file(path: String) -> Result<String> {
     let root = active_workspace_root()?;
     let pb = normalize_existing_path(&path)?;
     ensure_within_root(&root, &pb)?;
-    fs::read_to_string(&pb).map_err(Into::into)
+    crate::page_protection::read_page(&pb)
 }
 
 #[tauri::command]
@@ -1624,9 +1629,15 @@ pub fn read_file_metadata(path: String) -> Result<FileMetadata> {
 
 #[tauri::command]
 pub fn write_text_file(path: String, content: String) -> Result<()> {
+    let _guard = crate::page_protection::page_io_guard()?;
     let root = active_workspace_root()?;
     let pb = normalize_path(&path)?;
     ensure_parent_within_root(&root, &pb)?;
+    if pb.exists() && crate::page_protection::is_encrypted_page(&pb)? {
+        return Err(AppError::InvalidOperation(
+            "Use the editor to save a protected page.".into(),
+        ));
+    }
     fs::write(pb, content)?;
     Ok(())
 }
@@ -1712,9 +1723,11 @@ pub fn rename_entry(
     new_name: String,
     conflict_strategy: ConflictStrategy,
 ) -> Result<String> {
+    let _guard = crate::page_protection::page_io_guard()?;
     let root = active_workspace_root()?;
     let source = normalize_existing_path(&path)?;
     ensure_within_root(&root, &source)?;
+    let source_canonical = fs::canonicalize(&source)?;
 
     let Some(parent) = source.parent() else {
         return Err(AppError::InvalidPath);
@@ -1734,6 +1747,7 @@ pub fn rename_entry(
     }
 
     fs::rename(&source, &destination)?;
+    crate::page_protection::move_cached_paths(&source_canonical, &fs::canonicalize(&destination)?);
     if destination.is_file() {
         record_workspace_mutation_write_from_disk(&destination);
     }
@@ -1772,12 +1786,14 @@ pub fn move_entry(
     target_dir_path: String,
     conflict_strategy: ConflictStrategy,
 ) -> Result<String> {
+    let _guard = crate::page_protection::page_io_guard()?;
     let root = active_workspace_root()?;
     let source = normalize_existing_path(&source_path)?;
     let target_dir = normalize_existing_dir(&target_dir_path)?;
 
     ensure_within_root(&root, &source)?;
     ensure_within_root(&root, &target_dir)?;
+    let source_canonical = fs::canonicalize(&source)?;
 
     if source.is_dir() {
         let source_canonical = fs::canonicalize(&source)?;
@@ -1807,6 +1823,7 @@ pub fn move_entry(
     }
 
     fs::rename(&source, &destination)?;
+    crate::page_protection::move_cached_paths(&source_canonical, &fs::canonicalize(&destination)?);
     if destination.is_file() {
         record_workspace_mutation_write_from_disk(&destination);
     }
@@ -2463,6 +2480,35 @@ mod tests {
         fs::remove_file(outside).expect("cleanup outside file");
         fs::remove_dir_all(outside_dir).expect("cleanup outside dir");
         fs::remove_dir_all(workspace).expect("cleanup workspace");
+    }
+
+    #[test]
+    fn children_mark_protected_markdown_pages() {
+        let root =
+            std::env::temp_dir().join(format!("tomosona-tree-protection-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("plain.md"), "plain").unwrap();
+        std::fs::write(
+            root.join("protected.md"),
+            "-----BEGIN TOMOSONA ENCRYPTED PAGE-----\npayload\n",
+        )
+        .unwrap();
+        let nodes = super::collect_children(&root, &root, None).unwrap();
+        assert!(
+            !nodes
+                .iter()
+                .find(|node| node.name == "plain.md")
+                .unwrap()
+                .is_protected
+        );
+        assert!(
+            nodes
+                .iter()
+                .find(|node| node.name == "protected.md")
+                .unwrap()
+                .is_protected
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

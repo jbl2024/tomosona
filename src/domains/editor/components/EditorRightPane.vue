@@ -11,7 +11,7 @@
  *   and cross-surface orchestration.
  */
 import { ref } from 'vue'
-import { ChevronRightIcon, ClockIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
+import { ChevronRightIcon, ClockIcon, KeyIcon, LockClosedIcon, LockOpenIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 
@@ -25,6 +25,9 @@ const props = defineProps<{
   activeNoteTitle: string
   activeStateLabel: string
   activeNoteSourceToggleLabel?: string
+  pageProtected?: boolean
+  pageLocked?: boolean
+  canProtectPage?: boolean
   backlinkCount: number
   canToggleFavorite: boolean
   isFavorite: boolean
@@ -43,6 +46,7 @@ const emit = defineEmits<{
   'toggle-favorite': []
   'open-note-history': []
   'active-note-toggle-source-mode': []
+  'page-protection-action': [action: 'protect' | 'unprotect' | 'change' | 'lock']
   'outline-click': [payload: { index: number; heading: HeadingNode }]
   'backlink-open': [path: string]
 }>()
@@ -79,6 +83,15 @@ const activeNoteExpanded = ref(true)
             <StarOutlineIcon v-else />
             {{ props.isFavorite ? 'Remove from favorites' : 'Add to favorites' }}
           </UiButton>
+
+          <template v-if="props.canProtectPage">
+            <UiButton v-if="!props.pageProtected" size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'protect')"><LockClosedIcon />Protect with password</UiButton>
+            <template v-else>
+              <UiButton size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'unprotect')"><LockOpenIcon />Remove protection</UiButton>
+              <UiButton size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'change')"><KeyIcon />Change password</UiButton>
+              <UiButton v-if="!props.pageLocked" size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'lock')"><LockClosedIcon />Lock page</UiButton>
+            </template>
+          </template>
           <div class="pane-toolbar-divider" aria-hidden="true"></div>
 
           <UiButton

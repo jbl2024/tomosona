@@ -9,6 +9,7 @@ mod fs_ops;
 mod index_schema;
 mod markdown_index;
 pub(crate) mod note_history;
+mod page_protection;
 mod search_index;
 mod terminal;
 mod wikilink_graph;
@@ -128,6 +129,10 @@ enum AppError {
     AlreadyExists,
     #[error("Operation failed.")]
     OperationFailed,
+    #[error("Page is locked.")]
+    PageLocked(String),
+    #[error("Page is already protected.")]
+    PageAlreadyProtected,
     #[error("{0}")]
     InvalidOperation(String),
 }
@@ -136,7 +141,15 @@ type Result<T> = std::result::Result<T, AppError>;
 
 impl From<AppError> for tauri::ipc::InvokeError {
     fn from(err: AppError) -> Self {
-        tauri::ipc::InvokeError::from(err.to_string())
+        match err {
+            AppError::PageLocked(path) => tauri::ipc::InvokeError::from(
+                serde_json::json!({"code": "PageLocked", "path": path}),
+            ),
+            AppError::PageAlreadyProtected => {
+                tauri::ipc::InvokeError::from(serde_json::json!({"code": "PageAlreadyProtected"}))
+            }
+            other => tauri::ipc::InvokeError::from(other.to_string()),
+        }
     }
 }
 
@@ -326,6 +339,12 @@ pub fn run() {
             render_spreadsheet_preview_html,
             write_text_file,
             convert_markdown_to_docx,
+            page_protection::protect_page,
+            page_protection::unlock_page,
+            page_protection::lock_page,
+            page_protection::unprotect_page,
+            page_protection::change_page_password,
+            page_protection::page_protection_status,
             read_note_snapshot,
             save_note_buffer,
             list_note_history,

@@ -11,6 +11,7 @@ export type TreeNode = {
   is_dir: boolean
   is_markdown: boolean
   has_children: boolean
+  isProtected?: boolean
 }
 
 export type ConflictStrategy = 'fail' | 'rename' | 'overwrite'

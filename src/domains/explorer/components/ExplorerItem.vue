@@ -3,7 +3,7 @@ import { makeDraggable, makeDroppable, type IPlacement } from '@vue-dnd-kit/core
 import { computed, ref } from 'vue'
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, PhotoIcon } from '@heroicons/vue/24/outline'
+import { DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import type { ExplorerDnDController } from '../composables/useExplorerDnD'
 import type { ExplorerDropIntent } from '../lib/explorerDndRules'
 
@@ -192,6 +192,8 @@ const dndState = computed(() => props.dnd?.rowDropState(
         {{ node.name }}
       </span>
     </div>
+
+    <span v-if="node.isProtected" title="Password protected" aria-label="Password protected"><LockClosedIcon class="h-4 w-4" /></span>
 
     <button
       type="button"

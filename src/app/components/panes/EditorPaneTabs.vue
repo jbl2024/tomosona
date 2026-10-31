@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { DocumentIcon, HomeIcon } from '@heroicons/vue/24/outline'
+import { DocumentIcon, HomeIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
+import { usePageProtectionBadges } from '../../../shared/composables/usePageProtectionBadges'
 import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
 import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
@@ -25,6 +26,7 @@ const props = defineProps<{
   isActivePane: boolean
   getStatus: (path: string) => FileEditorStatus
 }>()
+const protectedPaths = usePageProtectionBadges(() => props.pane.openTabs.flatMap((tab) => tab.type === 'document' ? [tab.path] : []))
 
 const emit = defineEmits<{
   'pane-focus': [payload: { paneId: string }]
@@ -290,6 +292,7 @@ onBeforeUnmount(() => {
         </span>
         <span v-else-if="tab.icon" class="pane-tab-icon">{{ tab.icon }}</span>
         <span class="pane-tab-name">{{ tab.title }}</span>
+        <span v-if="tab.type === 'document' && protectedPaths.has(tab.path)" title="Password protected" aria-label="Password protected"><LockClosedIcon class="h-4 w-4" /></span>
         <span v-if="tab.saving" class="pane-tab-state" title="Saving">~</span>
         <span v-else-if="tab.dirty" class="pane-tab-state" title="Unsaved">•</span>
         <button

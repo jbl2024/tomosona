@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import EditorPaneGrid, { type EditorPaneGridExposed } from './components/panes/EditorPaneGrid.vue'
 import AppShellChromeSurface, { type AppShellChromeSurfaceExposed } from './components/app/AppShellChromeSurface.vue'
 import AppShellWorkspaceSurface, { type AppShellWorkspaceSurfaceExposed } from './components/app/AppShellWorkspaceSurface.vue'
 import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import AppShellOverlays from './components/app/AppShellOverlays.vue'
+import PagePasswordDialog from '../shared/components/ui/PagePasswordDialog.vue'
+import { usePagePasswordPrompt } from '../shared/composables/usePagePasswordPrompt'
+import { readWithPageUnlock } from '../shared/composables/pageUnlock'
+import { pageProtectionStatus, unlockPage } from '../shared/api/pageProtectionApi'
+import { usePageProtectionActions } from './composables/usePageProtectionActions'
 import IntegratedTerminalPanel from './components/app/IntegratedTerminalPanel.vue'
 import { useDocumentHistory } from '../domains/editor/composables/useDocumentHistory'
 import {
@@ -520,9 +525,9 @@ const {
   dispose: disposeIndexingController
 } = indexing
 const {
-  readNoteSnapshot,
+  readNoteSnapshot: readNoteSnapshotRaw,
   renameFileFromTitle,
-  saveNoteBuffer
+  saveNoteBuffer: saveNoteBufferRaw
 } = useAppNotePersistence({
   workingFolderPath: filesystem.workingFolderPath,
   virtualDocs,
@@ -535,6 +540,19 @@ const {
   pathExists,
   renameEntry
 })
+
+const pagePasswordPrompt = usePagePasswordPrompt()
+async function withPageUnlock<T>(operation: () => Promise<T>): Promise<T> {
+  return await readWithPageUnlock(operation, async (path) => {
+    await pagePasswordPrompt.request('Unlock page', async (password) => {
+      await unlockPage(path, password)
+      await refreshActiveProtection(path)
+    })
+  })
+}
+const readNoteSnapshot = (path: string) => withPageUnlock(() => readNoteSnapshotRaw(path))
+const readPageText = (path: string) => withPageUnlock(() => readTextFile(path))
+const saveNoteBuffer: typeof saveNoteBufferRaw = (path, content, options) => withPageUnlock(() => saveNoteBufferRaw(path, content, options))
 
 const indexNotesTotalCount = computed(() => indexOverviewStats.value?.workspace_notes_count ?? allWorkspaceFiles.value.length)
 const indexNotesTotalLoading = computed(() => loadingAllFiles.value)
@@ -1022,6 +1040,35 @@ const {
   onGlobalSearchModeSelect,
   saveActiveTab,
 } = paneRuntime
+
+const activeProtection = ref({ isProtected: false, isLocked: false })
+async function refreshActiveProtection(path: string) {
+  if (!path || !isMarkdownPath(path)) {
+    activeProtection.value = { isProtected: false, isLocked: false }
+    return
+  }
+  try {
+    const [status] = await pageProtectionStatus([path])
+    if (activeFilePath.value === path && status) activeProtection.value = status
+  } catch {
+    if (activeFilePath.value === path) activeProtection.value = { isProtected: false, isLocked: false }
+  }
+}
+watch(activeFilePath, (path) => { void refreshActiveProtection(path) }, { immediate: true })
+const onProtectionChanged = () => { void refreshActiveProtection(activeFilePath.value) }
+onMounted(() => window.addEventListener('page-protection-changed', onProtectionChanged))
+onBeforeUnmount(() => window.removeEventListener('page-protection-changed', onProtectionChanged))
+
+const { run: onPageProtectionAction } = usePageProtectionActions({
+  currentPath: () => activeFilePath.value,
+  canProtect: isMarkdownPath,
+  isUnsaved: () => Boolean(activeStatus.value.dirty || activeStatus.value.saving || activeStatus.value.saveError),
+  save: async () => { await saveActiveTab(); await nextTick() },
+  reload: async () => { await editorRef.value?.reloadCurrent() },
+  refresh: refreshActiveProtection,
+  prompt: pagePasswordPrompt.request,
+  reportError: (message) => { filesystem.errorMessage.value = message }
+})
 
 const shellViewModels = useAppShellViewModels({
   theme: {
@@ -1615,6 +1662,16 @@ useAppShellKeyboard({
 
 <template>
   <div class="ide-root" :class="{ 'macos-overlay': isMacOs }">
+    <PagePasswordDialog
+      :key="pagePasswordPrompt.active.value?.id ?? 0"
+      :visible="Boolean(pagePasswordPrompt.active.value)"
+      :title="pagePasswordPrompt.active.value?.title ?? ''"
+      :error="pagePasswordPrompt.error.value"
+      :pending="pagePasswordPrompt.pending.value"
+      :confirm="pagePasswordPrompt.active.value?.confirm ?? false"
+      @submit="pagePasswordPrompt.submit"
+      @cancel="pagePasswordPrompt.cancel"
+    />
     <AppShellChromeSurface
       ref="topbarRef"
       :can-go-back="documentHistory.canGoBack.value"
@@ -1679,6 +1736,9 @@ useAppShellKeyboard({
       :active-note-title="activeNoteTitle"
       :active-state-label="activeStateLabel"
       :active-note-source-toggle-label="activeNoteSourceToggleLabel"
+      :page-protected="activeProtection.isProtected"
+      :page-locked="activeProtection.isLocked"
+      :can-protect-page="Boolean(activeFilePath && isMarkdownPath(activeFilePath))"
       :backlink-count="backlinkCount"
       :active-note-in-context="activeNoteInContext"
       :favorite-items="favorites.items.value"
@@ -1735,6 +1795,7 @@ useAppShellKeyboard({
       @context-clear-local="constitutedContext.clearLocal()"
       @context-clear-pinned="constitutedContext.clearPinned()"
       @active-note-open-history="void openActiveNoteHistory()"
+      @page-protection-action="void onPageProtectionAction($event)"
     >
       <template #center>
         <EditorPaneGrid
@@ -1743,7 +1804,7 @@ useAppShellKeyboard({
           :active-document-path="activeFilePath"
           :workspace-path="filesystem.workingFolderPath.value"
           :all-workspace-files="allWorkspaceFiles"
-          :open-file="readTextFile"
+          :open-file="readPageText"
           :open-externally="openPathNatively"
           :save-file="async (path, text) => { await writeTextFile(path, text); return { persisted: true } }"
           :spellcheck-enabled="spellcheckEnabled"

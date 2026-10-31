@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Password protection for individual pages, including encrypted history for new protected versions, with password confirmation when choosing a new password.
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [20260930.4] - 2026-09-30
 
 ### Fixed

@@ -2,6 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Bars3Icon } from '@heroicons/vue/24/outline'
+import PagePasswordDialog from '../../../shared/components/ui/PagePasswordDialog.vue'
+import { usePagePasswordPrompt } from '../../../shared/composables/usePagePasswordPrompt'
+import { isPageLockedError } from '../../../shared/api/pageProtectionApi'
 import { createExtractedNote, importAssetFiles, openExternalUrl } from '../../../shared/api/workspaceApi'
 import type {
   NoteHistoryEntry,
@@ -844,8 +847,12 @@ const noteHistorySelectedSnapshotId = ref('')
 const noteHistoryCurrentContent = ref('')
 const noteHistorySnapshotContent = ref('')
 let noteHistoryRequestToken = 0
+let noteHistorySnapshotRequest = 0
+let noteHistorySnapshotPassword: string | undefined
+const historyPasswordPrompt = usePagePasswordPrompt()
 
 function resetNoteHistoryState() {
+  noteHistorySnapshotRequest += 1
   noteHistoryLoading.value = false
   noteHistorySnapshotLoading.value = false
   noteHistoryRestorePending.value = false
@@ -855,6 +862,7 @@ function resetNoteHistoryState() {
   noteHistorySelectedSnapshotId.value = ''
   noteHistoryCurrentContent.value = ''
   noteHistorySnapshotContent.value = ''
+  noteHistorySnapshotPassword = undefined
 }
 
 function beginNoteHistoryRequest(): number {
@@ -903,18 +911,31 @@ async function loadNoteHistoryCurrentContent(path: string, requestToken: number)
 
 async function loadNoteHistorySnapshot(path: string, snapshotId: string, requestToken: number): Promise<void> {
   if (!isCurrentNoteHistoryRequest(requestToken)) return
+  const snapshotRequest = ++noteHistorySnapshotRequest
+  const isCurrentSnapshot = () => isCurrentNoteHistoryRequest(requestToken) && snapshotRequest === noteHistorySnapshotRequest
   noteHistorySnapshotLoading.value = true
   noteHistorySnapshotContent.value = ''
   try {
-    const snapshot = await readNoteHistorySnapshot(path, snapshotId)
-    if (!isCurrentNoteHistoryRequest(requestToken)) return
-    noteHistorySnapshotContent.value = snapshot.content
+    let snapshot
+    try {
+      snapshot = await readNoteHistorySnapshot(path, snapshotId)
+    } catch (error) {
+      if (!isPageLockedError(error)) throw error
+      await historyPasswordPrompt.request('Unlock history version', async (password) => {
+        const unlocked = await readNoteHistorySnapshot(path, snapshotId, password)
+        if (!isCurrentSnapshot()) throw 'This history selection has changed.'
+        noteHistorySnapshotPassword = password
+        snapshot = unlocked
+      })
+    }
+    if (!isCurrentSnapshot()) return
+    if (snapshot) noteHistorySnapshotContent.value = snapshot.content
   } catch (error) {
-    if (!isCurrentNoteHistoryRequest(requestToken)) return
+    if (!isCurrentSnapshot()) return
     noteHistoryError.value = error instanceof Error ? error.message : 'Could not load the selected snapshot.'
     noteHistorySnapshotContent.value = ''
   } finally {
-    if (!isCurrentNoteHistoryRequest(requestToken)) return
+    if (!isCurrentSnapshot()) return
     noteHistorySnapshotLoading.value = false
   }
 }
@@ -954,7 +975,9 @@ async function selectNoteHistorySnapshot(snapshotId: string) {
   const path = currentPath.value
   if (!path) return
   const requestToken = noteHistoryRequestToken
+  historyPasswordPrompt.cancel()
   noteHistorySelectedSnapshotId.value = snapshotId
+  noteHistorySnapshotPassword = undefined
   noteHistoryError.value = ''
   await loadNoteHistorySnapshot(path, snapshotId, requestToken)
 }
@@ -967,13 +990,15 @@ async function restoreSelectedNoteHistorySnapshot() {
   noteHistoryRestorePending.value = true
   noteHistoryError.value = ''
   try {
-    const result = await restoreNoteHistorySnapshot(path, snapshotId)
+    const result = await restoreNoteHistorySnapshot(path, snapshotId, noteHistorySnapshotPassword)
     if (!result.ok) {
       noteHistoryError.value = result.reason === 'NOT_FOUND'
         ? 'The selected snapshot is no longer available.'
         : 'The note could not be restored.'
       return
     }
+
+    window.dispatchEvent(new Event('page-protection-changed'))
 
     beginNoteHistoryRequest()
     noteHistoryOpen.value = false
@@ -991,6 +1016,7 @@ void selectNoteHistorySnapshot
 void restoreSelectedNoteHistorySnapshot
 
 function closeNoteHistory() {
+  historyPasswordPrompt.cancel()
   beginNoteHistoryRequest()
   noteHistoryOpen.value = false
   resetNoteHistoryState()
@@ -1430,6 +1456,16 @@ defineExpose({
       @close="closeNoteHistory()"
       @select-snapshot="void selectNoteHistorySnapshot($event)"
       @restore-selected="void restoreSelectedNoteHistorySnapshot()"
+    />
+
+    <PagePasswordDialog
+      :key="historyPasswordPrompt.active.value?.id ?? 0"
+      :visible="Boolean(historyPasswordPrompt.active.value)"
+      :title="historyPasswordPrompt.active.value?.title ?? ''"
+      :error="historyPasswordPrompt.error.value"
+      :pending="historyPasswordPrompt.pending.value"
+      @submit="historyPasswordPrompt.submit"
+      @cancel="historyPasswordPrompt.cancel"
     />
 
     <EditorMermaidReplaceDialog

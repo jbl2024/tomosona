@@ -183,7 +183,7 @@ pub(crate) fn same_version(left: Option<&FileVersion>, right: Option<&FileVersio
     matches!((left, right), (Some(left), Some(right)) if left == right)
 }
 
-fn write_atomically(path: &Path, content: &str) -> Result<()> {
+pub(crate) fn write_atomically(path: &Path, content: &str) -> Result<()> {
     let atomic = AtomicFile::new(path, AllowOverwrite);
     atomic
         .write(|file| {
@@ -207,6 +207,17 @@ pub fn read_note_snapshot(path: String) -> Result<ReadNoteSnapshotResult> {
     let mut file = File::open(&pb)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
+    if crate::page_protection::is_encrypted_page(&pb)? {
+        let canonical = fs::canonicalize(&pb)?;
+        content =
+            crate::page_protection::decrypt_cached(&canonical, &content).map_err(|error| {
+                if error == crate::page_protection::ProtectionError::Locked {
+                    AppError::PageLocked(path.clone())
+                } else {
+                    crate::page_protection::protection_error(error)
+                }
+            })?;
+    }
     let metadata = fs::metadata(&pb)?;
     let version = version_from_metadata(&metadata).ok_or(AppError::OperationFailed)?;
     Ok(ReadNoteSnapshotResult {
@@ -218,6 +229,7 @@ pub fn read_note_snapshot(path: String) -> Result<ReadNoteSnapshotResult> {
 
 #[tauri::command]
 pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult> {
+    let _guard = crate::page_protection::page_io_guard()?;
     let root = active_workspace_root()?;
     let path = normalize_path(&request.path)?;
     ensure_parent_within_root(&root, &path)?;
@@ -227,6 +239,23 @@ pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult
 
     if exists {
         ensure_within_root(&root, &path)?;
+    }
+
+    let protected = exists && crate::page_protection::is_encrypted_page(&path)?;
+    let canonical = if protected {
+        Some(fs::canonicalize(&path)?)
+    } else {
+        None
+    };
+    if let Some(ref canonical) = canonical {
+        let envelope = fs::read_to_string(&path)?;
+        crate::page_protection::decrypt_cached(canonical, &envelope).map_err(|error| {
+            if error == crate::page_protection::ProtectionError::Locked {
+                AppError::PageLocked(request.path.clone())
+            } else {
+                crate::page_protection::protection_error(error)
+            }
+        })?;
     }
 
     let current_version = version_from_path(&path);
@@ -243,7 +272,11 @@ pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult
                 }));
             }
             _ => {
-                let disk_content = fs::read_to_string(&path).unwrap_or_default();
+                let mut disk_content = fs::read_to_string(&path).unwrap_or_default();
+                if let Some(ref canonical) = canonical {
+                    disk_content = crate::page_protection::decrypt_cached(canonical, &disk_content)
+                        .map_err(crate::page_protection::protection_error)?;
+                }
                 let disk_version = current_version.clone().ok_or(AppError::OperationFailed)?;
                 return Ok(SaveNoteResult::Conflict(SaveNoteConflict {
                     ok: false,
@@ -259,7 +292,13 @@ pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult
         fs::create_dir_all(parent)?;
     }
 
-    match write_atomically(&path, &request.content) {
+    let persisted = if let Some(ref canonical) = canonical {
+        crate::page_protection::encrypt_cached(canonical, &request.content)
+            .map_err(crate::page_protection::protection_error)?
+    } else {
+        request.content.clone()
+    };
+    match write_atomically(&path, &persisted) {
         Ok(()) => {}
         Err(_) => {
             return Ok(SaveNoteResult::Error(SaveNoteError {
@@ -271,8 +310,8 @@ pub fn save_note_buffer(request: SaveNoteBufferRequest) -> Result<SaveNoteResult
     }
 
     let version = version_from_path(&path).ok_or(AppError::OperationFailed)?;
-    record_internal_write(&path, version.clone(), &request.content);
-    record_note_history_snapshot(&path, &request.content, "save");
+    record_internal_write(&path, version.clone(), &persisted);
+    record_note_history_snapshot(&path, &persisted, "save");
 
     Ok(SaveNoteResult::Success(SaveNoteSuccess {
         ok: true,
@@ -304,6 +343,78 @@ mod tests {
         fs::create_dir_all(&root).expect("create workspace");
         set_active_workspace(root.to_string_lossy().as_ref()).expect("set active workspace");
         root
+    }
+
+    #[test]
+    fn protected_page_reads_and_saves_require_unlock_and_keep_history_encrypted() {
+        let _guard = workspace_test_guard();
+        let root = prepare_workspace();
+        let path = root.join("protected.md");
+        fs::write(&path, "original secret").unwrap();
+        let name = path.to_string_lossy().to_string();
+        crate::page_protection::protect_page(name.clone(), "password".into()).unwrap();
+        crate::page_protection::lock_page(name.clone()).unwrap();
+        assert!(matches!(
+            read_note_snapshot(name.clone()),
+            Err(AppError::PageLocked(_))
+        ));
+        assert!(matches!(
+            crate::fs_ops::read_text_file(name.clone()),
+            Err(AppError::PageLocked(_))
+        ));
+        let before = fs::read_to_string(&path).unwrap();
+        let request = |force| SaveNoteBufferRequest {
+            path: name.clone(),
+            content: "updated secret".into(),
+            expected_base_version: version_from_path(&path),
+            request_id: "test".into(),
+            force: Some(force),
+        };
+        assert!(matches!(
+            save_note_buffer(request(true)),
+            Err(AppError::PageLocked(_))
+        ));
+        assert_eq!(fs::read_to_string(&path).unwrap(), before);
+        crate::page_protection::unlock_page(name.clone(), "password".into()).unwrap();
+        assert_eq!(
+            read_note_snapshot(name.clone()).unwrap().content,
+            "original secret"
+        );
+        assert_eq!(
+            crate::fs_ops::read_text_file(name.clone()).unwrap(),
+            "original secret"
+        );
+        assert!(matches!(
+            save_note_buffer(request(false)).unwrap(),
+            SaveNoteResult::Success(_)
+        ));
+        let saved = fs::read_to_string(&path).unwrap();
+        assert_ne!(saved, before);
+        assert!(!saved.contains("updated secret"));
+        assert_eq!(
+            crate::page_protection::decrypt(&saved, "password").unwrap(),
+            "updated secret"
+        );
+        let mut stale = request(false);
+        stale.expected_base_version = Some(FileVersion {
+            mtime_ms: 0,
+            size: 0,
+        });
+        match save_note_buffer(stale).unwrap() {
+            SaveNoteResult::Conflict(conflict) => {
+                assert_eq!(conflict.disk_content, "updated secret")
+            }
+            _ => panic!("expected a conflict"),
+        }
+        let entries = crate::note_history::list_note_history(name.clone()).unwrap();
+        assert_eq!(entries.len(), 1);
+        let snapshot = crate::note_history::read_note_history_snapshot(
+            name,
+            entries[0].snapshot_id.clone(),
+            Some("password".into()),
+        )
+        .unwrap();
+        assert_eq!(snapshot.content, "updated secret");
     }
 
     #[test]

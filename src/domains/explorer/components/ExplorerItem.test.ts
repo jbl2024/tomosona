@@ -23,6 +23,18 @@ describe('ExplorerItem', () => {
     document.body.innerHTML = ''
   })
 
+  it('marks a protected page', () => {
+    const root = document.createElement('div')
+    const app = createApp(() => h(ExplorerItem, {
+      node: { ...fileNode('/vault/a.md'), isProtected: true }, depth: 0,
+      expanded: false, selected: false, active: false, focused: false,
+      cutPending: false, editing: false, renameValue: ''
+    }))
+    app.mount(root)
+    expect(root.querySelector('[aria-label="Password protected"]')).not.toBeNull()
+    app.unmount()
+  })
+
   it('stops non-primary pointerdown events so right click cannot start drag', async () => {
     const pointerDowns = ref(0)
     const root = document.createElement('div')

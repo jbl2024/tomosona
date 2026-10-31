@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ExclamationTriangleIcon, StarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ExclamationTriangleIcon, LockClosedIcon, StarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { FavoriteEntry } from '../../../shared/api/apiTypes'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
+import { usePageProtectionBadges } from '../../../shared/composables/usePageProtectionBadges'
 
 /**
  * FavoritesListPanel
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const filterQuery = ref('')
+const protectedPaths = usePageProtectionBadges(() => props.items.filter((item) => item.exists).map((item) => item.path))
 const filteredItems = computed(() => {
   const query = filterQuery.value.trim().toLowerCase()
   if (!query) return props.items
@@ -65,6 +67,7 @@ const filteredItems = computed(() => {
           </span>
           <span class="favorites-row-content">
             <span class="favorites-row-label">{{ toRelativePath(item.path) }}</span>
+            <span v-if="protectedPaths.has(item.path)" title="Password protected" aria-label="Password protected"><LockClosedIcon class="h-4 w-4" /></span>
             <span v-if="!item.exists" class="favorites-row-meta">Missing</span>
           </span>
         </button>

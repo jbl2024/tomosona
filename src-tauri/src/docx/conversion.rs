@@ -90,7 +90,7 @@ fn convert_markdown_to_docx_sync(path: String) -> Result<String> {
         return Err(AppError::InvalidPath);
     }
 
-    let markdown = fs::read_to_string(&source_path)?;
+    let markdown = crate::page_protection::read_page(&source_path)?;
     let template_path = resolve_template_path(&workspace_root)?;
     let mut copied_styles_path: Option<PathBuf> = None;
     let template_style = match template_path {
@@ -1944,6 +1944,27 @@ mod tests {
         fs::write(&output, "occupied").expect("occupy output");
         let next = next_available_output_path(&output);
         assert!(next.ends_with("note (1).docx"));
+    }
+
+    #[test]
+    fn protected_page_export_requires_unlock() {
+        let _guard = workspace_test_guard();
+        let workspace = create_temp_workspace("tomosona-docx-protected");
+        let source = workspace.join("secret.md");
+        fs::write(&source, "# Private content").unwrap();
+        crate::set_active_workspace(&workspace.to_string_lossy()).unwrap();
+        let path = source.to_string_lossy().to_string();
+        crate::page_protection::protect_page(path.clone(), "password".into()).unwrap();
+        crate::page_protection::lock_page(path.clone()).unwrap();
+        assert!(matches!(
+            convert_markdown_to_docx_sync(path.clone()),
+            Err(AppError::PageLocked(_))
+        ));
+        assert!(!workspace.join("secret.docx").exists());
+        crate::page_protection::unlock_page(path.clone(), "password".into()).unwrap();
+        let output = convert_markdown_to_docx_sync(path).unwrap();
+        assert!(Path::new(&output).exists());
+        fs::remove_dir_all(workspace).unwrap();
     }
 
     #[test]

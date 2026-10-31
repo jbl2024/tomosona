@@ -14,13 +14,13 @@ export async function listNoteHistory(path: string): Promise<NoteHistoryEntry[]>
 }
 
 /** Reads the full snapshot content for a note history entry. */
-export async function readNoteHistorySnapshot(path: string, snapshotId: string): Promise<NoteHistorySnapshot> {
-  return await invoke('read_note_history_snapshot', { path, snapshotId })
+export async function readNoteHistorySnapshot(path: string, snapshotId: string, password?: string): Promise<NoteHistorySnapshot> {
+  return await invoke('read_note_history_snapshot', { path, snapshotId, password })
 }
 
 /** Restores a historical snapshot into the current note file. */
-export async function restoreNoteHistorySnapshot(path: string, snapshotId: string): Promise<SaveNoteResult> {
-  return await invoke('restore_note_history_snapshot', { path, snapshotId })
+export async function restoreNoteHistorySnapshot(path: string, snapshotId: string, password?: string): Promise<SaveNoteResult> {
+  return await invoke('restore_note_history_snapshot', { path, snapshotId, password })
 }
 
 /** Moves note history metadata after filesystem rename/move operations. */

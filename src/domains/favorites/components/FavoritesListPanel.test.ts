@@ -1,6 +1,10 @@
-import { createApp, defineComponent, h, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { createApp, defineComponent, h, nextTick, ref } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import FavoritesListPanel from './FavoritesListPanel.vue'
+
+vi.mock('../../../shared/api/pageProtectionApi', () => ({
+  pageProtectionStatus: async (paths: string[]) => paths.map((path) => ({ path, isProtected: path === 'Alpha.md', isLocked: true }))
+}))
 
 function mountHarness() {
   const root = document.createElement('div')
@@ -32,6 +36,15 @@ function mountHarness() {
 describe('FavoritesListPanel', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+  })
+
+  it('marks protected favorites without showing their content', async () => {
+    const mounted = mountHarness()
+    await Promise.resolve()
+    await nextTick()
+    expect(mounted.root.querySelector('[aria-label="Password protected"]')).not.toBeNull()
+    expect(mounted.root.textContent).not.toContain('secret content')
+    mounted.app.unmount()
   })
 
   it('opens existing favorites and removes missing ones', () => {

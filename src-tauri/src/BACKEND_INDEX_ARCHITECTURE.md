@@ -8,6 +8,7 @@
 | `workspace_runtime.rs` | active workspace, workspace-local DB opening, internal workspace file paths | keep workspace lifecycle separate from index/query logic |
 | `workspace_paths.rs` | path normalization, hidden-path rules, note key helpers, wikilink rewrite helpers | centralize path safety rules so every backend command uses the same boundary checks |
 | `markdown_index.rs` | markdown parsing, frontmatter/property extraction, lexical note-level reindex | isolate note-level parsing and indexing from workspace orchestration |
+| `page_protection.rs` | encrypted page envelopes, session keys, protection commands and file-transition coordination | keep password handling and protected page storage in the native backend |
 | `index_schema.rs` | schema creation/reset, rebuild workflow, runtime cancel/log/status | keep index lifecycle and status management in one place |
 | `wikilink_graph.rs` | graph payloads, backlinks, rename-driven wikilink updates | own graph-facing projections without leaking rename or search concerns upward |
 | `search_index.rs` | search query parsing, property filters, lexical scoring | keep query evaluation separate from persistence and graph updates |
