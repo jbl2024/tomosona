@@ -1,5 +1,25 @@
 # Changelog
 
+## [20261031.4] - 2026-10-31
+
+### Added
+- feat(palette): context suggestions, selection actions, help mode, and personalization (P3) (f9144c0f)
+- feat(palette): content search with reliable passage reveal (P2) (9d60a4d0)
+- feat(palette): universal palette foundations (P1) (10c23847)
+- feat(editor): sync note title with first level-1 heading (1f59f947)
+
+### Changed
+- chore(openspec): archive improve-command-palette and sync command-palette spec (0e213ae2)
+- docs(openspec): propose improve-command-palette change with versioned source spec (f4895f77)
+- chore(openspec): archive sync-filename-heading and sync note-title-heading spec (8e8d3843)
+- test(editor): cover external rename and duplicate heading edge cases for title sync (0ac58f95)
+- docs(agents): forbid manual CHANGELOG.md edits, managed by make release (bd77787d)
+- fix changelog (2a024371)
+
+### Fixed
+- fix(editor): keep the native caret visible in every block input (1bda3a36)
+- fix(editor): draw the block cursor inside callout, quote, mermaid, and html textareas (9b973d9a)
+
 ## [20261031.3] - 2026-10-31
 
 ### Added
