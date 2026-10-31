@@ -78,6 +78,49 @@ describe('EditorView interactions contract', () => {
     })
   }
 
+  it('preserves a newline after a backtick in a loaded code block', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const editorRef = ref<unknown>(null)
+    const saveFile = vi.fn(async () => ({ persisted: true }))
+    const app = createApp(defineComponent({
+      setup: () => () => h(EditorView, {
+        ref: editorRef,
+        path: 'code.md',
+        openPaths: ['code.md'],
+        openFile: async () => '```\n`\n```',
+        saveFile,
+        renameFileFromTitle: async (path: string, title: string) => ({ path, title }),
+        loadLinkTargets: async () => [],
+        loadLinkHeadings: async () => [],
+        loadPropertyTypeSchema: async () => ({}),
+        savePropertyTypeSchema: async () => {},
+        openLinkTarget: async () => true
+      })
+    }))
+    app.mount(root)
+    await flushUi()
+    const setup = (editorRef.value as { $: { setupState: Record<string, any> } }).$.setupState
+    const editor = setup.renderedEditorsByPath['code.md']
+    let codePos = 0
+    editor.state.doc.descendants((node: { type: { name: string }; content: { size: number } }, pos: number) => {
+      if (node.type.name === 'codeBlock') codePos = pos + 1 + node.content.size
+    })
+    expect(codePos).toBeGreaterThan(0)
+    editor.commands.setTextSelection(codePos)
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    const codeContent = root.querySelector('.tomosona-code-node [data-node-view-content]') as HTMLElement
+    expect(codeContent).toBeTruthy()
+    codeContent.dispatchEvent(event)
+    editor.commands.insertContent('second')
+    await flushUi()
+    expect(editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n')).toContain('`\nsecond')
+    await (editorRef.value as { saveNow: () => Promise<void> }).saveNow()
+    expect(saveFile).toHaveBeenCalledWith('code.md', expect.stringContaining('```\n`\nsecond\n```'), expect.anything())
+    app.unmount()
+    document.body.innerHTML = ''
+  })
+
   it('keeps event contract and supports keyboard flow without crashes', async () => {
     const root = document.createElement('div')
     document.body.appendChild(root)

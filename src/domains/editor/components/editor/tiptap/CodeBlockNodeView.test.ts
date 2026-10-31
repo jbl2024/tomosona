@@ -1,5 +1,8 @@
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Editor, EditorContent } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import { CodeBlockNode } from '../../../lib/tiptap/extensions/CodeBlockNode'
 
 import CodeBlockNodeView from './CodeBlockNodeView.vue'
 
@@ -52,6 +55,23 @@ describe('CodeBlockNodeView', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     vi.restoreAllMocks()
+  })
+
+  it('inserts a newline when Enter is pressed inside a code block', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const editor = new Editor({
+      extensions: [StarterKit.configure({ codeBlock: false }), CodeBlockNode],
+      content: { type: 'doc', content: [{ type: 'codeBlock', content: [{ type: 'text', text: 'first' }] }] }
+    })
+    const app = createApp(defineComponent({ setup: () => () => h(EditorContent, { editor }) }))
+    app.mount(root)
+    await flush()
+    editor.commands.setTextSelection(6)
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    expect(editor.state.doc.firstChild?.textContent).toBe('first\n')
+    app.unmount()
+    editor.destroy()
   })
 
   it('renders language controls inside the code surface', async () => {
