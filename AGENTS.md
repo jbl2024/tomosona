@@ -73,24 +73,8 @@ This file defines repository-wide agent behavior for `tomosona`.
 - When extracting logic from a dense file, add dedicated tests for the extracted unit and keep or extend integration coverage for the original workflow.
 
 ## Changelog Workflow
-- Keep `CHANGELOG.md` updated for every release.
-- Use Semantic Versioning for release versions: `MAJOR.MINOR.PATCH` (for example `0.9.10`).
-- Add release entries using this exact heading format: `## [<version>] - YYYY-MM-DD`.
-- Keep an `## [Unreleased]` section at the top with these subsections:
-  - `### Added`
-  - `### Changed`
-  - `### Deprecated`
-  - `### Removed`
-  - `### Fixed`
-  - `### Security`
-- When cutting a release, move relevant notes from `Unreleased` into the new version block and reset `Unreleased` subsections to empty.
-- After updating the changelog for a release, create a Git tag that matches the version with a `v` prefix (example: `v0.9.10`).
-- Push commits and tags so CI can run on the release tag:
-  - `git add CHANGELOG.md AGENTS.md`
-  - `git commit -m "chore(release): prepare v0.9.10"`
-  - `git tag v0.9.10`
-  - `git push origin <branch-name>`
-  - `git push origin v0.9.10`
+- Do not edit `CHANGELOG.md`: it is managed automatically by `make release`, which prepares the changelog entry, version files, tag, and push (see the `pre-release`/`release` targets in the `Makefile`).
+- Feature and fix commits must not include changelog modifications.
 
 ## Review Priorities
 - Prioritize correctness, regressions, and security-sensitive behavior.
