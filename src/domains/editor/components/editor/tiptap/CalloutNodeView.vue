@@ -2,6 +2,10 @@
 import { computed, inject, nextTick, onMounted, ref, watch, type Component } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import {
+  useTextareaBlockCursor,
+  resolveTextareaBlockCursorOptions
+} from '../../../composables/useTextareaBlockCursor'
+import {
   BeakerIcon,
   BugAntIcon,
   ChatBubbleLeftRightIcon,
@@ -36,6 +40,10 @@ const showKindMenu = ref(false)
 const kindQuery = ref('')
 const activeKindIndex = ref(0)
 const inlineTextCommands = inject(INLINE_TEXT_COMMAND_HANDLER, null)
+useTextareaBlockCursor({
+  textarea: textareaEl,
+  ...resolveTextareaBlockCursorOptions(props.editor)
+})
 const iconByKind: Record<CanonicalCalloutKind, Component> = {
   NOTE: DocumentTextIcon,
   ABSTRACT: QueueListIcon,
@@ -225,6 +233,12 @@ watch(isEditingMessage, (isEditing) => {
 </template>
 
 <style scoped>
+.tomosona-callout-source {
+  /* Keeps the native caret visible for the bar cursor style and while the
+     block-cursor overlay is inactive (see useTextareaBlockCursor). */
+  caret-color: var(--editor-textarea-caret);
+}
+
 .tomosona-callout-kind-select {
   position: relative;
   display: inline-flex;

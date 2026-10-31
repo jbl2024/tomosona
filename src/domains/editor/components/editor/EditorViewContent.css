@@ -646,6 +646,28 @@
   animation: tomosona-fake-cursor-blink 2.4s ease-in-out infinite;
 }
 
+/*
+ * Twin of --blink (same cycle) so textarea overlays can restart the cycle on
+ * caret moves, exactly like the rich text extension swaps keyframe sets.
+ */
+.tomosona-fake-cursor--blink2 {
+  animation: tomosona-fake-cursor-blink2 2.4s ease-in-out infinite;
+}
+
+/*
+ * Mirror overlay for node-view textareas (see useTextareaBlockCursor): it
+ * copies the textarea's text styles, renders invisible text with the fake
+ * cursor at the caret, and hides the native caret while active. Same tint
+ * and blink as the rich text editor for a seamless feel.
+ */
+.tomosona-textarea-cursor-mirror {
+  position: absolute;
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+  z-index: 2;
+}
+
 /* Transient highlight flashed over a revealed search passage; cleared by the
    PassageHighlight extension on first edit or after its timeout. */
 .editor-holder .ProseMirror .tomosona-passage-highlight {

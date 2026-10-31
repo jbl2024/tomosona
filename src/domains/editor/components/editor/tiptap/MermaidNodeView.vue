@@ -12,6 +12,10 @@ import {
   type MermaidTemplateDropdownItem
 } from '../../../lib/tiptap/mermaidTemplates'
 import type { MermaidPreviewPayload } from '../../../composables/useMermaidPreviewDialog'
+import {
+  useTextareaBlockCursor,
+  resolveTextareaBlockCursorOptions
+} from '../../../composables/useTextareaBlockCursor'
 
 const props = defineProps<{
   node: { attrs: { code?: string; autoEdit?: boolean }; nodeSize?: number }
@@ -43,6 +47,10 @@ const templateQuery = ref('')
 const activeTemplateIndex = ref(0)
 const showCodeEditor = ref(false)
 const renderedSvg = ref('')
+useTextareaBlockCursor({
+  textarea: textareaEl,
+  ...resolveTextareaBlockCursorOptions(props.editor)
+})
 const currentTemplateId = computed(() => resolveMermaidTemplateId(code.value))
 const templateItems = computed(() => toMermaidTemplateItems(MERMAID_TEMPLATES))
 const INDENT = '  '
@@ -784,6 +792,9 @@ function applyTabIndentation(textarea: HTMLTextAreaElement, unindent: boolean) {
   margin-bottom: 10px;
   min-height: 120px;
   width: 100%;
+  /* Keeps the native caret visible for the bar cursor style and while the
+     block-cursor overlay is inactive (see useTextareaBlockCursor). */
+  caret-color: var(--editor-textarea-caret);
 }
 
 .tomosona-mermaid:hover .tomosona-mermaid-actions,

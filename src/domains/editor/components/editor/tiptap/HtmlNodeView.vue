@@ -7,6 +7,10 @@ import { readImageDataUrl } from '../../../../../shared/api/workspaceApi'
 import { sanitizeHtmlForPreview } from '../../../../../shared/lib/htmlSanitizer'
 import { decodeWorkspacePathSegments, isAbsoluteWorkspacePath } from '../../../../../domains/explorer/lib/workspacePaths'
 import { parseWikilinkTarget } from '../../../lib/wikilinks'
+import {
+  useTextareaBlockCursor,
+  resolveTextareaBlockCursorOptions
+} from '../../../composables/useTextareaBlockCursor'
 
 const INDENT = '  '
 const lowlight = createLowlight(common)
@@ -35,6 +39,10 @@ const sourcePre = ref<HTMLElement | null>(null)
 const sourceShell = ref<HTMLElement | null>(null)
 const previewRoot = ref<HTMLDivElement | null>(null)
 const showSource = ref(false)
+useTextareaBlockCursor({
+  textarea: sourceTextarea,
+  ...resolveTextareaBlockCursorOptions(props.editor)
+})
 const sourceEditorHeight = ref('0px')
 let pendingSourceFocusOptions: { placeCaretAtEnd?: boolean; placeCaretInsideTemplate?: boolean } | null = null
 let previewHydrationToken = 0

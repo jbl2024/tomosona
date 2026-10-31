@@ -3,6 +3,10 @@ import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import { inlineTextToHtml } from '../../../lib/markdownBlocks'
 import { INLINE_TEXT_COMMAND_HANDLER } from '../../../lib/inlineTextCommands'
+import {
+  useTextareaBlockCursor,
+  resolveTextareaBlockCursorOptions
+} from '../../../composables/useTextareaBlockCursor'
 
 const props = defineProps<{
   node: { attrs: { text?: string } }
@@ -17,6 +21,10 @@ const textareaEl = ref<HTMLTextAreaElement | null>(null)
 const isEditing = ref(false)
 let pendingTextUpdate: string | undefined
 const inlineTextCommands = inject(INLINE_TEXT_COMMAND_HANDLER, null)
+useTextareaBlockCursor({
+  textarea: textareaEl,
+  ...resolveTextareaBlockCursorOptions(props.editor)
+})
 
 function commandInput(textarea: HTMLTextAreaElement) {
   return {
