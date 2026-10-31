@@ -34,7 +34,7 @@ mermaid-rs-renderer = { git = "https://github.com/1jehuang/mermaid-rs-renderer",
 # rdocx 0.14.0 currently fails to compile with fontdb 0.23 (its oxml-layout
 # dependency does not handle Source::SharedFile); retain the latest verified
 # compatible release until that upstream regression is fixed.
-rdocx = "=0.1.2"
+rdocx = "=0.16.4"
 calamine = "0.36.1"
 zip = "8"
 portable-pty = "0.9"
