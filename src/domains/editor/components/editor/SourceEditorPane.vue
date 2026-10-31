@@ -19,6 +19,7 @@ import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
 import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { resolveSourceCursorExtensions, type SourceCursorStyle } from './sourceEditorCursor'
 
 const props = defineProps<{
   modelValue: string
@@ -27,6 +28,8 @@ const props = defineProps<{
   wordWrap?: boolean
   scrollTop?: number
   scrollLeft?: number
+  cursorStyle?: SourceCursorStyle
+  cursorBlink?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -59,6 +62,7 @@ function buildState(value: string) {
       basicSetup,
       search(),
       languageExtensionFor(props.languageLabel),
+      resolveSourceCursorExtensions(props.cursorStyle, props.cursorBlink),
       props.wordWrap !== false ? EditorView.lineWrapping : [],
       EditorView.editable.of(!props.readOnly),
       EditorView.domEventHandlers({
@@ -72,6 +76,19 @@ function buildState(value: string) {
       }),
       keymap.of([indentWithTab])
     ]
+  })
+}
+
+/** Replaces the CodeMirror state (extensions, language) while keeping the document and scroll position. */
+function rebuildState() {
+  const view = editorView.value
+  if (!view) return
+  const scrollTop = view.scrollDOM.scrollTop
+  const scrollLeft = view.scrollDOM.scrollLeft
+  view.setState(buildState(view.state.doc.toString()))
+  requestAnimationFrame(() => {
+    view.scrollDOM.scrollTop = scrollTop
+    view.scrollDOM.scrollLeft = scrollLeft
   })
 }
 
@@ -146,31 +163,12 @@ watch(
 
 watch(
   () => props.readOnly,
-  () => {
-    const view = editorView.value
-    if (!view) return
-    const scrollTop = view.scrollDOM.scrollTop
-    const scrollLeft = view.scrollDOM.scrollLeft
-    const nextState = buildState(view.state.doc.toString())
-    view.setState(nextState)
-    requestAnimationFrame(() => {
-      view.scrollDOM.scrollTop = scrollTop
-      view.scrollDOM.scrollLeft = scrollLeft
-    })
-  }
+  rebuildState
 )
 
-watch(() => props.wordWrap, () => {
-  const view = editorView.value
-  if (!view) return
-  const scrollTop = view.scrollDOM.scrollTop
-  const scrollLeft = view.scrollDOM.scrollLeft
-  view.setState(buildState(view.state.doc.toString()))
-  requestAnimationFrame(() => {
-    view.scrollDOM.scrollTop = scrollTop
-    view.scrollDOM.scrollLeft = scrollLeft
-  })
-})
+watch(() => props.wordWrap, rebuildState)
+
+watch(() => [props.cursorStyle, props.cursorBlink], rebuildState)
 
 watch([() => props.scrollTop, () => props.scrollLeft], restoreScrollPosition)
 

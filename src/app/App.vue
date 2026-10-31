@@ -135,6 +135,7 @@ import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
 import { useAppQuickOpen } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
+import { useAppEditorPreferences } from './composables/useAppEditorPreferences'
 import { useAppEditorRulerPreference } from './composables/useAppEditorRulerPreference'
 import { useAppTerminalPreferences } from './composables/useAppTerminalPreferences'
 import {
@@ -203,6 +204,13 @@ const {
   resetTerminalPreferences
 } = useAppTerminalPreferences()
 loadTerminalPreferences()
+const {
+  editorPreferences,
+  loadEditorPreferences,
+  setEditorPreferences,
+  resetEditorPreferences
+} = useAppEditorPreferences()
+loadEditorPreferences()
 const {
   spellcheckEnabled,
   loadSpellcheckPreference,
@@ -1809,6 +1817,8 @@ useAppShellKeyboard({
           :save-file="async (path, text) => { await writeTextFile(path, text); return { persisted: true } }"
           :spellcheck-enabled="spellcheckEnabled"
           :ruler-visible="editorRulerVisible"
+          :cursor-style="editorPreferences.cursorStyle"
+          :cursor-blink="editorPreferences.cursorBlink"
           :get-status="editorState.getStatus"
           :readNoteSnapshot="readNoteSnapshot"
           :saveNoteBuffer="saveNoteBuffer"
@@ -1920,6 +1930,7 @@ useAppShellKeyboard({
       :settings-visible="settingsModalVisible"
       :available-themes="availableThemes"
       :terminal-preferences="terminalPreferences"
+      :editor-preferences="editorPreferences"
       :new-file-modal-visible="newFileModalVisible"
       :new-file-path-input="newFilePathInput"
       :new-file-modal-error="newFileModalError"
@@ -1962,6 +1973,8 @@ useAppShellKeyboard({
       @settings-set-theme="setThemePreference($event)"
       @update-terminal-preferences="setTerminalPreferences($event)"
       @reset-terminal-preferences="resetTerminalPreferences()"
+      @update-editor-preferences="setEditorPreferences($event)"
+      @reset-editor-preferences="resetEditorPreferences()"
       @close-new-file="closeNewFileModal"
       @update-new-file-path="newFilePathInput = $event"
       @keydown-new-file="onNewFileInputKeydown"

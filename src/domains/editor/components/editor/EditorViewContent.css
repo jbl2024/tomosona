@@ -579,3 +579,69 @@
 .tomosona-table-trigger-btn:hover {
   background: var(--editor-table-trigger-hover);
 }
+
+/*
+ * Terminal-style fake cursor (see BlockCursor Tiptap extension).
+ * While a fake cursor shape is active, the native caret stays hidden and the
+ * widget span above is drawn at the selection head.
+ */
+.editor-cursor-fake .ProseMirror {
+  caret-color: transparent;
+}
+
+/*
+ * The widget is a zero-size inline anchor at the caret: it cannot shift or
+ * wrap the text, and the visible block is drawn by ::before with explicit
+ * baseline-relative offsets, so the geometry does not depend on
+ * vertical-align or font metric quirks. The extension pins the span's
+ * font-size to the textblock's size, so the block scales with the line type
+ * (p, h1, h2, ...) and never with neighboring characters or inline marks.
+ * The block spans the full character cell: one em above the baseline (top of
+ * the em box, above accented capitals) down to just past the descenders.
+ * The tint mixes the theme accent with the theme text color so muted
+ * accents (sable-family themes) stay pronounced in light and dark palettes.
+ */
+.tomosona-fake-cursor {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.tomosona-fake-cursor::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -1em;
+  width: 0.6em;
+  height: 1.26em;
+  background: color-mix(in srgb, var(--accent) 80%, var(--text-main) 20%);
+}
+
+.tomosona-fake-cursor--underline::before {
+  top: -0.12em;
+  height: 0.13em;
+}
+
+/*
+ * Blink cycle: the cursor holds solid for the first second (~40% of 2.4s),
+ * then eases out and back in. The extension restarts the cycle on typing or
+ * caret moves by switching between the two identical keyframe sets, so the
+ * cursor stays solid while you write and only pulses after a pause.
+ */
+@keyframes tomosona-fake-cursor-blink {
+  0%, 40% { opacity: 1; }
+  70% { opacity: 0.15; }
+  100% { opacity: 1; }
+}
+
+@keyframes tomosona-fake-cursor-blink2 {
+  0%, 40% { opacity: 1; }
+  70% { opacity: 0.15; }
+  100% { opacity: 1; }
+}
+
+.tomosona-fake-cursor--blink {
+  animation: tomosona-fake-cursor-blink 2.4s ease-in-out infinite;
+}

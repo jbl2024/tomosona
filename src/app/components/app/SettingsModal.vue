@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { AppThemeDefinition } from '../../../shared/lib/themeRegistry'
 import type { ThemePreference } from '../../composables/useAppTheme'
 import type { TerminalPreferences } from '../../composables/useAppTerminalPreferences'
+import type { EditorPreferences } from '../../composables/useAppEditorPreferences'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 import UiField from '../../../shared/components/ui/UiField.vue'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
@@ -15,6 +16,7 @@ const props = defineProps<{
   themePreference: ThemePreference
   availableThemes: readonly AppThemeDefinition[]
   terminalPreferences: TerminalPreferences
+  editorPreferences: EditorPreferences
 }>()
 
 const emit = defineEmits<{
@@ -22,9 +24,11 @@ const emit = defineEmits<{
   'set-theme': [value: ThemePreference]
   'update-terminal-preferences': [value: Partial<TerminalPreferences>]
   'reset-terminal-preferences': []
+  'update-editor-preferences': [value: Partial<EditorPreferences>]
+  'reset-editor-preferences': []
 }>()
 
-const activeSection = ref<'appearance' | 'terminal'>('appearance')
+const activeSection = ref<'appearance' | 'editor' | 'terminal'>('appearance')
 const themeOptions = computed(() => [
   { value: 'system', label: 'System' },
   ...props.availableThemes.map((theme) => ({ value: theme.id, label: theme.label }))
@@ -56,6 +60,7 @@ function onVisibilityChange(value: boolean) {
     <div data-modal="settings" class="settings-layout">
       <nav class="settings-nav" aria-label="Settings sections">
         <button type="button" :class="{ active: activeSection === 'appearance' }" @click="activeSection = 'appearance'">Appearance</button>
+        <button type="button" :class="{ active: activeSection === 'editor' }" @click="activeSection = 'editor'">Editor</button>
         <button type="button" :class="{ active: activeSection === 'terminal' }" @click="activeSection = 'terminal'">Terminal</button>
       </nav>
 
@@ -67,6 +72,27 @@ function onVisibilityChange(value: boolean) {
             <option v-for="option in themeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </UiSelect>
         </UiField>
+      </section>
+
+      <section v-else-if="activeSection === 'editor'" class="settings-content" aria-labelledby="settings-editor-title">
+        <div class="settings-section-heading">
+          <div>
+            <h4 id="settings-editor-title">Editor</h4>
+            <p>Terminal-style cursor for the note editor and source mode.</p>
+          </div>
+          <UiButton size="sm" variant="ghost" @click="emit('reset-editor-preferences')">Reset</UiButton>
+        </div>
+        <div class="settings-fields">
+          <UiField for-id="editor-cursor-style" label="Cursor style" help="Bar keeps the native caret.">
+            <UiSelect id="editor-cursor-style" :model-value="editorPreferences.cursorStyle" @update:model-value="emit('update-editor-preferences', { cursorStyle: $event as EditorPreferences['cursorStyle'] })">
+              <option value="block">Block</option><option value="bar">Bar</option><option value="underline">Underline</option>
+            </UiSelect>
+          </UiField>
+          <label class="settings-toggle" for="editor-cursor-blink">
+            <input id="editor-cursor-blink" type="checkbox" :checked="editorPreferences.cursorBlink" @change="emit('update-editor-preferences', { cursorBlink: ($event.target as HTMLInputElement).checked })" />
+            <span><strong>Blinking cursor</strong><small>Animate the editor cursor.</small></span>
+          </label>
+        </div>
       </section>
 
       <section v-else class="settings-content" aria-labelledby="settings-terminal-title">

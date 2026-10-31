@@ -205,6 +205,8 @@ function createRuntimeHarness(input?: {
       readTemplateContent: vi.fn(async () => ''),
       getSpellcheckLanguage: () => 'en',
       spellcheckEnabled,
+      getCursorShape: () => null,
+      getCursorBlink: () => true,
       isSpellcheckWordIgnored: () => false,
       saveCurrentFile,
       onEditorDocChanged: vi.fn()

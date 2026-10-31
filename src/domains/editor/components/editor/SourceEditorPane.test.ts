@@ -125,4 +125,40 @@ describe('SourceEditorPane', () => {
     expect(root.querySelectorAll('.cm-search')).toHaveLength(2)
     app.unmount()
   })
+
+  it('rebuilds the editor when cursor preferences change while keeping the document', async () => {
+    const value = ref('first line\nsecond line')
+    const cursorStyle = ref<'block' | 'underline'>('block')
+    const cursorBlink = ref(false)
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(SourceEditorPane, {
+            modelValue: value.value,
+            languageLabel: 'txt',
+            cursorStyle: cursorStyle.value,
+            cursorBlink: cursorBlink.value,
+            'onUpdate:modelValue': (next: string) => {
+              value.value = next
+            }
+          })
+      }
+    }))
+
+    app.mount(root)
+    await flushUi()
+    expect(root.querySelector('.cm-editor')).toBeTruthy()
+
+    cursorStyle.value = 'underline'
+    cursorBlink.value = true
+    await flushUi()
+
+    expect(root.querySelector('.cm-editor')).toBeTruthy()
+    expect((root.querySelector('.cm-content') as HTMLElement).textContent).toContain('second line')
+
+    app.unmount()
+  })
 })

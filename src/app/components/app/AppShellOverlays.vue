@@ -18,6 +18,7 @@ import type {
 } from '../../composables/useAppQuickOpen'
 import type { ThemePreference } from '../../composables/useAppTheme'
 import type { TerminalPreferences } from '../../composables/useAppTerminalPreferences'
+import type { EditorPreferences } from '../../composables/useAppEditorPreferences'
 import type { AppThemeDefinition } from '../../../shared/lib/themeRegistry'
 import type { WorkspaceSetupOption, WorkspaceSetupUseCase } from '../../lib/workspaceSetupWizard'
 import type { NewNoteTemplateDropdownItem } from '../../lib/newNoteTemplates'
@@ -82,6 +83,7 @@ defineProps<{
   settingsVisible: boolean
   availableThemes: readonly AppThemeDefinition[]
   terminalPreferences: TerminalPreferences
+  editorPreferences: EditorPreferences
   newFileModalVisible: boolean
   newFilePathInput: string
   newFileModalError: string
@@ -127,6 +129,8 @@ const emit = defineEmits<{
   settingsSetTheme: [value: ThemePreference]
   updateTerminalPreferences: [value: Partial<TerminalPreferences>]
   resetTerminalPreferences: []
+  updateEditorPreferences: [value: Partial<EditorPreferences>]
+  resetEditorPreferences: []
   closeNewFile: []
   updateNewFilePath: [value: string]
   keydownNewFile: [event: KeyboardEvent]
@@ -242,10 +246,13 @@ const emit = defineEmits<{
     :theme-preference="themePreference"
     :available-themes="availableThemes"
     :terminal-preferences="terminalPreferences"
+    :editor-preferences="editorPreferences"
     @close="emit('closeSettings')"
     @set-theme="emit('settingsSetTheme', $event)"
     @update-terminal-preferences="emit('updateTerminalPreferences', $event)"
     @reset-terminal-preferences="emit('resetTerminalPreferences')"
+    @update-editor-preferences="emit('updateEditorPreferences', $event)"
+    @reset-editor-preferences="emit('resetEditorPreferences')"
   />
 
   <WorkspaceEntryModals

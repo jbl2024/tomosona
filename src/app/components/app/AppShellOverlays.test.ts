@@ -59,6 +59,7 @@ function mountHarness() {
           settingsVisible: false,
           availableThemes: [],
           terminalPreferences: { fontFamily: 'SF Mono', fontSize: 13, lineHeight: 1.2, letterSpacing: 0, cursorStyle: 'block', cursorBlink: true, scrollback: 5000 },
+          editorPreferences: { cursorStyle: 'block', cursorBlink: true },
           newFileModalVisible: false,
           newFilePathInput: '',
           newFileModalError: '',

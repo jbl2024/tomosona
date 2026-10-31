@@ -78,6 +78,8 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
+  cursorStyle?: 'block' | 'bar' | 'underline'
+  cursorBlink?: boolean
   workspacePath: string
   launchpad: AppShellLaunchpadViewModel
 }>()
@@ -372,6 +374,8 @@ onBeforeUnmount(() => {
         :open-link-target="openLinkTarget"
         :spellcheck-enabled="spellcheckEnabled"
         :ruler-visible="rulerVisible"
+        :cursor-style="cursorStyle"
+        :cursor-blink="cursorBlink"
         @status="emit('status', $event)"
         @path-renamed="emit('path-renamed', $event)"
         @outline="emit('outline', $event)"

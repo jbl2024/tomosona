@@ -7,6 +7,10 @@ const terminalPreferences = {
   cursorStyle: 'block' as const, cursorBlink: true, scrollback: 5000
 }
 
+const editorPreferences = {
+  cursorStyle: 'block' as const, cursorBlink: true
+}
+
 function mountHarness() {
   const root = document.createElement('div')
   document.body.appendChild(root)
@@ -19,8 +23,10 @@ function mountHarness() {
         themePreference: 'system',
         availableThemes: [{ id: 'tomosona-light', label: 'Tomosona Light', colorScheme: 'light', group: 'official' }],
         terminalPreferences,
+        editorPreferences,
         onClose: () => { visible.value = false },
-        onUpdateTerminalPreferences: (value: unknown) => updates.push(value)
+        onUpdateTerminalPreferences: (value: unknown) => updates.push(value),
+        onUpdateEditorPreferences: (value: unknown) => updates.push(value)
       })
     }
   }))
@@ -35,12 +41,36 @@ describe('SettingsModal', () => {
     const mounted = mountHarness()
     const buttons = mounted.root.querySelectorAll<HTMLButtonElement>('.settings-nav button')
 
-    expect(Array.from(buttons).map((button) => button.textContent)).toEqual(['Appearance', 'Terminal'])
-    buttons[1].click()
+    expect(Array.from(buttons).map((button) => button.textContent)).toEqual(['Appearance', 'Editor', 'Terminal'])
+    buttons[2].click()
     await nextTick()
 
     expect(mounted.root.querySelector('#terminal-font-size')).not.toBeNull()
     expect(mounted.root.querySelector('.settings-content')).not.toBeNull()
+    mounted.app.unmount()
+  })
+
+  it('exposes editor cursor controls that emit preference updates', async () => {
+    const mounted = mountHarness()
+    const buttons = mounted.root.querySelectorAll<HTMLButtonElement>('.settings-nav button')
+
+    buttons[1].click()
+    await nextTick()
+
+    const styleSelect = mounted.root.querySelector<HTMLSelectElement>('#editor-cursor-style')
+    expect(styleSelect).not.toBeNull()
+    styleSelect!.value = 'underline'
+    styleSelect!.dispatchEvent(new Event('change'))
+    await nextTick()
+
+    const blinkToggle = mounted.root.querySelector<HTMLInputElement>('#editor-cursor-blink')
+    expect(blinkToggle).not.toBeNull()
+    blinkToggle!.checked = false
+    blinkToggle!.dispatchEvent(new Event('change'))
+    await nextTick()
+
+    expect(mounted.updates).toContainEqual({ cursorStyle: 'underline' })
+    expect(mounted.updates).toContainEqual({ cursorBlink: false })
     mounted.app.unmount()
   })
 })

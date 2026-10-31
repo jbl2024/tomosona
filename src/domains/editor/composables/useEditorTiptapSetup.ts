@@ -17,6 +17,7 @@ import { NoteEmbedNode } from '../lib/tiptap/extensions/NoteEmbedNode'
 import { CodeBlockNode } from '../lib/tiptap/extensions/CodeBlockNode'
 import { TableCellAlign } from '../lib/tiptap/extensions/TableCellAlign'
 import { EditorFindExtension } from '../lib/tiptap/extensions/EditorFind'
+import { BlockCursorExtension, type BlockCursorShape } from '../lib/tiptap/extensions/BlockCursor'
 import { SpellcheckExtension, refreshSpellcheckDecorations } from '../lib/tiptap/extensions/Spellcheck'
 import { PastedLinkBoundary } from '../lib/tiptap/extensions/PastedLinkBoundary'
 import { AdjacentListNormalizer } from '../lib/tiptap/extensions/AdjacentListNormalizer'
@@ -74,6 +75,8 @@ export type UseEditorTiptapSetupOptions = {
   openExternalUrl: (value: string) => Promise<void>
   getSpellcheckLanguage: (path: string) => SpellcheckLanguage
   spellcheckEnabled: Ref<boolean>
+  getCursorShape: () => BlockCursorShape | null
+  getCursorBlink: () => boolean
   isSpellcheckWordIgnored: (path: string, word: string) => boolean
   inlineFormatToolbar: {
     updateFormattingToolbar: () => void
@@ -446,6 +449,10 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           isWordIgnored: (word: string) => options.isSpellcheckWordIgnored(path, word)
         }),
         EditorFindExtension,
+        BlockCursorExtension.configure({
+          getShape: options.getCursorShape,
+          getBlink: options.getCursorBlink
+        }),
         WikilinkNode.configure({
           getCandidates: (query: string) => options.getWikilinkCandidates(query),
           onNavigate: (target: string) => options.openLinkTargetWithAutosave(target),

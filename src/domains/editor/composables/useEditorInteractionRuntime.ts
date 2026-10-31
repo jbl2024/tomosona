@@ -44,6 +44,8 @@ export type EditorInteractionRuntimeDocumentPort = {
   readTemplateContent: (path: string) => Promise<string>
   getSpellcheckLanguage: (path: string) => import('../lib/spellcheck').SpellcheckLanguage
   spellcheckEnabled: Ref<boolean>
+  getCursorShape: () => import('../lib/tiptap/extensions/BlockCursor').BlockCursorShape | null
+  getCursorBlink: () => boolean
   isSpellcheckWordIgnored: (path: string, word: string) => boolean
   saveCurrentFile: (manual?: boolean) => Promise<void>
   onEditorDocChanged: (path: string) => void
@@ -329,6 +331,8 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
     openExternalUrl: ioPort.openExternalUrl,
     getSpellcheckLanguage: (path) => documentPort.getSpellcheckLanguage(path),
     spellcheckEnabled: documentPort.spellcheckEnabled,
+    getCursorShape: documentPort.getCursorShape,
+    getCursorBlink: documentPort.getCursorBlink,
     isSpellcheckWordIgnored: (path, word) => documentPort.isSpellcheckWordIgnored(path, word),
     inlineFormatToolbar: {
       updateFormattingToolbar: chromePort.toolbars.inlineFormatToolbar.updateFormattingToolbar,

@@ -39,6 +39,8 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
+  cursorStyle?: 'block' | 'bar' | 'underline'
+  cursorBlink?: boolean
   activeDocumentPath: string
   workspacePath: string
   launchpad: AppShellLaunchpadViewModel & {
@@ -138,6 +140,8 @@ defineExpose<EditorSurfaceExposed>({
     :openLinkTarget="openLinkTarget"
     :spellcheckEnabled="spellcheckEnabled"
     :ruler-visible="rulerVisible"
+    :cursor-style="cursorStyle"
+    :cursor-blink="cursorBlink"
     @status="emit('status', $event)"
     @path-renamed="emit('path-renamed', $event)"
     @outline="emit('outline', $event)"

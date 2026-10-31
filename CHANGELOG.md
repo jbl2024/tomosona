@@ -4,6 +4,7 @@
 
 ### Added
 - Password protection for individual pages, including encrypted history for new protected versions, with password confirmation when choosing a new password.
+- Terminal-style cursor setting (block/bar/underline, optional blinking) for the note editor and source mode, configurable in Settings.
 
 ### Changed
 

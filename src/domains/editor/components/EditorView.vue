@@ -26,6 +26,7 @@ import { useEmbeddedNoteActions } from '../composables/useEmbeddedNoteActions'
 import { getBlockStructureLabel } from '../lib/tiptap/blockMenu/guards'
 import { buildAssetBrowserItems } from '../lib/tiptap/assetBrowser'
 import { parseWikilinkTarget } from '../lib/wikilinks'
+import { refreshBlockCursorDecorations } from '../lib/tiptap/extensions/BlockCursor'
 import EditorContextOverlays from './editor/EditorContextOverlays.vue'
 import EditorFindToolbar from './editor/EditorFindToolbar.vue'
 import EditorInlineFormatToolbar from './editor/EditorInlineFormatToolbar.vue'
@@ -97,6 +98,8 @@ const props = defineProps<{
   openLinkTarget: (target: string) => Promise<boolean>
   spellcheckEnabled?: boolean
   rulerVisible?: boolean
+  cursorStyle?: 'block' | 'bar' | 'underline'
+  cursorBlink?: boolean
 }>()
 
 const emit = defineEmits([
@@ -188,6 +191,12 @@ const allWorkspaceFilesRef = computed(() => props.allWorkspaceFiles ?? [])
 const currentPathSource = computed(() => props.path?.trim() || '')
 const sourceMode = useEditorSourceMode(currentPathSource)
 const spellcheckEnabledRef = computed(() => Boolean(props.spellcheckEnabled))
+const cursorStyleRef = computed(() => props.cursorStyle)
+const cursorBlinkRef = computed(() => props.cursorBlink !== false)
+/** Null means the native caret is used; otherwise a fake cursor shape is drawn. */
+const cursorShapeRef = computed<'block' | 'underline' | null>(() =>
+  props.cursorStyle === 'block' || props.cursorStyle === 'underline' ? props.cursorStyle : null
+)
 const assetBrowserItems = computed(() =>
   buildAssetBrowserItems({
     workspaceRoot: workspacePathRef.value,
@@ -290,6 +299,8 @@ interactionRuntime = useEditorInteractionRuntime({
     },
     getSpellcheckLanguage: (path) => documentRuntime?.getSpellcheckLanguage(path) ?? 'en',
     spellcheckEnabled: spellcheckEnabledRef,
+    getCursorShape: () => cursorShapeRef.value,
+    getCursorBlink: () => cursorBlinkRef.value,
     isSpellcheckWordIgnored: (_path, word) => workspaceSpellcheck.isIgnoredWord(word) || chromeRuntime.spellcheck.isSessionIgnoredWord(word),
     saveCurrentFile: (manual) => documentRuntime?.saveCurrentFile(manual),
     onEditorDocChanged: (path) => documentRuntime?.onEditorDocChanged(path)
@@ -471,6 +482,14 @@ watch(
     interactionRuntime?.refreshSpellcheckForPath(path)
   }
 )
+
+// Cursor preferences are app-wide: refresh every mounted session editor,
+// not only the active one.
+watch([cursorStyleRef, cursorBlinkRef], () => {
+  for (const editor of Object.values(renderedEditorsByPath.value ?? {})) {
+    if (editor) refreshBlockCursorDecorations(editor)
+  }
+})
 
 watch(
   () => workspaceSpellcheck.revision.value,
@@ -1198,6 +1217,7 @@ defineExpose({
               v-for="sessionPath in renderPaths"
               :key="`editor-pane:${sessionPath}`"
               class="editor-session-pane"
+              :class="{ 'editor-cursor-fake': cursorShapeRef !== null }"
               :data-session-path="sessionPath"
               :data-active="isActiveMountedPath(sessionPath) ? 'true' : 'false'"
               :aria-hidden="isActiveMountedPath(sessionPath) ? undefined : 'true'"
@@ -1214,6 +1234,8 @@ defineExpose({
                   :word-wrap="sourceRuntime.getSession(sessionPath)?.wordWrap"
                   :scroll-top="sourceRuntime.getSession(sessionPath)?.scrollTop"
                   :scroll-left="sourceRuntime.getSession(sessionPath)?.scrollLeft"
+                  :cursor-style="cursorStyleRef"
+                  :cursor-blink="cursorBlinkRef"
                   @update:model-value="sourceRuntime.setText(sessionPath, $event)"
                   @scroll="onSourceEditorViewState(sessionPath, { scrollTop: $event.top, scrollLeft: $event.left })"
                   @toggle-word-wrap="onSourceEditorViewState(sessionPath, { wordWrap: !(sourceRuntime.getSession(sessionPath)?.wordWrap ?? true) })"
