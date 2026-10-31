@@ -64,6 +64,7 @@ function mountHarness() {
           quickOpenPaletteCategories: [],
           quickOpenTabMenu: null,
           quickOpenTabMenuItems: [],
+          quickOpenContextSuggestions: [],
           newFileModalVisible: false,
           newFilePathInput: '',
           newFileModalError: '',

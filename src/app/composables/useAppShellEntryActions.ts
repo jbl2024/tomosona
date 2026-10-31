@@ -70,7 +70,16 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     closeActivePaneFromPalette: () => false,
     joinPanesFromPalette: () => false,
     resetPaneLayoutFromPalette: () => false,
-    revealActiveInExplorer: () => false
+    revealActiveInExplorer: () => false,
+    openExplorerSelection: () => false,
+    copyExplorerSelectionLink: () => false,
+    addExplorerSelectionToFavorites: () => false,
+    removeExplorerSelectionFromFavorites: () => false,
+    revealExplorerSelection: () => false,
+    extractSelectionToLinkedNote: () => false,
+    copySelectionAsMarkdown: () => false,
+    transformSelectionToHeading: () => false,
+    transformSelectionToList: () => false
   }
 }
 

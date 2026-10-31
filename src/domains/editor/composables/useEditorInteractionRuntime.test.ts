@@ -138,6 +138,9 @@ function createEditorStub(options?: {
   const replaceWith = vi.fn((from: number, to: number, node: unknown) => ({
     scrollIntoView: vi.fn(() => ({ from, to, node }))
   }))
+  const insert = vi.fn((pos: number, node: unknown) => ({
+    scrollIntoView: vi.fn(() => ({ pos, node }))
+  }))
   const schema = getSchema([StarterKit])
   const doc = schema.nodeFromJSON({
     type: 'doc',
@@ -150,11 +153,15 @@ function createEditorStub(options?: {
         nodes: {
           noteEmbedBlock: {
             create: vi.fn((attrs: { target?: string }) => ({ type: 'noteEmbedBlock', attrs }))
+          },
+          wikilink: {
+            create: vi.fn((attrs: Record<string, unknown>) => ({ type: 'wikilink', attrs }))
           }
         }
       },
       tr: {
-        replaceWith
+        replaceWith,
+        insert
       },
       doc
     },
@@ -360,6 +367,41 @@ describe('useEditorInteractionRuntime', () => {
     expect(editor.view.dispatch).not.toHaveBeenCalled()
     expect(harness.saveCurrentFile).not.toHaveBeenCalled()
     error.mockRestore()
+  })
+
+  it('extracts to a linked note while keeping the original passage', async () => {
+    const editor = createEditorStub({
+      blocks: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Alpha' }] }
+      ]
+    })
+    const harness = createRuntimeHarness({
+      currentPath: '/vault/source.md',
+      activeEditor: ref(editor) as Ref<Editor | null>
+    })
+
+    const result = await harness.runtime.extractSelectionToLinkedNote()
+
+    expect(result).toBe(true)
+    expect(harness.createExtractedNote).toHaveBeenCalledWith('/vault/source.md', 'Alpha')
+    // The original passage is preserved: the selection range is never replaced,
+    // a wikilink to the created note is inserted right after it.
+    expect(editor.state.tr.replaceWith).not.toHaveBeenCalled()
+    expect(editor.state.tr.insert).toHaveBeenCalledWith(7, {
+      type: 'wikilink',
+      attrs: { target: 'notes/extracted', label: null, exists: true }
+    })
+    expect(editor.view.dispatch).toHaveBeenCalled()
+    expect(harness.saveCurrentFile).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps the document untouched when the linked extract selection is partial', async () => {
+    const editor = createEditorStub({ from: 2, to: 6 })
+    const harness = createRuntimeHarness({ activeEditor: ref(editor) as Ref<Editor | null> })
+
+    expect(await harness.runtime.extractSelectionToLinkedNote()).toBe(false)
+    expect(harness.createExtractedNote).not.toHaveBeenCalled()
+    expect(editor.view.dispatch).not.toHaveBeenCalled()
   })
 
   it('tracks recent interaction time for caret capture gating', () => {

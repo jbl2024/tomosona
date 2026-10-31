@@ -19,10 +19,10 @@
 
 ## 3. P3 — Contextual fluidity
 
-- [ ] 3.1 Capture a context snapshot when the palette opens (active file, editor selection text, explorer selection, is-daily-note) and rank context suggestions first in the browse state per context (no document, active note, explorer selection, daily note), and verify tests cover each context's suggestion set and that non-contextual results remain reachable
-- [ ] 3.2 Implement selection actions surfaced from the editor-selection context (transform to heading/list, copy as Markdown, extract to a new note reusing the existing extract flow with the original passage preserved and a link inserted), and verify tests cover the extract end-to-end behavior and the preservation default
-- [ ] 3.3 Implement the `?` help mode (shortcut explanations and help entries filtered by query, opening existing docs/shortcuts surfaces), and verify tests cover mode filtering and its reversibility
-- [ ] 3.4 Add light personalization to the browse state (recently executed and frequently used commands, favorites), and verify tests cover predictable ordering: explicit query results always rank by relevance, habits only influence the empty-query state
+- [x] 3.1 Capture a context snapshot when the palette opens (active file, editor selection text, explorer selection, is-daily-note) and rank context suggestions first in the browse state per context (no document, active note, explorer selection, daily note), and verify tests cover each context's suggestion set and that non-contextual results remain reachable
+- [x] 3.2 Implement selection actions surfaced from the editor-selection context (transform to heading/list, copy as Markdown, extract to a new note reusing the existing extract flow with the original passage preserved and a link inserted), and verify tests cover the extract end-to-end behavior and the preservation default
+- [x] 3.3 Implement the `?` help mode (shortcut explanations and help entries filtered by query, opening existing docs/shortcuts surfaces), and verify tests cover mode filtering and its reversibility
+- [x] 3.4 Add light personalization to the browse state (recently executed and frequently used commands, favorites), and verify tests cover predictable ordering: explicit query results always rank by relevance, habits only influence the empty-query state
 
 ## 4. Final verification
 

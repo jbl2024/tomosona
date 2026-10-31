@@ -384,7 +384,9 @@ watch(
 )
 
 defineExpose({
-  revealPathInView: treeState.revealPathInView
+  revealPathInView: treeState.revealPathInView,
+  /** First selected file path, or null when the tree has no selection. */
+  getSelectedFilePath: () => selectionManager.selectedPaths.value[0] ?? null
 })
 
 onMounted(() => {

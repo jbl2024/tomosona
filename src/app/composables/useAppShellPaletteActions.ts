@@ -21,6 +21,12 @@ export type AppShellPaletteStatePort = {
   hasWorkspace: Readonly<Ref<boolean>>
   spellcheckEnabled: Readonly<Ref<boolean>>
   editorRulerVisible: Readonly<Ref<boolean>>
+  /** Frozen at palette open: file highlighted in the explorer sidebar. */
+  explorerSelectionPath: Readonly<Ref<string | null>>
+  /** Frozen at palette open: text selected in the editor, if any. */
+  editorSelectionText: Readonly<Ref<string>>
+  /** Frozen at palette open: markdown of the editor selection, if any. */
+  editorSelectionMarkdown: Readonly<Ref<string>>
 }
 
 /** Groups the document helpers required by the palette catalog. */
@@ -73,6 +79,15 @@ export type AppShellPaletteActionPort = {
   joinPanesFromPalette: () => boolean | Promise<boolean>
   resetPaneLayoutFromPalette: () => boolean | Promise<boolean>
   revealActiveInExplorer: () => boolean | Promise<boolean>
+  openExplorerSelection: (path: string) => boolean | Promise<boolean>
+  copyExplorerSelectionLink: (path: string) => boolean | Promise<boolean>
+  addExplorerSelectionToFavorites: (path: string) => boolean | Promise<boolean>
+  removeExplorerSelectionFromFavorites: (path: string) => boolean | Promise<boolean>
+  revealExplorerSelection: (path: string) => boolean | Promise<boolean>
+  extractSelectionToLinkedNote: () => boolean | Promise<boolean>
+  copySelectionAsMarkdown: (markdown: string) => boolean | Promise<boolean>
+  transformSelectionToHeading: () => boolean | Promise<boolean>
+  transformSelectionToList: () => boolean | Promise<boolean>
 }
 
 /** Declares the dependencies required to build the palette catalog. */
@@ -82,6 +97,34 @@ export type UseAppShellPaletteActionsOptions = {
   favoritesPort: AppShellPaletteFavoritesPort
   themePort: AppShellPaletteThemePort
   actionPort: AppShellPaletteActionPort
+}
+
+/**
+ * Favorite toggle for the explorer selection: exactly one of add/remove is
+ * included, matching how the active-note favorite actions are conditioned.
+ */
+function explorerSelectionFavoriteActions(options: UseAppShellPaletteActionsOptions): PaletteAction[] {
+  const path = options.statePort.explorerSelectionPath.value
+  if (!path) return []
+  const family: PaletteActionFamily = 'notes'
+  if (options.favoritesPort.isFavorite(path)) {
+    return [
+      createPaletteAction(family, {
+        id: 'remove-explorer-selection-from-favorites',
+        label: 'Remove Selected File from Favorites',
+        keywords: ['favorites', 'remove', 'selected', 'explorer'],
+        run: () => options.actionPort.removeExplorerSelectionFromFavorites(path)
+      })
+    ]
+  }
+  return [
+    createPaletteAction(family, {
+      id: 'add-explorer-selection-to-favorites',
+      label: 'Add Selected File to Favorites',
+      keywords: ['favorites', 'add', 'selected', 'explorer'],
+      run: () => options.actionPort.addExplorerSelectionToFavorites(path)
+    })
+  ]
 }
 
 function createPaletteAction(
@@ -398,6 +441,79 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       id: 'reveal-in-explorer',
       label: 'Reveal in Explorer',
       run: () => options.actionPort.revealActiveInExplorer()
+    }),
+    createPaletteAction('notes', {
+      id: 'open-explorer-selection',
+      label: 'Open Selected File',
+      description: 'Open the file highlighted in the explorer',
+      keywords: ['open', 'selected', 'explorer', 'selection'],
+      isEnabled: () => Boolean(options.statePort.explorerSelectionPath.value),
+      unavailableReason: 'Select a file in the explorer first',
+      run: () => {
+        const path = options.statePort.explorerSelectionPath.value
+        return path ? options.actionPort.openExplorerSelection(path) : false
+      }
+    }),
+    createPaletteAction('notes', {
+      id: 'copy-explorer-selection-link',
+      label: 'Copy Selected File Link',
+      description: 'Copy a wikilink to the file highlighted in the explorer',
+      keywords: ['copy', 'link', 'wikilink', 'selected', 'explorer'],
+      isEnabled: () => Boolean(options.statePort.explorerSelectionPath.value),
+      unavailableReason: 'Select a file in the explorer first',
+      run: () => {
+        const path = options.statePort.explorerSelectionPath.value
+        return path ? options.actionPort.copyExplorerSelectionLink(path) : false
+      }
+    }),
+    ...explorerSelectionFavoriteActions(options),
+    createPaletteAction('utilities', {
+      id: 'reveal-explorer-selection',
+      label: 'Reveal Selected File',
+      description: 'Reveal the file highlighted in the explorer',
+      keywords: ['reveal', 'selected', 'explorer', 'finder'],
+      isEnabled: () => Boolean(options.statePort.explorerSelectionPath.value),
+      unavailableReason: 'Select a file in the explorer first',
+      run: () => {
+        const path = options.statePort.explorerSelectionPath.value
+        return path ? options.actionPort.revealExplorerSelection(path) : false
+      }
+    }),
+    createPaletteAction('notes', {
+      id: 'extract-selection-to-note',
+      label: 'Extract Selection to New Note',
+      description: 'Create a note from the selection, keep it, and link it here',
+      keywords: ['extract', 'selection', 'note', 'extraire', 'refactor'],
+      isEnabled: () => Boolean(options.statePort.editorSelectionText.value.trim()),
+      unavailableReason: 'Select text in the editor first',
+      run: () => options.actionPort.extractSelectionToLinkedNote()
+    }),
+    createPaletteAction('notes', {
+      id: 'copy-selection-as-markdown',
+      label: 'Copy Selection as Markdown',
+      description: 'Copy the selected text as Markdown source',
+      keywords: ['copy', 'markdown', 'selection', 'copier'],
+      isEnabled: () => Boolean(options.statePort.editorSelectionText.value.trim()),
+      unavailableReason: 'Select text in the editor first',
+      run: () => options.actionPort.copySelectionAsMarkdown(options.statePort.editorSelectionMarkdown.value)
+    }),
+    createPaletteAction('notes', {
+      id: 'transform-selection-heading',
+      label: 'Turn Selection into Heading',
+      description: 'Transform the selected block into a level-2 heading',
+      keywords: ['heading', 'title', 'transform', 'titre'],
+      isEnabled: () => Boolean(options.statePort.editorSelectionText.value.trim()),
+      unavailableReason: 'Select text in the editor first',
+      run: () => options.actionPort.transformSelectionToHeading()
+    }),
+    createPaletteAction('notes', {
+      id: 'transform-selection-list',
+      label: 'Turn Selection into List',
+      description: 'Transform the selected block into a bullet list',
+      keywords: ['list', 'bullet', 'transform', 'liste'],
+      isEnabled: () => Boolean(options.statePort.editorSelectionText.value.trim()),
+      unavailableReason: 'Select text in the editor first',
+      run: () => options.actionPort.transformSelectionToList()
     })
   ])
 

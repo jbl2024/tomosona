@@ -292,6 +292,34 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
   }
 
   /**
+   * Extracts the current selection into a new note while keeping the original
+   * passage in place (the palette default: no unexpected deletion), appending
+   * a wikilink to the created note right after it.
+   */
+  async function extractSelectionToLinkedNote() {
+    const editor = documentPort.activeEditor.value
+    const path = documentPort.currentPath.value
+    if (!editor || !path) return false
+
+    const extracted = extractSelectedMarkdownBlocks(editor)
+    if (!extracted) return false
+
+    try {
+      const created = await ioPort.createExtractedNote(path, extracted.markdown.trimEnd())
+      const wikilinkType = editor.state.schema.nodes[TIPTAP_NODE_TYPES.wikilink]
+      if (!wikilinkType) return false
+
+      const link = wikilinkType.create({ target: created.link_target, label: null, exists: true })
+      editor.view.dispatch(editor.state.tr.insert(extracted.to, link).scrollIntoView())
+      await documentPort.saveCurrentFile(false)
+      return true
+    } catch (error) {
+      console.error('[editor] extract-to-linked-note failed', error)
+      return false
+    }
+  }
+
+  /**
    * Refreshes spellcheck decorations for one mounted session editor.
    */
   function refreshSpellcheckForPath(path: string) {
@@ -473,6 +501,7 @@ export function useEditorInteractionRuntime(options: UseEditorInteractionRuntime
     onEditorPaste: editorInputAndNavigation.onEditorPaste,
     openLinkTargetWithAutosave: editorInputAndNavigation.openLinkTargetWithAutosave,
     extractSelectionToEmbeddedNote,
+    extractSelectionToLinkedNote,
     getWikilinkCandidates: wikilinkFlow.getWikilinkCandidates,
     markEditorInteraction: slashAndInsertion.markEditorInteraction,
     resetWikilinkDataCache: wikilinkFlow.resetWikilinkDataCache,

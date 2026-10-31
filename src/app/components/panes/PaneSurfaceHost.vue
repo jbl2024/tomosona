@@ -81,6 +81,11 @@ type EditorSurfaceExposed = {
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
+  getSelectionText: () => string
+  getSelectionMarkdown: () => string
+  extractSelectionToLinkedNote: () => Promise<boolean>
+  transformSelectionToHeading: () => boolean
+  transformSelectionToList: () => boolean
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -113,6 +118,11 @@ defineExpose<EditorSurfaceExposed>({
   revealOutlineHeading: async (index: number) => await withEditor((editor) => editor.revealOutlineHeading(index), Promise.resolve()),
   revealAnchor: async (anchor: WikilinkAnchor) => await withEditor((editor) => editor.revealAnchor(anchor), Promise.resolve(false)),
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => withEditor((editor) => editor.navigateSignal(kind, direction), undefined),
+  getSelectionText: () => withEditor((editor) => editor.getSelectionText(), ''),
+  getSelectionMarkdown: () => withEditor((editor) => editor.getSelectionMarkdown(), ''),
+  extractSelectionToLinkedNote: async () => await withEditor((editor) => editor.extractSelectionToLinkedNote(), Promise.resolve(false)),
+  transformSelectionToHeading: () => withEditor((editor) => editor.transformSelectionToHeading(), false),
+  transformSelectionToList: () => withEditor((editor) => editor.transformSelectionToList(), false),
   zoomIn: () => withEditor((editor) => editor.zoomIn(), 1),
   zoomOut: () => withEditor((editor) => editor.zoomOut(), 1),
   resetZoom: () => withEditor((editor) => editor.resetZoom(), 1),

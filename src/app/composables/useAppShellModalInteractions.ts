@@ -46,6 +46,8 @@ export type AppShellQuickOpenInteractionPort = {
   moveQuickOpenTabMenuSelection: (delta: number) => void
   setQuickOpenTabMenuItemIndex: (index: number) => void
   runQuickOpenTabMenuAction: (menu: QuickOpenTabMenu, action: PaletteTabActionId) => void
+  /** Records an executed command for browse personalization. */
+  recordQuickOpenCommandUsage: (id: string) => void
 }
 
 /** Groups the theme picker state used by modal interaction handlers. */
@@ -95,6 +97,7 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     if (closesBeforeRun && options.quickOpenPort.quickOpenVisible.value) {
       options.closeQuickOpen(false)
     }
+    options.quickOpenPort.recordQuickOpenCommandUsage(id)
     void (async () => {
       try {
         const shouldClose = await action.run()

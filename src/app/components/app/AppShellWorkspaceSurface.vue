@@ -29,6 +29,7 @@ export type AppShellWorkspaceSurfaceExposed = {
     path: string,
     options?: { focusTree?: boolean; behavior?: ScrollBehavior }
   ) => Promise<void>
+  getSelectedFilePath: () => string | null
 }
 
 defineProps<{
@@ -125,8 +126,14 @@ function revealPathInView(
   return sidebarRef.value?.revealPathInView(path, options) ?? Promise.resolve()
 }
 
+/** First file selected in the explorer sidebar, or null. */
+function getSelectedFilePath(): string | null {
+  return sidebarRef.value?.getSelectedFilePath() ?? null
+}
+
 defineExpose<AppShellWorkspaceSurfaceExposed>({
-  revealPathInView
+  revealPathInView,
+  getSelectedFilePath
 })
 </script>
 

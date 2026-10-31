@@ -52,3 +52,46 @@ export function readPersistedMultiPaneLayout(storageKey: string): MultiPaneLayou
   }
 }
 
+
+/** Command usage habits for palette personalization. */
+export type CommandUsage = {
+  counts: Record<string, number>
+  recent: string[]
+}
+
+export const COMMAND_USAGE_RECENT_LIMIT = 10
+
+/** Normalizes raw persisted usage: counts stay numbers, recent ids stay strings. */
+export function normalizeCommandUsage(value: unknown): CommandUsage {
+  const raw = (value ?? {}) as { counts?: unknown; recent?: unknown }
+  const countsSource = typeof raw.counts === 'object' && raw.counts !== null ? raw.counts : {}
+  const counts: Record<string, number> = {}
+  for (const [id, count] of Object.entries(countsSource)) {
+    const parsed = Number(count)
+    if (Number.isFinite(parsed) && parsed > 0) counts[id] = Math.floor(parsed)
+  }
+  const recent = Array.isArray(raw.recent)
+    ? raw.recent.filter((id): id is string => typeof id === 'string' && id.length > 0).slice(0, COMMAND_USAGE_RECENT_LIMIT)
+    : []
+  return { counts, recent }
+}
+
+/** Reads persisted command usage, defaulting to empty habits. */
+export function readPersistedCommandUsage(storageKey: string): CommandUsage {
+  if (typeof window === 'undefined') return { counts: {}, recent: [] }
+  try {
+    return normalizeCommandUsage(JSON.parse(window.localStorage.getItem(storageKey) ?? '{}'))
+  } catch {
+    return { counts: {}, recent: [] }
+  }
+}
+
+/** Persists command usage as JSON. */
+export function persistCommandUsage(storageKey: string, usage: CommandUsage): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(normalizeCommandUsage(usage)))
+  } catch {
+    // Storage may be unavailable; habits are a nicety, never a blocker.
+  }
+}

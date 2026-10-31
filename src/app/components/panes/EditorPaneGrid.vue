@@ -32,6 +32,11 @@ export type EditorPaneGridExposed = {
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
+  getSelectionText: () => string
+  getSelectionMarkdown: () => string
+  extractSelectionToLinkedNote: () => Promise<boolean>
+  transformSelectionToHeading: () => boolean
+  transformSelectionToList: () => boolean
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -48,6 +53,11 @@ type EditorViewExposed = {
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
+  getSelectionText: () => string
+  getSelectionMarkdown: () => string
+  extractSelectionToLinkedNote: () => Promise<boolean>
+  transformSelectionToHeading: () => boolean
+  transformSelectionToList: () => boolean
   zoomIn: () => number
   zoomOut: () => number
   resetZoom: () => number
@@ -273,6 +283,26 @@ function navigateSignal(kind: EditorSignalKind, direction: EditorSignalDirection
   ensureCall((editor) => editor.navigateSignal(kind, direction), undefined)
 }
 
+function getSelectionText() {
+  return ensureCall((editor) => editor.getSelectionText(), '')
+}
+
+function getSelectionMarkdown() {
+  return ensureCall((editor) => editor.getSelectionMarkdown(), '')
+}
+
+function extractSelectionToLinkedNote() {
+  return ensureCall((editor) => editor.extractSelectionToLinkedNote(), Promise.resolve(false))
+}
+
+function transformSelectionToHeading() {
+  return ensureCall((editor) => editor.transformSelectionToHeading(), false)
+}
+
+function transformSelectionToList() {
+  return ensureCall((editor) => editor.transformSelectionToList(), false)
+}
+
 function zoomIn() {
   return ensureCall((editor) => editor.zoomIn(), 1)
 }
@@ -301,6 +331,11 @@ defineExpose<EditorPaneGridExposed>({
   revealOutlineHeading,
   revealAnchor,
   navigateSignal,
+  getSelectionText,
+  getSelectionMarkdown,
+  extractSelectionToLinkedNote,
+  transformSelectionToHeading,
+  transformSelectionToList,
   zoomIn,
   zoomOut,
   resetZoom,

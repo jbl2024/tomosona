@@ -53,6 +53,7 @@ import { buildNewNoteTemplateItems } from '../../../app/lib/newNoteTemplates'
 import { INLINE_TEXT_COMMAND_HANDLER, type InlineTextCommandInput } from '../lib/inlineTextCommands'
 import { useEditorSourceMode } from '../composables/useEditorSourceMode'
 import { useSourceEditorRuntime } from '../composables/useSourceEditorRuntime'
+import { extractSelectionClipboardPayload } from '../lib/editorClipboard'
 import {
   EMPTY_EDITOR_SIGNAL_SUMMARY,
   type EditorSignalDirection,
@@ -1112,6 +1113,33 @@ defineExpose({
   revealOutlineHeading,
   revealAnchor,
   navigateSignal,
+  /** Text of the current rich-editor selection, empty when nothing is selected. */
+  getSelectionText: () => {
+    const editor = activeRichTextEditor.value
+    if (!editor || editor.state.selection.empty) return ''
+    const { from, to } = editor.state.selection
+    return editor.state.doc.textBetween(from, to, ' ', ' ')
+  },
+  /** Markdown of the DOM selection at capture time, empty when collapsed. */
+  getSelectionMarkdown: () => {
+    const editor = activeRichTextEditor.value
+    if (!editor) return ''
+    const payload = extractSelectionClipboardPayload(editor.view.dom)
+    return payload?.markdown ?? ''
+  },
+  /** Palette extract: creates a note from the selection, keeps it, links it. */
+  extractSelectionToLinkedNote: () => interactionRuntime.extractSelectionToLinkedNote(),
+  /** Palette transforms applied to the selection's block. */
+  transformSelectionToHeading: () => {
+    const editor = activeRichTextEditor.value
+    if (!editor) return false
+    return editor.chain().focus().toggleHeading({ level: 2 }).run()
+  },
+  transformSelectionToList: () => {
+    const editor = activeRichTextEditor.value
+    if (!editor) return false
+    return editor.chain().focus().toggleBulletList().run()
+  },
   zoomIn: () => zoomEditorBy(0.1),
   zoomOut: () => zoomEditorBy(-0.1),
   resetZoom: () => resetEditorZoom(),

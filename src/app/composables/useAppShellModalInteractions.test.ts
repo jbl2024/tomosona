@@ -68,6 +68,7 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
   const moveQuickOpenTabMenuSelection = vi.fn()
   const setQuickOpenTabMenuItemIndex = vi.fn()
   const runQuickOpenTabMenuAction = vi.fn()
+  const recordQuickOpenCommandUsage = vi.fn()
   const moveQuickOpenSelection = vi.fn()
   const scope = effectScope()
   const api = scope.run(() =>
@@ -92,7 +93,8 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
         closeQuickOpenTabMenu,
         moveQuickOpenTabMenuSelection,
         setQuickOpenTabMenuItemIndex,
-        runQuickOpenTabMenuAction
+        runQuickOpenTabMenuAction,
+        recordQuickOpenCommandUsage
       },
       themePickerPort: {
         themePickerVisible,
@@ -151,6 +153,7 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
     moveQuickOpenTabMenuSelection,
     setQuickOpenTabMenuItemIndex,
     runQuickOpenTabMenuAction,
+    recordQuickOpenCommandUsage,
     themePickerVisible,
     themePickerQuery,
     themePickerActiveIndex,

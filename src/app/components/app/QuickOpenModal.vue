@@ -34,6 +34,8 @@ const props = defineProps<{
   actionGroups: QuickOpenActionGroup[]
   recentResults: QuickOpenResult[]
   browseActionResults: QuickOpenBrowseAction[]
+  /** Context-suggested actions ranked first in the browse state. */
+  suggestionResults?: QuickOpenBrowseAction[]
   fileResults: QuickOpenResult[]
   /** Unified categorized results for a universal query. */
   categories?: PaletteResultCategory[]
@@ -62,6 +64,7 @@ const emit = defineEmits<{
 
 const paletteCategories = computed(() => props.categories ?? [])
 const favoriteRows = computed(() => props.favoriteResults ?? [])
+const suggestionRows = computed(() => props.suggestionResults ?? [])
 const tabMenu = computed(() => props.tabMenu ?? null)
 const tabMenuRows = computed(() => props.tabMenuItems ?? [])
 
@@ -110,6 +113,7 @@ function paletteResultKey(result: PaletteResult, index: number): string {
   if (result.kind === 'note') return `note-${result.path}`
   if (result.kind === 'command') return `command-${result.actionId}`
   if (result.kind === 'daily') return `daily-${result.date}`
+  if (result.kind === 'help') return `help-${result.id}`
   if (result.kind === 'passage') return `passage-${result.path}-${index}`
   return `create-${index}`
 }
@@ -118,12 +122,14 @@ function paletteResultTitle(result: PaletteResult): string {
   if (result.kind === 'note' || result.kind === 'passage') return result.title
   if (result.kind === 'command') return result.label
   if (result.kind === 'daily') return result.exists ? `Open daily note ${result.date}` : `Create daily note ${result.date}`
+  if (result.kind === 'help') return result.label
   return `Create "${result.title}"`
 }
 
 function paletteResultMeta(result: PaletteResult): string {
   if (result.kind === 'note') return result.folder
   if (result.kind === 'passage') return result.folder
+  if (result.kind === 'help') return result.description
   return ''
 }
 
@@ -302,6 +308,20 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
           </button>
         </template>
         <template v-else>
+          <section v-if="suggestionRows.length" class="modal-section">
+            <p class="modal-section-title">Suggested</p>
+            <button
+              v-for="(item, index) in suggestionRows"
+              :key="item.id"
+              type="button"
+              class="modal-item modal-item-browse"
+              :class="{ active: activeIndex === index }"
+              @click="emit('select-action', item.id)"
+              @mousemove="emit('set-active-index', index)"
+            >
+              <span class="modal-item-main">{{ item.label }}</span>
+            </button>
+          </section>
           <section v-if="recentResults.length" class="modal-section">
             <p class="modal-section-title">Recent notes</p>
             <button
@@ -309,9 +329,9 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
               :key="quickOpenItemKey(item)"
               type="button"
               class="modal-item modal-item-browse"
-              :class="{ active: activeIndex === index }"
+              :class="{ active: activeIndex === suggestionRows.length + index }"
               @click="emit('select-result', item)"
-              @mousemove="emit('set-active-index', index)"
+              @mousemove="emit('set-active-index', suggestionRows.length + index)"
             >
               <span class="modal-item-main">{{ item.label }}</span>
               <span v-if="item.kind === 'recent'" class="modal-item-meta">{{ item.recencyLabel }}</span>
@@ -324,9 +344,9 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
               :key="quickOpenItemKey(item)"
               type="button"
               class="modal-item modal-item-browse"
-              :class="{ active: activeIndex === recentResults.length + index }"
+              :class="{ active: activeIndex === suggestionRows.length + recentResults.length + index }"
               @click="emit('select-result', item)"
-              @mousemove="emit('set-active-index', recentResults.length + index)"
+              @mousemove="emit('set-active-index', suggestionRows.length + recentResults.length + index)"
             >
               <span class="modal-item-main">{{ item.label }}</span>
             </button>
@@ -338,9 +358,9 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
               :key="item.id"
               type="button"
               class="modal-item modal-item-browse"
-              :class="{ active: activeIndex === recentResults.length + favoriteRows.length + index }"
+              :class="{ active: activeIndex === suggestionRows.length + recentResults.length + favoriteRows.length + index }"
               @click="emit('select-action', item.id)"
-              @mousemove="emit('set-active-index', recentResults.length + favoriteRows.length + index)"
+              @mousemove="emit('set-active-index', suggestionRows.length + recentResults.length + favoriteRows.length + index)"
             >
               <span class="modal-item-main">{{ item.label }}</span>
             </button>

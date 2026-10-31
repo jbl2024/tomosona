@@ -69,8 +69,14 @@ async function revealPathInView(
   await explorerTreeRef.value?.revealPathInView(path, options)
 }
 
+/** Forwards the tree's selected file path without leaking internals. */
+function getSelectedFilePath(): string | null {
+  return explorerTreeRef.value?.getSelectedFilePath() ?? null
+}
+
 defineExpose({
-  revealPathInView
+  revealPathInView,
+  getSelectedFilePath
 })
 </script>
 

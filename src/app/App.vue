@@ -56,6 +56,7 @@ import type { PathMove, WorkspaceFsChange } from '../shared/api/apiTypes'
 import { parseSearchSnippet } from '../shared/lib/searchSnippets'
 import { type SearchMode } from '../shared/lib/searchMode'
 import { hasActiveTextSelectionInEditor, shouldBlockGlobalShortcutsFromTarget } from '../shared/lib/shortcutTargets'
+import { EMPTY_PALETTE_CONTEXT, type PaletteContextSnapshot } from './lib/paletteContext'
 import {
   dailyNotePath,
   formatIsoDate,
@@ -86,7 +87,12 @@ import {
   buildThemePickerItems,
   formatRelativeTime
 } from './lib/appShellPresentation'
-import { readPersistedMultiPaneLayout } from './lib/appShellPersistence'
+import {
+  readPersistedCommandUsage,
+  readPersistedMultiPaneLayout,
+  persistCommandUsage,
+  type CommandUsage
+} from './lib/appShellPersistence'
 import {
   readRecentWorkspaces,
   removeRecentWorkspace,
@@ -181,6 +187,7 @@ const WORKING_FOLDER_STORAGE_KEY = 'tomosona.working-folder.path'
 const EDITOR_ZOOM_STORAGE_KEY = 'tomosona:editor:zoom'
 const RECENT_WORKSPACES_STORAGE_KEY = 'tomosona:recent-workspaces'
 const MULTI_PANE_STORAGE_KEY = 'tomosona:editor:multi-pane'
+const COMMAND_USAGE_STORAGE_KEY = 'tomosona:palette:command-usage'
 const VIEW_MODE_STORAGE_KEY = 'tomosona:view:active'
 
 const workspace = useWorkspaceState()
@@ -695,13 +702,53 @@ const {
 const searchModeOptions: Array<{ mode: SearchMode; label: string }> = [
   { mode: 'lexical', label: 'Lexical' }
 ]
+/**
+ * Frozen opening context for the palette browse suggestions: captured when
+ * the palette opens so suggestions act on what the user saw (editor selection
+ * before focus moves to the palette input, explorer selection, daily note).
+ */
+const paletteContextSnapshot = ref<PaletteContextSnapshot>({ ...EMPTY_PALETTE_CONTEXT })
+
+watch(quickOpenVisible, (visible) => {
+  if (!visible) return
+  try {
+    const activePath = activeFilePath.value
+    const root = filesystem.workingFolderPath.value
+    paletteContextSnapshot.value = {
+      activeFilePath: activePath,
+      editorSelectionText: editorRef.value?.getSelectionText() ?? '',
+      editorSelectionMarkdown: editorRef.value?.getSelectionMarkdown() ?? '',
+      explorerSelectionPath: explorerRef.value?.getSelectedFilePath() ?? null,
+      isDailyNote: Boolean(root && activePath && activePath === dailyNotePath(root, formatIsoDate(new Date())))
+    }
+  } catch (error) {
+    // The snapshot is a nicety: opening the palette must never depend on it.
+    console.error('[palette] context snapshot capture failed', error)
+  }
+})
+
+/**
+ * Command usage habits for palette personalization: seeded from storage and
+ * persisted on every recorded execution (recent and frequent commands shape
+ * only the empty-query browse state).
+ */
+const quickOpenCommandUsage = ref<CommandUsage>(readPersistedCommandUsage(COMMAND_USAGE_STORAGE_KEY))
+watch(quickOpenCommandUsage, (usage) => persistCommandUsage(COMMAND_USAGE_STORAGE_KEY, usage), { deep: true })
+
+const paletteContextState = {
+  explorerSelectionPath: computed(() => paletteContextSnapshot.value.explorerSelectionPath),
+  editorSelectionText: computed(() => paletteContextSnapshot.value.editorSelectionText),
+  editorSelectionMarkdown: computed(() => paletteContextSnapshot.value.editorSelectionMarkdown)
+}
+
 const { paletteActions } = useAppShellPaletteActions({
   statePort: {
     activeFilePath,
     quickOpenQuery,
     hasWorkspace: filesystem.hasWorkspace,
     spellcheckEnabled,
-    editorRulerVisible
+    editorRulerVisible,
+    ...paletteContextState
   },
   documentPort: {
     isMarkdownPath
@@ -742,6 +789,7 @@ const {
   quickOpenBrowseFavoriteResults,
   quickOpenBrowseActionResults,
   quickOpenBrowseItems,
+  quickOpenContextSuggestions,
   quickOpenHasTextQuery,
   quickOpenItemCount,
   quickOpenTabMenu,
@@ -750,6 +798,7 @@ const {
   closeQuickOpenTabMenu,
   moveQuickOpenTabMenuSelection,
   setQuickOpenTabMenuItemIndex,
+  recordQuickOpenCommandUsage,
   moveQuickOpenSelection,
   setQuickOpenActiveIndex,
   resetQuickOpenState
@@ -758,6 +807,8 @@ const {
   quickOpenDocumentPort,
   quickOpenPalettePort,
   quickOpenContentPort: { searchNoteContent: (query) => ftsSearch(query) },
+  quickOpenContextPort: { snapshot: paletteContextSnapshot },
+  commandUsage: quickOpenCommandUsage,
   quickOpenQuery,
   quickOpenActiveIndex
 })
@@ -1064,6 +1115,20 @@ function onQuickOpenSelectPaletteResult(result: PaletteResult, target: PaletteOp
     void onSearchResultOpen({ path: result.path, snippet: match.snippet })
     return
   }
+  if (result.kind === 'help') {
+    const topicFilter = result.id === 'help-shortcuts'
+      ? ''
+      : ({
+          'help-links': 'link',
+          'help-backlinks': 'backlink',
+          'help-daily-notes': 'daily',
+          'help-search': 'search',
+          'help-panes': 'pane'
+        } as const)[result.id] ?? ''
+    shortcutsFilterQuery.value = topicFilter
+    void openShortcutsModal()
+    return
+  }
   if (result.kind === 'create') {
     void createNoteFromPaletteTitle(result.title)
   }
@@ -1251,7 +1316,8 @@ const shellModalInteractions = useAppShellModalInteractions({
     closeQuickOpenTabMenu,
     moveQuickOpenTabMenuSelection,
     setQuickOpenTabMenuItemIndex,
-    runQuickOpenTabMenuAction: onQuickOpenRunTabMenuAction
+    runQuickOpenTabMenuAction: onQuickOpenRunTabMenuAction,
+    recordQuickOpenCommandUsage
   },
   themePickerPort: {
     themePickerVisible,
@@ -1494,7 +1560,37 @@ entryActions.bindShellPaletteActionPort({
   closeActivePaneFromPalette,
   joinPanesFromPalette,
   resetPaneLayoutFromPalette,
-  revealActiveInExplorer
+  revealActiveInExplorer,
+  openExplorerSelection: (path: string) => {
+    void openNoteAtTarget(path, 'active')
+    return true
+  },
+  copyExplorerSelectionLink: (path: string) => {
+    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(path)))
+    return true
+  },
+  addExplorerSelectionToFavorites: (path: string) => {
+    void favorites.addFavorite(path)
+    return true
+  },
+  removeExplorerSelectionFromFavorites: (path: string) => {
+    void favorites.removeFavorite(path)
+    return true
+  },
+  revealExplorerSelection: (path: string) => {
+    void revealInFileManager(path)
+    return true
+  },
+  extractSelectionToLinkedNote: () => {
+    void editorRef.value?.extractSelectionToLinkedNote()
+    return true
+  },
+  copySelectionAsMarkdown: (markdown: string) => {
+    void writeClipboardText(markdown || paletteContextSnapshot.value.editorSelectionText)
+    return true
+  },
+  transformSelectionToHeading: () => Boolean(editorRef.value?.transformSelectionToHeading()),
+  transformSelectionToList: () => Boolean(editorRef.value?.transformSelectionToList())
 })
 entryActions.bindThemeActionPort({
   openThemePickerFromPalette: () => shellModalInteractions?.openThemePickerFromPalette() ?? false,
@@ -2014,6 +2110,7 @@ useAppShellKeyboard({
       :quick-open-browse-recent-results="quickOpenBrowseRecentResults"
       :quick-open-browse-favorite-results="quickOpenBrowseFavoriteResults"
       :quick-open-browse-action-results="quickOpenBrowseActionResults"
+      :quick-open-context-suggestions="quickOpenContextSuggestions"
       :quick-open-results="quickOpenResults"
       :quick-open-palette-categories="quickOpenPaletteCategories"
       :quick-open-active-index="quickOpenActiveIndex"

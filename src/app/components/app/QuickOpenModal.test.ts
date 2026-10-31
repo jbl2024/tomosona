@@ -504,3 +504,62 @@ describe('QuickOpenModal tab menu', () => {
     mounted.app.unmount()
   })
 })
+
+describe('QuickOpenModal context suggestions', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('renders the Suggested section first with working selection offsets', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const actionSelections: string[] = []
+    const activeIndexUpdates: number[] = []
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(QuickOpenModal, {
+            visible: true,
+            query: '',
+            isActionMode: false,
+            hasTextQuery: false,
+            actionGroups: [],
+            recentResults: [
+              { kind: 'recent', path: '/vault/a.md', label: 'a.md', recencyLabel: 'now' }
+            ],
+            browseActionResults: [],
+            suggestionResults: [
+              { kind: 'action', id: 'create-new-file', label: 'New Note' },
+              { kind: 'action', id: 'open-today', label: 'Open Today Note' }
+            ],
+            fileResults: [],
+            activeIndex: 0,
+            onSelectAction: (id: string) => actionSelections.push(id),
+            onSelectResult: () => {},
+            onSelectPaletteResult: () => {},
+            onKeydown: () => {},
+            onClose: () => {},
+            onSetActiveIndex: (index: number) => activeIndexUpdates.push(index)
+          })
+      }
+    }))
+    app.mount(root)
+
+    const sections = Array.from(root.querySelectorAll('.modal-section-title')).map((el) => el.textContent)
+    expect(sections).toEqual(['Suggested', 'Recent notes'])
+
+    const items = root.querySelectorAll<HTMLButtonElement>('.modal-item')
+    expect(items).toHaveLength(3)
+
+    // Suggestions occupy the first flat indexes; recents continue after them.
+    items[1].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+    items[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+    expect(activeIndexUpdates).toEqual([1, 2])
+
+    items[0].click()
+    expect(actionSelections).toEqual(['create-new-file'])
+
+    app.unmount()
+  })
+})

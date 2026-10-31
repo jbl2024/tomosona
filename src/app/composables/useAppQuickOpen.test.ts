@@ -2,6 +2,8 @@ import { nextTick, ref, type Ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { useAppQuickOpen, type PaletteAction } from './useAppQuickOpen'
 import type { LaunchpadRecentNote } from '../lib/appShellViewModels'
+import { EMPTY_PALETTE_CONTEXT, type PaletteContextSnapshot } from '../lib/paletteContext'
+import type { CommandUsage } from '../lib/appShellPersistence'
 
 function createActions(): PaletteAction[] {
   return [
@@ -21,6 +23,8 @@ type QuickOpenTestOptions = {
   paletteActions?: PaletteAction[]
   paletteActionPriority?: Record<string, number>
   contentHits?: Array<{ path: string; snippet: string; score: number }>
+  contextSnapshot?: PaletteContextSnapshot
+  commandUsage?: Ref<CommandUsage>
   quickOpenQuery?: Ref<string>
   quickOpenActiveIndex?: Ref<number>
 }
@@ -37,6 +41,8 @@ function createQuickOpenHarness(options: QuickOpenTestOptions = {}) {
     quickOpenContentPort: {
       searchNoteContent: vi.fn(async () => options.contentHits ?? [])
     },
+    quickOpenContextPort: options.contextSnapshot ? { snapshot: ref(options.contextSnapshot) } : undefined,
+    commandUsage: options.commandUsage,
     contentSearchDebounceMs: 0,
     quickOpenDocumentPort: {
       isIsoDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
@@ -766,5 +772,142 @@ describe('useAppQuickOpen tab menu', () => {
     api.openQuickOpenTabMenu('/vault/a.md', 'A')
     api.resetQuickOpenState('')
     expect(api.quickOpenTabMenu.value).toBeNull()
+  })
+})
+
+describe('useAppQuickOpen context suggestions', () => {
+  const catalog: PaletteAction[] = [
+    { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) },
+    { id: 'open-today', label: 'Open Today Note', family: 'navigation', run: vi.fn(() => true) },
+    { id: 'open-favorites', label: 'Open Favorites', family: 'navigation', run: vi.fn(() => true) },
+    { id: 'convert-to-word', label: 'Convert to Word', family: 'notes', run: vi.fn(() => true) },
+    { id: 'reveal-in-explorer', label: 'Reveal in Explorer', family: 'utilities', run: vi.fn(() => true) }
+  ]
+
+  it('ranks empty-context suggestions first in the browse state', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: catalog,
+      recentViewedNotes: [
+        { path: '/vault/a.md', title: 'A', relativePath: 'a.md', recencyLabel: 'now' }
+      ],
+      contextSnapshot: EMPTY_PALETTE_CONTEXT
+    })
+
+    expect(api.quickOpenContextSuggestions.value.map((item) => item.id)).toEqual([
+      'create-new-file',
+      'open-today',
+      'open-favorites'
+    ])
+    // Suggestions come before recents and the rest of the browse state.
+    expect(api.quickOpenBrowseItems.value.slice(0, 3).every((item) => item.kind === 'action')).toBe(true)
+    expect(api.quickOpenBrowseItems.value[3]).toMatchObject({ kind: 'recent', path: '/vault/a.md' })
+  })
+
+  it('suggests note actions for the active-note context and filters catalog-missing ids', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: catalog.slice(0, 4),
+      activeFilePath: '/vault/note.md',
+      contextSnapshot: { ...EMPTY_PALETTE_CONTEXT, activeFilePath: '/vault/note.md' }
+    })
+
+    // 'reveal-in-explorer' is not in the sliced catalog, so it is filtered out.
+    expect(api.quickOpenContextSuggestions.value.map((item) => item.id)).toEqual(['convert-to-word'])
+  })
+
+  it('suggests selection actions when the catalog provides them', () => {
+    const withSelection: PaletteContextSnapshot = {
+      ...EMPTY_PALETTE_CONTEXT,
+      activeFilePath: '/vault/note.md',
+      editorSelectionText: 'selected passage'
+    }
+    const withSelectionCatalog: PaletteAction[] = [
+      ...catalog,
+      { id: 'extract-selection-to-note', label: 'Extract Selection to New Note', family: 'notes', run: vi.fn(() => true) }
+    ]
+    const api = createQuickOpenHarness({ paletteActions: withSelectionCatalog, contextSnapshot: withSelection })
+
+    expect(api.quickOpenContextSuggestions.value.map((item) => item.id)).toEqual(['extract-selection-to-note'])
+  })
+
+  it('omits suggestions entirely without a context port', () => {
+    const api = createQuickOpenHarness({ paletteActions: catalog })
+    expect(api.quickOpenContextSuggestions.value).toEqual([])
+    // The regular quick-actions browse section is unaffected.
+    expect(api.quickOpenBrowseItems.value.every((item) => item.kind !== 'action' || item.label !== 'Open Today Note')).toBe(false)
+  })
+})
+
+describe('useAppQuickOpen help mode', () => {
+  it('lists all help entries for a bare query and filters them by topic', () => {
+    const api = createQuickOpenHarness()
+
+    api.quickOpenQuery.value = '?'
+    expect(api.paletteResults.value.every((item) => item.kind === 'help')).toBe(true)
+    expect(api.paletteResults.value).toHaveLength(6)
+    expect(api.paletteCategories.value.map((category) => category.id)).toEqual(['help'])
+
+    api.quickOpenQuery.value = '? liens'
+    expect(api.paletteResults.value).toEqual([
+      { kind: 'help', id: 'help-links', label: 'Links Between Notes', description: 'Create and open wikilinks', keywords: ['link', 'wikilink', 'lien', 'liens'] }
+    ])
+
+    api.quickOpenQuery.value = '? raccourcis'
+    expect(api.paletteResults.value.map((item) => (item as { id: string }).id)).toEqual(['help-shortcuts'])
+  })
+
+  it('returns to universal mode when the prefix is removed', () => {
+    const api = createQuickOpenHarness({ allWorkspaceFiles: ['/vault/notes/roadmap.md'] })
+
+    api.quickOpenQuery.value = '? liens'
+    expect(api.quickOpenMode.value).toBe('help')
+
+    api.quickOpenQuery.value = 'roadmap'
+    expect(api.quickOpenMode.value).toBe('universal')
+    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['note', 'create'])
+  })
+})
+
+describe('useAppQuickOpen command usage personalization', () => {
+  const usageCatalog: PaletteAction[] = [
+    { id: 'open-home-view', label: 'Open Home', family: 'navigation', run: vi.fn(() => true) },
+    { id: 'open-today', label: 'Open Today Note', family: 'navigation', run: vi.fn(() => true) },
+    { id: 'convert-to-word', label: 'Convert to Word', family: 'notes', run: vi.fn(() => true) },
+    { id: 'toggle-spellcheck', label: 'Toggle Spellcheck', family: 'utilities', run: vi.fn(() => true) }
+  ]
+
+  it('records usage with recency, dedupe, and capped counts', () => {
+    const api = createQuickOpenHarness({ paletteActions: usageCatalog })
+    api.recordQuickOpenCommandUsage('convert-to-word')
+    api.recordQuickOpenCommandUsage('toggle-spellcheck')
+    api.recordQuickOpenCommandUsage('convert-to-word')
+
+    expect(api.commandUsage.value.counts['convert-to-word']).toBe(2)
+    expect(api.commandUsage.value.counts['toggle-spellcheck']).toBe(1)
+    expect(api.commandUsage.value.recent).toEqual(['convert-to-word', 'toggle-spellcheck'])
+  })
+
+  it('orders browse actions by recency then frequency, padded by the static list', () => {
+    const usage = ref({ counts: { 'toggle-spellcheck': 5, 'convert-to-word': 2 }, recent: ['convert-to-word'] })
+    const api = createQuickOpenHarness({ paletteActions: usageCatalog, commandUsage: usage })
+
+    expect(api.quickOpenBrowseActionResults.value.map((item) => item.id)).toEqual([
+      'convert-to-word',
+      'toggle-spellcheck',
+      'open-home-view',
+      'open-today'
+    ])
+  })
+
+  it('keeps explicit query results ranked by relevance, never by habits', () => {
+    const usage = ref<CommandUsage>({ counts: { 'toggle-spellcheck': 50 }, recent: ['toggle-spellcheck'] })
+    const api = createQuickOpenHarness({ paletteActions: usageCatalog, commandUsage: usage })
+
+    api.quickOpenQuery.value = 'open'
+    expect(api.quickOpenMode.value).toBe('universal')
+    // Universal search ranks matching commands by score; the heavily used
+    // spellcheck toggle does not match 'open' and must not appear.
+    const kinds = api.paletteResults.value.map((item) => item.kind)
+    expect(kinds).toContain('command')
+    expect(api.paletteResults.value.map((item) => (item as { actionId?: string }).actionId)).not.toContain('toggle-spellcheck')
   })
 })

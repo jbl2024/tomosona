@@ -8,6 +8,8 @@ import {
   type CommandMatchKind,
   type NoteTitleMatchKind
 } from '../lib/paletteSearch'
+import { contextSuggestionIds, paletteContextKind, type PaletteContextSnapshot } from '../lib/paletteContext'
+import { COMMAND_USAGE_RECENT_LIMIT, type CommandUsage } from '../lib/appShellPersistence'
 
 /**
  * Module: useAppQuickOpen
@@ -18,6 +20,9 @@ import {
 
 /** Browse cap for recent notes: the initial state stays deliberately short. */
 const BROWSE_RECENT_LIMIT = 3
+
+/** Cap for personalized commands shown in the browse state. */
+const BROWSE_HABIT_LIMIT = 5
 /** Maximum note results shown for a query (source spec: six to eight visible). */
 const NOTE_RESULT_LIMIT = 6
 /** Maximum command results mixed into a universal query. */
@@ -105,8 +110,9 @@ export type PaletteResult =
   | { kind: 'command'; actionId: string; label: string; matchKind: CommandMatchKind }
   | { kind: 'create'; title: string }
   | { kind: 'daily'; date: string; path: string; exists: boolean }
+  | { kind: 'help'; id: string; label: string; description: string }
 
-export type PaletteResultCategoryId = 'daily' | 'notes' | 'content' | 'commands' | 'create'
+export type PaletteResultCategoryId = 'daily' | 'notes' | 'content' | 'commands' | 'help' | 'create'
 
 /** A rendered category section: header plus its slice of the flat result list. */
 export type PaletteResultCategory = {
@@ -121,8 +127,23 @@ const PALETTE_CATEGORY_LABELS: Record<PaletteResultCategoryId, string> = {
   notes: 'Notes',
   content: 'In content',
   commands: 'Commands',
+  help: 'Help',
   create: 'Create'
 }
+
+/**
+ * Curated help entries for the `?` mode: each opens the existing shortcuts
+ * surface pre-filtered on its topic, so help stays a discovery layer over
+ * in-app documentation rather than a parallel one.
+ */
+const HELP_ENTRIES: Array<{ id: string; label: string; description: string; keywords: string[] }> = [
+  { id: 'help-shortcuts', label: 'All Shortcuts', description: 'Browse every keyboard shortcut', keywords: ['raccourcis', 'shortcuts', 'keyboard'] },
+  { id: 'help-links', label: 'Links Between Notes', description: 'Create and open wikilinks', keywords: ['link', 'wikilink', 'lien', 'liens'] },
+  { id: 'help-backlinks', label: 'Backlinks', description: 'See which notes link here', keywords: ['backlink', 'backlinks', 'references'] },
+  { id: 'help-daily-notes', label: 'Daily Notes', description: 'Journal, today, and yesterday', keywords: ['daily', 'journal', 'today', 'hier'] },
+  { id: 'help-search', label: 'Searching Notes', description: 'Find notes by title or content', keywords: ['search', 'recherche', 'find'] },
+  { id: 'help-panes', label: 'Panes and Tabs', description: 'Split, focus, and close editor panes', keywords: ['pane', 'tab', 'split', 'onglet'] }
+]
 
 /** Universal palette search mode, derived from the optional query prefix. */
 export type PaletteMode = 'universal' | 'commands' | 'content' | 'help'
@@ -179,6 +200,11 @@ export type AppQuickOpenPalettePort = {
   paletteActionPriority: Record<string, number>
 }
 
+/** Frozen opening context feeding the browse-state suggestions. */
+export type AppQuickOpenContextPort = {
+  snapshot: Readonly<Ref<PaletteContextSnapshot>>
+}
+
 /**
  * Provides the grouped dependencies required to derive quick-open state.
  *
@@ -191,6 +217,10 @@ export type UseAppQuickOpenOptions = {
   quickOpenPalettePort: AppQuickOpenPalettePort
   /** Optional content search; absent surfaces simply show no passages. */
   quickOpenContentPort?: AppQuickOpenContentPort
+  /** Optional frozen opening context for the browse suggestions. */
+  quickOpenContextPort?: AppQuickOpenContextPort
+  /** Optional controlled command usage for browse personalization. */
+  commandUsage?: Ref<CommandUsage>
   /** Debounce override for tests. */
   contentSearchDebounceMs?: number
   quickOpenQuery?: Ref<string>
@@ -226,6 +256,22 @@ const PALETTE_ACTION_FAMILY_META: Record<PaletteActionFamily, { label: string; o
 export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   const { quickOpenDataPort, quickOpenDocumentPort, quickOpenPalettePort } = options
   const quickOpenQuery = options.quickOpenQuery ?? ref('')
+
+  /**
+   * Command usage habits for browse personalization. Controlled ref so
+   * App.vue seeds it from storage and persists changes; recording moves the
+   * command to the front of recents (deduplicated, capped) and accumulates
+   * its frequency count.
+   */
+  const commandUsage = options.commandUsage ?? ref<CommandUsage>({ counts: {}, recent: [] })
+
+  function recordQuickOpenCommandUsage(id: string) {
+    const usage = commandUsage.value
+    commandUsage.value = {
+      counts: { ...usage.counts, [id]: (usage.counts[id] ?? 0) + 1 },
+      recent: [id, ...usage.recent.filter((recentId) => recentId !== id)].slice(0, COMMAND_USAGE_RECENT_LIMIT)
+    }
+  }
   const quickOpenActiveIndex = options.quickOpenActiveIndex ?? ref(0)
   /**
    * Content results from the search index, grouped one row per note. They
@@ -286,7 +332,20 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   const quickOpenBrowseActionResults = computed<QuickOpenBrowseAction[]>(() => {
     if (quickOpenIsActionMode.value || quickOpenHasTextQuery.value) return []
     const byId = new Map(quickOpenPalettePort.paletteActions.value.map((item) => [item.id, item] as const))
-    return QUICK_OPEN_BROWSE_ACTION_IDS
+    // Habits only shape the empty-query browse state: recently used commands
+    // come first (most recent first), then frequency, then the static quick
+    // actions to fill the section. Explicit queries always rank by relevance.
+    const usage = commandUsage.value
+    const habitIds = [
+      ...usage.recent,
+      ...Object.keys(usage.counts).sort((left, right) => usage.counts[right] - usage.counts[left])
+    ]
+    const ids: string[] = []
+    for (const id of [...habitIds, ...QUICK_OPEN_BROWSE_ACTION_IDS]) {
+      if (byId.has(id) && !ids.includes(id)) ids.push(id)
+      if (ids.length >= BROWSE_HABIT_LIMIT) break
+    }
+    return ids
       .map((id) => {
         const action = byId.get(id)
         if (!action) return null
@@ -300,10 +359,27 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   })
 
   const quickOpenBrowseItems = computed<QuickOpenBrowseItem[]>(() => [
+    ...quickOpenContextSuggestions.value,
     ...quickOpenBrowseRecentResults.value,
     ...quickOpenBrowseFavoriteResults.value,
     ...quickOpenBrowseActionResults.value
   ])
+
+  /**
+   * Context suggestions ranked first in the browse state: ids resolved from
+   * the frozen opening snapshot, filtered to actions the catalog actually
+   * provides so the browse never suggests dead entries.
+   */
+  const quickOpenContextSuggestions = computed<QuickOpenBrowseAction[]>(() => {
+    const port = options.quickOpenContextPort
+    if (!port) return []
+    const ids = contextSuggestionIds(paletteContextKind(port.snapshot.value))
+    const byId = new Map(quickOpenPalettePort.paletteActions.value.map((item) => [item.id, item] as const))
+    return ids
+      .map((id) => byId.get(id))
+      .filter((item): item is PaletteAction => Boolean(item))
+      .map((item) => ({ kind: 'action' as const, id: item.id, label: item.label }))
+  })
 
   const quickOpenActionResults = computed(() => {
     if (!quickOpenIsActionMode.value) return []
@@ -461,8 +537,24 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
    * the matcher ladder and its tie-breakers), content passages (empty until
    * FTS lands), a few matching commands, and the create action last.
    */
+  /**
+   * Help entries for the `?` mode, filtered by the query: an empty query
+   * lists everything, and matches use the same command matcher so wording
+   * variants find their topic.
+   */
+  const helpResults = computed<PaletteResult[]>(() => {
+    const query = rawQueryText.value
+    return HELP_ENTRIES
+      .filter((entry) => {
+        if (!query) return true
+        return Boolean(matchCommand(entry.label, entry.keywords, query))
+      })
+      .map((entry) => ({ kind: 'help' as const, ...entry }))
+  })
+
   const paletteResults = computed<PaletteResult[]>(() => {
     if (quickOpenMode.value === 'content') return passageResults.value
+    if (quickOpenMode.value === 'help') return helpResults.value
     if (quickOpenMode.value !== 'universal') return []
     const query = rawQueryText.value
     if (!query) return []
@@ -521,7 +613,8 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
       passage: 'content',
       command: 'commands',
       create: 'create',
-      daily: 'daily'
+      daily: 'daily',
+      help: 'help'
     }
     const byCategory = new Map<PaletteResultCategoryId, PaletteResult[]>()
     for (const result of paletteResults.value) {
@@ -531,7 +624,7 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
       else byCategory.set(id, [result])
     }
     let startIndex = 0
-    const order: PaletteResultCategoryId[] = ['daily', 'notes', 'content', 'commands', 'create']
+    const order: PaletteResultCategoryId[] = ['daily', 'notes', 'content', 'commands', 'help', 'create']
     return order
       .filter((id) => byCategory.has(id))
       .map((id) => {
@@ -666,10 +759,13 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenBrowseFavoriteResults,
     quickOpenBrowseActionResults,
     quickOpenBrowseItems,
+    quickOpenContextSuggestions,
     quickOpenActionResults,
     quickOpenActionGroups,
     quickOpenHasTextQuery,
     quickOpenItemCount,
+    commandUsage,
+    recordQuickOpenCommandUsage,
     quickOpenTabMenu,
     quickOpenTabMenuItems,
     openQuickOpenTabMenu,

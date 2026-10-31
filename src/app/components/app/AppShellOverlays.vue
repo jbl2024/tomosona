@@ -79,6 +79,7 @@ defineProps<{
   quickOpenBrowseRecentResults: QuickOpenResult[]
   quickOpenBrowseFavoriteResults: QuickOpenResult[]
   quickOpenBrowseActionResults: QuickOpenBrowseAction[]
+  quickOpenContextSuggestions: QuickOpenBrowseAction[]
   quickOpenResults: QuickOpenResult[]
   quickOpenPaletteCategories: PaletteResultCategory[]
   quickOpenActiveIndex: number
@@ -231,6 +232,7 @@ const emit = defineEmits<{
     :action-groups="quickOpenActionGroups"
     :recent-results="quickOpenBrowseRecentResults"
     :browse-action-results="quickOpenBrowseActionResults"
+    :suggestion-results="quickOpenContextSuggestions"
     :favorite-results="quickOpenBrowseFavoriteResults"
     :file-results="quickOpenResults"
     :categories="quickOpenPaletteCategories"
