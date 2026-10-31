@@ -1271,6 +1271,12 @@ fn strip_empty_first_table_paragraphs_from_xml(xml: &str) -> String {
 }
 
 fn strip_empty_first_table_paragraph_from_cell(cell_xml: &str) -> String {
+    // rdocx may serialize its initial empty paragraph as a self-closing tag.
+    if let Some(start) = cell_xml.find("<w:p/>") {
+        if !cell_xml[..start].contains("<w:p>") && cell_xml[start + 6..].contains("<w:p>") {
+            return format!("{}{}", &cell_xml[..start], &cell_xml[start + 6..]);
+        }
+    }
     let Some(first_para_start) = cell_xml.find("<w:p>") else {
         return cell_xml.to_string();
     };
@@ -1626,6 +1632,20 @@ mod tests {
 
     fn workspace_test_guard() -> std::sync::MutexGuard<'static, ()> {
         crate::workspace_test_guard()
+    }
+
+    #[test]
+    fn removes_only_a_leading_empty_self_closing_cell_paragraph() {
+        assert_eq!(
+            strip_empty_first_table_paragraph_from_cell("<w:tc><w:p/><w:p><w:r/></w:p></w:tc>"),
+            "<w:tc><w:p><w:r/></w:p></w:tc>"
+        );
+        for cell in [
+            "<w:tc><w:p/></w:tc>",
+            "<w:tc><w:p><w:r/></w:p><w:p/></w:tc>",
+        ] {
+            assert_eq!(strip_empty_first_table_paragraph_from_cell(cell), cell);
+        }
     }
 
     fn create_temp_workspace(prefix: &str) -> PathBuf {
