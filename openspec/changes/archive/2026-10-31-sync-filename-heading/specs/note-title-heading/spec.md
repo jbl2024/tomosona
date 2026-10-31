@@ -47,6 +47,10 @@ While a note's heading is hidden, saves made from the rich text editor SHALL reg
 - **WHEN** a note with a hidden heading is saved and opened in an external markdown tool
 - **THEN** the first line of the file is `# <title>`
 
+#### Scenario: Save after an external rename follows the new file name
+- **WHEN** an open note with a hidden heading is renamed outside the editor (the sync state follows the file system rename) and the user saves from the rich text editor before reopening the note
+- **THEN** the stored first line is regenerated from the new file name stem, replacing the previous `# <old name>` line
+
 ### Requirement: New notes are seeded with the title heading
 Creating a new empty markdown note SHALL seed its initial content with `# ` followed by the file name without extension as the first line. A new note whose content is only that seeded heading SHALL keep the existing title-only save behavior and not be persisted by autosave.
 
