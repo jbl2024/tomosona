@@ -23,6 +23,38 @@ function createSession(path: string, overrides: Partial<DocumentSession> = {}): 
 }
 
 describe('useEditorFilesystemSync', () => {
+  it('moves session and path state on an external rename of an open note', async () => {
+    const session = createSession('a.md')
+    const renameSessionPath = vi.fn()
+    const moveLifecyclePathState = vi.fn()
+    const moveFrontmatterPathState = vi.fn()
+    const moveTitlePathState = vi.fn()
+
+    const sync = useEditorFilesystemSync({
+      getSession: (path) => (path === 'a.md' ? session : null),
+      listPaths: () => ['a.md'],
+      currentPath: () => 'a.md',
+      renameSessionPath,
+      moveLifecyclePathState,
+      moveFrontmatterPathState,
+      moveTitlePathState,
+      setActiveSession: vi.fn(),
+      nextRequestId: vi.fn(() => 7),
+      loadCurrentFile: vi.fn(async () => {}),
+      emitExternalReload: vi.fn()
+    })
+
+    await sync.applyWorkspaceFsChanges([{ kind: 'renamed', old_path: 'a.md', new_path: 'b.md' }])
+
+    expect(renameSessionPath).toHaveBeenCalledWith('a.md', 'b.md')
+    expect(moveLifecyclePathState).toHaveBeenCalledWith('a.md', 'b.md')
+    expect(moveFrontmatterPathState).toHaveBeenCalledWith('a.md', 'b.md')
+    // The hidden title heading state lives in the title path state: it follows
+    // the rename, so a rich editor save before reload regenerates the stored
+    // heading from the new file name.
+    expect(moveTitlePathState).toHaveBeenCalledWith('a.md', 'b.md')
+  })
+
   it('reloads a clean open note after an external modification', async () => {
     const session = createSession('a.md')
     const loadCurrentFile = vi.fn(async () => {})

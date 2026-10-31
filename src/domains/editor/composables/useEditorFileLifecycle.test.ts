@@ -748,4 +748,38 @@ describe('useEditorFileLifecycle', () => {
     )
     expect(options.documentPort.moveTitlePathState).toHaveBeenCalledWith('a.md', 'A-B.md')
   })
+
+  it('keeps a manually typed matching heading bounded: one duplicate, no growth', async () => {
+    const openFile = vi.fn(async () => '# Title\n\nBody')
+    const saveFile = vi.fn(async () => ({ persisted: true }))
+    const { options, hiddenHeadings } = createOptions({
+      ioPort: { openFile, saveFile },
+      documentPort: {
+        noteTitleFromPath: () => 'Title',
+        // The user typed a heading identical to the title at the top of the body.
+        serializeCurrentDocBlocks: () => [
+          { id: 'h1', type: 'heading', data: { text: 'Title', level: 1 } },
+          { id: 'b1', type: 'paragraph', data: { text: 'Body' } }
+        ] as EditorBlock[]
+      }
+    })
+    const lifecycle = useEditorFileLifecycle(options)
+
+    await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+    await lifecycle.saveCurrentFile(true)
+    const firstSave = (saveFile as ReturnType<typeof vi.fn>).mock.calls[0][1] as string
+    // Regenerated title heading + the user's typed heading: exactly two.
+    expect(firstSave).toBe('# Title\n\n# Title\nBody\n')
+
+    // Reload: the first line is stripped, the typed duplicate stays visible.
+    openFile.mockResolvedValue(firstSave)
+    await lifecycle.loadCurrentFile('a.md', { requestId: 2 })
+    expect(hiddenHeadings['a.md']).toBe('Title')
+    expect(options.documentPort.serializeCurrentDocBlocks()).toHaveLength(2)
+
+    // Save again: strip-one/add-one keeps the stored file at two heading lines.
+    await lifecycle.saveCurrentFile(true)
+    const secondSave = (saveFile as ReturnType<typeof vi.fn>).mock.calls[1][1] as string
+    expect(secondSave).toBe(firstSave)
+  })
 })
