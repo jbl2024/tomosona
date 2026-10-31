@@ -49,6 +49,8 @@ function createKeyboard(isMacOs = false) {
     closeActiveTab: vi.fn(),
     createNewFileFromActiveDirectory: vi.fn(),
     openQuickOpen: vi.fn(),
+    openNotesQuickOpen: vi.fn(),
+    openUniversalPalette: vi.fn(),
     openCommandPalette: vi.fn(),
     openSettings: vi.fn(),
     openIntegratedTerminal: vi.fn(),
@@ -245,7 +247,7 @@ describe('useAppShellKeyboard', () => {
     scope.stop()
   })
 
-  it('opens the command palette from a blocked terminal-like target', () => {
+  it('opens the notes quick open from a blocked terminal-like target', () => {
     const { scope, guards, actions } = createKeyboard()
     guards.shouldBlockGlobalShortcutsFromTarget.mockReturnValue(true)
 
@@ -253,7 +255,7 @@ describe('useAppShellKeyboard', () => {
     document.body.appendChild(terminalInput)
     const event = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true })
     terminalInput.dispatchEvent(event)
-    expect(actions.openCommandPalette).toHaveBeenCalledTimes(1)
+    expect(actions.openNotesQuickOpen).toHaveBeenCalledTimes(1)
     expect(event.defaultPrevented).toBe(true)
 
     guards.shouldBlockGlobalShortcutsFromTarget.mockReturnValue(false)
@@ -281,5 +283,22 @@ describe('useAppShellKeyboard', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true }))
 
     expect(actions.openQuickOpen).not.toHaveBeenCalled()
+  })
+
+  it('binds the three palette entries to their initial filters', () => {
+    const { actions } = createKeyboard()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
+    expect(actions.openUniversalPalette).toHaveBeenCalledTimes(1)
+    expect(actions.openCommandPalette).not.toHaveBeenCalled()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true }))
+    expect(actions.openNotesQuickOpen).toHaveBeenCalledTimes(1)
+    expect(actions.openCommandPalette).not.toHaveBeenCalled()
+
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    )
+    expect(actions.openCommandPalette).toHaveBeenCalledTimes(1)
   })
 })

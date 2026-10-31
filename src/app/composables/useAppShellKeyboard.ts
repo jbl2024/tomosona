@@ -54,6 +54,8 @@ export type AppShellKeyboardActionsPort = {
   closeActiveTab: () => void
   createNewFileFromActiveDirectory: () => boolean | void | Promise<boolean | void>
   openQuickOpen: () => boolean | void | Promise<boolean | void>
+  openNotesQuickOpen: () => boolean | void | Promise<boolean | void>
+  openUniversalPalette: () => boolean | void | Promise<boolean | void>
   openCommandPalette: () => void
   openSettings: () => boolean | void | Promise<boolean | void>
   openIntegratedTerminal: () => boolean | void | Promise<boolean | void>
@@ -250,11 +252,19 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       return
     }
 
-    // The command palette remains available from focused native inputs such
+    // The palette remains available from focused native inputs such
     // as xterm's hidden textarea, while other shell shortcuts stay local.
+    // Three entries open the same palette with different initial filters:
+    // Cmd+K universal, Cmd+P notes only, Cmd+Shift+P commands only.
     if (isMod && key === 'p') {
       event.preventDefault()
-      options.actionsPort.openCommandPalette()
+      if (event.shiftKey) options.actionsPort.openCommandPalette()
+      else void options.actionsPort.openNotesQuickOpen()
+      return
+    }
+    if (isMod && !event.shiftKey && !event.altKey && key === 'k') {
+      event.preventDefault()
+      void options.actionsPort.openUniversalPalette()
       return
     }
     if (isMod && !event.shiftKey && !event.altKey && key === ',') {
@@ -352,10 +362,6 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       event.preventDefault()
       void options.actionsPort.saveActiveTab()
       return
-    }
-    if (key === 'k') {
-      event.preventDefault()
-      options.actionsPort.openCommandPalette()
     }
   }
 

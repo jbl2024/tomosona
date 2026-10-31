@@ -59,4 +59,31 @@ describe('useAppShellOpenFlow', () => {
     expect(virtualDoc).toEqual({ content: '# New Idea', titleLine: '# New Idea' })
     expect(options.navigationPort.openTabWithAutosave).toHaveBeenCalledWith('/vault/New Idea.md')
   })
+
+  it('creates a note from a palette title, seeded and sanitized', async () => {
+    const options = createOptions()
+    const flow = useAppShellOpenFlow(options)
+
+    const opened = await flow.createNoteFromPaletteTitle(' Idées: moteur de recherche ')
+
+    expect(opened).toBe(true)
+    const virtualDoc = options.editorPort.virtualDocs.value['/vault/Idées moteur de recherche.md']
+    expect(virtualDoc).toEqual({
+      content: '# Idées moteur de recherche',
+      titleLine: '# Idées moteur de recherche'
+    })
+    expect(options.navigationPort.openTabWithAutosave).toHaveBeenCalledWith('/vault/Idées moteur de recherche.md')
+  })
+
+  it('opens the existing note instead of overwriting when the target exists', async () => {
+    const options = createOptions()
+    options.dataPort.pathExists = vi.fn(async () => true)
+    const flow = useAppShellOpenFlow(options)
+
+    const opened = await flow.createNoteFromPaletteTitle('Existing')
+
+    expect(opened).toBe(true)
+    expect(options.editorPort.virtualDocs.value).toEqual({})
+    expect(options.navigationPort.openTabWithAutosave).toHaveBeenCalledWith('/vault/Existing.md')
+  })
 })

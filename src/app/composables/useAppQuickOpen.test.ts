@@ -16,6 +16,8 @@ type QuickOpenTestOptions = {
   allWorkspaceFiles?: string[]
   workingFolderPath?: string
   recentViewedNotes?: LaunchpadRecentNote[]
+  favoritePaths?: string[]
+  activeFilePath?: string
   paletteActions?: PaletteAction[]
   paletteActionPriority?: Record<string, number>
   quickOpenQuery?: Ref<string>
@@ -27,7 +29,9 @@ function createQuickOpenHarness(options: QuickOpenTestOptions = {}) {
     quickOpenDataPort: {
       allWorkspaceFiles: ref(options.allWorkspaceFiles ?? []),
       workingFolderPath: ref(options.workingFolderPath ?? '/vault'),
-      recentViewedNotes: ref(options.recentViewedNotes ?? [])
+      recentViewedNotes: ref(options.recentViewedNotes ?? []),
+      favoritePaths: ref(options.favoritePaths ?? []),
+      activeFilePath: ref(options.activeFilePath ?? '')
     },
     quickOpenDocumentPort: {
       isIsoDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
@@ -291,7 +295,9 @@ describe('useAppQuickOpen', () => {
 
     expect(api.quickOpenActiveIndex.value).toBe(2)
 
-    api.quickOpenQuery.value = 'md'
+    // Universal query: the note matching "a" plus the create action wrap as
+    // one visible list (count follows the unified palette results).
+    api.quickOpenQuery.value = 'a'
     api.moveQuickOpenSelection(-1)
 
     expect(api.quickOpenActiveIndex.value).toBe(1)
@@ -370,5 +376,269 @@ describe('useAppQuickOpen', () => {
       'split-pane-right',
       'split-pane-down'
     ])
+  })
+})
+
+describe('useAppQuickOpen unified palette', () => {
+  const recent = (path: string, label: string): LaunchpadRecentNote => ({
+    path,
+    title: label,
+    relativePath: label,
+    recencyLabel: 'recent'
+  })
+
+  it('caps browse recents at three and dedupes favorites against them', () => {
+    const api = createQuickOpenHarness({
+      recentViewedNotes: [
+        recent('/vault/a/first.md', 'a/first.md'),
+        recent('/vault/a/second.md', 'a/second.md'),
+        recent('/vault/a/third.md', 'a/third.md'),
+        recent('/vault/a/fourth.md', 'a/fourth.md')
+      ],
+      favoritePaths: ['/vault/a/second.md', '/vault/b/fav.md']
+    })
+
+    expect(api.quickOpenBrowseRecentResults.value).toHaveLength(3)
+    expect(api.quickOpenBrowseFavoriteResults.value.map((item) => item.path)).toEqual(['/vault/b/fav.md'])
+    expect(api.quickOpenBrowseItems.value.filter((item) => item.kind === 'favorite')).toHaveLength(1)
+  })
+
+  it('shows only quick actions when no history and no favorites exist', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: [
+        { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) }
+      ]
+    })
+
+    expect(api.quickOpenBrowseRecentResults.value).toEqual([])
+    expect(api.quickOpenBrowseFavoriteResults.value).toEqual([])
+    expect(api.quickOpenBrowseItems.value.every((item) => item.kind === 'action')).toBe(true)
+  })
+
+  it('derives the search mode from reversible prefixes', () => {
+    const api = createQuickOpenHarness()
+    api.quickOpenQuery.value = 'zettel'
+    expect(api.quickOpenMode.value).toBe('universal')
+    api.quickOpenQuery.value = '> export'
+    expect(api.quickOpenMode.value).toBe('commands')
+    api.quickOpenQuery.value = '# granularite'
+    expect(api.quickOpenMode.value).toBe('content')
+    api.quickOpenQuery.value = '? liens'
+    expect(api.quickOpenMode.value).toBe('help')
+    api.quickOpenQuery.value = 'zettel'
+    expect(api.quickOpenMode.value).toBe('universal')
+  })
+
+  it('returns categorized ranked results for a universal query', () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: [
+        '/vault/connaisse/methode-zettelkasten.md',
+        '/vault/connaisse/comprendre-zettelkasten.md',
+        '/vault/exemples/notes-atomiques.md'
+      ],
+      recentViewedNotes: [recent('/vault/exemples/notes-atomiques.md', 'exemples/notes-atomiques.md')],
+      paletteActions: [
+        { id: 'create-new-file', label: 'New Note', family: 'notes', run: vi.fn(() => true) },
+        {
+          id: 'convert-to-word',
+          label: 'Convert to Word',
+          family: 'utilities',
+          keywords: ['docx', 'convertir'],
+          run: vi.fn(() => true)
+        }
+      ]
+    })
+    api.quickOpenQuery.value = 'zettel'
+
+    const results = api.paletteResults.value
+    expect(results.filter((item) => item.kind === 'note').map((item) => (item as { path: string }).path)).toEqual([
+      '/vault/connaisse/comprendre-zettelkasten.md',
+      '/vault/connaisse/methode-zettelkasten.md'
+    ])
+    expect(results[results.length - 1]).toEqual({ kind: 'create', title: 'zettel' })
+
+    const categories = api.paletteCategories.value
+    expect(categories.map((category) => category.id)).toEqual(['notes', 'create'])
+    expect(categories[0]).toMatchObject({ id: 'notes', label: 'Notes', startIndex: 0 })
+    expect(categories[1]).toMatchObject({ id: 'create', label: 'Create', startIndex: 2 })
+  })
+
+  it('ranks notes with the title ladder and tie-breakers', () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: [
+        '/vault/zettel.md',
+        '/vault/autres/notes-zettel.md',
+        '/vault/projets/notes-zettel-suite.md'
+      ],
+      recentViewedNotes: [recent('/vault/autres/notes-zettel.md', 'autres/notes-zettel.md')],
+      favoritePaths: ['/vault/projets/notes-zettel-suite.md'],
+      activeFilePath: '/vault/projets/roadmap.md'
+    })
+    api.quickOpenQuery.value = 'zettel'
+
+    const noteResults = api.paletteResults.value.filter((item) => item.kind === 'note') as Array<{
+      path: string
+      matchKind: string
+    }>
+    // Exact title match first; then, among comparable partial matches, the
+    // recent note beats the favorite one.
+    expect(noteResults[0]).toMatchObject({ path: '/vault/zettel.md', matchKind: 'exact' })
+    expect(noteResults.slice(1).map((item) => item.path)).toEqual([
+      '/vault/autres/notes-zettel.md',
+      '/vault/projets/notes-zettel-suite.md'
+    ])
+  })
+
+  it('offers the daily note first for an ISO date query', () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: ['/vault/journal/2026/10/2026-10-31.md']
+    })
+    api.quickOpenQuery.value = '2026-10-31'
+
+    expect(api.paletteResults.value[0]).toEqual({
+      kind: 'daily',
+      date: '2026-10-31',
+      path: '/vault/journal/2026/10/2026-10-31.md',
+      exists: true
+    })
+  })
+
+  it('mixes matching commands into universal results below notes', () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: ['/vault/notes/convertisseur-de-notes.md'],
+      paletteActions: [
+        {
+          id: 'convert-to-word',
+          label: 'Convert to Word',
+          family: 'utilities',
+          keywords: ['docx', 'convertir'],
+          run: vi.fn(() => true)
+        }
+      ]
+    })
+    api.quickOpenQuery.value = 'convertir'
+
+    const kinds = api.paletteResults.value.map((item) => item.kind)
+    expect(kinds).toEqual(['note', 'command', 'create'])
+    expect(api.paletteCategories.value.map((category) => category.id)).toEqual(['notes', 'commands', 'create'])
+  })
+})
+
+describe('useAppQuickOpen command catalog behavior', () => {
+  const catalog = (): PaletteAction[] => [
+    {
+      id: 'convert-to-word',
+      label: 'Convert to Word',
+      family: 'notes',
+      description: 'Convert the active note to DOCX',
+      keywords: ['word', 'docx', 'convertir', 'export'],
+      isEnabled: () => false,
+      unavailableReason: 'Open a note to convert it',
+      run: vi.fn(() => true)
+    },
+    {
+      id: 'new-note',
+      label: 'New Note',
+      family: 'notes',
+      description: 'Create a note in the active folder',
+      shortcutLabel: 'Cmd+N',
+      run: vi.fn(() => true)
+    }
+  ]
+
+  it('reaches commands through their keywords', () => {
+    const api = createQuickOpenHarness({ paletteActions: catalog() })
+    api.quickOpenQuery.value = '> docx'
+    expect(api.quickOpenActionResults.value.map((item) => item.id)).toEqual(['convert-to-word'])
+
+    api.quickOpenQuery.value = '> convertir'
+    expect(api.quickOpenActionResults.value.map((item) => item.id)).toEqual(['convert-to-word'])
+  })
+
+  it('keeps description and shortcut data on the results', () => {
+    const api = createQuickOpenHarness({ paletteActions: catalog() })
+    api.quickOpenQuery.value = '> new'
+
+    const byId = new Map(api.quickOpenActionResults.value.map((item) => [item.id, item]))
+    expect(byId.get('new-note')).toMatchObject({
+      description: 'Create a note in the active folder',
+      shortcutLabel: 'Cmd+N'
+    })
+
+    api.quickOpenQuery.value = '> docx'
+    expect(api.quickOpenActionResults.value[0]).toMatchObject({
+      id: 'convert-to-word',
+      description: 'Convert the active note to DOCX'
+    })
+  })
+
+  it('hides unavailable commands by default but shows them when they match', () => {
+    const api = createQuickOpenHarness({ paletteActions: catalog() })
+
+    // Empty action query: only available commands are listed.
+    api.quickOpenQuery.value = '>'
+    expect(api.quickOpenActionResults.value.map((item) => item.id)).toEqual(['new-note'])
+
+    // Explicit match: the unavailable command stays visible with its reason.
+    api.quickOpenQuery.value = '> convert to word'
+    const results = api.quickOpenActionResults.value
+    expect(results.map((item) => item.id)).toEqual(['convert-to-word'])
+    expect(results[0].isEnabled?.()).toBe(false)
+    expect(results[0].unavailableReason).toBe('Open a note to convert it')
+  })
+
+  it('sorts available commands before unavailable ones with the same match', () => {
+    const api = createQuickOpenHarness({
+      paletteActions: [
+        {
+          id: 'disabled-export',
+          label: 'Export Note',
+          family: 'notes',
+          keywords: ['export'],
+          isEnabled: () => false,
+          unavailableReason: 'Open a note first',
+          run: vi.fn(() => true)
+        },
+        {
+          id: 'enabled-export',
+          label: 'Export Selection',
+          family: 'notes',
+          keywords: ['export'],
+          run: vi.fn(() => true)
+        }
+      ]
+    })
+    api.quickOpenQuery.value = '> export'
+
+    expect(api.quickOpenActionResults.value.map((item) => item.id)).toEqual(['enabled-export', 'disabled-export'])
+  })
+})
+
+describe('useAppQuickOpen entry filters', () => {
+  it('restricts notes-only entry to note results for the session', () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: ['/vault/notes/roadmap.md'],
+      paletteActions: [
+        {
+          id: 'convert-to-word',
+          label: 'Convert to Word',
+          family: 'notes',
+          keywords: ['convertir'],
+          run: vi.fn(() => true)
+        }
+      ]
+    })
+    api.resetQuickOpenState('', true)
+    api.quickOpenQuery.value = 'roadmap'
+    expect(api.quickOpenNotesOnly.value).toBe(true)
+    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['note', 'create'])
+
+    api.quickOpenQuery.value = 'convertir'
+    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['create'])
+
+    api.resetQuickOpenState('', false)
+    api.quickOpenQuery.value = 'convertir'
+    expect(api.quickOpenNotesOnly.value).toBe(false)
+    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['command', 'create'])
   })
 })

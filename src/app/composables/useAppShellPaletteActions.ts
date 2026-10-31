@@ -147,25 +147,29 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
     createPaletteAction('navigation', {
       id: 'open-home-view',
       label: 'Open Home',
+      description: 'Show the launchpad view',
+      keywords: ['home', 'accueil', 'launchpad'],
       run: () => options.actionPort.openHomeViewFromPalette(),
       closeBeforeRun: true
     }),
     createPaletteAction('navigation', {
       id: 'open-favorites',
       label: 'Open Favorites',
+      description: 'Browse favorite notes',
+      keywords: ['favoris', 'favorites', 'star'],
       run: () => options.actionPort.openFavoritesPanelFromPalette(),
       closeBeforeRun: true
     }),
-    ...(
-      options.statePort.activeFilePath.value &&
-      options.documentPort.isMarkdownPath(options.statePort.activeFilePath.value)
-        ? [createPaletteAction('notes', {
-            id: 'convert-to-word',
-            label: 'Convert to Word',
-            run: () => options.actionPort.convertMarkdownToWord(options.statePort.activeFilePath.value)
-          })]
-        : []
-    ),
+    createPaletteAction('notes', {
+      id: 'convert-to-word',
+      label: 'Convert to Word',
+      description: 'Convert the active note to DOCX',
+      keywords: ['word', 'docx', 'convertir', 'export'],
+      isEnabled: () => Boolean(options.statePort.activeFilePath.value)
+        && options.documentPort.isMarkdownPath(options.statePort.activeFilePath.value),
+      unavailableReason: 'Open a note to convert it',
+      run: () => options.actionPort.convertMarkdownToWord(options.statePort.activeFilePath.value)
+    }),
     ...(
       options.statePort.activeFilePath.value &&
       !options.favoritesPort.isFavorite(options.statePort.activeFilePath.value)
@@ -186,22 +190,29 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
           })]
         : []
     ),
-    ...(options.statePort.hasWorkspace.value
-      ? [createPaletteAction('utilities', {
-          id: 'open-integrated-terminal',
-          label: 'Open Integrated Terminal',
-          run: () => options.actionPort.openIntegratedTerminal(),
-          closeBeforeRun: true
-        })]
-      : []),
+    createPaletteAction('utilities', {
+      id: 'open-integrated-terminal',
+      label: 'Open Integrated Terminal',
+      description: 'Open a terminal panel',
+      keywords: ['terminal', 'shell', 'console'],
+      shortcutLabel: 'Cmd+J',
+      isEnabled: () => options.statePort.hasWorkspace.value,
+      unavailableReason: 'Open a workspace first',
+      run: () => options.actionPort.openIntegratedTerminal(),
+      closeBeforeRun: true
+    }),
     createPaletteAction('utilities', {
       id: 'toggle-spellcheck',
       label: options.statePort.spellcheckEnabled.value ? 'Disable Spellcheck' : 'Enable Spellcheck',
+      description: 'Turn spellcheck on or off',
+      keywords: ['orthographe', 'spellcheck'],
       run: () => options.actionPort.toggleSpellcheckFromPalette()
     }),
     createPaletteAction('view', {
       id: 'toggle-editor-ruler',
       label: options.statePort.editorRulerVisible.value ? 'Hide Editor Ruler' : 'Show Editor Ruler',
+      description: 'Show or hide the editor ruler',
+      keywords: ['ruler', 'regle'],
       run: () => options.actionPort.toggleEditorRulerFromPalette()
     }),
     ...(
@@ -217,16 +228,21 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
     createPaletteAction('workspace', {
       id: 'open-workspace',
       label: 'Open Workspace',
+      description: 'Pick a workspace folder',
+      keywords: ['dossier', 'folder', 'vault'],
       run: () => options.actionPort.openWorkspaceFromPalette()
     }),
     createPaletteAction('workspace', {
       id: 'close-workspace',
       label: 'Close Workspace',
+      description: 'Close the current workspace',
       run: () => options.actionPort.closeWorkspaceFromPalette()
     }),
     createPaletteAction('utilities', {
       id: 'show-shortcuts',
       label: 'Show Keyboard Shortcuts',
+      description: 'List every keyboard shortcut',
+      keywords: ['raccourcis', 'shortcuts', 'aide', 'help'],
       run: () => options.actionPort.openShortcutsFromPalette()
     }),
     createPaletteAction('view', {
@@ -252,6 +268,9 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
     createPaletteAction('utilities', {
       id: 'open-settings',
       label: 'Open settings',
+      description: 'Customize the app',
+      keywords: ['reglages', 'preferences'],
+      shortcutLabel: 'Cmd+,',
       run: () => options.actionPort.openSettings(),
       closeBeforeRun: true
     }),
@@ -270,21 +289,31 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
     createPaletteAction('notes', {
       id: 'open-today',
       label: 'Open Today',
+      description: 'Open the daily note',
+      keywords: ['journal', 'today', 'daily'],
+      shortcutLabel: 'Cmd+D',
       run: () => options.actionPort.openTodayNote()
     }),
     createPaletteAction('notes', {
       id: 'open-yesterday',
       label: 'Open Yesterday',
+      description: 'Open yesterday daily note',
+      keywords: ['journal', 'yesterday', 'hier'],
       run: () => options.actionPort.openYesterdayNote()
     }),
     createPaletteAction('notes', {
       id: 'open-specific-date',
       label: 'Open Specific Date',
+      description: 'Open the daily note of a chosen date',
+      keywords: ['journal', 'date'],
       run: () => options.actionPort.openSpecificDateNote()
     }),
     createPaletteAction('notes', {
       id: 'create-new-file',
       label: 'New Note',
+      description: 'Create a note in the active folder',
+      keywords: ['nouvelle', 'create', 'note'],
+      shortcutLabel: 'Cmd+N',
       run: () => options.actionPort.createNewFileFromPalette()
     }),
     createPaletteAction('layout', {

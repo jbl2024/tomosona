@@ -1,6 +1,7 @@
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import QuickOpenModal from './QuickOpenModal.vue'
+import type { PaletteResult, PaletteResultCategory } from '../../composables/useAppQuickOpen'
 
 function mountHarness(options?: { query?: string; isActionMode?: boolean; hasTextQuery?: boolean }) {
   const root = document.createElement('div')
@@ -72,8 +73,8 @@ describe('QuickOpenModal', () => {
     }
     await nextTick()
 
-    mounted.root.querySelector<HTMLButtonElement>('.modal-item')?.click()
-    mounted.root.querySelectorAll<HTMLButtonElement>('.modal-item')[1]?.click()
+    mounted.root.querySelector<HTMLButtonElement>('.palette-row-main')?.click()
+    mounted.root.querySelectorAll<HTMLButtonElement>('.palette-row-main')[1]?.click()
 
     expect(mounted.query.value).toBe('>open settings')
     expect(mounted.actionSelections).toEqual(['open-home-view', 'open-settings'])
@@ -106,5 +107,190 @@ describe('QuickOpenModal', () => {
     expect(mounted.root.textContent).toContain('notes/beta.md')
 
     mounted.app.unmount()
+  })
+})
+
+describe('QuickOpenModal universal palette rendering', () => {
+  function mountPaletteHarness(options?: {
+    query?: string
+    categories?: PaletteResultCategory[]
+  }) {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const selections: PaletteResult[] = []
+    const queryUpdates: string[] = []
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(QuickOpenModal, {
+            visible: true,
+            query: options?.query ?? 'zettel',
+            isActionMode: false,
+            hasTextQuery: true,
+            actionGroups: [],
+            recentResults: [],
+            browseActionResults: [],
+            fileResults: [],
+            categories: options?.categories ?? [],
+            activeIndex: 0,
+            onSelectPaletteResult: (result: PaletteResult) => selections.push(result),
+            'onUpdate:query': (value: string) => queryUpdates.push(value),
+            onSelectAction: () => {},
+            onSelectResult: () => {},
+            onKeydown: () => {},
+            onClose: () => {},
+            onSetActiveIndex: () => {}
+          })
+      }
+    }))
+
+    app.mount(root)
+    return { app, root, selections, queryUpdates }
+  }
+
+  it('shows the no-result state with the create action and a command switch', () => {
+    const mounted = mountPaletteHarness({
+      query: 'xyzabc',
+      categories: [
+        { id: 'create', label: 'Create', startIndex: 0, results: [{ kind: 'create', title: 'xyzabc' }] }
+      ]
+    })
+
+    expect(mounted.root.textContent).toContain('No results for "xyzabc"')
+
+    const switchButton = mounted.root.querySelector<HTMLButtonElement>('.palette-hint-button')
+    expect(switchButton?.textContent).toBe('Search in commands')
+    switchButton?.click()
+    expect(mounted.queryUpdates).toEqual(['>xyzabc'])
+
+    const createRow = mounted.root.querySelector<HTMLButtonElement>('.palette-row')
+    createRow?.click()
+    expect(mounted.selections).toEqual([{ kind: 'create', title: 'xyzabc' }])
+    mounted.app.unmount()
+  })
+
+  it('renders unified categories with note rows and emits palette selections', () => {
+    const mounted = mountPaletteHarness({
+      categories: [
+        {
+          id: 'notes',
+          label: 'Notes',
+          startIndex: 0,
+          results: [
+            { kind: 'note', path: '/vault/methode.md', title: 'Méthode', folder: 'connaisse', matchKind: 'partial' }
+          ]
+        },
+        {
+          id: 'create',
+          label: 'Create',
+          startIndex: 1,
+          results: [{ kind: 'create', title: 'zettel' }]
+        }
+      ]
+    })
+
+    const sections = mounted.root.querySelectorAll('.modal-section-title')
+    expect(Array.from(sections).map((el) => el.textContent)).toEqual(['Notes', 'Create'])
+
+    const rows = mounted.root.querySelectorAll<HTMLButtonElement>('.palette-row')
+    expect(rows.length).toBe(2)
+    expect(rows[0].textContent).toContain('Méthode')
+    expect(rows[0].textContent).toContain('connaisse')
+
+    rows[0].click()
+    expect(mounted.selections).toEqual([
+      { kind: 'note', path: '/vault/methode.md', title: 'Méthode', folder: 'connaisse', matchKind: 'partial' }
+    ])
+    mounted.app.unmount()
+  })
+
+
+  it('renders unavailable commands with a badge and reason, and refuses their clicks', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const actionSelections: string[] = []
+    const disabledAction = {
+      id: 'convert-to-word',
+      label: 'Convert to Word',
+      family: 'notes' as const,
+      description: 'Convert the active note to DOCX',
+      isEnabled: () => false,
+      unavailableReason: 'Open a note to convert it',
+      run: () => true
+    }
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(QuickOpenModal, {
+            visible: true,
+            query: '> convert',
+            isActionMode: true,
+            hasTextQuery: true,
+            actionGroups: [{ family: 'notes', label: 'Notes', items: [disabledAction] }],
+            recentResults: [],
+            browseActionResults: [],
+            fileResults: [],
+            activeIndex: 0,
+            onSelectAction: (id: string) => actionSelections.push(id),
+            onSelectResult: () => {},
+            onSelectPaletteResult: () => {},
+            onKeydown: () => {},
+            onClose: () => {},
+            onSetActiveIndex: () => {}
+          })
+      }
+    }))
+    app.mount(root)
+
+    expect(root.textContent).toContain('Convert to Word')
+    expect(root.textContent).toContain('Open a note to convert it')
+    expect(root.querySelector('.palette-badge')?.textContent).toBe('Unavailable')
+
+    const button = root.querySelector<HTMLButtonElement>('.palette-row-main')
+    expect(button?.disabled).toBe(true)
+    button?.click()
+    expect(actionSelections).toEqual([])
+
+    app.unmount()
+  })
+
+  it('renders favorites in the browse state between recents and quick actions', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(QuickOpenModal, {
+            visible: true,
+            query: '',
+            isActionMode: false,
+            hasTextQuery: false,
+            actionGroups: [],
+            recentResults: [
+              { kind: 'recent', path: '/vault/a.md', label: 'a.md', recencyLabel: '2m' }
+            ],
+            favoriteResults: [
+              { kind: 'favorite', path: '/vault/b.md', label: 'b.md' }
+            ],
+            browseActionResults: [{ kind: 'action', id: 'open-home-view', label: 'Open Home' }],
+            fileResults: [],
+            activeIndex: 0,
+            onSelectAction: () => {},
+            onSelectResult: () => {},
+            onSelectPaletteResult: () => {},
+            onKeydown: () => {},
+            onClose: () => {},
+            onSetActiveIndex: () => {}
+          })
+      }
+    }))
+    app.mount(root)
+
+    const sections = root.querySelectorAll('.modal-section-title')
+    expect(Array.from(sections).map((el) => el.textContent)).toEqual(['Recent notes', 'Favorites', 'Quick actions'])
+    app.unmount()
   })
 })

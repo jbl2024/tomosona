@@ -132,7 +132,7 @@ import { useAppShellRootWorkflow } from './composables/useAppShellRootWorkflow'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
 import { useAppShellConstitutedContextActions } from './composables/useAppShellConstitutedContextActions'
 import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
-import { useAppQuickOpen } from './composables/useAppQuickOpen'
+import { useAppQuickOpen, type PaletteResult } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
 import { useAppEditorPreferences } from './composables/useAppEditorPreferences'
@@ -734,7 +734,10 @@ const {
   quickOpenIsActionMode,
   quickOpenActionGroups,
   quickOpenResults,
+  paletteResults,
+  paletteCategories: quickOpenPaletteCategories,
   quickOpenBrowseRecentResults,
+  quickOpenBrowseFavoriteResults,
   quickOpenBrowseActionResults,
   quickOpenBrowseItems,
   quickOpenHasTextQuery,
@@ -1009,12 +1012,36 @@ const {
   openYesterdayNote,
   showExplorerForActiveFile,
   openWikilinkTarget,
+  createNoteFromPaletteTitle,
   loadWikilinkHeadings,
   openQuickResult,
   onSearchResultOpen,
   onBacklinkOpen,
   onExplorerOpen
 } = shellOpenFlow
+
+/**
+ * Dispatches a unified palette result to its execution path: notes and daily
+ * rows reuse the quick-open flow, commands run through the action runner,
+ * and the create action seeds a new note titled with the query.
+ */
+function onQuickOpenSelectPaletteResult(result: PaletteResult) {
+  if (result.kind === 'note') {
+    void openQuickResult({ kind: 'file', path: result.path, label: result.title })
+    return
+  }
+  if (result.kind === 'daily') {
+    void openQuickResult({ kind: 'daily', date: result.date, path: result.path, label: result.date, exists: result.exists })
+    return
+  }
+  if (result.kind === 'command') {
+    runQuickOpenAction(result.actionId)
+    return
+  }
+  if (result.kind === 'create') {
+    void createNoteFromPaletteTitle(result.title)
+  }
+}
 
 const paneRuntime = useAppShellPaneRuntime({
   activeFilePath,
@@ -1156,10 +1183,12 @@ const shellModalInteractions = useAppShellModalInteractions({
     quickOpenActiveIndex,
     quickOpenActionGroups,
     quickOpenResults,
+    quickOpenPaletteResults: paletteResults,
     quickOpenBrowseItems,
     paletteActions,
     moveQuickOpenSelection,
-    openQuickResult
+    openQuickResult,
+    selectPaletteResult: onQuickOpenSelectPaletteResult
   },
   themePickerPort: {
     themePickerVisible,
@@ -1650,6 +1679,8 @@ useAppShellKeyboard({
     createNewFileFromActiveDirectory,
     openQuickOpen,
     openCommandPalette,
+    openNotesQuickOpen: () => openQuickOpen('', true),
+    openUniversalPalette: () => openQuickOpen(''),
     openSettings,
     openIntegratedTerminal,
     openTodayNote,
@@ -1919,8 +1950,10 @@ useAppShellKeyboard({
       :quick-open-has-text-query="quickOpenHasTextQuery"
       :quick-open-action-groups="quickOpenActionGroups"
       :quick-open-browse-recent-results="quickOpenBrowseRecentResults"
+      :quick-open-browse-favorite-results="quickOpenBrowseFavoriteResults"
       :quick-open-browse-action-results="quickOpenBrowseActionResults"
       :quick-open-results="quickOpenResults"
+      :quick-open-palette-categories="quickOpenPaletteCategories"
       :quick-open-active-index="quickOpenActiveIndex"
       :theme-picker-visible="themePickerVisible"
       :theme-picker-query="themePickerQuery"
@@ -1962,6 +1995,7 @@ useAppShellKeyboard({
       @quick-open-keydown="onQuickOpenInputKeydown"
       @quick-open-select-action="runQuickOpenAction"
       @quick-open-select-result="openQuickResult"
+      @quick-open-select-palette-result="onQuickOpenSelectPaletteResult"
       @quick-open-set-active-index="setQuickOpenActiveIndex"
       @close-theme-picker="closeThemePickerModal"
       @update-theme-picker-query="themePickerQuery = $event"

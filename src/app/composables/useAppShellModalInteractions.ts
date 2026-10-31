@@ -1,5 +1,5 @@
 import { nextTick, watch, type Ref } from 'vue'
-import type { PaletteAction, QuickOpenActionGroup, QuickOpenBrowseItem, QuickOpenResult } from './useAppQuickOpen'
+import type { PaletteAction, PaletteResult, QuickOpenActionGroup, QuickOpenBrowseItem, QuickOpenResult } from './useAppQuickOpen'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 import type { ThemePreference } from './useAppTheme'
 
@@ -22,10 +22,12 @@ export type AppShellQuickOpenInteractionPort = {
   quickOpenActiveIndex: Ref<number>
   quickOpenActionGroups: Readonly<Ref<QuickOpenActionGroup[]>>
   quickOpenResults: Readonly<Ref<QuickOpenResult[]>>
+  quickOpenPaletteResults: Readonly<Ref<PaletteResult[]>>
   quickOpenBrowseItems: Readonly<Ref<QuickOpenBrowseItem[]>>
   paletteActions: Readonly<Ref<PaletteAction[]>>
   moveQuickOpenSelection: (delta: number) => void
   openQuickResult: (result: QuickOpenResult) => boolean | void | Promise<boolean | void>
+  selectPaletteResult: (result: PaletteResult) => void
 }
 
 /** Groups the theme picker state used by modal interaction handlers. */
@@ -69,6 +71,8 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
   function runQuickOpenAction(id: string) {
     const action = options.quickOpenPort.paletteActions.value.find((item) => item.id === id)
     if (!action) return
+    // Unavailable commands stay visible with a reason but are never executed.
+    if (action.isEnabled && !action.isEnabled()) return
     const closesBeforeRun = Boolean(action.closeBeforeRun)
     if (closesBeforeRun && options.quickOpenPort.quickOpenVisible.value) {
       options.closeQuickOpen(false)
@@ -105,6 +109,11 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     }
 
     if (options.quickOpenPort.quickOpenHasTextQuery.value) {
+      const result = options.quickOpenPort.quickOpenPaletteResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
+      if (result) {
+        options.quickOpenPort.selectPaletteResult(result)
+        return
+      }
       const item = options.quickOpenPort.quickOpenResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
       if (item) {
         void options.quickOpenPort.openQuickResult(item)

@@ -1,7 +1,7 @@
 import { nextTick, ref, watch, type Ref } from 'vue'
 import { backlinksForPath } from '../../shared/api/indexApi'
 import { formatIsoDate } from '../lib/appShellPaths'
-import { noteTitleFromPath } from '../lib/appShellDocuments'
+import { noteTitleFromPath, sanitizeTitleForFileName } from '../lib/appShellDocuments'
 import { parseWikilinkTarget, type WikilinkAnchor } from '../../domains/editor/lib/wikilinks'
 import { type HeadingNode } from '../../domains/editor/composables/useEditorState'
 import type { QuickOpenResult } from './useAppQuickOpen'
@@ -389,7 +389,7 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
   }
 
   async function openQuickResult(item: QuickOpenResult) {
-    if (item.kind === 'file' || item.kind === 'recent') {
+    if (item.kind === 'file' || item.kind === 'recent' || item.kind === 'favorite') {
       options.uiPort.closeQuickOpen()
       const opened = await options.navigationPort.openTabWithAutosave(item.path)
       if (!opened) return
@@ -478,6 +478,21 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     { immediate: true }
   )
 
+  /**
+   * Creates a note from a palette query: the typed text becomes the title
+   * (sanitized into the file name), the note is seeded with its title heading
+   * and opened immediately. An existing note at the target is opened instead
+   * of overwritten.
+   */
+  async function createNoteFromPaletteTitle(rawTitle: string) {
+    const root = options.workspacePort.workingFolderPath.value
+    const title = rawTitle.trim()
+    if (!root || !title) return false
+    const stem = sanitizeTitleForFileName(title)
+    if (!stem) return false
+    return await openOrPrepareMarkdown(`${root}/${stem}.md`, `# ${stem}`)
+  }
+
   return {
     backlinks,
     backlinksLoading,
@@ -487,6 +502,7 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     openYesterdayNote,
     showExplorerForActiveFile,
     openWikilinkTarget,
+    createNoteFromPaletteTitle,
     loadWikilinkHeadings,
     openQuickResult,
     onSearchResultOpen,

@@ -1,20 +1,22 @@
 import { effectScope, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAppShellModalInteractions } from './useAppShellModalInteractions'
-import type { PaletteAction, QuickOpenActionGroup, QuickOpenResult } from './useAppQuickOpen'
+import type { PaletteAction, PaletteResult, QuickOpenActionGroup, QuickOpenResult } from './useAppQuickOpen'
 import type { ThemePreference } from './useAppTheme'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 
-function createHarness() {
+function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
   const quickOpenVisible = ref(true)
   const quickOpenIsActionMode = ref(false)
   const quickOpenHasTextQuery = ref(true)
   const quickOpenActiveIndex = ref(0)
   const quickOpenActionGroups = ref<QuickOpenActionGroup[]>([])
   const quickOpenResults = ref<QuickOpenResult[]>([])
+  const quickOpenPaletteResults = ref<PaletteResult[]>([])
   const quickOpenBrowseItems = ref<QuickOpenResult[]>([])
   const closeWorkspaceRun = vi.fn(async () => true)
-  const paletteActions = ref<PaletteAction[]>([
+  const paletteActions = ref<PaletteAction[]>(
+    overrides?.paletteActions ?? [
     {
       id: 'open-settings',
       label: 'Open Settings',
@@ -28,7 +30,8 @@ function createHarness() {
       family: 'workspace',
       run: closeWorkspaceRun
     }
-  ])
+    ]
+  )
 
   const themePickerVisible = ref(false)
   const themePickerQuery = ref('tok')
@@ -52,6 +55,7 @@ function createHarness() {
   const applyTheme = vi.fn()
   const applyThemePreview = vi.fn()
   const openQuickResult = vi.fn(async () => true)
+  const selectPaletteResult = vi.fn()
   const moveQuickOpenSelection = vi.fn()
   const scope = effectScope()
   const api = scope.run(() =>
@@ -63,10 +67,12 @@ function createHarness() {
         quickOpenActiveIndex,
         quickOpenActionGroups,
         quickOpenResults,
+        quickOpenPaletteResults,
         quickOpenBrowseItems,
         paletteActions,
         moveQuickOpenSelection,
-        openQuickResult
+        openQuickResult,
+        selectPaletteResult
       },
       themePickerPort: {
         themePickerVisible,
@@ -114,7 +120,9 @@ function createHarness() {
     quickOpenActiveIndex,
     quickOpenActionGroups,
     quickOpenResults,
+    quickOpenPaletteResults,
     quickOpenBrowseItems,
+    selectPaletteResult,
     themePickerVisible,
     themePickerQuery,
     themePickerActiveIndex,
@@ -227,6 +235,75 @@ describe('useAppShellModalInteractions', () => {
     expect(themePickerVisible.value).toBe(false)
     expect(themePickerQuery.value).toBe('')
     expect(themePickerActiveIndex.value).toBe(0)
+    scope.stop()
+  })
+})
+
+describe('useAppShellModalInteractions palette availability guard', () => {
+  it('refuses to run an unavailable command', async () => {
+    const run = vi.fn(() => true)
+    const { api, scope, closeQuickOpen } = createHarness({
+      paletteActions: [
+        {
+          id: 'convert-to-word',
+          label: 'Convert to Word',
+          family: 'notes',
+          isEnabled: () => false,
+          unavailableReason: 'Open a note to convert it',
+          run
+        }
+      ]
+    })
+
+    try {
+      api.runQuickOpenAction('convert-to-word')
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(run).not.toHaveBeenCalled()
+      expect(closeQuickOpen).not.toHaveBeenCalled()
+    } finally {
+      scope.stop()
+    }
+  })
+})
+
+describe('useAppShellModalInteractions palette keyboard', () => {
+  it('selects the unified palette result at the active index on Enter', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenActiveIndex,
+      quickOpenPaletteResults,
+      selectPaletteResult
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = true
+    quickOpenPaletteResults.value = [
+      { kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' },
+      { kind: 'create', title: 'a' }
+    ]
+    quickOpenActiveIndex.value = 1
+
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+
+    expect(selectPaletteResult).toHaveBeenCalledWith({ kind: 'create', title: 'a' })
+    scope.stop()
+  })
+
+  it('lets native text-editing keys pass through untouched (Cmd+A, Backspace)', () => {
+    const { api, scope } = createHarness()
+
+    const cmdA = new KeyboardEvent('keydown', { key: 'a', metaKey: true, cancelable: true })
+    api.onQuickOpenInputKeydown(cmdA)
+    expect(cmdA.defaultPrevented).toBe(false)
+
+    const backspace = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true })
+    api.onQuickOpenInputKeydown(backspace)
+    expect(backspace.defaultPrevented).toBe(false)
+
     scope.stop()
   })
 })

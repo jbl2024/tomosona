@@ -12,6 +12,8 @@ import SettingsModal from './SettingsModal.vue'
 import type { IndexActivityRow, IndexLogFilter } from '../../lib/indexActivity'
 import type { ThemePickerItem } from '../../lib/appShellPresentation'
 import type {
+  PaletteResult,
+  PaletteResultCategory,
   QuickOpenActionGroup,
   QuickOpenBrowseAction,
   QuickOpenResult
@@ -72,8 +74,10 @@ defineProps<{
   quickOpenHasTextQuery: boolean
   quickOpenActionGroups: QuickOpenActionGroup[]
   quickOpenBrowseRecentResults: QuickOpenResult[]
+  quickOpenBrowseFavoriteResults: QuickOpenResult[]
   quickOpenBrowseActionResults: QuickOpenBrowseAction[]
   quickOpenResults: QuickOpenResult[]
+  quickOpenPaletteCategories: PaletteResultCategory[]
   quickOpenActiveIndex: number
   themePickerVisible: boolean
   themePickerQuery: string
@@ -118,6 +122,7 @@ const emit = defineEmits<{
   quickOpenKeydown: [event: KeyboardEvent]
   quickOpenSelectAction: [id: string]
   quickOpenSelectResult: [item: QuickOpenResult]
+  quickOpenSelectPaletteResult: [result: PaletteResult]
   quickOpenSetActiveIndex: [index: number]
   closeThemePicker: []
   updateThemePickerQuery: [value: string]
@@ -217,13 +222,16 @@ const emit = defineEmits<{
     :action-groups="quickOpenActionGroups"
     :recent-results="quickOpenBrowseRecentResults"
     :browse-action-results="quickOpenBrowseActionResults"
+    :favorite-results="quickOpenBrowseFavoriteResults"
     :file-results="quickOpenResults"
+    :categories="quickOpenPaletteCategories"
     :active-index="quickOpenActiveIndex"
     @close="emit('closeQuickOpen')"
     @update:query="emit('updateQuickOpenQuery', $event)"
     @keydown="emit('quickOpenKeydown', $event)"
     @select-action="emit('quickOpenSelectAction', $event)"
     @select-result="emit('quickOpenSelectResult', $event)"
+    @select-palette-result="emit('quickOpenSelectPaletteResult', $event)"
     @set-active-index="emit('quickOpenSetActiveIndex', $event)"
   />
 
