@@ -105,6 +105,7 @@ This file defines repository-wide agent behavior for `tomosona`.
 ## Commit Message Requirement
 - Use [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 - Required format: `<type>[optional scope]: <short description>`.
+- Never co-author commits: do not add a `Co-Authored-By` trailer or any generated-by footer.
 - Supported types include: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
 - Use `!` before `:` or add a `BREAKING CHANGE:` footer when applicable.
 - Example: `fix(theme): add system-aware light/dark switcher`.
