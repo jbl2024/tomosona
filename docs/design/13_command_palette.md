@@ -601,14 +601,14 @@ La palette doit être entièrement utilisable sans souris.
 | Raccourci proposé | Comportement |
 |---|---|
 | `Cmd+K` | Palette universelle |
-| `Cmd+P` | Recherche rapide de notes uniquement |
+| `Cmd+P` | Alias de la palette universelle |
 | `Cmd+Shift+P` | Commandes uniquement |
 
 Sur les plateformes concernées, `Ctrl` remplace `Cmd`.
 
 Le raccourci `Cmd+Shift+P` déjà présent dans Tomosona est conservé.
 
-Ces trois raccourcis ouvrent **la même palette**, mais avec un filtre initial différent.
+`Cmd+P` ouvre la même palette universelle que `Cmd+K` : la recherche universelle couvre déjà les notes par titre, un filtre dédié n'apporterait rien de plus. `Cmd+Shift+P` ouvre la palette avec le filtre `>` (commandes).
 
 Les raccourcis doivent rester cohérents avec ceux de l'éditeur, notamment si `Cmd+K` est déjà utilisé pour insérer un lien.
 

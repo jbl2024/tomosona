@@ -63,14 +63,14 @@ A pure `contextSuggestions(context)` function ranks context-relevant actions fir
 Selection actions map onto existing editor commands: transforms (heading/list/etc.) via the existing inline/block command handlers, copy-as-markdown via the existing clipboard flow, and extract-to-note via the existing `createExtractedNote` flow (create note from selection content, insert link, keep original passage per spec default). The palette contributes discovery, not new editor logic.
 
 ### 11. Shortcuts: same palette, three entry filters
-`useAppShellKeyboard` keeps `Cmd+K` as the universal entry (empty query), changes `Cmd+P` to the notes-only initial filter, and adds `Cmd+Shift+P` as the commands-only filter (`>`). `openQuickOpen(initialQuery)` already accepts an initial query, so entry filters are a one-line change per binding. `Ctrl` replaces `Cmd` through the existing `isMod` platform abstraction.
+`useAppShellKeyboard` keeps `Cmd+K` as the universal entry (empty query), keeps `Cmd+P` as an alias of the universal entry (the planned notes-only filter was dropped during manual review as redundant), and adds `Cmd+Shift+P` as the commands-only filter (`>`). `openQuickOpen(initialQuery)` already accepts an initial query, so entry filters are a one-line change per binding. `Ctrl` replaces `Cmd` through the existing `isMod` platform abstraction.
 
 ## Risks / Trade-offs
 
 - [Ranking quality is the hard part; a poor ladder makes the palette feel random] → The ladder is explicit, pure, and locked by tests derived from the source spec's example table (`zettel`, `notes atom`/`atom notes`, `methode zettel`, `roadmap`, `docx`/`convertir`, `renommer`).
 - [FTS latency on large workspaces could lag typing] → Debounced queries, synchronous title/command results shown immediately, passages merged in when they arrive.
 - [Context overlay could feel unpredictable] → Suggestions are ordered, never filtering; recent notes remain reachable via search; behavior is spec'd and tested per context.
-- [Shortcut collisions] → Verified: no editor `Cmd+K` binding exists; `Cmd+P` currently duplicates `Cmd+K` so repurposing it is safe; `Cmd+Shift+P` label already exists in the shortcuts modal. The repurposing of `Cmd+P` (today: command mode, after: notes filter) is a habit change — the in-app shortcuts modal entries are updated as part of the work so the built-in reference stays truthful.
+- [Shortcut collisions] → Verified: no editor `Cmd+K` binding exists; `Cmd+P` duplicates `Cmd+K` and stays a universal alias after review (the planned notes-only filter was dropped as redundant); `Cmd+Shift+P` label already exists in the shortcuts modal, and the in-app shortcuts modal entries are updated as part of the work so the built-in reference stays truthful.
 - [Scope is large] → Phased by priority (see tasks.md); each phase leaves the palette fully usable.
 - [Progressive results moving the selection] → Late-arriving content results append after the current window rather than reordering above the selected index.
 

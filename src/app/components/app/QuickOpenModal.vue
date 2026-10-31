@@ -3,10 +3,15 @@ import { computed } from 'vue'
 import type {
   PaletteResult,
   PaletteResultCategory,
+  PalettePassageMatch,
+  PaletteTabActionId,
   QuickOpenActionGroup,
   QuickOpenBrowseAction,
-  QuickOpenResult
+  QuickOpenResult,
+  QuickOpenTabMenu,
+  QuickOpenTabMenuItem
 } from '../../composables/useAppQuickOpen'
+import { parseSearchSnippet } from '../../../shared/lib/searchSnippets'
 
 /**
  * QuickOpenModal
@@ -35,6 +40,10 @@ const props = defineProps<{
   /** Favorite notes suggested in the browse state. */
   favoriteResults?: QuickOpenResult[]
   activeIndex: number
+  /** Secondary-actions menu opened with Tab on a note result. */
+  tabMenu?: QuickOpenTabMenu | null
+  /** Rows of the open secondary-actions menu. */
+  tabMenuItems?: QuickOpenTabMenuItem[]
 }>()
 
 const emit = defineEmits<{
@@ -45,10 +54,40 @@ const emit = defineEmits<{
   'select-result': [item: QuickOpenResult]
   'select-palette-result': [result: PaletteResult]
   'set-active-index': [index: number]
+  'open-tab-menu': [path: string, title: string]
+  'close-tab-menu': []
+  'set-tab-menu-item-index': [index: number]
+  'run-tab-menu-action': [menu: QuickOpenTabMenu, action: PaletteTabActionId]
 }>()
 
 const paletteCategories = computed(() => props.categories ?? [])
 const favoriteRows = computed(() => props.favoriteResults ?? [])
+const tabMenu = computed(() => props.tabMenu ?? null)
+const tabMenuRows = computed(() => props.tabMenuItems ?? [])
+
+function isTabMenuOpenFor(path: string) {
+  return tabMenu.value?.path === path
+}
+
+function toggleTabMenu(path: string, title: string) {
+  if (isTabMenuOpenFor(path)) emit('close-tab-menu')
+  else emit('open-tab-menu', path, title)
+}
+
+function passageParts(match: PalettePassageMatch) {
+  return parseSearchSnippet(match.snippet)
+}
+
+/**
+ * True when the passage row continues a same-note group: consecutive matches
+ * from one note share the group's title, so only the snippet differs.
+ */
+function isPassageContinuation(category: PaletteResultCategory, index: number): boolean {
+  if (index <= 0) return false
+  const previous = category.results[index - 1]
+  const current = category.results[index]
+  return current.kind === 'passage' && previous.kind === 'passage' && previous.path === current.path
+}
 
 /** True when the query produced no results beyond the create action. */
 const hasNoPaletteResults = computed(() =>
@@ -86,6 +125,10 @@ function paletteResultMeta(result: PaletteResult): string {
   if (result.kind === 'note') return result.folder
   if (result.kind === 'passage') return result.folder
   return ''
+}
+
+function firstPassageMatch(result: PaletteResult): PalettePassageMatch | null {
+  return result.kind === 'passage' && result.matches.length ? result.matches[0] : null
 }
 
 function switchToCommandSearch() {
@@ -170,18 +213,79 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
           </p>
           <section v-for="category in paletteCategories" :key="category.id" class="modal-section">
             <p class="modal-section-title">{{ category.label }}</p>
-            <button
-              v-for="(result, index) in category.results"
-              :key="paletteResultKey(result, index)"
-              type="button"
-              class="palette-row palette-row-main"
-              :class="{ active: activeIndex === category.startIndex + index }"
-              @click="emit('select-palette-result', result)"
-              @mousemove="emit('set-active-index', category.startIndex + index)"
-            >
-              <span class="palette-row-title">{{ paletteResultTitle(result) }}</span>
-              <span v-if="paletteResultMeta(result)" class="palette-row-meta">{{ paletteResultMeta(result) }}</span>
-            </button>
+            <template v-for="(result, index) in category.results" :key="paletteResultKey(result, index)">
+              <div
+                v-if="result.kind === 'note'"
+                class="palette-row"
+                :class="{ active: activeIndex === category.startIndex + index }"
+                @mousemove="emit('set-active-index', category.startIndex + index)"
+              >
+                <button
+                  type="button"
+                  class="palette-row-main"
+                  @click="emit('select-palette-result', result)"
+                >
+                  <span class="palette-row-title">{{ result.title }}</span>
+                  <span v-if="result.folder" class="palette-row-meta">{{ result.folder }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="palette-more"
+                  title="More actions (Tab)"
+                  :aria-expanded="isTabMenuOpenFor(result.path)"
+                  @click.stop="toggleTabMenu(result.path, result.title)"
+                >
+                  More
+                </button>
+              </div>
+              <button
+                v-else-if="result.kind !== 'passage'"
+                type="button"
+                class="palette-row palette-row-main"
+                :class="{ active: activeIndex === category.startIndex + index }"
+                @click="emit('select-palette-result', result)"
+                @mousemove="emit('set-active-index', category.startIndex + index)"
+              >
+                <span class="palette-row-title">{{ paletteResultTitle(result) }}</span>
+                <span v-if="paletteResultMeta(result)" class="palette-row-meta">{{ paletteResultMeta(result) }}</span>
+              </button>
+              <div v-if="result.kind === 'note' && isTabMenuOpenFor(result.path)" class="palette-tab-menu" data-quick-open-tab-menu="true">
+                <button
+                  v-for="(item, itemIndex) in tabMenuRows"
+                  :key="item.id"
+                  type="button"
+                  class="palette-tab-menu-item"
+                  :class="{ active: tabMenu && tabMenu.itemIndex === itemIndex }"
+                  @click="tabMenu && emit('run-tab-menu-action', tabMenu, item.id)"
+                  @mousemove="emit('set-tab-menu-item-index', itemIndex)"
+                >
+                  {{ item.label }}
+                </button>
+              </div>
+              <div
+                v-if="result.kind === 'passage'"
+                class="palette-row"
+                :class="{ active: activeIndex === category.startIndex + index, grouped: isPassageContinuation(category, index) }"
+                @mousemove="emit('set-active-index', category.startIndex + index)"
+              >
+                <button
+                  type="button"
+                  class="palette-row-main"
+                  @click="emit('select-palette-result', result)"
+                >
+                  <template v-if="!isPassageContinuation(category, index)">
+                    <span class="palette-row-title">{{ result.title }}</span>
+                    <span v-if="result.folder" class="palette-row-meta">{{ result.folder }}</span>
+                  </template>
+                  <span v-if="firstPassageMatch(result)" class="palette-row-snippet">
+                    <template v-for="(part, partIndex) in passageParts(firstPassageMatch(result)!)" :key="partIndex">
+                      <mark v-if="part.highlighted" class="palette-snippet-mark">{{ part.text }}</mark>
+                      <template v-else>{{ part.text }}</template>
+                    </template>
+                  </span>
+                </button>
+              </div>
+            </template>
           </section>
         </template>
         <template v-else-if="hasTextQuery">
@@ -390,6 +494,73 @@ function onQuickOpenKeydown(event: KeyboardEvent) {
   flex: 0 0 auto;
   font-size: 11px;
   color: var(--text-dim);
+}
+
+/* Content passage rows: snippet line with highlighted match marks. */
+.palette-row-snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.palette-snippet-mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+}
+
+/* Same-note passage continuation rows share the group title; indent the
+   snippet so the visual group stays readable. */
+.palette-row.grouped .palette-row-main {
+  padding-left: 12px;
+}
+
+/* Secondary-actions toggle on note rows; stays visually quiet so the main
+   open path dominates. */
+.palette-more {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.palette-more:hover,
+.palette-more[aria-expanded='true'] {
+  border-color: var(--command-palette-item-active-border);
+  background: var(--command-palette-item-active-bg);
+  color: var(--command-palette-item-active-text);
+}
+
+/* Secondary-actions menu rendered under its note row. */
+.palette-tab-menu {
+  margin: 1px 0 2px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.palette-tab-menu-item {
+  border: 1px solid var(--command-palette-item-border);
+  background: var(--command-palette-item-bg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--command-palette-item-text);
+}
+
+.palette-tab-menu-item.active {
+  border-color: var(--command-palette-item-active-border);
+  background: var(--command-palette-item-active-bg);
+  color: var(--command-palette-item-active-text);
 }
 
 .palette-hint {

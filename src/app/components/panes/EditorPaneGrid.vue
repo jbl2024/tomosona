@@ -28,7 +28,7 @@ export type EditorPaneGridExposed = {
   openNoteHistory: () => Promise<void>
   isActiveEditorSourceSurface: () => boolean
   setActiveMarkdownSourceMode: (enabled: boolean) => Promise<void>
-  revealSnippet: (snippet: string) => Promise<void>
+  revealSnippet: (snippet: string) => Promise<boolean>
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
@@ -44,7 +44,7 @@ type EditorViewExposed = {
   applyWorkspaceFsChanges: (changes: WorkspaceFsChange[]) => Promise<void>
   focusEditor: () => void
   openNoteHistory: () => Promise<void>
-  revealSnippet: (snippet: string) => Promise<void>
+  revealSnippet: (snippet: string) => Promise<boolean>
   revealOutlineHeading: (index: number) => Promise<void>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
   navigateSignal: (kind: EditorSignalKind, direction: EditorSignalDirection) => void
@@ -257,8 +257,8 @@ async function setActiveMarkdownSourceMode(enabled: boolean) {
   await ensureCall((editor) => editor.setMarkdownSourceSurfaceEnabled(enabled), Promise.resolve())
 }
 
-async function revealSnippet(snippet: string) {
-  await ensureCall((editor) => editor.revealSnippet(snippet), Promise.resolve())
+async function revealSnippet(snippet: string): Promise<boolean> {
+  return await ensureCall((editor) => editor.revealSnippet(snippet), Promise.resolve(false))
 }
 
 async function revealOutlineHeading(index: number) {

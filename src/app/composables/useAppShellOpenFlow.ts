@@ -4,9 +4,14 @@ import { formatIsoDate } from '../lib/appShellPaths'
 import { noteTitleFromPath, sanitizeTitleForFileName } from '../lib/appShellDocuments'
 import { parseWikilinkTarget, type WikilinkAnchor } from '../../domains/editor/lib/wikilinks'
 import { type HeadingNode } from '../../domains/editor/composables/useEditorState'
+import type { PaletteOpenTarget } from './useAppQuickOpen'
 import type { QuickOpenResult } from './useAppQuickOpen'
 import type { SidebarMode } from './useWorkspaceState'
 import { isAbsoluteWorkspacePath, normalizeWorkspacePath, toWorkspaceRelativePath } from '../../domains/explorer/lib/workspacePaths'
+
+/** Attempts and delay for the passage-reveal retry budget (~1.8s at defaults). */
+const REVEAL_RETRY_ATTEMPTS = 12
+const REVEAL_RETRY_DELAY_MS = 150
 
 type VirtualDoc = {
   content: string
@@ -15,7 +20,7 @@ type VirtualDoc = {
 
 type EditorSurfacePort = {
   focusEditor: () => void
-  revealSnippet: (snippet: string) => Promise<void>
+  revealSnippet: (snippet: string) => Promise<boolean>
   revealAnchor: (anchor: WikilinkAnchor) => Promise<boolean>
 }
 
@@ -77,6 +82,8 @@ export type AppShellOpenFlowWorkspaceDataPort = {
 export type AppShellOpenFlowNavigationPort = {
   openTabWithAutosave: (path: string, options?: { recordHistory?: boolean; targetPaneId?: string; revealInTargetPane?: boolean }) => Promise<boolean>
   openDailyNote: (date: string, openPath: (path: string) => Promise<boolean>) => Promise<boolean>
+  /** Reading-order adjacent pane after the active one, or null when none exists. */
+  resolveAdjacentPaneId?: () => string | null
 }
 
 export type AppShellOpenFlowUiPort = {
@@ -90,6 +97,8 @@ export type AppShellOpenFlowOptions = {
   dataPort: AppShellOpenFlowWorkspaceDataPort
   navigationPort: AppShellOpenFlowNavigationPort
   uiPort: AppShellOpenFlowUiPort
+  /** Delay between passage-reveal retries while a freshly opened document loads. */
+  revealRetryDelayMs?: number
 }
 
 export type RefreshBacklinksOptions = {
@@ -400,13 +409,42 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     })
   }
 
-  async function onSearchResultOpen(hit: SearchHit) {
-    const opened = await options.navigationPort.openTabWithAutosave(hit.path)
-    if (!opened) return
-    options.editorPort.editorState.setRevealSnippet(hit.path, hit.snippet)
+  /**
+   * Opens a palette note result at the requested target. `new-tab` reveals
+   * the note as a tab of the active pane (moving it there when it already
+   * lives in another pane); `adjacent` targets the reading-order neighbor
+   * and degrades to a new tab in the active pane when no other pane exists.
+   */
+  async function openNoteAtTarget(path: string, target: PaletteOpenTarget) {
+    if (target === 'active') {
+      await openQuickResult({ kind: 'file', path, label: path })
+      return
+    }
+    if (target === 'adjacent') {
+      const adjacentPaneId = options.navigationPort.resolveAdjacentPaneId?.() ?? null
+      if (adjacentPaneId) {
+        const opened = await options.navigationPort.openTabWithAutosave(path, { targetPaneId: adjacentPaneId })
+        if (opened) options.uiPort.closeQuickOpen()
+        return
+      }
+    }
+    const opened = await options.navigationPort.openTabWithAutosave(path, { revealInTargetPane: true })
+    if (opened) options.uiPort.closeQuickOpen()
+  }
 
-    await nextTick()
-    await options.editorPort.editorRef.value?.revealSnippet(hit.snippet)
+  async function onSearchResultOpen(hit: SearchHit) {
+    // Stored before opening: the active-file effects can fire during the open
+    // await, so the snippet must already be available to them.
+    options.editorPort.editorState.setRevealSnippet(hit.path, hit.snippet)
+    const opened = await options.navigationPort.openTabWithAutosave(hit.path)
+    if (!opened) {
+      options.editorPort.editorState.consumeRevealSnippet(hit.path)
+      return
+    }
+    // Fast path for documents already loaded in the editor; freshly opened
+    // ones are revealed by the retry loop in the active-note effects.
+    const revealed = await options.editorPort.editorRef.value?.revealSnippet(hit.snippet)
+    if (revealed) options.editorPort.editorState.consumeRevealSnippet(hit.path)
   }
 
   async function onBacklinkOpen(path: string) {
@@ -417,6 +455,23 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
   async function onExplorerOpen(path: string) {
     const opened = await options.navigationPort.openTabWithAutosave(path)
     if (!opened) return
+  }
+
+  /**
+   * Reveals a stored passage once the freshly opened document has loaded.
+   * Early attempts typically miss while the content is still being read, so
+   * reveal results are retried for a bounded budget, aborting if the active
+   * note changed in the meantime.
+   */
+  async function revealSnippetWhenReady(path: string, snippet: string) {
+    for (let attempt = 0; attempt < REVEAL_RETRY_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, options.revealRetryDelayMs ?? REVEAL_RETRY_DELAY_MS))
+        if (options.editorPort.activeFilePath.value !== path) return
+      }
+      const revealed = await options.editorPort.editorRef.value?.revealSnippet(snippet)
+      if (revealed) return
+    }
   }
 
   async function runActiveNoteEffects(path: string) {
@@ -439,8 +494,7 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
 
       const snippet = options.editorPort.editorState.consumeRevealSnippet(path)
       if (snippet) {
-        await nextTick()
-        await options.editorPort.editorRef.value?.revealSnippet(snippet)
+        void revealSnippetWhenReady(path, snippet)
       }
       if (!isCurrentActiveNoteEffectsRequest(requestToken, path)) {
         return
@@ -503,6 +557,7 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     showExplorerForActiveFile,
     openWikilinkTarget,
     createNoteFromPaletteTitle,
+    openNoteAtTarget,
     loadWikilinkHeadings,
     openQuickResult,
     onSearchResultOpen,

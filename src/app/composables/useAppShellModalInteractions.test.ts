@@ -1,7 +1,7 @@
 import { effectScope, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAppShellModalInteractions } from './useAppShellModalInteractions'
-import type { PaletteAction, PaletteResult, QuickOpenActionGroup, QuickOpenResult } from './useAppQuickOpen'
+import type { PaletteAction, PaletteResult, QuickOpenActionGroup, QuickOpenResult, QuickOpenTabMenu, QuickOpenTabMenuItem } from './useAppQuickOpen'
 import type { ThemePreference } from './useAppTheme'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 
@@ -56,6 +56,18 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
   const applyThemePreview = vi.fn()
   const openQuickResult = vi.fn(async () => true)
   const selectPaletteResult = vi.fn()
+  const openQuickResultAtTarget = vi.fn(async () => true)
+  const quickOpenTabMenu = ref<QuickOpenTabMenu | null>(null)
+  const quickOpenTabMenuItems = ref<QuickOpenTabMenuItem[]>([])
+  const openQuickOpenTabMenu = vi.fn((path: string, title: string) => {
+    quickOpenTabMenu.value = { path, title, itemIndex: 0 }
+  })
+  const closeQuickOpenTabMenu = vi.fn(() => {
+    quickOpenTabMenu.value = null
+  })
+  const moveQuickOpenTabMenuSelection = vi.fn()
+  const setQuickOpenTabMenuItemIndex = vi.fn()
+  const runQuickOpenTabMenuAction = vi.fn()
   const moveQuickOpenSelection = vi.fn()
   const scope = effectScope()
   const api = scope.run(() =>
@@ -72,7 +84,15 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
         paletteActions,
         moveQuickOpenSelection,
         openQuickResult,
-        selectPaletteResult
+        selectPaletteResult,
+        openQuickResultAtTarget,
+        quickOpenTabMenu,
+        quickOpenTabMenuItems,
+        openQuickOpenTabMenu,
+        closeQuickOpenTabMenu,
+        moveQuickOpenTabMenuSelection,
+        setQuickOpenTabMenuItemIndex,
+        runQuickOpenTabMenuAction
       },
       themePickerPort: {
         themePickerVisible,
@@ -123,6 +143,14 @@ function createHarness(overrides?: { paletteActions?: PaletteAction[] }) {
     quickOpenPaletteResults,
     quickOpenBrowseItems,
     selectPaletteResult,
+    openQuickResultAtTarget,
+    quickOpenTabMenu,
+    quickOpenTabMenuItems,
+    openQuickOpenTabMenu,
+    closeQuickOpenTabMenu,
+    moveQuickOpenTabMenuSelection,
+    setQuickOpenTabMenuItemIndex,
+    runQuickOpenTabMenuAction,
     themePickerVisible,
     themePickerQuery,
     themePickerActiveIndex,
@@ -289,7 +317,149 @@ describe('useAppShellModalInteractions palette keyboard', () => {
 
     api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
 
-    expect(selectPaletteResult).toHaveBeenCalledWith({ kind: 'create', title: 'a' })
+    expect(selectPaletteResult).toHaveBeenCalledWith({ kind: 'create', title: 'a' }, 'active')
+    scope.stop()
+  })
+
+  it('opens a palette result in a new tab on Cmd+Enter', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenActiveIndex,
+      quickOpenPaletteResults,
+      selectPaletteResult
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = true
+    quickOpenPaletteResults.value = [{ kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' }]
+    quickOpenActiveIndex.value = 0
+
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, cancelable: true }))
+
+    expect(selectPaletteResult).toHaveBeenCalledWith(
+      { kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' },
+      'new-tab'
+    )
+    scope.stop()
+  })
+
+  it('opens a palette result in the adjacent pane on Alt+Enter', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenActiveIndex,
+      quickOpenPaletteResults,
+      selectPaletteResult
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = true
+    quickOpenPaletteResults.value = [{ kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' }]
+    quickOpenActiveIndex.value = 0
+
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', altKey: true, cancelable: true }))
+
+    expect(selectPaletteResult).toHaveBeenCalledWith(
+      { kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' },
+      'adjacent'
+    )
+    scope.stop()
+  })
+
+  it('opens a browsed recent note at the keyboard target', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenActiveIndex,
+      quickOpenBrowseItems,
+      openQuickResultAtTarget
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = false
+    quickOpenBrowseItems.value = [{ kind: 'recent', path: '/vault/a.md', label: 'A', recencyLabel: 'today' }]
+    quickOpenActiveIndex.value = 0
+
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, cancelable: true }))
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+
+    expect(openQuickResultAtTarget).toHaveBeenNthCalledWith(1, '/vault/a.md', 'new-tab')
+    expect(openQuickResultAtTarget).toHaveBeenNthCalledWith(2, '/vault/a.md', 'active')
+    scope.stop()
+  })
+
+  it('opens the Tab menu for the active note result on Tab', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenActiveIndex,
+      quickOpenPaletteResults,
+      openQuickOpenTabMenu
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = true
+    quickOpenPaletteResults.value = [
+      { kind: 'note', path: '/vault/a.md', title: 'A', folder: '', matchKind: 'partial' },
+      { kind: 'create', title: 'a' }
+    ]
+    quickOpenActiveIndex.value = 0
+
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }))
+
+    expect(openQuickOpenTabMenu).toHaveBeenCalledWith('/vault/a.md', 'A')
+
+    // Non-note rows and action mode stay Enter-only.
+    openQuickOpenTabMenu.mockClear()
+    quickOpenActiveIndex.value = 1
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }))
+    quickOpenActiveIndex.value = 0
+    quickOpenIsActionMode.value = true
+    api.onQuickOpenInputKeydown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }))
+    expect(openQuickOpenTabMenu).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('routes menu navigation, execution, and close keys while the Tab menu is open', () => {
+    const {
+      api,
+      scope,
+      quickOpenIsActionMode,
+      quickOpenHasTextQuery,
+      quickOpenTabMenu,
+      quickOpenTabMenuItems,
+      openQuickOpenTabMenu,
+      closeQuickOpenTabMenu,
+      moveQuickOpenTabMenuSelection,
+      runQuickOpenTabMenuAction,
+      closeQuickOpen
+    } = createHarness()
+    quickOpenIsActionMode.value = false
+    quickOpenHasTextQuery.value = true
+    quickOpenTabMenuItems.value = [
+      { id: 'copy-link', label: 'Copy note link' },
+      { id: 'toggle-favorite', label: 'Add to favorites' }
+    ]
+    openQuickOpenTabMenu('/vault/a.md', 'A')
+
+    const down = new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true })
+    api.onQuickOpenInputKeydown(down)
+    expect(moveQuickOpenTabMenuSelection).toHaveBeenCalledWith(1)
+
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })
+    api.onQuickOpenInputKeydown(enter)
+    expect(runQuickOpenTabMenuAction).toHaveBeenCalledWith(quickOpenTabMenu.value, 'copy-link')
+
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })
+    api.onQuickOpenInputKeydown(escape)
+    expect(closeQuickOpenTabMenu).toHaveBeenCalled()
+    expect(closeQuickOpen).not.toHaveBeenCalled()
+    expect(enter.defaultPrevented).toBe(true)
     scope.stop()
   })
 

@@ -22,6 +22,12 @@ const BROWSE_RECENT_LIMIT = 3
 const NOTE_RESULT_LIMIT = 6
 /** Maximum command results mixed into a universal query. */
 const COMMAND_RESULT_LIMIT = 3
+/** Maximum notes with content matches; one file must not flood the list. */
+const CONTENT_NOTE_LIMIT = 5
+/** Maximum passages grouped under a single note. */
+const PASSAGES_PER_NOTE_LIMIT = 5
+/** Debounce before hitting the search index (progressive results). */
+const CONTENT_SEARCH_DEBOUNCE_MS = 180
 
 /** Represents a row shown in quick-open, either an existing file or a daily-note shortcut. */
 export type QuickOpenResult =
@@ -35,6 +41,22 @@ export type QuickOpenBrowseAction = {
   kind: 'action'
   id: string
   label: string
+}
+
+/** Secondary actions offered behind Tab on a note result. */
+export type PaletteTabActionId = 'copy-link' | 'toggle-favorite' | 'open-new-tab' | 'open-adjacent' | 'reveal-location'
+
+/** One row of the secondary-actions menu attached to a note result. */
+export type QuickOpenTabMenuItem = {
+  id: PaletteTabActionId
+  label: string
+}
+
+/** Identifies the note a secondary-actions menu is attached to, plus the menu cursor. */
+export type QuickOpenTabMenu = {
+  path: string
+  title: string
+  itemIndex: number
 }
 
 export type QuickOpenBrowseItem = QuickOpenResult | QuickOpenBrowseAction
@@ -79,7 +101,7 @@ export type PaletteAction = {
  */
 export type PaletteResult =
   | { kind: 'note'; path: string; title: string; folder: string; matchKind: NoteTitleMatchKind }
-  | { kind: 'passage'; path: string; title: string; folder: string; section?: string; snippet: string }
+  | { kind: 'passage'; path: string; title: string; folder: string; matches: PalettePassageMatch[] }
   | { kind: 'command'; actionId: string; label: string; matchKind: CommandMatchKind }
   | { kind: 'create'; title: string }
   | { kind: 'daily'; date: string; path: string; exists: boolean }
@@ -104,6 +126,27 @@ const PALETTE_CATEGORY_LABELS: Record<PaletteResultCategoryId, string> = {
 
 /** Universal palette search mode, derived from the optional query prefix. */
 export type PaletteMode = 'universal' | 'commands' | 'content' | 'help'
+
+/**
+ * Where a palette result opens: the active pane (Enter), forced as a new tab
+ * in the active pane (Cmd+Enter), or the adjacent pane (Alt+Enter, degrading
+ * to a new tab in the active pane when no other pane exists).
+ */
+export type PaletteOpenTarget = 'active' | 'new-tab' | 'adjacent'
+
+/** One grouped content match inside a passage result. */
+export type PalettePassageMatch = {
+  snippet: string
+  section?: string
+}
+
+/**
+ * Async full-text search adapter over the workspace index (ftsSearch).
+ * Injected so tests and non-index surfaces stay synchronous.
+ */
+export type AppQuickOpenContentPort = {
+  searchNoteContent: (query: string) => Promise<Array<{ path: string; snippet: string; score: number }>>
+}
 
 /** Represents a grouped command-palette section in action mode. */
 export type QuickOpenActionGroup = {
@@ -146,6 +189,10 @@ export type UseAppQuickOpenOptions = {
   quickOpenDataPort: AppQuickOpenDataPort
   quickOpenDocumentPort: AppQuickOpenDocumentPort
   quickOpenPalettePort: AppQuickOpenPalettePort
+  /** Optional content search; absent surfaces simply show no passages. */
+  quickOpenContentPort?: AppQuickOpenContentPort
+  /** Debounce override for tests. */
+  contentSearchDebounceMs?: number
   quickOpenQuery?: Ref<string>
   quickOpenActiveIndex?: Ref<number>
 }
@@ -181,11 +228,14 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   const quickOpenQuery = options.quickOpenQuery ?? ref('')
   const quickOpenActiveIndex = options.quickOpenActiveIndex ?? ref(0)
   /**
-   * Notes-only restriction set by the opening shortcut (Cmd+P). It applies to
-   * the current palette session: command results stay hidden until the
-   * palette is closed or reopened through another entry.
+   * Content results from the search index, grouped one row per note. They
+   * arrive asynchronously and merge below the note category without moving
+   * the current selection.
    */
-  const quickOpenNotesOnly = ref(false)
+  const passageResults = ref<PaletteResult[]>([])
+  const contentDebounceMs = options.contentSearchDebounceMs ?? CONTENT_SEARCH_DEBOUNCE_MS
+  let passageSearchTimer: ReturnType<typeof setTimeout> | null = null
+  let passageSearchEpoch = 0
 
   const quickOpenIsActionMode = computed(() => quickOpenQuery.value.trimStart().startsWith('>'))
   const quickOpenHasTextQuery = computed(() =>
@@ -333,6 +383,71 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     return segments.join('/')
   }
 
+  /**
+   * Unrolls index hits into one flat passage row per match (capped per note
+   * and in total), merged into the unified list below the notes while keeping
+   * the selected item stable: insertion points at or after the current
+   * selection shift the index. Flat rows make every match reachable by
+   * keyboard and hover; the modal renders consecutive same-note rows as one
+   * visual group.
+   */
+  function applyPassageHits(hits: Array<{ path: string; snippet: string; score: number }>) {
+    const rows: PaletteResult[] = []
+    const perNoteCount = new Map<string, number>()
+    const notedPaths = new Set<string>()
+    for (const hit of hits) {
+      // Snippets keep the index's `<b>` markers so the palette can bold the
+      // matched terms; the editor reveal strips tags on its own.
+      if (!hit.snippet.trim()) continue
+      const count = perNoteCount.get(hit.path) ?? 0
+      if (count >= PASSAGES_PER_NOTE_LIMIT) continue
+      if (count === 0) {
+        if (notedPaths.size >= CONTENT_NOTE_LIMIT) continue
+        notedPaths.add(hit.path)
+      }
+      perNoteCount.set(hit.path, count + 1)
+      rows.push({
+        kind: 'passage' as const,
+        path: hit.path,
+        title: noteTitleOf(hit.path),
+        folder: noteFolderOf(hit.path),
+        matches: [{ snippet: hit.snippet }]
+      })
+    }
+
+    const previous = paletteResults.value
+    const insertionIndex = previous.findIndex((result) => result.kind === 'command' || result.kind === 'create')
+    if (insertionIndex >= 0 && quickOpenActiveIndex.value >= insertionIndex) {
+      quickOpenActiveIndex.value += rows.length
+    }
+    passageResults.value = rows
+  }
+
+  watch(
+    [rawQueryText, quickOpenMode],
+    ([query, mode]) => {
+      passageSearchEpoch += 1
+      if (passageSearchTimer) clearTimeout(passageSearchTimer)
+      passageResults.value = []
+
+      const contentPort = options.quickOpenContentPort
+      if (!contentPort || !query) return
+      const contentSearchActive = mode === 'content' || mode === 'universal'
+      if (!contentSearchActive) return
+
+      const epoch = passageSearchEpoch
+      passageSearchTimer = setTimeout(() => {
+        void contentPort.searchNoteContent(query)
+          .then((hits) => {
+            if (epoch !== passageSearchEpoch) return
+            applyPassageHits(hits)
+          })
+          .catch(() => {})
+      }, contentDebounceMs)
+    },
+    { immediate: true }
+  )
+
   const paletteNoteContext = computed(() => ({
     recentPaths: quickOpenDataPort.recentViewedNotes.value.map((item) => item.path),
     favoritePaths: quickOpenDataPort.favoritePaths?.value ?? [],
@@ -347,6 +462,7 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
    * FTS lands), a few matching commands, and the create action last.
    */
   const paletteResults = computed<PaletteResult[]>(() => {
+    if (quickOpenMode.value === 'content') return passageResults.value
     if (quickOpenMode.value !== 'universal') return []
     const query = rawQueryText.value
     if (!query) return []
@@ -375,24 +491,24 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
       dailyResults.push({ kind: 'daily', date: query, path, exists })
     }
 
-    const commandResults: PaletteResult[] = quickOpenNotesOnly.value
-      ? []
-      : quickOpenPalettePort.paletteActions.value
-        .map((action) => {
-          const match = matchCommand(action.label, action.keywords ?? [], query)
-          return match ? { action, match } : null
-        })
-        .filter((entry): entry is { action: PaletteAction; match: NonNullable<ReturnType<typeof matchCommand>> } => Boolean(entry))
-        .sort((left, right) => right.match.score - left.match.score || left.action.label.localeCompare(right.action.label))
-        .slice(0, COMMAND_RESULT_LIMIT)
-        .map((entry) => ({
-          kind: 'command' as const,
-          actionId: entry.action.id,
-          label: entry.action.label,
-          matchKind: entry.match.kind
-        }))
+    const commandResults: PaletteResult[] = quickOpenPalettePort.paletteActions.value
+      .map((action) => {
+        const match = matchCommand(action.label, action.keywords ?? [], query)
+        return match ? { action, match } : null
+      })
+      .filter((entry): entry is { action: PaletteAction; match: NonNullable<ReturnType<typeof matchCommand>> } => Boolean(entry))
+      .sort((left, right) => right.match.score - left.match.score || left.action.label.localeCompare(right.action.label))
+      .slice(0, COMMAND_RESULT_LIMIT)
+      .map((entry) => ({
+        kind: 'command' as const,
+        actionId: entry.action.id,
+        label: entry.action.label,
+        matchKind: entry.match.kind
+      }))
 
-    return [...dailyResults, ...noteMatches, ...commandResults, { kind: 'create', title: query }]
+    const passages = passageResults.value
+
+    return [...dailyResults, ...noteMatches, ...passages, ...commandResults, { kind: 'create', title: query }]
   })
 
   /**
@@ -475,13 +591,64 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
   }
 
   /**
+   * Secondary-actions menu attached to a note result (Tab). Owns only the
+   * open menu, its items, and its cursor; execution flows through the modal
+   * interactions port so App-level capabilities stay out of the model.
+   */
+  const quickOpenTabMenu = ref<QuickOpenTabMenu | null>(null)
+
+  const quickOpenTabMenuItems = computed<QuickOpenTabMenuItem[]>(() => {
+    const menu = quickOpenTabMenu.value
+    if (!menu) return []
+    const isFavorite = (quickOpenDataPort.favoritePaths?.value ?? []).some(
+      (path) => path.toLowerCase() === menu.path.toLowerCase()
+    )
+    return [
+      { id: 'copy-link', label: 'Copy note link' },
+      { id: 'toggle-favorite', label: isFavorite ? 'Remove from favorites' : 'Add to favorites' },
+      { id: 'open-new-tab', label: 'Open in new tab' },
+      { id: 'open-adjacent', label: 'Open in adjacent pane' },
+      { id: 'reveal-location', label: 'Reveal file location' }
+    ]
+  })
+
+  function openQuickOpenTabMenu(path: string, title: string) {
+    quickOpenTabMenu.value = { path, title, itemIndex: 0 }
+  }
+
+  function closeQuickOpenTabMenu() {
+    quickOpenTabMenu.value = null
+  }
+
+  /** Moves the menu cursor with clamping; wraparound stays at the edges. */
+  function moveQuickOpenTabMenuSelection(delta: number) {
+    const menu = quickOpenTabMenu.value
+    const count = quickOpenTabMenuItems.value.length
+    if (!menu || !count) return
+    const next = Math.min(Math.max(menu.itemIndex + delta, 0), count - 1)
+    quickOpenTabMenu.value = { ...menu, itemIndex: next }
+  }
+
+  /** Sets the menu cursor directly, typically from pointer hover. */
+  function setQuickOpenTabMenuItemIndex(index: number) {
+    const menu = quickOpenTabMenu.value
+    if (!menu) return
+    const count = quickOpenTabMenuItems.value.length
+    quickOpenTabMenu.value = { ...menu, itemIndex: Math.min(Math.max(index, 0), count - 1) }
+  }
+
+  watch(quickOpenQuery, () => {
+    closeQuickOpenTabMenu()
+  })
+
+  /**
    * Resets query, selection, and entry filter together so modal reopen
    * starts from a stable state (no stale search, no stale restriction).
    */
-  function resetQuickOpenState(nextQuery = '', notesOnly = false) {
+  function resetQuickOpenState(nextQuery = '') {
     quickOpenQuery.value = nextQuery
     quickOpenActiveIndex.value = 0
-    quickOpenNotesOnly.value = notesOnly
+    quickOpenTabMenu.value = null
   }
 
   return {
@@ -491,7 +658,7 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenActionQuery,
     quickOpenMode,
     rawQueryText,
-    quickOpenNotesOnly,
+    passageResults,
     quickOpenResults,
     paletteResults,
     paletteCategories,
@@ -503,6 +670,12 @@ export function useAppQuickOpen(options: UseAppQuickOpenOptions) {
     quickOpenActionGroups,
     quickOpenHasTextQuery,
     quickOpenItemCount,
+    quickOpenTabMenu,
+    quickOpenTabMenuItems,
+    openQuickOpenTabMenu,
+    closeQuickOpenTabMenu,
+    moveQuickOpenTabMenuSelection,
+    setQuickOpenTabMenuItemIndex,
     moveQuickOpenSelection,
     setQuickOpenActiveIndex,
     resetQuickOpenState

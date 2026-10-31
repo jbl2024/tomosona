@@ -42,7 +42,9 @@ function createEditor(nodes: Array<{ node: DescNode; pos: number }>) {
           for (const entry of nodes) {
             if (fn(entry.node, entry.pos) === false) return
           }
-        }
+        },
+        // Context scoring resolves positions to their containing block.
+        resolve: () => ({ parent: { textContent: '' } })
       }
     },
     view: {
@@ -139,6 +141,43 @@ describe('useEditorNavigation', () => {
     expect(focusDom).toHaveBeenCalled()
     expect(holder.scrollTo).toHaveBeenCalled()
     expect(holder.scrollTop).toBeGreaterThanOrEqual(0)
+  })
+
+  it('falls back to highlighted snippet segments when the full window does not match', async () => {
+    const { editor, holder } = createEditor([
+      { pos: 12, node: { type: { name: 'paragraph' }, attrs: {}, textContent: '', isText: true, text: 'alpha beta gamma' } }
+    ])
+
+    const nav = useEditorNavigation({
+      getEditor: () => editor,
+      emitOutline: () => {},
+      normalizeHeadingAnchor: (heading) => heading.trim().toLowerCase(),
+      slugifyHeading: (heading) => heading.trim().toLowerCase().replace(/\s+/g, '-'),
+      normalizeBlockId: (value) => value.trim().toLowerCase()
+    })
+
+    await nav.revealSnippet('...truncated window <b>beta</b>...')
+
+    // 'beta' sits at offset 6 within the text node at pos 12.
+    expect(holder.scrollTo).toHaveBeenCalled()
+    expect(holder.scrollTop).toBeGreaterThan(0)
+  })
+
+  it('reports whether the snippet was found so callers can retry', async () => {
+    const { editor } = createEditor([
+      { pos: 5, node: { type: { name: 'paragraph' }, attrs: {}, textContent: '', isText: true, text: 'alpha beta' } }
+    ])
+
+    const nav = useEditorNavigation({
+      getEditor: () => editor,
+      emitOutline: () => {},
+      normalizeHeadingAnchor: (heading) => heading.trim().toLowerCase(),
+      slugifyHeading: (heading) => heading.trim().toLowerCase().replace(/\s+/g, '-'),
+      normalizeBlockId: (value) => value.trim().toLowerCase()
+    })
+
+    await expect(nav.revealSnippet('beta')).resolves.toBe(true)
+    await expect(nav.revealSnippet('not in the document')).resolves.toBe(false)
   })
 
   it('scrolls smoothly and centers the target inside the editor holder', async () => {

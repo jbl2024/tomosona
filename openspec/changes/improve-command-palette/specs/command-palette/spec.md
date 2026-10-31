@@ -44,7 +44,7 @@ Opening a note result SHALL support three targets: current tab (`Enter` or click
 - **THEN** the note opens in an adjacent pane
 
 ### Requirement: Content search results
-Content search SHALL use the workspace full-text index and present, per matching note: the note title, the folder and section when available, and a short snippet around the matched terms. Occurrences within one note SHALL be grouped under that note and expandable, and one file SHALL NOT flood the result list.
+Content search SHALL use the workspace full-text index and present, per matching note: the note title, the folder and section when available, and a short snippet around the matched terms. Each match SHALL be an individually selectable result row (keyboard and pointer), with consecutive matches from one note rendered as one visual group that shows the title once; match counts per note and in total SHALL be capped so one file cannot flood the result list.
 
 #### Scenario: Phrase found in note bodies
 - **WHEN** the user searches `granularité fine`
@@ -52,7 +52,7 @@ Content search SHALL use the workspace full-text index and present, per matching
 
 #### Scenario: Multiple passages in one note
 - **WHEN** a note contains several matching passages
-- **THEN** the note appears once with its passage count and its passages can be expanded or collapsed
+- **THEN** the matches appear as consecutive rows sharing the note title, each selectable by keyboard and pointer, and opening one reveals the occurrence whose context matches that match's snippet
 
 ### Requirement: Content results navigate to the passage
 Opening a content result SHALL open the note, scroll to the matching passage, temporarily highlight the matched text, and leave the document immediately editable.
@@ -91,7 +91,7 @@ When the query matches no note, the palette SHALL offer to create a note titled 
 - **THEN** matching notes come first and the create action remains available below them
 
 ### Requirement: Search modes and entry shortcuts
-The palette SHALL support optional, reversible prefixes: `>` for commands only, `#` for note content only, and `?` for help. The shortcuts `Cmd+K` (universal), `Cmd+P` (notes only), and `Cmd+Shift+P` (commands only) SHALL open the same palette with the corresponding initial filter; `Ctrl` replaces `Cmd` on the relevant platforms.
+The palette SHALL support optional, reversible prefixes: `>` for commands only, `#` for note content only, and `?` for help. The shortcuts `Cmd+K` and `Cmd+P` SHALL both open the universal palette (the universal search already covers notes, so `Cmd+P` is an alias), and `Cmd+Shift+P` SHALL open the palette with the commands filter; `Ctrl` replaces `Cmd` on the relevant platforms.
 
 #### Scenario: Prefix filtering is reversible
 - **WHEN** the user types `> déplacer` then removes the `>`

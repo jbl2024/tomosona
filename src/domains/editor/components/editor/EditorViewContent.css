@@ -645,3 +645,10 @@
 .tomosona-fake-cursor--blink {
   animation: tomosona-fake-cursor-blink 2.4s ease-in-out infinite;
 }
+
+/* Transient highlight flashed over a revealed search passage; cleared by the
+   PassageHighlight extension on first edit or after its timeout. */
+.editor-holder .ProseMirror .tomosona-passage-highlight {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 2px;
+}

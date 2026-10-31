@@ -1,5 +1,15 @@
 import { nextTick, watch, type Ref } from 'vue'
-import type { PaletteAction, PaletteResult, QuickOpenActionGroup, QuickOpenBrowseItem, QuickOpenResult } from './useAppQuickOpen'
+import type {
+  PaletteAction,
+  PaletteOpenTarget,
+  PaletteResult,
+  PaletteTabActionId,
+  QuickOpenActionGroup,
+  QuickOpenBrowseItem,
+  QuickOpenResult,
+  QuickOpenTabMenu,
+  QuickOpenTabMenuItem
+} from './useAppQuickOpen'
 import type { ThemePickerItem } from '../lib/appShellPresentation'
 import type { ThemePreference } from './useAppTheme'
 
@@ -27,7 +37,15 @@ export type AppShellQuickOpenInteractionPort = {
   paletteActions: Readonly<Ref<PaletteAction[]>>
   moveQuickOpenSelection: (delta: number) => void
   openQuickResult: (result: QuickOpenResult) => boolean | void | Promise<boolean | void>
-  selectPaletteResult: (result: PaletteResult) => void
+  selectPaletteResult: (result: PaletteResult, target?: PaletteOpenTarget) => void
+  openQuickResultAtTarget: (path: string, target: PaletteOpenTarget) => boolean | void | Promise<boolean | void>
+  quickOpenTabMenu: Ref<QuickOpenTabMenu | null>
+  quickOpenTabMenuItems: Readonly<Ref<QuickOpenTabMenuItem[]>>
+  openQuickOpenTabMenu: (path: string, title: string) => void
+  closeQuickOpenTabMenu: () => void
+  moveQuickOpenTabMenuSelection: (delta: number) => void
+  setQuickOpenTabMenuItemIndex: (index: number) => void
+  runQuickOpenTabMenuAction: (menu: QuickOpenTabMenu, action: PaletteTabActionId) => void
 }
 
 /** Groups the theme picker state used by modal interaction handlers. */
@@ -98,7 +116,7 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     })()
   }
 
-  function onQuickOpenEnter() {
+  function onQuickOpenEnter(target: PaletteOpenTarget = 'active') {
     if (options.quickOpenPort.quickOpenIsActionMode.value) {
       const visibleActionItems = options.quickOpenPort.quickOpenActionGroups.value.flatMap((group) => group.items)
       const action = pickVisibleItem(visibleActionItems, options.quickOpenPort.quickOpenActiveIndex.value)
@@ -111,7 +129,7 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     if (options.quickOpenPort.quickOpenHasTextQuery.value) {
       const result = options.quickOpenPort.quickOpenPaletteResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
       if (result) {
-        options.quickOpenPort.selectPaletteResult(result)
+        options.quickOpenPort.selectPaletteResult(result, target)
         return
       }
       const item = options.quickOpenPort.quickOpenResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
@@ -127,10 +145,64 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
       runQuickOpenAction(browseItem.id)
       return
     }
-    void options.quickOpenPort.openQuickResult(browseItem)
+    void options.quickOpenPort.openQuickResultAtTarget(browseItem.path, target)
+  }
+
+  /**
+   * Opens the secondary-actions menu for the active note row. Other result
+   * kinds (commands, passages, create, daily), action mode, and the browse
+   * state stay Enter-only, so the primary open path is unchanged.
+   */
+  function openTabMenuForActiveResult() {
+    if (options.quickOpenPort.quickOpenIsActionMode.value) return
+    if (!options.quickOpenPort.quickOpenHasTextQuery.value) return
+    const result = options.quickOpenPort.quickOpenPaletteResults.value[options.quickOpenPort.quickOpenActiveIndex.value]
+    if (result?.kind === 'note') {
+      options.quickOpenPort.openQuickOpenTabMenu(result.path, result.title)
+    }
+  }
+
+  /** Runs the menu item under the cursor, if any. */
+  function runActiveTabMenuItem() {
+    const menu = options.quickOpenPort.quickOpenTabMenu.value
+    if (!menu) return
+    const item = options.quickOpenPort.quickOpenTabMenuItems.value[menu.itemIndex]
+    if (item) options.quickOpenPort.runQuickOpenTabMenuAction(menu, item.id)
   }
 
   function onQuickOpenInputKeydown(event: KeyboardEvent) {
+    if (options.quickOpenPort.quickOpenTabMenu.value) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        event.stopPropagation()
+        options.quickOpenPort.moveQuickOpenTabMenuSelection(1)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        event.stopPropagation()
+        options.quickOpenPort.moveQuickOpenTabMenuSelection(-1)
+        return
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        event.stopPropagation()
+        runActiveTabMenuItem()
+        return
+      }
+      if (event.key === 'Tab' || event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        options.quickOpenPort.closeQuickOpenTabMenu()
+        return
+      }
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      event.stopPropagation()
+      openTabMenuForActiveResult()
+      return
+    }
     if (event.metaKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       event.stopPropagation()
       return
@@ -150,7 +222,8 @@ export function useAppShellModalInteractions(options: UseAppShellModalInteractio
     if (event.key === 'Enter') {
       event.preventDefault()
       event.stopPropagation()
-      onQuickOpenEnter()
+      const target: PaletteOpenTarget = event.metaKey ? 'new-tab' : event.altKey ? 'adjacent' : 'active'
+      onQuickOpenEnter(target)
     }
   }
 

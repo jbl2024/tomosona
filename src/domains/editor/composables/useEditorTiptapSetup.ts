@@ -18,6 +18,7 @@ import { CodeBlockNode } from '../lib/tiptap/extensions/CodeBlockNode'
 import { TableCellAlign } from '../lib/tiptap/extensions/TableCellAlign'
 import { EditorFindExtension } from '../lib/tiptap/extensions/EditorFind'
 import { BlockCursorExtension, type BlockCursorShape } from '../lib/tiptap/extensions/BlockCursor'
+import { PassageHighlightExtension } from '../lib/tiptap/extensions/PassageHighlight'
 import { SpellcheckExtension, refreshSpellcheckDecorations } from '../lib/tiptap/extensions/Spellcheck'
 import { PastedLinkBoundary } from '../lib/tiptap/extensions/PastedLinkBoundary'
 import { AdjacentListNormalizer } from '../lib/tiptap/extensions/AdjacentListNormalizer'
@@ -449,6 +450,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           isWordIgnored: (word: string) => options.isSpellcheckWordIgnored(path, word)
         }),
         EditorFindExtension,
+        PassageHighlightExtension,
         BlockCursorExtension.configure({
           getShape: options.getCursorShape,
           getBlink: options.getCursorBlink

@@ -29,7 +29,7 @@ export type AppShellModalsActionPort = {
   rememberFocusBeforeModalOpen: () => void
   restoreFocusAfterModalClose: () => void
   closeOverflowMenu: () => void
-  resetQuickOpenState: (nextQuery?: string, notesOnly?: boolean) => void
+  resetQuickOpenState: (nextQuery?: string) => void
   ensureAllFilesLoaded: () => Promise<void>
   hasAllFilesLoaded: () => boolean
   syncEditorZoom: () => void
@@ -142,10 +142,10 @@ export function useAppShellModals(options: UseAppShellModalsOptions) {
     })
   }
 
-  async function openQuickOpen(initialQuery = '', notesOnly = false) {
+  async function openQuickOpen(initialQuery = '') {
     actionPort.rememberFocusBeforeModalOpen()
     statePort.quickOpenVisible.value = true
-    actionPort.resetQuickOpenState(initialQuery, notesOnly)
+    actionPort.resetQuickOpenState(initialQuery)
     if (!actionPort.hasAllFilesLoaded()) {
       await actionPort.ensureAllFilesLoaded()
     }

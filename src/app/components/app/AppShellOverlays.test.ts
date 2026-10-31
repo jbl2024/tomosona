@@ -62,6 +62,8 @@ function mountHarness() {
           editorPreferences: { cursorStyle: 'block', cursorBlink: true },
           quickOpenBrowseFavoriteResults: [],
           quickOpenPaletteCategories: [],
+          quickOpenTabMenu: null,
+          quickOpenTabMenuItems: [],
           newFileModalVisible: false,
           newFilePathInput: '',
           newFileModalError: '',

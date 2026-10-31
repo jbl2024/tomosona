@@ -20,6 +20,7 @@ type QuickOpenTestOptions = {
   activeFilePath?: string
   paletteActions?: PaletteAction[]
   paletteActionPriority?: Record<string, number>
+  contentHits?: Array<{ path: string; snippet: string; score: number }>
   quickOpenQuery?: Ref<string>
   quickOpenActiveIndex?: Ref<number>
 }
@@ -33,6 +34,10 @@ function createQuickOpenHarness(options: QuickOpenTestOptions = {}) {
       favoritePaths: ref(options.favoritePaths ?? []),
       activeFilePath: ref(options.activeFilePath ?? '')
     },
+    quickOpenContentPort: {
+      searchNoteContent: vi.fn(async () => options.contentHits ?? [])
+    },
+    contentSearchDebounceMs: 0,
     quickOpenDocumentPort: {
       isIsoDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
       toRelativePath: (path) => path.replace('/vault/', ''),
@@ -614,31 +619,152 @@ describe('useAppQuickOpen command catalog behavior', () => {
   })
 })
 
-describe('useAppQuickOpen entry filters', () => {
-  it('restricts notes-only entry to note results for the session', () => {
+describe('useAppQuickOpen content search', () => {
+  const hit = (path: string, snippet: string, score = 1): { path: string; snippet: string; score: number } => ({
+    path,
+    snippet,
+    score
+  })
+
+  async function flushContentSearch() {
+    // Vue flushes the query watcher on a microtask; the debounce timer is a
+    // separate macrotask; the search promise resolves on microtasks after it.
+    for (let index = 0; index < 3; index += 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    }
+    await Promise.resolve()
+    await Promise.resolve()
+  }
+
+  it('merges debounced content results between notes and commands', async () => {
     const api = createQuickOpenHarness({
-      allWorkspaceFiles: ['/vault/notes/roadmap.md'],
+      allWorkspaceFiles: ['/vault/notes/notes-atomiques.md'],
       paletteActions: [
-        {
-          id: 'convert-to-word',
-          label: 'Convert to Word',
-          family: 'notes',
-          keywords: ['convertir'],
-          run: vi.fn(() => true)
-        }
+        { id: 'new-note', label: 'New Note', family: 'notes', keywords: ['notes'], run: vi.fn(() => true) }
+      ],
+      contentHits: [
+        hit('/vault/notes/organiser.md', 'des <b>notes</b> reliées', 0.5)
       ]
     })
-    api.resetQuickOpenState('', true)
+    api.quickOpenQuery.value = 'notes'
+    await flushContentSearch()
+
+    const kinds = api.paletteResults.value.map((item) => item.kind)
+    expect(kinds).toEqual(['note', 'passage', 'command', 'create'])
+
+    const passage = api.paletteResults.value.find((item) => item.kind === 'passage')
+    expect(passage).toMatchObject({
+      path: '/vault/notes/organiser.md',
+      title: 'organiser',
+      matches: [{ snippet: 'des <b>notes</b> reliées' }]
+    })
+    expect(api.paletteCategories.value.map((category) => category.id)).toEqual(['notes', 'content', 'commands', 'create'])
+  })
+
+  it('groups passages per note, caps matches, and caps notes', async () => {
+    const api = createQuickOpenHarness({
+      contentHits: [
+        ...Array.from({ length: 7 }, (_, index) => hit('/vault/one.md', `match ${index}`, index)),
+        hit('/vault/two.md', 'other match', 9),
+        hit('/vault/three.md', 'third match', 10),
+        hit('/vault/fourth.md', 'too many notes', 11),
+        hit('/vault/fifth.md', 'too many notes', 12),
+        hit('/vault/sixth.md', 'too many notes', 13)
+      ]
+    })
+    api.quickOpenQuery.value = 'match'
+    await flushContentSearch()
+
+    const passages = api.paletteResults.value.filter((item) => item.kind === 'passage')
+    // One flat row per match: 5 capped rows for one.md plus one per further
+    // note, up to the note limit (sixth.md is dropped).
+    expect(passages).toHaveLength(9)
+    const oneRows = passages.filter((item) => (item as { path: string }).path === '/vault/one.md')
+    expect(oneRows).toHaveLength(5)
+    expect(oneRows.every((row) => (row as { matches: unknown[] }).matches.length === 1)).toBe(true)
+    expect(passages.some((item) => (item as { path: string }).path === '/vault/sixth.md')).toBe(false)
+  })
+
+  it('serves content mode with passages only', async () => {
+    const api = createQuickOpenHarness({
+      contentHits: [hit('/vault/notes/a.md', 'une <b>granularité</b> fine', 0.4)]
+    })
+    api.quickOpenQuery.value = '# granularité'
+    await flushContentSearch()
+
+    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['passage'])
+    expect(api.paletteResults.value[0]).toMatchObject({
+      kind: 'passage',
+      path: '/vault/notes/a.md',
+      matches: [{ snippet: 'une <b>granularité</b> fine' }]
+    })
+  })
+
+  it('keeps the selected item when passages arrive late', async () => {
+    const api = createQuickOpenHarness({
+      allWorkspaceFiles: ['/vault/notes/roadmap.md'],
+      contentHits: [hit('/vault/notes/roadmap.md', 'late <b>roadmap</b> passage', 0.5)]
+    })
     api.quickOpenQuery.value = 'roadmap'
-    expect(api.quickOpenNotesOnly.value).toBe(true)
-    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['note', 'create'])
+    // Select the create row (last item) before content results arrive.
+    api.setQuickOpenActiveIndex(api.quickOpenItemCount.value - 1)
+    expect(api.paletteResults.value[api.quickOpenActiveIndex.value]).toMatchObject({ kind: 'create' })
 
-    api.quickOpenQuery.value = 'convertir'
-    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['create'])
+    await flushContentSearch()
 
-    api.resetQuickOpenState('', false)
-    api.quickOpenQuery.value = 'convertir'
-    expect(api.quickOpenNotesOnly.value).toBe(false)
-    expect(api.paletteResults.value.map((item) => item.kind)).toEqual(['command', 'create'])
+    expect(api.paletteResults.value[api.quickOpenActiveIndex.value]).toMatchObject({ kind: 'create' })
+  })
+})
+
+describe('useAppQuickOpen tab menu', () => {
+  it('opens and closes the menu, and moves the cursor with clamping', () => {
+    const api = createQuickOpenHarness()
+    expect(api.quickOpenTabMenu.value).toBeNull()
+
+    api.openQuickOpenTabMenu('/vault/a.md', 'A')
+    expect(api.quickOpenTabMenu.value).toEqual({ path: '/vault/a.md', title: 'A', itemIndex: 0 })
+    expect(api.quickOpenTabMenuItems.value.map((item) => item.id)).toEqual([
+      'copy-link',
+      'toggle-favorite',
+      'open-new-tab',
+      'open-adjacent',
+      'reveal-location'
+    ])
+
+    api.moveQuickOpenTabMenuSelection(1)
+    expect(api.quickOpenTabMenu.value?.itemIndex).toBe(1)
+    api.moveQuickOpenTabMenuSelection(10)
+    expect(api.quickOpenTabMenu.value?.itemIndex).toBe(4)
+    api.moveQuickOpenTabMenuSelection(-10)
+    expect(api.quickOpenTabMenu.value?.itemIndex).toBe(0)
+    api.setQuickOpenTabMenuItemIndex(3)
+    expect(api.quickOpenTabMenu.value?.itemIndex).toBe(3)
+
+    api.closeQuickOpenTabMenu()
+    expect(api.quickOpenTabMenu.value).toBeNull()
+    expect(api.quickOpenTabMenuItems.value).toEqual([])
+  })
+
+  it('labels the favorite toggle from the note favorite state', () => {
+    const api = createQuickOpenHarness({ favoritePaths: ['/vault/a.md'] })
+    api.openQuickOpenTabMenu('/vault/a.md', 'A')
+    expect(api.quickOpenTabMenuItems.value.find((item) => item.id === 'toggle-favorite')?.label).toBe('Remove from favorites')
+
+    api.openQuickOpenTabMenu('/vault/b.md', 'B')
+    expect(api.quickOpenTabMenuItems.value.find((item) => item.id === 'toggle-favorite')?.label).toBe('Add to favorites')
+  })
+
+  it('closes the menu when the query changes or the palette resets', async () => {
+    const api = createQuickOpenHarness()
+    api.openQuickOpenTabMenu('/vault/a.md', 'A')
+    expect(api.quickOpenTabMenu.value).not.toBeNull()
+
+    api.quickOpenQuery.value = 'zettel'
+    await nextTick()
+    expect(api.quickOpenTabMenu.value).toBeNull()
+
+    api.openQuickOpenTabMenu('/vault/a.md', 'A')
+    api.resetQuickOpenState('')
+    expect(api.quickOpenTabMenu.value).toBeNull()
   })
 })

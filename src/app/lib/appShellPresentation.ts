@@ -143,7 +143,7 @@ export function buildShortcutSections(options: BuildShortcutSectionsOptions): Sh
       title: 'General',
       items: [
         { keys: `${mod}+K`, action: 'Universal palette' },
-        { keys: `${mod}+P`, action: 'Quick open notes' },
+        { keys: `${mod}+P`, action: 'Universal palette' },
         { keys: options.commandPaletteShortcutLabel, action: 'Command palette' },
         { keys: `${mod}+,`, action: 'Open settings' },
         { keys: `${mod}+N`, action: 'New note' },

@@ -14,9 +14,12 @@ import type { ThemePickerItem } from '../../lib/appShellPresentation'
 import type {
   PaletteResult,
   PaletteResultCategory,
+  PaletteTabActionId,
   QuickOpenActionGroup,
   QuickOpenBrowseAction,
-  QuickOpenResult
+  QuickOpenResult,
+  QuickOpenTabMenu,
+  QuickOpenTabMenuItem
 } from '../../composables/useAppQuickOpen'
 import type { ThemePreference } from '../../composables/useAppTheme'
 import type { TerminalPreferences } from '../../composables/useAppTerminalPreferences'
@@ -79,6 +82,8 @@ defineProps<{
   quickOpenResults: QuickOpenResult[]
   quickOpenPaletteCategories: PaletteResultCategory[]
   quickOpenActiveIndex: number
+  quickOpenTabMenu: QuickOpenTabMenu | null
+  quickOpenTabMenuItems: QuickOpenTabMenuItem[]
   themePickerVisible: boolean
   themePickerQuery: string
   themePickerItems: ThemePickerItem[]
@@ -124,6 +129,10 @@ const emit = defineEmits<{
   quickOpenSelectResult: [item: QuickOpenResult]
   quickOpenSelectPaletteResult: [result: PaletteResult]
   quickOpenSetActiveIndex: [index: number]
+  quickOpenOpenTabMenu: [path: string, title: string]
+  quickOpenCloseTabMenu: []
+  quickOpenSetTabMenuItemIndex: [index: number]
+  quickOpenRunTabMenuAction: [menu: QuickOpenTabMenu, action: PaletteTabActionId]
   closeThemePicker: []
   updateThemePickerQuery: [value: string]
   themePickerSelect: [value: ThemePreference]
@@ -226,6 +235,8 @@ const emit = defineEmits<{
     :file-results="quickOpenResults"
     :categories="quickOpenPaletteCategories"
     :active-index="quickOpenActiveIndex"
+    :tab-menu="quickOpenTabMenu"
+    :tab-menu-items="quickOpenTabMenuItems"
     @close="emit('closeQuickOpen')"
     @update:query="emit('updateQuickOpenQuery', $event)"
     @keydown="emit('quickOpenKeydown', $event)"
@@ -233,6 +244,10 @@ const emit = defineEmits<{
     @select-result="emit('quickOpenSelectResult', $event)"
     @select-palette-result="emit('quickOpenSelectPaletteResult', $event)"
     @set-active-index="emit('quickOpenSetActiveIndex', $event)"
+    @open-tab-menu="(path, title) => emit('quickOpenOpenTabMenu', path, title)"
+    @close-tab-menu="emit('quickOpenCloseTabMenu')"
+    @set-tab-menu-item-index="emit('quickOpenSetTabMenuItemIndex', $event)"
+    @run-tab-menu-action="(menu, action) => emit('quickOpenRunTabMenuAction', menu, action)"
   />
 
   <ThemePickerModal

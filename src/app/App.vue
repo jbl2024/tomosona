@@ -29,6 +29,8 @@ import {
   writeTextFile,
 } from '../shared/api/workspaceApi'
 import { convertMarkdownToDocx } from '../shared/api/docxConversionApi'
+import { writeClipboardText } from '../shared/api/clipboardApi'
+import { buildWikilinkToken } from '../domains/editor/lib/wikilinks'
 import {
   addFavorite,
   listFavorites,
@@ -132,7 +134,7 @@ import { useAppShellRootWorkflow } from './composables/useAppShellRootWorkflow'
 import { useAppShellViewModels } from './composables/useAppShellViewModels'
 import { useAppShellConstitutedContextActions } from './composables/useAppShellConstitutedContextActions'
 import { useAppShellPaneRuntime } from './composables/useAppShellPaneRuntime'
-import { useAppQuickOpen, type PaletteResult } from './composables/useAppQuickOpen'
+import { useAppQuickOpen, type PaletteOpenTarget, type PaletteResult, type PaletteTabActionId, type QuickOpenTabMenu } from './composables/useAppQuickOpen'
 import { useAppTheme } from './composables/useAppTheme'
 import { useAppSpellcheckPreference } from './composables/useAppSpellcheckPreference'
 import { useAppEditorPreferences } from './composables/useAppEditorPreferences'
@@ -742,6 +744,12 @@ const {
   quickOpenBrowseItems,
   quickOpenHasTextQuery,
   quickOpenItemCount,
+  quickOpenTabMenu,
+  quickOpenTabMenuItems,
+  openQuickOpenTabMenu,
+  closeQuickOpenTabMenu,
+  moveQuickOpenTabMenuSelection,
+  setQuickOpenTabMenuItemIndex,
   moveQuickOpenSelection,
   setQuickOpenActiveIndex,
   resetQuickOpenState
@@ -749,6 +757,7 @@ const {
   quickOpenDataPort,
   quickOpenDocumentPort,
   quickOpenPalettePort,
+  quickOpenContentPort: { searchNoteContent: (query) => ftsSearch(query) },
   quickOpenQuery,
   quickOpenActiveIndex
 })
@@ -999,6 +1008,13 @@ shellOpenFlow = useAppShellOpenFlow({
   navigationPort: {
     openTabWithAutosave,
     openDailyNote: (date, openPath) => openDailyNote(date, openPath),
+    resolveAdjacentPaneId: () => {
+      const order = multiPane.paneOrder.value
+      if (order.length < 2) return null
+      const activeIndex = order.indexOf(multiPane.layout.value.activePaneId)
+      if (activeIndex < 0) return null
+      return order[(activeIndex + 1) % order.length]
+    }
   },
   uiPort: {
     closeQuickOpen: () => closeQuickOpen()
@@ -1014,6 +1030,7 @@ const {
   openWikilinkTarget,
   createNoteFromPaletteTitle,
   loadWikilinkHeadings,
+  openNoteAtTarget,
   openQuickResult,
   onSearchResultOpen,
   onBacklinkOpen,
@@ -1021,13 +1038,15 @@ const {
 } = shellOpenFlow
 
 /**
- * Dispatches a unified palette result to its execution path: notes and daily
- * rows reuse the quick-open flow, commands run through the action runner,
- * and the create action seeds a new note titled with the query.
+ * Dispatches a unified palette result to its execution path: notes honor the
+ * keyboard open target (active pane tab, new tab, adjacent pane), daily rows
+ * reuse the quick-open flow, commands run through the action runner, passages
+ * reveal the matched snippet, and the create action seeds a new note titled
+ * with the query.
  */
-function onQuickOpenSelectPaletteResult(result: PaletteResult) {
+function onQuickOpenSelectPaletteResult(result: PaletteResult, target: PaletteOpenTarget = 'active') {
   if (result.kind === 'note') {
-    void openQuickResult({ kind: 'file', path: result.path, label: result.title })
+    void openNoteAtTarget(result.path, target)
     return
   }
   if (result.kind === 'daily') {
@@ -1038,9 +1057,45 @@ function onQuickOpenSelectPaletteResult(result: PaletteResult) {
     runQuickOpenAction(result.actionId)
     return
   }
+  if (result.kind === 'passage') {
+    const match = result.matches[0]
+    if (!match) return
+    closeQuickOpen()
+    void onSearchResultOpen({ path: result.path, snippet: match.snippet })
+    return
+  }
   if (result.kind === 'create') {
     void createNoteFromPaletteTitle(result.title)
   }
+}
+
+/**
+ * Runs a secondary action from a note result's Tab menu. Copy-link and the
+ * favorite toggle keep the palette open for successive operations; opening
+ * and reveal actions close it exactly like the primary Enter path.
+ */
+function onQuickOpenRunTabMenuAction(menu: QuickOpenTabMenu, action: PaletteTabActionId) {
+  if (action === 'copy-link') {
+    void writeClipboardText(buildWikilinkToken(menu.title))
+    closeQuickOpenTabMenu()
+    return
+  }
+  if (action === 'toggle-favorite') {
+    if (favorites.isFavorite(menu.path)) void favorites.removeFavorite(menu.path)
+    else void favorites.addFavorite(menu.path)
+    closeQuickOpenTabMenu()
+    return
+  }
+  if (action === 'open-new-tab') {
+    void openNoteAtTarget(menu.path, 'new-tab')
+    return
+  }
+  if (action === 'open-adjacent') {
+    void openNoteAtTarget(menu.path, 'adjacent')
+    return
+  }
+  void revealInFileManager(menu.path)
+  closeQuickOpen()
 }
 
 const paneRuntime = useAppShellPaneRuntime({
@@ -1188,7 +1243,15 @@ const shellModalInteractions = useAppShellModalInteractions({
     paletteActions,
     moveQuickOpenSelection,
     openQuickResult,
-    selectPaletteResult: onQuickOpenSelectPaletteResult
+    selectPaletteResult: onQuickOpenSelectPaletteResult,
+    openQuickResultAtTarget: (path, target) => openNoteAtTarget(path, target),
+    quickOpenTabMenu,
+    quickOpenTabMenuItems,
+    openQuickOpenTabMenu,
+    closeQuickOpenTabMenu,
+    moveQuickOpenTabMenuSelection,
+    setQuickOpenTabMenuItemIndex,
+    runQuickOpenTabMenuAction: onQuickOpenRunTabMenuAction
   },
   themePickerPort: {
     themePickerVisible,
@@ -1679,7 +1742,6 @@ useAppShellKeyboard({
     createNewFileFromActiveDirectory,
     openQuickOpen,
     openCommandPalette,
-    openNotesQuickOpen: () => openQuickOpen('', true),
     openUniversalPalette: () => openQuickOpen(''),
     openSettings,
     openIntegratedTerminal,
@@ -1955,6 +2017,8 @@ useAppShellKeyboard({
       :quick-open-results="quickOpenResults"
       :quick-open-palette-categories="quickOpenPaletteCategories"
       :quick-open-active-index="quickOpenActiveIndex"
+      :quick-open-tab-menu="quickOpenTabMenu"
+      :quick-open-tab-menu-items="quickOpenTabMenuItems"
       :theme-picker-visible="themePickerVisible"
       :theme-picker-query="themePickerQuery"
       :theme-picker-items="themePickerItems"
@@ -1997,6 +2061,10 @@ useAppShellKeyboard({
       @quick-open-select-result="openQuickResult"
       @quick-open-select-palette-result="onQuickOpenSelectPaletteResult"
       @quick-open-set-active-index="setQuickOpenActiveIndex"
+      @quick-open-open-tab-menu="openQuickOpenTabMenu"
+      @quick-open-close-tab-menu="closeQuickOpenTabMenu"
+      @quick-open-set-tab-menu-item-index="setQuickOpenTabMenuItemIndex"
+      @quick-open-run-tab-menu-action="onQuickOpenRunTabMenuAction"
       @close-theme-picker="closeThemePickerModal"
       @update-theme-picker-query="themePickerQuery = $event"
       @theme-picker-select="selectThemeFromModal"
