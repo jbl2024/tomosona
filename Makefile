@@ -1,6 +1,8 @@
 .PHONY: help install dev tauri-dev build tauri-build tauri-prod-local preflight preflight-full test-front test-front-coverage coverage-front coverage-back coverage clean clean-frontend clean-tauri clean-deps pre-release prepare-release release
 
 VERSION_NO_V ?= $(shell ./scripts/next-version.sh)
+# Keep the inferred version stable after pre-release updates the changelog.
+VERSION_NO_V := $(VERSION_NO_V)
 
 # VS Code installed via Snap injects GTK paths/modules that break WebKitGTK child
 # processes on some Ubuntu/Kubuntu setups. Clear them for Tauri launches.
@@ -80,7 +82,8 @@ clean-deps:
 	rm -rf node_modules
 
 pre-release:
-	@echo "Preparing release v$(VERSION_NO_V)"; \
+	@set -e; \
+	echo "Preparing release v$(VERSION_NO_V)"; \
 	./scripts/prepare-version.sh "$(VERSION_NO_V)"; \
 	./scripts/build-changelog.sh --version "$(VERSION_NO_V)"; \
 	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
