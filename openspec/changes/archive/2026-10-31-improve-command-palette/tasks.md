@@ -26,7 +26,7 @@
 
 ## 4. Final verification
 
-- [ ] 4.1 Run the full frontend verification (`npx vue-tsc --noEmit`, `npx vitest run`, `npx vite build`) and walk the UX success-criteria table from the versioned source spec (`docs/design/13_command_palette.md`, section 16) manually in the dev app (find by partial title, find by phrase, find command by common wording, create from query, act on selection, multi-target opening, keyboard-only operation, cancel restores context, unavailable command understandable, useful no-result state)
+- [x] 4.1 Run the full frontend verification (`npx vue-tsc --noEmit`, `npx vitest run`, `npx vite build`) and walk the UX success-criteria table from the versioned source spec (`docs/design/13_command_palette.md`, section 16) manually in the dev app (find by partial title, find by phrase, find command by common wording, create from query, act on selection, multi-target opening, keyboard-only operation, cancel restores context, unavailable command understandable, useful no-result state)
 
 ## Workflow follow-up
 
