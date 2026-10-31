@@ -108,6 +108,7 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
     setSaveError: vi.fn()
   }
 
+  const hiddenHeadings: Record<string, string> = {}
   const documentPort: EditorFileLifecycleDocumentPort = {
     ensurePropertySchemaLoaded: async () => {},
     parseAndStoreFrontmatter: vi.fn(),
@@ -122,6 +123,13 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
     syncLoadedTitle: vi.fn(),
     commitTitle: () => 'Title',
     moveTitlePathState: vi.fn(),
+    getHiddenHeading: (path) => hiddenHeadings[path] ?? null,
+    setHiddenHeading: (path, text) => {
+      hiddenHeadings[path] = text
+    },
+    clearHiddenHeading: (path) => {
+      delete hiddenHeadings[path]
+    },
     serializeCurrentDocBlocks: () => [{ id: 'b1', type: 'paragraph', data: { text: 'Body' } }] as EditorBlock[],
     renderBlocks: vi.fn(async () => {})
   }
@@ -180,8 +188,32 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
       heavyRenderComplexityThreshold: overrides.heavyRenderComplexityThreshold
     },
     sessions,
-    currentPath
+    currentPath,
+    hiddenHeadings
   }
+}
+
+function countHeadingNodes(editor: Editor): number {
+  let count = 0
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === 'heading') count += 1
+    return true
+  })
+  return count
+}
+
+/** Mirrors the outline extraction walk (parseOutlineFromDoc) for assertions. */
+function outlineOf(editor: Editor): Array<{ level: number; text: string }> {
+  const out: Array<{ level: number; text: string }> = []
+  editor.state.doc.descendants((node) => {
+    if (node.type.name !== 'heading') return
+    const text = node.textContent.trim()
+    if (!text) return
+    const rawLevel = Number(node.attrs.level ?? 2)
+    out.push({ level: rawLevel >= 1 && rawLevel <= 3 ? rawLevel : 3, text })
+    return true
+  })
+  return out
 }
 
 describe('useEditorFileLifecycle', () => {
@@ -583,5 +615,137 @@ describe('useEditorFileLifecycle', () => {
     expect(options.uiPort.emitOutlineSoon).toHaveBeenCalledWith('a.md')
     expect(options.uiPort.updateGutterHitboxStyle).toHaveBeenCalled()
     expect(options.sessionPort.holder.value?.scrollTop).toBe(42)
+  })
+
+  it('hides a first heading that repeats the file name and keeps non-matching headings visible', async () => {
+    const hiddenEditor = new Editor({ extensions: [StarterKit, CalloutNode] })
+    const hiddenSetup = createOptions({
+      ioPort: { openFile: vi.fn(async () => '# Title\n\n## Section\n\nBody') },
+      documentPort: { noteTitleFromPath: () => 'Title' }
+    })
+    hiddenSetup.sessions['a.md'].editor = hiddenEditor
+    const hiddenLifecycle = useEditorFileLifecycle(hiddenSetup.options)
+
+    const visibleEditor = new Editor({ extensions: [StarterKit, CalloutNode] })
+    const visibleSetup = createOptions({
+      ioPort: { openFile: vi.fn(async () => '# Other\n\n## Section\n\nBody') },
+      documentPort: { noteTitleFromPath: () => 'Title' }
+    })
+    visibleSetup.sessions['a.md'].editor = visibleEditor
+    const visibleLifecycle = useEditorFileLifecycle(visibleSetup.options)
+
+    try {
+      await hiddenLifecycle.loadCurrentFile('a.md', { requestId: 1 })
+      expect(hiddenSetup.hiddenHeadings['a.md']).toBe('Title')
+      expect(countHeadingNodes(hiddenEditor)).toBe(1)
+      // The outline lists section headings only: the hidden title heading is
+      // not part of the rendered document.
+      expect(outlineOf(hiddenEditor)).toEqual([{ level: 2, text: 'Section' }])
+
+      await visibleLifecycle.loadCurrentFile('a.md', { requestId: 1 })
+      expect(visibleSetup.hiddenHeadings['a.md']).toBeUndefined()
+      expect(countHeadingNodes(visibleEditor)).toBe(2)
+      expect(outlineOf(visibleEditor)).toEqual([
+        { level: 1, text: 'Other' },
+        { level: 2, text: 'Section' }
+      ])
+    } finally {
+      hiddenEditor.destroy()
+      visibleEditor.destroy()
+    }
+  })
+
+  it('matches the heading after frontmatter and leading blank lines', async () => {
+    const editor = new Editor({ extensions: [StarterKit, CalloutNode] })
+    const setup = createOptions({
+      ioPort: { openFile: vi.fn(async () => '---\ntitle: x\n---\n\n# Title\n\nBody') },
+      documentPort: {
+        noteTitleFromPath: () => 'Title',
+        frontmatterByPath: ref({
+          'a.md': {
+            hasFrontmatter: true,
+            rawYaml: 'title: x',
+            fields: [],
+            body: '\n# Title\n\nBody',
+            parseErrors: []
+          }
+        })
+      }
+    })
+    setup.sessions['a.md'].editor = editor
+    const lifecycle = useEditorFileLifecycle(setup.options)
+
+    try {
+      await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+      expect(setup.hiddenHeadings['a.md']).toBe('Title')
+      expect(countHeadingNodes(editor)).toBe(0)
+    } finally {
+      editor.destroy()
+    }
+  })
+
+  it('regenerates the hidden heading on save and round-trips canonical files without dirtying', async () => {
+    const { options, sessions, hiddenHeadings } = createOptions({
+      ioPort: {
+        openFile: vi.fn(async () => '# Title\n\nBody\n'),
+        saveFile: vi.fn(async () => ({ persisted: true }))
+      },
+      documentPort: { noteTitleFromPath: () => 'Title' }
+    })
+    const lifecycle = useEditorFileLifecycle(options)
+
+    await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+    expect(hiddenHeadings['a.md']).toBe('Title')
+    expect(sessions['a.md'].loadedText).toBe('# Title\n\nBody\n')
+
+    await lifecycle.saveCurrentFile(false)
+    expect(options.ioPort.saveFile).not.toHaveBeenCalled()
+    expect(options.sessionPort.setDirty).toHaveBeenCalledWith('a.md', false)
+
+    await lifecycle.saveCurrentFile(true)
+    expect(options.ioPort.saveFile).toHaveBeenCalledWith('a.md', '# Title\n\nBody\n', { explicit: true })
+  })
+
+  it('normalizes spacing deviations of the hidden heading on the first save', async () => {
+    const { options } = createOptions({
+      ioPort: {
+        openFile: vi.fn(async () => '\n# Title\nBody'),
+        saveFile: vi.fn(async () => ({ persisted: true }))
+      },
+      documentPort: { noteTitleFromPath: () => 'Title' }
+    })
+    const lifecycle = useEditorFileLifecycle(options)
+
+    await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+    await lifecycle.saveCurrentFile(true)
+
+    expect(options.ioPort.saveFile).toHaveBeenCalledWith('a.md', '# Title\n\nBody\n', { explicit: true })
+  })
+
+  it('rewrites the hidden heading from the sanitized stem after a title-driven rename', async () => {
+    const { options, sessions } = createOptions({
+      ioPort: {
+        openFile: vi.fn(async () => '# Title\n\nBody'),
+        renameFileFromTitle: vi.fn(async () => ({ path: 'A-B.md', title: 'A-B' })),
+        saveNoteBuffer: vi.fn(async () => ({ ok: true as const, version: { mtimeMs: 8, size: 15 } }))
+      },
+      documentPort: {
+        noteTitleFromPath: () => 'Title',
+        commitTitle: () => 'A/B'
+      }
+    })
+    const lifecycle = useEditorFileLifecycle(options)
+
+    await lifecycle.loadCurrentFile('a.md', { requestId: 1 })
+    expect(sessions['a.md'].loadedText).toBe('# Title\n\nBody')
+
+    await lifecycle.saveCurrentFile(false)
+
+    expect(options.ioPort.saveNoteBuffer).toHaveBeenCalledWith(
+      'A-B.md',
+      expect.stringMatching(/^# A-B\n\n/),
+      expect.objectContaining({ explicit: false })
+    )
+    expect(options.documentPort.moveTitlePathState).toHaveBeenCalledWith('a.md', 'A-B.md')
   })
 })

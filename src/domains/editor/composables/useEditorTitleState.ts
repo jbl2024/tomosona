@@ -9,6 +9,12 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
   const titleByPath = ref<Record<string, string>>({})
   const lastCommittedTitleByPath = ref<Record<string, string>>({})
   const isTitleDirtyByPath = ref<Record<string, boolean>>({})
+  /**
+   * Paths whose loaded body started with a `# <file name>` heading now hidden
+   * from the editor body (path → matched heading text). Saving regenerates the
+   * heading from the title while an entry exists.
+   */
+  const hiddenHeadingByPath = ref<Record<string, string>>({})
 
   const currentTitle = computed(() => {
     const path = currentPath.value
@@ -74,6 +80,7 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
     titleByPath.value = moveRecord(titleByPath.value) as Record<string, string>
     lastCommittedTitleByPath.value = moveRecord(lastCommittedTitleByPath.value) as Record<string, string>
     isTitleDirtyByPath.value = moveRecord(isTitleDirtyByPath.value) as Record<string, boolean>
+    hiddenHeadingByPath.value = moveRecord(hiddenHeadingByPath.value) as Record<string, string>
   }
 
   function resetTitleState(path?: string) {
@@ -81,6 +88,7 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
       titleByPath.value = {}
       lastCommittedTitleByPath.value = {}
       isTitleDirtyByPath.value = {}
+      hiddenHeadingByPath.value = {}
       return
     }
     const clearRecord = <T>(record: Record<string, T>) => {
@@ -92,6 +100,22 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
     titleByPath.value = clearRecord(titleByPath.value)
     lastCommittedTitleByPath.value = clearRecord(lastCommittedTitleByPath.value)
     isTitleDirtyByPath.value = clearRecord(isTitleDirtyByPath.value)
+    hiddenHeadingByPath.value = clearRecord(hiddenHeadingByPath.value)
+  }
+
+  function setHiddenHeading(path: string, text: string) {
+    hiddenHeadingByPath.value = { ...hiddenHeadingByPath.value, [path]: text }
+  }
+
+  function clearHiddenHeading(path: string) {
+    if (!(path in hiddenHeadingByPath.value)) return
+    const next = { ...hiddenHeadingByPath.value }
+    delete next[path]
+    hiddenHeadingByPath.value = next
+  }
+
+  function getHiddenHeading(path: string): string | null {
+    return hiddenHeadingByPath.value[path] ?? null
   }
 
   function getTitle(path: string): string {
@@ -102,6 +126,7 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
     titleByPath,
     lastCommittedTitleByPath,
     isTitleDirtyByPath,
+    hiddenHeadingByPath,
     currentTitle,
     isCurrentTitleDirty,
     normalizeTitle,
@@ -112,6 +137,9 @@ export function useEditorTitleState(currentPath: Ref<string>, untitledLabel = 'U
     revertTitle,
     movePathState,
     resetTitleState,
+    setHiddenHeading,
+    clearHiddenHeading,
+    getHiddenHeading,
     getTitle
   }
 }

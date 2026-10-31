@@ -4,6 +4,7 @@ import { Selection } from '@tiptap/pm/state'
 import type { EditorBlock } from '../lib/markdownBlocks'
 import { editorDataToMarkdown, markdownToEditorData } from '../lib/markdownBlocks'
 import { composeMarkdownDocument, serializeFrontmatter, type FrontmatterEnvelope } from '../lib/frontmatter'
+import { composeTitleHeading, matchTitleHeading, stripTitleHeading } from '../lib/noteTitleHeading'
 import { toTiptapDoc } from '../lib/tiptap/editorBlocksToTiptapDoc'
 import type { DocumentSession } from './useDocumentEditorSessions'
 import type { ReadNoteSnapshotResult, SaveNoteResult } from '../../../shared/api/apiTypes'
@@ -98,6 +99,9 @@ export type EditorFileLifecycleDocumentPort = {
   syncLoadedTitle: (path: string, title: string) => void
   commitTitle: (path: string) => string
   moveTitlePathState: (from: string, to: string) => void
+  getHiddenHeading: (path: string) => string | null
+  setHiddenHeading: (path: string, text: string) => void
+  clearHiddenHeading: (path: string) => void
   serializeCurrentDocBlocks: () => EditorBlock[]
   renderBlocks: (blocks: EditorBlock[]) => Promise<void>
 }
@@ -332,7 +336,16 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         }
 
         documentPort.parseAndStoreFrontmatter(path, snapshot.content)
-        const body = documentPort.frontmatterByPath.value[path]?.body ?? snapshot.content
+        const rawBody = documentPort.frontmatterByPath.value[path]?.body ?? snapshot.content
+        // A first `# <file name>` heading is the note title, not body content:
+        // track it and strip it before markdown conversion.
+        const titleHeadingMatch = matchTitleHeading(rawBody, documentPort.noteTitleFromPath(path))
+        if (titleHeadingMatch) {
+          documentPort.setHiddenHeading(path, titleHeadingMatch.text)
+        } else {
+          documentPort.clearHiddenHeading(path)
+        }
+        const body = titleHeadingMatch ? stripTitleHeading(rawBody) : rawBody
         const isLargeDocument = snapshot.content.length >= uiPort.largeDocThreshold
         const heavyComplexityScore = heavyRenderComplexityScore(body)
         const shouldShowOverlayEarly = isLargeDocument || heavyComplexityScore >= heavyRenderComplexityThreshold
@@ -509,7 +522,13 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
         requestedTitle,
         savePath
       })
-      const bodyMarkdown = editorDataToMarkdown({ blocks: rawBlocks })
+      let bodyMarkdown = editorDataToMarkdown({ blocks: rawBlocks })
+      // While the title heading is hidden, it is derived state: regenerate it
+      // from the post-rename file name stem so file name and first line stay
+      // in sync (and self-heal after a sanitizing title edit).
+      if (documentPort.getHiddenHeading(initialPath) !== null) {
+        bodyMarkdown = composeTitleHeading(renameResult.title, bodyMarkdown)
+      }
       const frontmatterState = documentPort.frontmatterByPath.value[savePath] ?? documentPort.frontmatterByPath.value[initialPath]
       const frontmatterYaml = documentPort.propertyEditorMode.value === 'raw'
         ? (documentPort.rawYamlByPath.value[savePath] ?? documentPort.rawYamlByPath.value[initialPath] ?? '')

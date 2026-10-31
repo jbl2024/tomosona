@@ -90,6 +90,26 @@ describe('useSourceEditorRuntime', () => {
     harness.app.unmount()
   })
 
+  it('keeps source mode verbatim: a deleted title heading is not regenerated', async () => {
+    const saveFile = vi.fn(async () => ({ persisted: true }))
+    const harness = createHarness({
+      path: 'notes/Fresh Idea.md',
+      openFile: async () => '# Fresh Idea\r\n\r\nBody',
+      saveFile
+    })
+    harness.app.mount(document.createElement('div'))
+    await flushUi()
+
+    expect(harness.runtime.getSession('notes/Fresh Idea.md')?.text).toBe('# Fresh Idea\r\n\r\nBody')
+
+    harness.runtime.setText('notes/Fresh Idea.md', 'Body')
+    await flushUi()
+    await harness.runtime.saveCurrentFile(true)
+
+    expect(saveFile).toHaveBeenCalledWith('notes/Fresh Idea.md', 'Body', { explicit: true })
+    harness.app.unmount()
+  })
+
   it('uses markdown snapshot loading for raw markdown source mode', async () => {
     const readNoteSnapshot = vi.fn(async () => ({
       path: 'notes/a.md',

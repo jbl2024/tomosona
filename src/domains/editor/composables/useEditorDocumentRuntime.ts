@@ -347,6 +347,9 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
       syncLoadedTitle: titleState.syncLoadedTitle,
       commitTitle: titleState.commitTitle,
       moveTitlePathState: titleState.movePathState,
+      getHiddenHeading: titleState.getHiddenHeading,
+      setHiddenHeading: titleState.setHiddenHeading,
+      clearHiddenHeading: titleState.clearHiddenHeading,
       serializeCurrentDocBlocks,
       renderBlocks
     },

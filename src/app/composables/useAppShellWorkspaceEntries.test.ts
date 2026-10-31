@@ -85,13 +85,13 @@ describe('useAppShellWorkspaceEntries', () => {
     scope.stop()
   })
 
-  it('validates and creates a new markdown file', async () => {
+  it('validates and creates a new markdown file seeded with its title heading', async () => {
     const { api, scope, statePort, fsPort, modalPort } = createEntries()
     statePort.newFilePathInput.value = 'ideas/today'
 
     expect(await api.submitNewFileFromModal()).toBe(true)
     expect(fsPort.ensureParentFolders).toHaveBeenCalledWith('/vault/ideas/today.md')
-    expect(fsPort.writeTextFile).toHaveBeenCalledWith('/vault/ideas/today.md', '')
+    expect(fsPort.writeTextFile).toHaveBeenCalledWith('/vault/ideas/today.md', '# today')
     expect(fsPort.openTabWithAutosave).toHaveBeenCalledWith('/vault/ideas/today.md')
     expect(modalPort.closeNewFileModal).toHaveBeenCalled()
     scope.stop()

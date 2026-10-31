@@ -1,6 +1,7 @@
 import { nextTick, ref, watch, type Ref } from 'vue'
 import { backlinksForPath } from '../../shared/api/indexApi'
 import { formatIsoDate } from '../lib/appShellPaths'
+import { noteTitleFromPath } from '../lib/appShellDocuments'
 import { parseWikilinkTarget, type WikilinkAnchor } from '../../domains/editor/lib/wikilinks'
 import { type HeadingNode } from '../../domains/editor/composables/useEditorState'
 import type { QuickOpenResult } from './useAppQuickOpen'
@@ -278,7 +279,10 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
       options.editorPort.virtualDocs.value = {
         ...options.editorPort.virtualDocs.value,
         [path]: {
-          content: '',
+          // The seeded title line is the whole initial content: the load
+          // pipeline hides it as the note title, and the title-only autosave
+          // skip keeps the note unpersisted until real body content exists.
+          content: titleLine,
           titleLine
         }
       }
@@ -353,7 +357,9 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     }
 
     const withExtension = /\.(md|markdown)$/i.test(targetPath) ? targetPath : `${targetPath}.md`
-    const opened = await openOrPrepareMarkdown(withExtension, '')
+    // Seed the not-yet-existing note with a `# <file name>` first line so the
+    // title heading sync engages from creation.
+    const opened = await openOrPrepareMarkdown(withExtension, `# ${noteTitleFromPath(withExtension)}`)
     if (!opened) return false
     if (!anchor) return true
     return await revealAnchor()

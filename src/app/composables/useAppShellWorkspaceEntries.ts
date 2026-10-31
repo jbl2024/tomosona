@@ -186,7 +186,11 @@ export function useAppShellWorkspaceEntries(options: UseAppShellWorkspaceEntries
       }
 
       await options.fsPort.ensureParentFolders(fullPath)
-      await options.fsPort.writeTextFile(fullPath, templateContent)
+      // Without a template, seed the note with a `# <file name>` first line so
+      // the title heading sync engages from creation; template content is
+      // written verbatim.
+      const initialContent = templatePath ? templateContent : `# ${stem}`
+      await options.fsPort.writeTextFile(fullPath, initialContent)
       const opened = await options.fsPort.openTabWithAutosave(fullPath)
       if (!opened) return false
       options.fsPort.upsertWorkspaceFilePath(fullPath)
