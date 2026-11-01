@@ -7,8 +7,7 @@ import WorkspaceStatusBar from './components/app/WorkspaceStatusBar.vue'
 import AppShellOverlays from './components/app/AppShellOverlays.vue'
 import PagePasswordDialog from '../shared/components/ui/PagePasswordDialog.vue'
 import { usePagePasswordPrompt } from '../shared/composables/usePagePasswordPrompt'
-import { readWithPageUnlock } from '../shared/composables/pageUnlock'
-import { pageProtectionStatus, unlockPage } from '../shared/api/pageProtectionApi'
+import { pageProtectionStatus } from '../shared/api/pageProtectionApi'
 import { usePageProtectionActions } from './composables/usePageProtectionActions'
 import IntegratedTerminalPanel from './components/app/IntegratedTerminalPanel.vue'
 import { useDocumentHistory } from '../domains/editor/composables/useDocumentHistory'
@@ -559,17 +558,6 @@ const {
 })
 
 const pagePasswordPrompt = usePagePasswordPrompt()
-async function withPageUnlock<T>(operation: () => Promise<T>): Promise<T> {
-  return await readWithPageUnlock(operation, async (path) => {
-    await pagePasswordPrompt.request('Unlock page', async (password) => {
-      await unlockPage(path, password)
-      await refreshActiveProtection(path)
-    })
-  })
-}
-const readNoteSnapshot = (path: string) => withPageUnlock(() => readNoteSnapshotRaw(path))
-const readPageText = (path: string) => withPageUnlock(() => readTextFile(path))
-const saveNoteBuffer: typeof saveNoteBufferRaw = (path, content, options) => withPageUnlock(() => saveNoteBufferRaw(path, content, options))
 
 const indexNotesTotalCount = computed(() => indexOverviewStats.value?.workspace_notes_count ?? allWorkspaceFiles.value.length)
 const indexNotesTotalLoading = computed(() => loadingAllFiles.value)
@@ -1206,10 +1194,13 @@ async function refreshActiveProtection(path: string) {
     const [status] = await pageProtectionStatus([path])
     if (activeFilePath.value === path && status) activeProtection.value = status
   } catch {
-    if (activeFilePath.value === path) activeProtection.value = { isProtected: false, isLocked: false }
+    if (activeFilePath.value === path) activeProtection.value = { isProtected: false, isLocked: true }
   }
 }
-watch(activeFilePath, (path) => { void refreshActiveProtection(path) }, { immediate: true })
+watch(activeFilePath, (path) => {
+  activeProtection.value = { isProtected: false, isLocked: Boolean(path) }
+  void refreshActiveProtection(path)
+}, { immediate: true, flush: 'sync' })
 const onProtectionChanged = () => { void refreshActiveProtection(activeFilePath.value) }
 onMounted(() => window.addEventListener('page-protection-changed', onProtectionChanged))
 onBeforeUnmount(() => window.removeEventListener('page-protection-changed', onProtectionChanged))
@@ -1932,7 +1923,7 @@ useAppShellKeyboard({
       :active-file-path="activeFilePath"
       :active-note-title="activeNoteTitle"
       :active-state-label="activeStateLabel"
-      :active-note-source-toggle-label="activeNoteSourceToggleLabel"
+      :active-note-source-toggle-label="activeProtection.isLocked ? '' : activeNoteSourceToggleLabel"
       :page-protected="activeProtection.isProtected"
       :page-locked="activeProtection.isLocked"
       :can-protect-page="Boolean(activeFilePath && isMarkdownPath(activeFilePath))"
@@ -1955,13 +1946,13 @@ useAppShellKeyboard({
       :pinned-context-items="pinnedContextItems"
       :can-reason-on-context="!constitutedContext.isEmpty.value"
       :is-launching-context-action="contextActionLoading"
-      :outline="editorState.activeOutline.value"
+      :outline="activeProtection.isLocked ? [] : editorState.activeOutline.value"
       :backlinks="backlinks"
       :backlinks-loading="backlinksLoading"
       :backlinks-error="backlinksError"
       :metadata-rows="metadataRows"
-      :properties-preview="propertiesPreview"
-      :property-parse-error-count="propertyParseErrorCount"
+      :properties-preview="activeProtection.isLocked ? [] : propertiesPreview"
+      :property-parse-error-count="activeProtection.isLocked ? 0 : propertyParseErrorCount"
       @set-sidebar-mode="setSidebarMode"
       @explorer-open="onExplorerOpen"
       @explorer-path-renamed="onExplorerPathRenamed"
@@ -2001,7 +1992,7 @@ useAppShellKeyboard({
           :active-document-path="activeFilePath"
           :workspace-path="filesystem.workingFolderPath.value"
           :all-workspace-files="allWorkspaceFiles"
-          :open-file="readPageText"
+          :open-file="readTextFile"
           :open-externally="openPathNatively"
           :save-file="async (path, text) => { await writeTextFile(path, text); return { persisted: true } }"
           :spellcheck-enabled="spellcheckEnabled"
@@ -2009,8 +2000,8 @@ useAppShellKeyboard({
           :cursor-style="editorPreferences.cursorStyle"
           :cursor-blink="editorPreferences.cursorBlink"
           :get-status="editorState.getStatus"
-          :readNoteSnapshot="readNoteSnapshot"
-          :saveNoteBuffer="saveNoteBuffer"
+          :readNoteSnapshot="readNoteSnapshotRaw"
+          :saveNoteBuffer="saveNoteBufferRaw"
           :renameFileFromTitle="renameFileFromTitle"
           :loadLinkTargets="loadWikilinkTargets"
           :loadLinkHeadings="loadWikilinkHeadings"

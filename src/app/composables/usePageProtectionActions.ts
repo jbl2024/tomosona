@@ -23,6 +23,8 @@ export function usePageProtectionActions(options: PageProtectionActionOptions) {
     }
     try {
       if (action === 'lock') {
+        if (options.isUnsaved()) await options.save()
+        ensureSaved()
         await lockPage(path)
       } else {
         if (options.isUnsaved()) await options.save()
@@ -55,8 +57,8 @@ export function usePageProtectionActions(options: PageProtectionActionOptions) {
         }
         if (options.currentPath() === path) await options.reload()
       }
-      await options.refresh(path)
       window.dispatchEvent(new Event('page-protection-changed'))
+      await options.refresh(path)
     } catch (error) {
       if (error instanceof Error && error.message === 'Password entry cancelled.') return
       options.reportError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Page protection failed.')

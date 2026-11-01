@@ -54,6 +54,21 @@ describe('page protection actions', () => {
     expect(h.refresh).toHaveBeenCalledOnce()
   })
 
+  it('saves dirty edits before locking and refuses to lock if saving fails', async () => {
+    const success = harness()
+    success.setDirty(true)
+    await success.run('lock')
+    expect(success.save).toHaveBeenCalledOnce()
+    expect(api.lockPage).toHaveBeenCalledOnce()
+    api.lockPage.mockClear()
+    const failure = harness()
+    failure.setDirty(true)
+    failure.save.mockRejectedValueOnce(new Error('Save failed.'))
+    await failure.run('lock')
+    expect(api.lockPage).not.toHaveBeenCalled()
+    expect(failure.reportError).toHaveBeenCalledWith('Save failed.')
+  })
+
   it('does not protect a page when saving fails', async () => {
     const h = harness()
     h.setDirty(true)

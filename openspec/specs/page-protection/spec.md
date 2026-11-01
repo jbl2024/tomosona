@@ -26,7 +26,7 @@ While a page is protected, the system SHALL store its current file and new histo
 
 #### Scenario: Plain text read of a locked protected page
 - **WHEN** a protected page that is not unlocked in the current session is opened or read
-- **THEN** the system refuses to return its content and prompts for the page password instead
+- **THEN** the system refuses to return its content and presents a password form in the note pane instead of an editable view
 
 ### Requirement: Unlock a protected page with its password
 The system SHALL require the current page password before returning its protected content. On a correct password, the page SHALL become unlocked for the session and its decrypted content SHALL be editable, with saves re-encrypting the content transparently. On a wrong password, the system SHALL reject the unlock without revealing any content.
@@ -44,7 +44,7 @@ The system SHALL require the current page password before returning its protecte
 - **THEN** the system reports that the password is incorrect or the file is damaged and reveals no content
 
 ### Requirement: Unlock state is session-scoped
-Each protected page SHALL be unlocked independently using its own password. An unlocked page SHALL remain unlocked for the current app session until the user locks it or the app exits. Locking affects future decryptions and SHALL NOT close or clear views already open. Unlock state SHALL NOT persist across app restarts, and the system SHALL NOT persist decryption keys to disk.
+Each protected page SHALL be unlocked independently using its own password. An unlocked page SHALL remain unlocked for the current app session until the user locks it or the app exits. Locking SHALL hide and prevent editing of the page in open views until it is unlocked again, without discarding unsaved edits. Unlock state SHALL NOT persist across app restarts, and the system SHALL NOT persist decryption keys to disk.
 
 #### Scenario: App restart clears unlock state
 - **WHEN** the app is restarted after a protected page was unlocked
@@ -52,7 +52,7 @@ Each protected page SHALL be unlocked independently using its own password. An u
 
 #### Scenario: Manual lock
 - **WHEN** the user locks an unlocked protected page
-- **THEN** future decryptions require the page password again, while already-open views remain unchanged
+- **THEN** open views show the password form and prevent editing until the page is unlocked again, without discarding unsaved edits
 
 ### Requirement: Protected pages are visible with a lock indication
 The system SHALL keep protected pages visible in the workspace explorer with an indication that they are protected, and SHALL keep their file name readable. It SHALL NOT display protected page content in list previews.

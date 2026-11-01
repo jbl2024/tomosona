@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import EditorView from '../../../domains/editor/components/EditorView.vue'
 import FileInspectorPaneSurface from './FileInspectorPaneSurface.vue'
+import LockedPageSurface from './LockedPageSurface.vue'
+import { useInlinePageUnlock } from '../../composables/useInlinePageUnlock'
 import WorkspaceLaunchpad from './WorkspaceLaunchpad.vue'
 import type { PaneTab } from '../../composables/useMultiPaneWorkspaceState'
 import type { FileEditorStatus } from './EditorPaneTabs.vue'
@@ -17,6 +19,7 @@ import type {
 
 const props = defineProps<{
   paneId: string
+  isActivePane?: boolean
   activeTab: PaneTab | null
   openTabs: PaneTab[]
   openDocumentPaths: string[]
@@ -92,6 +95,12 @@ type EditorSurfaceExposed = {
   getZoom: () => number
 }
 
+const activeNotePath = computed(() => props.activeTab?.type === 'document' ? props.activeTab.path : '')
+const pageUnlock = useInlinePageUnlock(activeNotePath)
+const pageReady = computed(() => pageUnlock.state.value === 'unlocked' && !pageUnlock.waitingReads.value[activeNotePath.value])
+const readSnapshot = (path: string) => pageUnlock.read(() => props.readNoteSnapshot!(path))
+const readFile = (path: string) => pageUnlock.read(() => props.openFile!(path))
+
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
 const activeInspectorTab = computed(() => props.activeTab?.type === 'file-inspector' ? props.activeTab : null)
 const activeInspectorPath = computed(() => activeInspectorTab.value?.path ?? '')
@@ -102,14 +111,14 @@ const openActiveInspectorExternally = () => {
 
 function withEditor<T>(run: (editor: EditorSurfaceExposed) => T, fallback: T): T {
   const editor = editorSurfaceRef.value
-  if (!editor) return fallback
+  if (!editor || !pageReady.value) return fallback
   return run(editor)
 }
 
 defineExpose<EditorSurfaceExposed>({
   saveNow: async () => await withEditor((editor) => editor.saveNow(), Promise.resolve()),
   reloadCurrent: async () => await withEditor((editor) => editor.reloadCurrent(), Promise.resolve()),
-  applyWorkspaceFsChanges: async (changes: WorkspaceFsChange[]) => await withEditor((editor) => editor.applyWorkspaceFsChanges(changes), Promise.resolve()),
+  applyWorkspaceFsChanges: async (changes: WorkspaceFsChange[]) => { await editorSurfaceRef.value?.applyWorkspaceFsChanges(changes) },
   focusEditor: () => withEditor((editor) => editor.focusEditor(), undefined),
   openNoteHistory: async () => await withEditor((editor) => editor.openNoteHistory(), Promise.resolve()),
   isSourceSurface: () => withEditor((editor) => editor.isSourceSurface(), false),
@@ -133,14 +142,15 @@ defineExpose<EditorSurfaceExposed>({
 <template>
   <EditorView
     v-if="activeTab?.type === 'document'"
+    v-show="pageReady"
     ref="editorSurfaceRef"
     :path="activeTab.path"
     :workspace-path="workspacePath"
     :openPaths="openDocumentPaths"
     :all-workspace-files="allWorkspaceFiles"
-    :openFile="openFile"
+    :openFile="openFile ? readFile : undefined"
     :saveFile="saveFile"
-    :readNoteSnapshot="readNoteSnapshot"
+    :readNoteSnapshot="readNoteSnapshot ? readSnapshot : undefined"
     :saveNoteBuffer="saveNoteBuffer"
     :renameFileFromTitle="renameFileFromTitle"
     :loadLinkTargets="loadLinkTargets"
@@ -160,8 +170,22 @@ defineExpose<EditorSurfaceExposed>({
     @external-reload="emit('external-reload', $event)"
   />
 
+  <LockedPageSurface
+    v-if="activeTab?.type === 'document' && pageUnlock.state.value === 'locked'"
+    :key="activeNotePath"
+    :path="activeNotePath"
+    :active="Boolean(isActivePane)"
+    :error="pageUnlock.error.value"
+    :pending="pageUnlock.pending.value"
+    @submit="pageUnlock.submit"
+  />
+  <div v-else-if="activeTab?.type === 'document' && !pageReady" class="surface-placeholder" role="status">
+    <template v-if="pageUnlock.state.value === 'error'">{{ pageUnlock.error.value }} <button type="button" @click="pageUnlock.refresh">Retry</button></template>
+    <template v-else>Loading note…</template>
+  </div>
+
   <FileInspectorPaneSurface
-    v-else-if="activeInspectorTab"
+    v-if="activeInspectorTab"
     :path="activeInspectorPath"
     :open-externally="openActiveInspectorExternally"
   />

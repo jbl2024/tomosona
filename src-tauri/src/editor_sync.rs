@@ -375,7 +375,11 @@ mod tests {
             Err(AppError::PageLocked(_))
         ));
         assert_eq!(fs::read_to_string(&path).unwrap(), before);
-        crate::page_protection::unlock_page(name.clone(), "password".into()).unwrap();
+        tauri::async_runtime::block_on(crate::page_protection::unlock_page(
+            name.clone(),
+            "password".into(),
+        ))
+        .unwrap();
         assert_eq!(
             read_note_snapshot(name.clone()).unwrap().content,
             "original secret"

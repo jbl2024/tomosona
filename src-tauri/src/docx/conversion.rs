@@ -1961,7 +1961,11 @@ mod tests {
             Err(AppError::PageLocked(_))
         ));
         assert!(!workspace.join("secret.docx").exists());
-        crate::page_protection::unlock_page(path.clone(), "password".into()).unwrap();
+        tauri::async_runtime::block_on(crate::page_protection::unlock_page(
+            path.clone(),
+            "password".into(),
+        ))
+        .unwrap();
         let output = convert_markdown_to_docx_sync(path).unwrap();
         assert!(Path::new(&output).exists());
         fs::remove_dir_all(workspace).unwrap();

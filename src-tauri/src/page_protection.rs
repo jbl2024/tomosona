@@ -291,7 +291,14 @@ pub(crate) fn protect_page(path: String, password: String) -> crate::Result<()> 
 }
 
 #[tauri::command]
-pub(crate) fn unlock_page(path: String, password: String) -> crate::Result<()> {
+pub(crate) async fn unlock_page(path: String, password: String) -> crate::Result<()> {
+    tauri::async_runtime::spawn_blocking(move || unlock_page_sync(path, password))
+        .await
+        .map_err(|_| crate::AppError::OperationFailed)?
+}
+
+// Key derivation is deliberately run off the UI thread by the command above.
+fn unlock_page_sync(path: String, password: String) -> crate::Result<()> {
     let _guard = page_io_guard()?;
     let path = checked_path(&path)?;
     let envelope = std::fs::read_to_string(&path)?;
@@ -445,6 +452,12 @@ mod tests {
             .is_empty());
         let initial = std::fs::read_to_string(&path).unwrap();
         assert!(!initial.contains("secret content"));
+        lock_page(name.clone()).unwrap();
+        assert!(tauri::async_runtime::block_on(unlock_page(name.clone(), "wrong".into())).is_err());
+        assert!(!is_unlocked(&path));
+        tauri::async_runtime::block_on(unlock_page(name.clone(), "old".into())).unwrap();
+        assert!(is_unlocked(&path));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), initial);
         assert!(matches!(
             protect_page(name.clone(), "old".into()),
             Err(crate::AppError::PageAlreadyProtected)
