@@ -47,6 +47,7 @@ function iconForNode(node: TreeNode) {
 
 const displayName = computed(() => props.node.is_markdown && !props.showExtensions ? props.node.name.replace(/\.md$/i, '') : props.node.name)
 const matchPositions = computed(() => explorerMatchPositions(displayName.value, props.filterQuery ?? ''))
+/** Hover or focus reveals the protection note; leaving hides it again. */
 const showProtectionInfo = ref(false)
 const rowRef = ref<HTMLElement | null>(null)
 
@@ -217,8 +218,20 @@ watch(dndState, (state) => {
       </span>
     </div>
 
-    <span v-if="node.isProtected" class="relative">
-      <button type="button" aria-label="Password protected" title="About page protection" @click.stop="showProtectionInfo = !showProtectionInfo"><LockClosedIcon class="h-4 w-4" /></button>
+    <span
+      v-if="node.isProtected"
+      class="relative"
+      @mouseenter="showProtectionInfo = true"
+      @mouseleave="showProtectionInfo = false"
+    >
+      <button
+        type="button"
+        aria-label="Password protected"
+        title="About page protection"
+        @click.stop
+        @focus="showProtectionInfo = true"
+        @blur="showProtectionInfo = false"
+      ><LockClosedIcon class="h-4 w-4" /></button>
       <span v-if="showProtectionInfo" role="status" class="explorer-protection-info" @click.stop>This page's content is encrypted and requires its password while locked. Its filename remains visible.</span>
     </span>
 

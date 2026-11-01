@@ -23,7 +23,7 @@ describe('ExplorerItem', () => {
     document.body.innerHTML = ''
   })
 
-  it('explains a protected page', async () => {
+  it('explains a protected page on hover and hides the note again', async () => {
     const root = document.createElement('div')
     const app = createApp(() => h(ExplorerItem, {
       node: { ...fileNode('/vault/a.md'), isProtected: true }, depth: 0,
@@ -33,9 +33,38 @@ describe('ExplorerItem', () => {
     app.mount(root)
     const lock = root.querySelector('[aria-label="Password protected"]') as HTMLButtonElement
     expect(lock).not.toBeNull()
-    lock.click()
+    expect(root.textContent).not.toContain('encrypted')
+
+    const badge = lock.parentElement as HTMLElement
+    badge.dispatchEvent(new MouseEvent('mouseenter'))
     await nextTick()
     expect(root.textContent).toContain('encrypted')
+
+    badge.dispatchEvent(new MouseEvent('mouseleave'))
+    await nextTick()
+    expect(root.textContent).not.toContain('encrypted')
+
+    app.unmount()
+  })
+
+  it('keeps the protection note reachable from the keyboard', async () => {
+    const root = document.createElement('div')
+    const app = createApp(() => h(ExplorerItem, {
+      node: { ...fileNode('/vault/a.md'), isProtected: true }, depth: 0,
+      expanded: false, selected: false, active: false, focused: false,
+      cutPending: false, editing: false, renameValue: ''
+    }))
+    app.mount(root)
+    const lock = root.querySelector('[aria-label="Password protected"]') as HTMLButtonElement
+
+    lock.dispatchEvent(new FocusEvent('focus'))
+    await nextTick()
+    expect(root.textContent).toContain('encrypted')
+
+    lock.dispatchEvent(new FocusEvent('blur'))
+    await nextTick()
+    expect(root.textContent).not.toContain('encrypted')
+
     app.unmount()
   })
 
