@@ -37,12 +37,30 @@
 
 ## 6. Journal, lower priority
 
-- [ ] 6.1 Add workspace journal-folder preference and reuse daily open/create flow with the existing default; test existing notes, missing folders and no duplicate or automatic migration.
-- [ ] 6.2 Add optional chronological view derived from valid dated notes; test grouping, ordering, today label in the local date, duplicates, invalid dates and unchanged physical locations.
-- [ ] 6.3 Add explicit dated-note organization preview and execute via safe mutation and undo; test cancellation, collisions, link warnings and partial failures.
+- [x] 6.1 Add workspace journal-folder preference and reuse daily open/create flow with the existing default; test existing notes, missing folders and no duplicate or automatic migration.
+- [x] 6.2 Add optional chronological view derived from valid dated notes; test grouping, ordering, today label in the local date, duplicates, invalid dates and unchanged physical locations.
+- [x] 6.3 Add explicit dated-note organization preview and execute via safe mutation and undo; test cancellation, collisions, link warnings and partial failures.
 
 ## 7. Integration verification
 
-- [ ] 7.1 Run relevant frontend tests and production build plus `cargo check` and affected Rust tests; resolve regressions and record results.
+- [x] 7.1 Run relevant frontend tests and production build plus `cargo check` and affected Rust tests; resolve regressions and record results.
 - [ ] 7.2 Exercise end-to-end mouse and keyboard flows, external watcher changes, protected notes and undo on supported platforms; record any platform limitations.
-- [ ] 7.3 Measure filtering, navigation and organization on representative nested 500- and 1,000-note workspaces; fix demonstrated responsiveness regressions and record results.
+- [x] 7.3 Measure filtering, navigation and organization on representative nested 500- and 1,000-note workspaces; fix demonstrated responsiveness regressions and record results.
+
+## Verification
+
+Recorded on macOS (darwin), 2026-11-01.
+
+- 7.1 `npx vitest run`: 237 files, 1408 tests passed, 1 todo.
+  `npm run build` (vue-tsc + vite): passed. `cargo check`: passed.
+  `cargo test`: 126 passed, 0 failed.
+- 7.3 `src/domains/explorer/lib/explorerPerformance.test.ts` measures the pure
+  derivation paths on nested 500- and 1,000-note fixtures:
+  filter 1.04 ms / 0.61 ms, journal timeline 0.34 ms / 0.14 ms, journal
+  organization plan 0.69 ms / 0.03 ms. No responsiveness regression found, so
+  no fix was needed.
+- 7.2 Not performed: the desktop app cannot be driven interactively in this
+  environment. Automated coverage exists for the same flows (explorer click,
+  double-click and keyboard focus rules, journal view and organization preview,
+  quick preview including locked pages, watcher sync, and undo receipts), but
+  manual end-to-end passes on macOS, Windows and Linux remain outstanding.

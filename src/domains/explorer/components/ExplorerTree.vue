@@ -13,6 +13,8 @@ import ExplorerCreateInput from './ExplorerCreateInput.vue'
 import ExplorerConflictDialog from './ExplorerConflictDialog.vue'
 import ExplorerContextMenu, { type MenuAction } from './ExplorerContextMenu.vue'
 import ExplorerItem from './ExplorerItem.vue'
+import ExplorerJournalOrganizeDialog from './ExplorerJournalOrganizeDialog.vue'
+import ExplorerJournalView from './ExplorerJournalView.vue'
 import ExplorerMoveDialog from './ExplorerMoveDialog.vue'
 import ExplorerQuickPreview from './ExplorerQuickPreview.vue'
 import ExplorerToolbar from './ExplorerToolbar.vue'
@@ -22,6 +24,7 @@ import { useExplorerFsSync } from '../composables/useExplorerFsSync'
 import { useExplorerKeyboard } from '../composables/useExplorerKeyboard'
 import { useExplorerOperations } from '../composables/useExplorerOperations'
 import { useExplorerTreeState } from '../composables/useExplorerTreeState'
+import type { JournalOrganizationMove, JournalOrganizationPlan } from '../../../app/lib/journalOrganization'
 import { explorerNameMatches, filterExplorerRows } from '../lib/explorerFilter'
 import { errorMessage, getParentPath } from '../lib/explorerTreeUtils'
 import { normalizeDraggedPaths } from '../lib/explorerDndRules'
@@ -58,6 +61,8 @@ const isFilterVisible = ref(false)
 const showExtensions = ref(false)
 const creatingNote = ref<{ parent: string; error: string; busy: boolean } | null>(null)
 const moveDialogSources = ref<string[] | null>(null)
+const viewMode = ref<'tree' | 'journal'>('tree')
+const journalOrganizePlan = ref<JournalOrganizationPlan | null>(null)
 
 type QuickPreviewState = {
   path: string
@@ -169,6 +174,30 @@ function openPreviewNote(path: string) {
 
 function scrollStorageKey(workspace: string) {
   return `tomosona.explorer.scroll.${workspace}`
+}
+
+function viewStorageKey(workspace: string) {
+  return `tomosona.explorer.view.${workspace}`
+}
+
+/** Switches between the structural tree and the chronological journal view. */
+function setViewMode(mode: 'tree' | 'journal') {
+  viewMode.value = mode
+  if (props.folderPath) window.localStorage.setItem(viewStorageKey(props.folderPath), mode)
+}
+
+function requestJournalOrganize(plan: JournalOrganizationPlan) {
+  journalOrganizePlan.value = plan
+}
+
+/**
+ * Executes the confirmed journal organization through the shared mutation
+ * boundary so preflight, conflicts, link rewriting and undo stay identical to
+ * every other move.
+ */
+async function confirmJournalOrganize(moves: JournalOrganizationMove[]) {
+  journalOrganizePlan.value = null
+  await operations.executeMovePlan(moves.map((move) => ({ from: move.from, to: move.to })))
 }
 
 function toggleExtensions() {
@@ -613,9 +642,11 @@ watch(
     unfilteredScrollTop = null
     creatingNote.value = null
     moveDialogSources.value = null
+    journalOrganizePlan.value = null
     preview.value = null
     previewToken += 1
     loadRecentMoveDestinations()
+    viewMode.value = window.localStorage.getItem(viewStorageKey(workspace)) === 'journal' ? 'journal' : 'tree'
     showExtensions.value = window.localStorage.getItem(`tomosona.explorer.extensions.${workspace}`) === 'true'
     treeState.resetState()
     await treeState.initializeExplorer()
@@ -627,6 +658,15 @@ watch(
   },
   { immediate: true }
 )
+
+// The tree body is unmounted while the journal view is shown, so restore the
+// persisted scroll position when the structural view comes back.
+watch(viewMode, async (mode) => {
+  if (mode !== 'tree' || !props.folderPath) return
+  await nextTick()
+  const saved = Number(window.localStorage.getItem(scrollStorageKey(props.folderPath)))
+  if (treeRef.value && Number.isFinite(saved) && saved >= 0) treeRef.value.scrollTop = saved
+})
 
 watch(filterQuery, (next, previous) => {
   if (!previous.trim() && next.trim()) unfilteredScrollTop = treeRef.value?.scrollTop ?? 0
@@ -694,6 +734,7 @@ onBeforeUnmount(() => {
         :can-undo="props.canUndo"
         :show-extensions="showExtensions"
         :sort-order="treeState.sortOrder.value"
+        :journal-view="viewMode === 'journal'"
         @create-file="beginInlineNote(folderPath)"
         @create-folder="operations.requestCreate(folderPath, 'folder')"
         @expand-all="treeState.expandAllDirs"
@@ -703,9 +744,20 @@ onBeforeUnmount(() => {
         @toggle-extensions="toggleExtensions"
         @set-sort="treeState.setSortOrder"
         @toggle-search="toggleFilterVisibility"
+        @toggle-journal-view="setViewMode(viewMode === 'journal' ? 'tree' : 'journal')"
         @undo="emit('undo')"
       />
 
+      <ExplorerJournalView
+        v-if="viewMode === 'journal'"
+        :root="folderPath"
+        :active-path="activePath"
+        @open="emit('open', $event)"
+        @organize="requestJournalOrganize"
+        @error="emit('error', $event)"
+      />
+
+      <template v-else>
       <div v-if="selectionPaths.length > 1" class="explorer-group-bar flex items-center gap-1 rounded-lg border px-2 py-1" role="toolbar" aria-label="Selection actions">
         <span class="explorer-group-bar-count text-xs">{{ selectionPaths.length }} selected</span>
         <button type="button" class="explorer-group-bar-btn text-xs" @click="openMoveDialog(selectionPaths)">Move to…</button>
@@ -786,6 +838,7 @@ onBeforeUnmount(() => {
           <ExplorerCreateInput v-if="creatingNote?.parent === row.path" :style="{ paddingLeft: `${(row.depth + 1) * 14 + 8}px` }" :parent-path="creatingNote.parent" :error="creatingNote.error" :busy="creatingNote.busy" @confirm="confirmInlineNote" @cancel="creatingNote && !creatingNote.busy && (creatingNote = null)" />
         </template>
       </div>
+      </template>
 
       <ExplorerContextMenu
         v-if="contextMenu"
@@ -825,6 +878,13 @@ onBeforeUnmount(() => {
         :parent-of="getParentPath"
         @cancel="moveDialogSources = null"
         @confirm="confirmMoveDialog"
+      />
+
+      <ExplorerJournalOrganizeDialog
+        v-if="journalOrganizePlan"
+        :plan="journalOrganizePlan"
+        @cancel="journalOrganizePlan = null"
+        @confirm="confirmJournalOrganize"
       />
 
       <ExplorerQuickPreview

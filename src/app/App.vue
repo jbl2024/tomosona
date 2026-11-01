@@ -69,6 +69,7 @@ import {
   parseIsoDateInput,
   sanitizeRelativePath
 } from './lib/appShellPaths'
+import { readJournalFolder } from './lib/journalFolder'
 import {
   extractHeadingsFromMarkdown,
   hasForbiddenEntryNameChars,
@@ -377,6 +378,14 @@ const workspaceControllerFsPort = {
   writeTextFile
 }
 
+/**
+ * Daily-note path for a workspace, honoring its journal-folder preference.
+ *
+ * Every shell port that resolves a daily note goes through this wrapper so the
+ * palette, quick open and the explorer journal view agree on one location.
+ */
+const workspaceDailyNotePath = (root: string, date: string) => dailyNotePath(root, date, readJournalFolder(root))
+
 const workspaceControllerDocumentPort = {
   readPropertyTypeSchema,
   writePropertyTypeSchema,
@@ -384,7 +393,7 @@ const workspaceControllerDocumentPort = {
   normalizePathKey,
   isMarkdownPath,
   isIsoDate,
-  dailyNotePath
+  dailyNotePath: workspaceDailyNotePath
 }
 
 const workspaceControllerEffectsPort = {
@@ -715,7 +724,7 @@ watch(quickOpenVisible, (visible) => {
       editorSelectionText: editorRef.value?.getSelectionText() ?? '',
       editorSelectionMarkdown: editorRef.value?.getSelectionMarkdown() ?? '',
       explorerSelectionPath: explorerRef.value?.getSelectedFilePath() ?? null,
-      isDailyNote: Boolean(root && activePath && activePath === dailyNotePath(root, formatIsoDate(new Date())))
+      isDailyNote: Boolean(root && activePath && activePath === workspaceDailyNotePath(root, formatIsoDate(new Date())))
     }
   } catch (error) {
     // The snapshot is a nicety: opening the palette must never depend on it.
@@ -767,7 +776,7 @@ const quickOpenDataPort = {
 const quickOpenDocumentPort = {
   isIsoDate,
   toRelativePath,
-  dailyNotePath
+  dailyNotePath: workspaceDailyNotePath
 }
 
 const quickOpenPalettePort = {
@@ -1046,7 +1055,7 @@ shellOpenFlow = useAppShellOpenFlow({
     loadWikilinkTargets,
     pathExists,
     readTextFile,
-    dailyNotePath,
+    dailyNotePath: workspaceDailyNotePath,
     isIsoDate,
     sanitizeRelativePath,
     resolveExistingWikilinkPath,

@@ -70,4 +70,54 @@ describe('ExplorerToolbar', () => {
     expect(onUndo).toHaveBeenCalledOnce()
     app2.unmount()
   })
+
+  it('disables tree-only actions in the journal view but keeps undo and the view toggle', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const app = createApp(() => h(ExplorerToolbar, { disabled: false, canUndo: true, journalView: true }))
+    app.mount(root)
+
+    for (const label of ['New note', 'New folder', 'Toggle filter']) {
+      expect((root.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement).disabled).toBe(true)
+    }
+    expect((root.querySelector('button[aria-label="Journal view"]') as HTMLButtonElement).disabled).toBe(false)
+
+    const details = root.querySelector('details') as HTMLDetailsElement
+    details.open = true
+    await nextTick()
+    const menuButton = (label: string) => Array.from(details.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes(label)) as HTMLButtonElement
+
+    for (const label of ['Expand all folders', 'Collapse all folders', 'Reveal active note', 'Sort A to Z', 'Sort Z to A', 'Show extensions', 'Refresh explorer']) {
+      expect(menuButton(label).disabled).toBe(true)
+    }
+    expect(menuButton('Undo last operation').disabled).toBe(false)
+    app.unmount()
+  })
+
+  it('keeps tree-only actions enabled in the tree view', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const app = createApp(() => h(ExplorerToolbar, { disabled: false, canUndo: true, journalView: false }))
+    app.mount(root)
+
+    for (const label of ['New note', 'New folder', 'Toggle filter']) {
+      expect((root.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement).disabled).toBe(false)
+    }
+    app.unmount()
+  })
+
+  it('exposes the journal view as a pressed toggle', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const onToggleJournalView = vi.fn()
+    const app = createApp(() => h(ExplorerToolbar, { disabled: false, journalView: true, onToggleJournalView }))
+    app.mount(root)
+
+    const button = root.querySelector('button[aria-label="Journal view"]') as HTMLButtonElement
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    button.click()
+    expect(onToggleJournalView).toHaveBeenCalledOnce()
+    app.unmount()
+  })
 })

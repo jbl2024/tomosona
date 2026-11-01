@@ -2,7 +2,7 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ExplorerTree from './ExplorerTree.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { openPathExternal } from '../../../shared/api/workspaceApi'
+import { moveEntry, openPathExternal } from '../../../shared/api/workspaceApi'
 
 const unlistenWorkspaceFsChanged = vi.fn()
 const listChildren = vi.fn()
@@ -39,6 +39,16 @@ function fileNode(path: string): TreeNode {
     is_dir: false,
     is_markdown: true,
     has_children: false
+  }
+}
+
+function dirNode(path: string): TreeNode {
+  return {
+    name: path.split('/').pop() ?? path,
+    path,
+    is_dir: true,
+    is_markdown: false,
+    has_children: true
   }
 }
 
@@ -829,6 +839,47 @@ describe('ExplorerTree', () => {
 
     expect(input.value).toBe('')
     expect(mounted.root.querySelector('button[aria-label="Clear filter"]')).toBeNull()
+
+    mounted.app.unmount()
+  })
+
+  it('switches to the journal view and organizes dispersed dated notes through the move boundary', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') return [dirNode('/vault/journal')]
+      if (dirPath === '/vault/journal') return [fileNode('/vault/journal/2020-02-09.md')]
+      return []
+    })
+    vi.mocked(moveEntry).mockResolvedValue('/vault/journal/2020/02/2020-02-09.md')
+
+    const mounted = await mountHarness('/vault/a.md')
+    const journalButton = mounted.root.querySelector('button[aria-label="Journal view"]') as HTMLButtonElement
+    journalButton.click()
+    await vi.advanceTimersByTimeAsync(0)
+    await nextTick()
+
+    expect(window.localStorage.getItem('tomosona.explorer.view./vault')).toBe('journal')
+    expect(mounted.root.querySelectorAll('.explorer-journal-entry')).toHaveLength(1)
+
+    // Tree-only toolbar actions have no target in the journal view.
+    for (const label of ['New note', 'New folder', 'Toggle filter']) {
+      expect((mounted.root.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement).disabled).toBe(true)
+    }
+    expect((mounted.root.querySelector('button[aria-label="Journal view"]') as HTMLButtonElement).disabled).toBe(false)
+
+    const organizeButton = Array.from(mounted.root.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Organize')) as HTMLButtonElement
+    organizeButton.click()
+    await vi.advanceTimersByTimeAsync(0)
+    await nextTick()
+
+    const confirmButton = Array.from(mounted.root.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'Organize') as HTMLButtonElement
+    expect(confirmButton).toBeTruthy()
+    confirmButton.click()
+    await vi.advanceTimersByTimeAsync(0)
+    await nextTick()
+
+    expect(moveEntry).toHaveBeenCalledWith('/vault/journal/2020-02-09.md', '/vault/journal/2020/02', 'fail')
 
     mounted.app.unmount()
   })

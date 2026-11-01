@@ -324,6 +324,78 @@ describe('useExplorerOperations', () => {
     expect(emittedMoves).toHaveBeenCalledWith([{ from: '/vault/a.md', to: '/vault/folder/a.md' }])
   })
 
+  it('moves a multi-destination plan and emits one combined move batch', async () => {
+    const destinations: Record<string, string> = {
+      '/vault/journal/2020-02-09.md': '/vault/journal/2020/02/2020-02-09.md',
+      '/vault/journal/archive/2020-02-10.md': '/vault/journal/2020/02/2020-02-10.md'
+    }
+    moveEntry.mockImplementation(async (sourcePath: string) => destinations[sourcePath])
+    const { ops, emittedMoves } = createOperations()
+
+    await ops.executeMovePlan([
+      { from: '/vault/journal/2020-02-09.md', to: '/vault/journal/2020/02/2020-02-09.md' },
+      { from: '/vault/journal/archive/2020-02-10.md', to: '/vault/journal/2020/02/2020-02-10.md' }
+    ])
+
+    // One preflight per destination folder, then one move per entry.
+    expect(preflightMoveEntries).toHaveBeenCalledTimes(1)
+    expect(preflightMoveEntries).toHaveBeenCalledWith(
+      ['/vault/journal/2020-02-09.md', '/vault/journal/archive/2020-02-10.md'],
+      '/vault/journal/2020/02'
+    )
+    expect(moveEntry).toHaveBeenCalledWith('/vault/journal/2020-02-09.md', '/vault/journal/2020/02', 'fail')
+    expect(moveEntry).toHaveBeenCalledWith('/vault/journal/archive/2020-02-10.md', '/vault/journal/2020/02', 'fail')
+    // A single emission keeps one undo receipt for the whole batch.
+    expect(emittedMoves).toHaveBeenCalledTimes(1)
+    expect(emittedMoves).toHaveBeenCalledWith([
+      { from: '/vault/journal/2020-02-09.md', to: '/vault/journal/2020/02/2020-02-09.md' },
+      { from: '/vault/journal/archive/2020-02-10.md', to: '/vault/journal/2020/02/2020-02-10.md' }
+    ])
+  })
+
+  it('blocks a multi-destination plan when the preflight reports a blocking issue', async () => {
+    preflightMoveEntries.mockResolvedValue([
+      { sourcePath: '/vault/journal/2020-02-09.md', destinationPath: null, sourceVersion: null, issue: 'read_only' }
+    ])
+    const { ops, emittedError, emittedMoves } = createOperations()
+
+    await ops.executeMovePlan([{ from: '/vault/journal/2020-02-09.md', to: '/vault/journal/2020/02/2020-02-09.md' }])
+
+    expect(emittedError).toHaveBeenCalledWith('The source is read-only.')
+    expect(moveEntry).not.toHaveBeenCalled()
+    expect(emittedMoves).not.toHaveBeenCalled()
+  })
+
+  it('skips stale entries in a multi-destination plan and moves the rest', async () => {
+    moveEntry.mockImplementation(async (sourcePath: string) => `${sourcePath.replace('.md', '')}-moved.md`)
+    preflightMoveEntries.mockImplementation(async (sourcePaths: string[]) =>
+      sourcePaths.map((sourcePath) => ({
+        sourcePath,
+        destinationPath: null,
+        sourceVersion: { size: 3, modifiedMs: 1, isDir: false },
+        issue: null
+      }))
+    )
+    revalidateMoveEntry.mockImplementation(async (sourcePath: string) => ({
+      sourcePath,
+      destinationPath: null,
+      sourceVersion: null,
+      issue: sourcePath === '/vault/journal/2020-02-09.md' ? 'stale_source' : null
+    }))
+    const { ops, emittedError, emittedMoves } = createOperations()
+
+    await ops.executeMovePlan([
+      { from: '/vault/journal/2020-02-09.md', to: '/vault/journal/2020/02/2020-02-09.md' },
+      { from: '/vault/journal/archive/2020-02-10.md', to: '/vault/journal/2020/02/2020-02-10.md' }
+    ])
+
+    expect(emittedError).toHaveBeenCalledWith('The file changed since it was checked. Refresh and try again.')
+    expect(moveEntry).toHaveBeenCalledTimes(1)
+    expect(emittedMoves).toHaveBeenCalledWith([
+      { from: '/vault/journal/archive/2020-02-10.md', to: '/vault/journal/archive/2020-02-10-moved.md' }
+    ])
+  })
+
   it('prompts before moving folders directly', async () => {
     const { ops } = createOperations()
 

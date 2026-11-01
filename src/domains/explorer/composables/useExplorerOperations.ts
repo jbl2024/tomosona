@@ -374,6 +374,54 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
   }
 
   /**
+   * Executes an explicit multi-destination move plan through the same safe
+   * boundary as every other move: per-target preflight, per-entry revalidation,
+   * the shared conflict prompt, and one `paths-moved` emission so the shell
+   * records a single undo receipt for the whole batch.
+   *
+   * Used by journal organization, where each note has its own destination
+   * folder instead of one shared target directory.
+   */
+  async function executeMovePlan(entries: PathMove[]) {
+    if (!options.folderPath.value || !entries.length) return
+
+    const sourcesByTarget = new Map<string, string[]>()
+    for (const entry of entries) {
+      const targetDir = getParentPath(entry.to)
+      sourcesByTarget.set(targetDir, [...(sourcesByTarget.get(targetDir) ?? []), entry.from])
+    }
+
+    const plannedBySource = new Map<string, MovePreflightEntry>()
+    for (const [targetDir, sources] of sourcesByTarget) {
+      const planned = await planMoveBatch(targetDir, sources)
+      if (!planned) return
+      for (const [source, plannedEntry] of planned) plannedBySource.set(source, plannedEntry)
+    }
+
+    await runWithConflictModal(
+      async (strategy) => {
+        const movedPairs: PathMove[] = []
+        for (const entry of entries) {
+          const { movedPairs: batchPairs } = await moveEntriesWithRevalidation(
+            getParentPath(entry.to),
+            [entry.from],
+            plannedBySource,
+            strategy
+          )
+          movedPairs.push(...batchPairs)
+        }
+
+        await options.refreshLoadedDirs()
+        if (movedPairs.length) {
+          options.emitPathsMoved(movedPairs)
+        }
+      },
+      'Name conflict while organizing',
+      'Choose how to handle conflicts.'
+    )
+  }
+
+  /**
    * Runs a direct move operation without going through clipboard state.
    * Drag and drop reuses this path so folder confirmations, conflict handling,
    * refresh behavior, and selection updates stay aligned with paste.
@@ -516,6 +564,7 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
     runPaste,
     executePaste,
     executeMove,
+    executeMovePlan,
     openNode,
     openSelected,
     openExternal,

@@ -62,6 +62,42 @@
 - Clicks inside an editable control (the inline rename input) never reach row
   selection, so renaming is not interrupted by a focus change.
 
+## Journal view
+
+The explorer offers two views of the same workspace, toggled from the toolbar
+and persisted per workspace as `tomosona.explorer.view.<root>`:
+
+- the structural tree (default), and
+- the chronological journal view.
+
+`components/ExplorerJournalView.vue` renders the journal view and
+`composables/useExplorerJournal.ts` owns its state: the workspace journal-folder
+preference, the dated notes found under that folder, and the derived timeline.
+`src/app/lib/journalTimeline.ts` derives month groups from real
+`YYYY-MM-DD.md` names only, so undated or malformed files stay in the tree
+instead of being misrepresented. Duplicate dates are all kept and show their
+location relative to the journal folder. Entries open their real workspace path;
+the view never moves anything.
+
+While the journal view is active, `ExplorerToolbar` disables the actions that only
+target the structural tree: new note, new folder, filter, expand/collapse, reveal,
+sort, show extensions and refresh. Undo stays enabled because organizing the
+journal produces workspace-level moves. The journal view owns its own header
+(refresh, organize), so the reverse direction needs no extra state.
+
+The journal folder is a workspace preference (`src/app/lib/journalFolder.ts`,
+key `tomosona.journal.folder.<root>`) defaulting to the historical lowercase
+`journal`. `dailyNotePath` takes it as an optional argument and the shell passes
+the preference, so the palette, quick open and the journal view resolve the same
+location. No existing file is migrated when the preference changes.
+
+Organization is explicit: `src/app/lib/journalOrganization.ts` plans the moves of
+dispersed dated notes into `<journal>/YYYY/MM/`, the preview dialog runs the
+read-only native preflight to show destinations and collisions, and confirming
+calls `executeMovePlan` in `useExplorerOperations.ts`. That path reuses the same
+preflight, revalidation, conflict prompt and single `paths-moved` emission as
+every other move, so the shell records one undo receipt for the whole batch.
+
 ## Mutation preflight foundation
 
 The typed workspace API exposes read-only move, rename and trash preflight, plus source-metadata
