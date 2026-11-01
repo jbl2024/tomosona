@@ -20,7 +20,7 @@
 ## 3. Moving and selection
 
 - [x] 3.1 Implement searchable destination picker with recent folders, root and invalid-target explanations for single and multiple entries; test distant targets, collisions and stale destinations.
-- [ ] 3.2 Extend existing DnD with target feedback, hover expansion and edge scrolling; test normalized selections, self/descendant rejection, no-op targets, filtered-tree restriction and undo.
+- [x] 3.2 Extend existing DnD with target feedback, hover expansion and edge scrolling; test normalized selections, self/descendant rejection, no-op targets, filtered-tree restriction and undo.
 - [x] 3.3 Complete Cmd/Ctrl and Shift selection and contextual group bar for cross-folder selections; test no accidental opening, parent/child normalization, mixed eligibility, copy and trash outcomes.
 
 ## 4. Filtering and navigation state

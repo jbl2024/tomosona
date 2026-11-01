@@ -207,7 +207,9 @@ const dnd = useExplorerDnD({
   hasActiveFilter,
   setSelection: selectionManager.setSelection,
   emitSelection: (paths) => emit('select', paths),
-  movePaths: operations.movePaths
+  movePaths: operations.movePaths,
+  expandedPaths: treeState.expandedPaths,
+  toggleExpand: treeState.toggleExpand
 })
 
 function ensureFocusedPath(defaultToFirst = true) {

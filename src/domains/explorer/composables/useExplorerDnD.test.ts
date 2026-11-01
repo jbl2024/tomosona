@@ -48,7 +48,9 @@ describe('useExplorerDnD', () => {
         selected.value = paths
       },
       emitSelection,
-      movePaths: vi.fn(async () => {})
+      movePaths: vi.fn(async () => {}),
+      expandedPaths: ref(new Set<string>()),
+      toggleExpand: vi.fn(async () => {})
     })
 
     expect(dnd.handleDragStart('/vault/b.md')).toEqual(['/vault/b.md'])
@@ -75,7 +77,9 @@ describe('useExplorerDnD', () => {
       hasActiveFilter: computed(() => false),
       setSelection: vi.fn(),
       emitSelection: vi.fn(),
-      movePaths
+      movePaths,
+      expandedPaths: ref(new Set<string>()),
+      toggleExpand: vi.fn(async () => {})
     })
 
     dnd.handleDragStart('/vault/a.md')
@@ -106,7 +110,9 @@ describe('useExplorerDnD', () => {
       hasActiveFilter: computed(() => true),
       setSelection: vi.fn(),
       emitSelection: vi.fn(),
-      movePaths: vi.fn(async () => {})
+      movePaths: vi.fn(async () => {}),
+      expandedPaths: ref(new Set<string>()),
+      toggleExpand: vi.fn(async () => {})
     })
 
     dnd.handleDragStart('/vault/a.md')
@@ -120,5 +126,52 @@ describe('useExplorerDnD', () => {
       allowed: false,
       blocked: false
     })
+  })
+
+  it('expands a closed folder after a hover delay and cancels on leave or drag end', async () => {
+    vi.useFakeTimers()
+    try {
+      const toggleExpand = vi.fn(async () => {})
+      const expandedPaths = ref(new Set<string>())
+      const dnd = useExplorerDnD({
+        folderPath: ref('/vault'),
+        nodeByPath: ref<Record<string, TreeNode>>({
+          '/vault/folder': dirNode('/vault/folder')
+        }),
+        parentByPath: ref<Record<string, string>>({ '/vault/folder': '/vault' }),
+        selectionPaths: computed(() => ['/vault/a.md']),
+        focusedPath: ref('/vault/a.md'),
+        editingPath: ref(''),
+        hasActiveFilter: computed(() => false),
+        setSelection: vi.fn(),
+        emitSelection: vi.fn(),
+        movePaths: vi.fn(async () => {}),
+        expandedPaths,
+        toggleExpand
+      })
+
+      dnd.handleDragStart('/vault/a.md')
+      dnd.notifyHoverTarget('/vault/folder', 'inside')
+      await vi.advanceTimersByTimeAsync(599)
+      expect(toggleExpand).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(2)
+      expect(toggleExpand).toHaveBeenCalledWith('/vault/folder')
+
+      // Leaving the target before the delay cancels the expansion.
+      toggleExpand.mockClear()
+      dnd.notifyHoverTarget('/vault/folder', 'inside')
+      dnd.clearHoverExpand()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(toggleExpand).not.toHaveBeenCalled()
+
+      // Non-inside intents never expand, and drag end clears the timer.
+      dnd.notifyHoverTarget('/vault/folder', 'after')
+      dnd.notifyHoverTarget('/vault/folder', 'inside')
+      dnd.handleDragEnd()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(toggleExpand).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

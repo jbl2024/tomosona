@@ -28,6 +28,9 @@ export type ExplorerDnDController = {
   handleDropResolved: (targetPath: string, placement: IPlacement | undefined) => Promise<boolean>
   rowDropState: (targetPath: string, placement: IPlacement | undefined, isAllowed: boolean) => ExplorerRowDropState
   shouldSuppressPointerInteraction: () => boolean
+  /** Starts the hover-expand timer when a closed folder is hovered mid-drag. */
+  notifyHoverTarget: (targetPath: string, intent: ExplorerDropIntent) => void
+  clearHoverExpand: () => void
 }
 
 export type UseExplorerDnDOptions = {
@@ -41,6 +44,8 @@ export type UseExplorerDnDOptions = {
   setSelection: (paths: string[]) => void
   emitSelection: (paths: string[]) => void
   movePaths: (targetDir: string, paths: string[]) => Promise<void>
+  expandedPaths: Readonly<Ref<Set<string>>>
+  toggleExpand: (path: string) => Promise<void>
 }
 
 /**
@@ -106,6 +111,32 @@ export function useExplorerDnD(options: UseExplorerDnDOptions): ExplorerDnDContr
   function handleDragEnd() {
     activeDragPaths.value = []
     suppressPointerUntilMs.value = Date.now() + 160
+    clearHoverExpand()
+  }
+
+  // Hover-expand delay for closed folders targeted mid-drag, e.g. 600ms over "notes/".
+  const HOVER_EXPAND_DELAY_MS = 600
+  let hoverExpandTimer: ReturnType<typeof setTimeout> | null = null
+  let hoveredTargetPath = ''
+
+  function clearHoverExpand() {
+    if (hoverExpandTimer) {
+      clearTimeout(hoverExpandTimer)
+      hoverExpandTimer = null
+    }
+    hoveredTargetPath = ''
+  }
+
+  function notifyHoverTarget(targetPath: string, intent: ExplorerDropIntent) {
+    if (intent !== 'inside' || hoveredTargetPath === targetPath) return
+    clearHoverExpand()
+    hoveredTargetPath = targetPath
+    const node = options.nodeByPath.value[targetPath]
+    if (!node?.is_dir || options.expandedPaths.value.has(targetPath)) return
+    hoverExpandTimer = setTimeout(() => {
+      hoverExpandTimer = null
+      void options.toggleExpand(targetPath)
+    }, HOVER_EXPAND_DELAY_MS)
   }
 
   async function handleDropResolved(targetPath: string, placement: IPlacement | undefined): Promise<boolean> {
@@ -187,6 +218,8 @@ export function useExplorerDnD(options: UseExplorerDnDOptions): ExplorerDnDContr
     handleDragEnd,
     handleDropResolved,
     rowDropState,
-    shouldSuppressPointerInteraction
+    shouldSuppressPointerInteraction,
+    notifyHoverTarget,
+    clearHoverExpand
   }
 }

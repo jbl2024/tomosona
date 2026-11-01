@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { makeDraggable, makeDroppable, type IPlacement } from '@vue-dnd-kit/core'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
@@ -136,6 +136,16 @@ const dndState = computed(() => props.dnd?.rowDropState(
   blocked: false,
   dragging: false,
   dragGroup: false
+})
+
+// Expand a closed folder after a brief hover while dragging over it.
+watch(dndState, (state) => {
+  if (!props.dnd) return
+  if (state.active && state.intent === 'inside' && state.allowed) {
+    props.dnd.notifyHoverTarget(props.node.path, state.intent)
+  } else {
+    props.dnd.clearHoverExpand()
+  }
 })
 </script>
 
