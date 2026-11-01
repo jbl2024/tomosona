@@ -1096,6 +1096,15 @@ defineExpose({
     }
     await documentRuntime.saveCurrentFile(true)
   },
+  /** Saves an open note buffer by path without switching the active document. */
+  saveOpenDocument: async (path: string) => {
+    const trimmed = path.trim()
+    if (!trimmed) return false
+    if (sourceMode.isSourceMode(trimmed)) {
+      return await sourceRuntime.saveOpenFile(trimmed)
+    }
+    return await documentRuntime.saveOpenFile(trimmed)
+  },
   reloadCurrent: async () => {
     if (!currentPath.value) return
     const requestId = isSourceSurface.value ? sourceRuntime.nextRequestId() : documentRuntime.nextRequestId()

@@ -147,15 +147,26 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
     await nextTick()
   }
 
-  async function saveCurrentFile(manual = true, saveOptions?: { force?: boolean }) {
-    const path = currentPath.value
+  /**
+   * Saves one open raw-text session without touching the active path.
+   * Returns false when the save could not complete (conflict or IO error);
+   * a clean session is a no-op success.
+   */
+  async function saveOpenFile(path: string): Promise<boolean> {
     const session = getSession(path)
-    if (!path || !session || session.saving || !options.isSourceMode(path)) return
+    if (!path || !session || !options.isSourceMode(path)) return false
+    if (!session.dirty || session.saving) return !session.dirty
+    return await saveSessionFile(path, false)
+  }
+
+  async function saveSessionFile(path: string, manual: boolean, saveOptions?: { force?: boolean }): Promise<boolean> {
+    const session = getSession(path)
+    if (!path || !session || session.saving || !options.isSourceMode(path)) return false
 
     const text = normalizeLineEndings(session.text, session.lineEnding)
     if (!manual && text === session.loadedText) {
       sessionStatus.setDirty(path, false)
-      return
+      return true
     }
 
     sessionStatus.setSaving(path, true)
@@ -180,11 +191,11 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
             }
             sessionStatus.setDirty(path, true)
             sessionStatus.setSaveError(path, 'File changed on disk. Resolve the conflict before saving.')
-            return
+            return false
           }
           sessionStatus.setSaveError(path, result.message)
           sessionStatus.setDirty(path, true)
-          return
+          return false
         }
         session.loadedText = text
         session.baseVersion = result.version
@@ -201,13 +212,19 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
       session.conflict = null
       session.isLoaded = true
       sessionStatus.setDirty(path, false)
+      return true
     } catch (error) {
       sessionStatus.setSaveError(path, error instanceof Error ? error.message : 'Could not save file.')
       sessionStatus.setDirty(path, true)
+      return false
     } finally {
       sessionStatus.setSaving(path, false)
       options.emitOutline([])
     }
+  }
+
+  async function saveCurrentFile(manual = true, saveOptions?: { force?: boolean }) {
+    await saveSessionFile(currentPath.value, manual, saveOptions)
   }
 
   async function applyWorkspaceFsChanges(changes: WorkspaceFsChange[]) {
@@ -271,6 +288,7 @@ export function useSourceEditorRuntime(options: UseSourceEditorRuntimeOptions) {
     setActiveSession,
     loadCurrentFile,
     saveCurrentFile,
+    saveOpenFile,
     setText,
     setViewState,
     applyWorkspaceFsChanges,

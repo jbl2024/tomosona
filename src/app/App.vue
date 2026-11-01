@@ -615,6 +615,9 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
   updateWikilinksForPathMoves,
   moveNoteHistoryEntries,
   runWorkspaceMutation,
+  listOpenNotes: () =>
+    multiPane.getOpenDocumentPaths().map((path) => ({ path, dirty: editorState.getStatus(path).dirty })),
+  saveOpenNote: (path) => editorRef.value?.saveOpenDocument(path) ?? Promise.resolve(false),
 })
 const modalController = useAppModalController({
   quickOpenVisible,

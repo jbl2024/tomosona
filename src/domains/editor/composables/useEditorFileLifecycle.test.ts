@@ -131,6 +131,7 @@ function createOptions(overrides: UseEditorFileLifecycleOverrides = {}) {
       delete hiddenHeadings[path]
     },
     serializeCurrentDocBlocks: () => [{ id: 'b1', type: 'paragraph', data: { text: 'Body' } }] as EditorBlock[],
+    serializeDocBlocksForPath: () => [{ id: 'b1', type: 'paragraph', data: { text: 'Body' } }] as EditorBlock[],
     renderBlocks: vi.fn(async () => {})
   }
 

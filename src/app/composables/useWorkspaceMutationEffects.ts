@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { FavoriteEntry, PathMove, PathMoveRewriteResult } from '../../shared/api/apiTypes'
+import { assessMutationReadiness, type OpenNoteBuffer } from '../lib/mutationReadiness'
 import { expandPathMoves, rewritePathWithMoves, sortPathMoves } from '../lib/pathMoves'
 import type { WorkspaceMutationResult } from './useAppIndexingController'
 import { createWorkspaceMutationScheduler } from './workspaceMutationScheduler'
@@ -29,6 +30,33 @@ export type UseWorkspaceMutationEffectsOptions = {
   updateWikilinksForPathMoves: (moves: PathMove[]) => Promise<PathMoveRewriteResult>
   moveNoteHistoryEntries: (moves: PathMove[]) => Promise<void>
   runWorkspaceMutation: (task: () => Promise<WorkspaceMutationResult>) => Promise<void>
+  /** Lists open editor buffers so unsaved notes can be flushed before link rewrites. */
+  listOpenNotes?: () => OpenNoteBuffer[]
+  /** Saves the open buffer at the given (already moved) path; resolves false on conflict/failure. */
+  saveOpenNote?: (path: string) => Promise<boolean>
+}
+
+/**
+ * Flushes unsaved buffers of open notes affected by the moves before any link
+ * rewrite touches disk. Failures are reported but never abort the move batch:
+ * the existing save/conflict flow still protects those buffers afterwards.
+ */
+async function reconcileDirtyOpenNotes(moves: PathMove[], options: UseWorkspaceMutationEffectsOptions) {
+  if (!options.listOpenNotes || !options.saveOpenNote) return
+  // Local state was already patched to the new paths, so map open notes back
+  // through the reversed moves to find the ones the mutation just affected.
+  const reverseMoves = moves.map((move) => ({ from: move.to, to: move.from }))
+  const { dirtyAffected } = assessMutationReadiness({ moves: reverseMoves, openNotes: options.listOpenNotes() })
+  for (const note of dirtyAffected) {
+    try {
+      const saved = await options.saveOpenNote(note.from)
+      if (!saved) {
+        options.filesystemErrorMessage.value = `Unsaved changes in "${note.from}" could not be saved before updating links. Resolve the conflict before saving.`
+      }
+    } catch (err) {
+      options.filesystemErrorMessage.value = err instanceof Error ? err.message : 'Could not save an open note before updating links.'
+    }
+  }
 }
 
 function normalizeMoves(moves: PathMove[]): PathMove[] {
@@ -90,6 +118,7 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     }
 
     await options.runWorkspaceMutation(async () => {
+      await reconcileDirtyOpenNotes(normalizedMoves, options)
       const result = await options.updateWikilinksForRename(payload.from, payload.to)
       await scheduleDeferredLocalSync(normalizedMoves, normalizedMoves)
       try {
@@ -116,6 +145,7 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     }
 
     await options.runWorkspaceMutation(async () => {
+      await reconcileDirtyOpenNotes(normalizedMoves, options)
       const result = await options.updateWikilinksForPathMoves(normalizedMoves)
       await scheduleDeferredLocalSync(normalizedMoves, result.expanded_markdown_moves)
       try {

@@ -164,6 +164,13 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     return fromTiptapDoc(editor.getJSON())
   }
 
+  /** Serializes the blocks of any open document session, not just the active one. */
+  function serializeDocBlocksForPath(path: string): EditorBlock[] {
+    const editor = getSession(path)?.editor ?? null
+    if (!editor) return []
+    return fromTiptapDoc(editor.getJSON())
+  }
+
   /**
    * Replaces editor body content without feeding the normal change pipeline back
    * into autosave/outline updates. This keeps programmatic loads idempotent.
@@ -351,6 +358,7 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
       setHiddenHeading: titleState.setHiddenHeading,
       clearHiddenHeading: titleState.clearHiddenHeading,
       serializeCurrentDocBlocks,
+      serializeDocBlocksForPath,
       renderBlocks
     },
     uiPort: {
@@ -444,6 +452,11 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     await fileLifecycle.saveCurrentFile(manual, saveOptions)
   }
 
+  /** Saves an open document buffer by path without activating it or renaming from its title. */
+  async function saveOpenFile(path: string): Promise<boolean> {
+    return await fileLifecycle.saveOpenFile(path)
+  }
+
   const filesystemSync = useEditorFilesystemSync({
     getSession,
     listPaths: () => sessionStore.listPaths(),
@@ -502,6 +515,7 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     setActiveSession,
     loadCurrentFile,
     saveCurrentFile,
+    saveOpenFile,
     applyWorkspaceFsChanges: filesystemSync.applyWorkspaceFsChanges,
     clearAutosaveTimer,
     scheduleAutosave,
@@ -514,6 +528,7 @@ export function useEditorDocumentRuntime(options: UseEditorDocumentRuntimeOption
     onTitleCommit,
     onEditorDocChanged,
     serializeCurrentDocBlocks,
+    serializeDocBlocksForPath,
     renderBlocks,
     propertyEditorMode,
     frontmatterByPath,

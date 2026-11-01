@@ -103,6 +103,7 @@ export type EditorFileLifecycleDocumentPort = {
   setHiddenHeading: (path: string, text: string) => void
   clearHiddenHeading: (path: string) => void
   serializeCurrentDocBlocks: () => EditorBlock[]
+  serializeDocBlocksForPath: (path: string) => EditorBlock[]
   renderBlocks: (blocks: EditorBlock[]) => Promise<void>
 }
 
@@ -641,9 +642,58 @@ export function useEditorFileLifecycle(options: UseEditorFileLifecycleOptions) {
     }
   }
 
+  /**
+   * Saves one open document session by path without activating it and without
+   * title-driven rename, so workspace mutations can flush unsaved buffers before
+   * rewriting links on disk. Returns false when the conditional save conflicts
+   * or fails; a clean session is a no-op success.
+   */
+  async function saveOpenFile(path: string): Promise<boolean> {
+    if (!path || options.isSourceMode?.(path)) return false
+    const session = sessionPort.getSession(path)
+    if (!session) return false
+    if (!session.dirty || session.saving) return !session.dirty
+
+    sessionPort.setSaving(path, true)
+    sessionPort.setSaveError(path, '')
+    try {
+      const blocks = documentPort.serializeDocBlocksForPath(path)
+      const bodyMarkdown = editorDataToMarkdown({ blocks })
+      const frontmatterState = documentPort.frontmatterByPath.value[path]
+      const frontmatterYaml = documentPort.propertyEditorMode.value === 'raw'
+        ? (documentPort.rawYamlByPath.value[path] ?? '')
+        : serializeFrontmatter(documentPort.serializableFrontmatterFields(frontmatterState?.fields ?? []))
+      const markdown = composeMarkdownDocument(bodyMarkdown, frontmatterYaml)
+
+      const result = await persistBuffer(path, markdown, {
+        explicit: false,
+        expectedBaseVersion: session.baseVersion
+      })
+      if (!result.ok) {
+        sessionPort.setSaveError(path, result.reason === 'CONFLICT' ? 'File changed on disk. Resolve the conflict before saving.' : result.message)
+        sessionPort.setDirty(path, true)
+        return false
+      }
+      session.loadedText = markdown
+      session.baseVersion = result.version
+      session.currentDiskVersion = result.version
+      session.conflict = null
+      documentPort.parseAndStoreFrontmatter(path, markdown)
+      sessionPort.setDirty(path, false)
+      return true
+    } catch (error) {
+      sessionPort.setSaveError(path, error instanceof Error ? error.message : 'Could not save file.')
+      sessionPort.setDirty(path, true)
+      return false
+    } finally {
+      sessionPort.setSaving(path, false)
+    }
+  }
+
   return {
     loadCurrentFile,
     saveCurrentFile,
+    saveOpenFile,
     shouldIgnoreWatcherChangeForPath: (path: string) => pendingManualSavePaths.has(path)
   }
 }

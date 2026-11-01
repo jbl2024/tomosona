@@ -41,6 +41,7 @@ export type EditorPaneGridExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
+  saveOpenDocument: (path: string) => Promise<boolean>
 }
 
 type EditorViewExposed = {
@@ -64,6 +65,7 @@ type EditorViewExposed = {
   getZoom: () => number
   isSourceSurface: () => boolean
   setMarkdownSourceSurfaceEnabled: (enabled: boolean) => Promise<void>
+  saveOpenDocument: (path: string) => Promise<boolean>
 }
 
 const props = defineProps<{
@@ -240,6 +242,14 @@ async function saveNow() {
   await ensureCall((editor) => editor.saveNow(), Promise.resolve())
 }
 
+/** Saves the buffer of any open note across panes; false when no pane holds it. */
+async function saveOpenDocument(path: string): Promise<boolean> {
+  const editors = Object.values(editorRefs).filter((editor) => editor !== null)
+  if (!editors.length) return false
+  const results = await Promise.all(editors.map((editor) => editor.saveOpenDocument(path)))
+  return results.some(Boolean)
+}
+
 async function reloadCurrent() {
   await ensureCall((editor) => editor.reloadCurrent(), Promise.resolve())
 }
@@ -321,6 +331,7 @@ function getZoom() {
 
 defineExpose<EditorPaneGridExposed>({
   saveNow,
+  saveOpenDocument,
   reloadCurrent,
   applyWorkspaceFsChanges,
   focusEditor,
