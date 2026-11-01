@@ -5,6 +5,8 @@ import {
   MagnifyingGlassIcon,
   EllipsisHorizontalIcon
 } from '@heroicons/vue/24/outline'
+import UiMenu from '../../../shared/components/ui/UiMenu.vue'
+import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
 
 defineProps<{
   disabled: boolean
@@ -60,9 +62,10 @@ const emit = defineEmits<{
     >
       <MagnifyingGlassIcon class="h-3.5 w-3.5" />
     </button>
-    <details class="explorer-toolbar-more relative ml-auto">
+    <details class="explorer-toolbar-more relative ml-auto" @keydown.esc.stop.prevent="($event.currentTarget as HTMLDetailsElement).open = false; ($event.currentTarget as HTMLDetailsElement).querySelector('summary')?.focus()">
       <summary class="explorer-toolbar-btn inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md" aria-label="Explorer options" title="Explorer options"><EllipsisHorizontalIcon class="h-4 w-4" /></summary>
-      <div class="ui-menu absolute right-0 top-full z-50 mt-1 min-w-48 p-1" @click="($event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')">
+      <UiMenu class-name="explorer-toolbar-menu absolute right-0 top-full z-50 mt-1 w-48 max-w-[calc(100vw-16px)]" @click="($event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')">
+        <UiMenuList>
         <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('expandAll')">Expand all folders</button>
         <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('collapseAll')">Collapse all folders</button>
         <button type="button" class="ui-menu-item" :disabled="disabled || !canReveal" @click="emit('revealActive')">Reveal active note</button>
@@ -70,7 +73,8 @@ const emit = defineEmits<{
         <button type="button" class="ui-menu-item" role="menuitemradio" :aria-checked="sortOrder === 'descending'" :disabled="disabled" @click="emit('setSort', 'descending')">{{ sortOrder === 'descending' ? '✓ ' : '' }}Sort Z to A</button>
         <button type="button" class="ui-menu-item" role="menuitemcheckbox" :aria-checked="Boolean(showExtensions)" :disabled="disabled" @click="emit('toggleExtensions')">{{ showExtensions ? '✓ ' : '' }}Show extensions</button>
         <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('refresh')">Refresh explorer</button>
-      </div>
+        </UiMenuList>
+      </UiMenu>
     </details>
   </div>
 </template>
