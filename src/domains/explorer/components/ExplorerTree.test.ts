@@ -227,6 +227,43 @@ describe('ExplorerTree', () => {
     mounted.app.unmount()
   })
 
+  it('shows a group action bar for a cross-file ctrl selection without opening notes', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md'), fileNode('/vault/b.md'), fileNode('/vault/c.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    await vi.runAllTimersAsync()
+    await nextTick()
+    await nextTick()
+
+    // Select two rows with the keyboard: ArrowDown focuses the second row and
+    // selects it, Shift+ArrowDown extends the range to the third row.
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }))
+    await nextTick()
+    expect(mounted.root.querySelector('.explorer-group-bar')).toBeNull()
+
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true, bubbles: true, cancelable: true }))
+    await nextTick()
+
+    const bar = mounted.root.querySelector('.explorer-group-bar') as HTMLElement
+    expect(bar).not.toBeNull()
+    expect(bar.textContent).toContain('2 selected')
+    // Keyboard selection must not open any note.
+    expect(mounted.events.filter((event) => event.startsWith('open:'))).toEqual([])
+
+    const deleteButton = Array.from(bar.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Delete') as HTMLButtonElement
+    deleteButton.click()
+    await nextTick()
+    expect(mounted.root.querySelector('.explorer-modal-title')?.textContent).toContain('Delete 2 items?')
+
+    mounted.app.unmount()
+  })
+
   it('opens non-markdown files in-app on single click', async () => {
     listChildren.mockImplementation(async (dirPath: string) => {
       if (dirPath === '/vault') {

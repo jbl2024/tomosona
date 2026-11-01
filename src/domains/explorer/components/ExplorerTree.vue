@@ -622,6 +622,14 @@ onBeforeUnmount(() => {
         @undo="emit('undo')"
       />
 
+      <div v-if="selectionPaths.length > 1" class="explorer-group-bar flex items-center gap-1 rounded-lg border px-2 py-1" role="toolbar" aria-label="Selection actions">
+        <span class="explorer-group-bar-count text-xs">{{ selectionPaths.length }} selected</span>
+        <button type="button" class="explorer-group-bar-btn text-xs" @click="openMoveDialog(selectionPaths)">Move to…</button>
+        <button type="button" class="explorer-group-bar-btn text-xs" @click="operations.setClipboard('copy', selectionPaths)">Copy</button>
+        <button type="button" class="explorer-group-bar-btn text-xs" @click="operations.setClipboard('cut', selectionPaths)">Cut</button>
+        <button type="button" class="explorer-group-bar-btn text-xs" @click="operations.requestDelete(selectionPaths)">Delete</button>
+      </div>
+
       <div v-if="isFilterVisible || hasFilterText" class="explorer-filter-shell">
         <MagnifyingGlassIcon class="explorer-filter-icon h-3.5 w-3.5" />
         <UiInput
@@ -740,6 +748,26 @@ onBeforeUnmount(() => {
 <style scoped>
 .explorer-filter-shell {
   position: relative;
+}
+
+.explorer-group-bar {
+  border-color: var(--panel-border);
+  background: var(--surface-bg);
+}
+
+.explorer-group-bar-count {
+  color: var(--text-dim);
+  margin-right: auto;
+}
+
+.explorer-group-bar-btn {
+  color: var(--text-main);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.125rem 0.5rem;
+}
+
+.explorer-group-bar-btn:hover {
+  background: var(--menu-item-hover-bg);
 }
 
 .explorer-filter-icon {
