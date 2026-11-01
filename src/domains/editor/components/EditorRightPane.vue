@@ -11,7 +11,7 @@
  *   and cross-surface orchestration.
  */
 import { ref } from 'vue'
-import { ChevronRightIcon, ClockIcon, KeyIcon, LockClosedIcon, LockOpenIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
+import { ChevronRightIcon, ClockIcon, KeyIcon, LockClosedIcon, LockOpenIcon, ShieldExclamationIcon, StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
 import UiButton from '../../../shared/components/ui/UiButton.vue'
 
@@ -87,9 +87,9 @@ const activeNoteExpanded = ref(true)
           <template v-if="props.canProtectPage">
             <UiButton v-if="!props.pageProtected" size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'protect')"><LockClosedIcon />Protect with password</UiButton>
             <template v-else>
-              <UiButton size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'unprotect')"><LockOpenIcon />Remove protection</UiButton>
+              <UiButton size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'unprotect')"><ShieldExclamationIcon />Remove protection</UiButton>
               <UiButton size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'change')"><KeyIcon />Change password</UiButton>
-              <UiButton v-if="!props.pageLocked" size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'lock')"><LockClosedIcon />Lock page</UiButton>
+              <UiButton v-if="!props.pageLocked" size="sm" variant="ghost" class-name="utility-note-btn" @click="emit('page-protection-action', 'lock')"><LockOpenIcon />Lock page</UiButton>
             </template>
           </template>
           <div class="pane-toolbar-divider" aria-hidden="true"></div>
