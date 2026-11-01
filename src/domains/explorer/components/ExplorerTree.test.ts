@@ -317,6 +317,42 @@ describe('ExplorerTree', () => {
     mounted.app.unmount()
   })
 
+  it('restores workspace scroll and does not reveal notes on editor navigation', async () => {
+    window.localStorage.setItem('tomosona.explorer.scroll./vault', '73')
+    listChildren.mockImplementation(async (path: string) => path === '/vault' ? [fileNode('/vault/a.md'), fileNode('/vault/b.md')] : [])
+    const mounted = await mountHarness('/vault/a.md')
+    await nextTick()
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    expect(tree.scrollTop).toBe(73)
+    mounted.activePath.value = '/vault/b.md'
+    await nextTick()
+    expect(tree.scrollTop).toBe(73)
+    tree.scrollTop = 31
+    tree.dispatchEvent(new Event('scroll'))
+    expect(window.localStorage.getItem('tomosona.explorer.scroll./vault')).toBe('31')
+    mounted.app.unmount()
+  })
+
+  it('restores the unfiltered scroll position after clearing the filter', async () => {
+    listChildren.mockResolvedValue([fileNode('/vault/a.md'), fileNode('/vault/b.md')])
+    const mounted = await mountHarness('/vault/a.md')
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    tree.scrollTop = 42
+    ;(mounted.root.querySelector('button[aria-label="Toggle filter"]') as HTMLButtonElement).click()
+    await nextTick()
+    const input = mounted.root.querySelector('input[placeholder="Filter files and folders..."]') as HTMLInputElement
+    input.value = 'a'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(180)
+    tree.scrollTop = 0
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    await nextTick()
+    expect(tree.scrollTop).toBe(42)
+    mounted.app.unmount()
+  })
+
   it('debounces fuzzy filtering and keeps ancestor rows for matches', async () => {
     listChildren.mockImplementation(async (dirPath: string) => {
       if (dirPath === '/vault') {
@@ -357,6 +393,30 @@ describe('ExplorerTree', () => {
     expect(mounted.root.querySelector('[data-explorer-path="/vault/features/related.md"]')).toBeTruthy()
     expect(mounted.root.querySelector('[data-explorer-path="/vault/inbox.md"]')).toBeNull()
 
+    mounted.app.unmount()
+  })
+
+  it('opens a unique name match on Enter and clears then exits with Escape', async () => {
+    listChildren.mockResolvedValue([fileNode('/vault/Résumé.md'), fileNode('/vault/other.md')])
+    const mounted = await mountHarness('/vault/other.md')
+    ;(mounted.root.querySelector('button[aria-label="Toggle filter"]') as HTMLButtonElement).click()
+    await nextTick()
+    const input = mounted.root.querySelector('input[placeholder="Filter files and folders..."]') as HTMLInputElement
+    input.value = 'resume'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(180)
+    await nextTick()
+    expect(mounted.root.textContent).toContain('1 result')
+    expect(mounted.root.querySelectorAll('mark').length).toBe(6)
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await vi.waitFor(() => expect(mounted.events).toContain('open:/vault/Résumé.md'))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(input.value).toBe('')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(mounted.root.querySelector('input[placeholder="Filter files and folders..."]')).toBeNull()
     mounted.app.unmount()
   })
 

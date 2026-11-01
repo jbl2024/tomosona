@@ -6,6 +6,7 @@ import type { TreeNode } from '../../../shared/api/apiTypes'
 import { DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import type { ExplorerDnDController } from '../composables/useExplorerDnD'
 import type { ExplorerDropIntent } from '../lib/explorerDndRules'
+import { explorerMatchPositions } from '../lib/explorerFilter'
 
 const props = defineProps<{
   node: TreeNode
@@ -17,6 +18,7 @@ const props = defineProps<{
   cutPending: boolean
   editing: boolean
   renameValue: string
+  filterQuery?: string
   contextActive?: boolean
   dnd?: ExplorerDnDController
 }>()
@@ -40,6 +42,7 @@ function iconForNode(node: TreeNode) {
   return DocumentIcon
 }
 
+const matchPositions = computed(() => explorerMatchPositions(props.node.name, props.filterQuery ?? ''))
 const rowRef = ref<HTMLElement | null>(null)
 
 function onRowPointerDown(event: PointerEvent) {
@@ -189,7 +192,7 @@ const dndState = computed(() => props.dnd?.rowDropState(
         ]"
         :title="node.path"
       >
-        {{ node.name }}
+        <template v-for="(character, index) in Array.from(node.name)" :key="index"><mark v-if="matchPositions.has(index)">{{ character }}</mark><template v-else>{{ character }}</template></template>
       </span>
     </div>
 

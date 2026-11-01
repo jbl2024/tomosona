@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DnDProvider } from '@vue-dnd-kit/core'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { EntryKind, TreeNode } from '../../../shared/api/apiTypes'
 import type { PathMove } from '../../../shared/api/apiTypes'
@@ -17,7 +17,7 @@ import { useExplorerFsSync } from '../composables/useExplorerFsSync'
 import { useExplorerKeyboard } from '../composables/useExplorerKeyboard'
 import { useExplorerOperations } from '../composables/useExplorerOperations'
 import { useExplorerTreeState } from '../composables/useExplorerTreeState'
-import { filterExplorerRows } from '../lib/explorerFilter'
+import { explorerNameMatches, filterExplorerRows } from '../lib/explorerFilter'
 import { isTextFile } from '../../../shared/api/workspaceApi'
 
 const props = defineProps<{
@@ -46,6 +46,16 @@ const debouncedFilterQuery = ref('')
 const filterInputRef = ref<InstanceType<typeof UiInput> | null>(null)
 const isFilterVisible = ref(false)
 let filterDebounceTimer: number | null = null
+let unfilteredScrollTop: number | null = null
+
+function scrollStorageKey(workspace: string) {
+  return `tomosona.explorer.scroll.${workspace}`
+}
+
+function persistScroll() {
+  if (!props.folderPath || hasActiveFilter.value || hasFilterText.value || !treeRef.value) return
+  window.localStorage.setItem(scrollStorageKey(props.folderPath), String(treeRef.value.scrollTop))
+}
 
 const selectionManager = useSelectionManager()
 const isMac = navigator.platform.toLowerCase().includes('mac')
@@ -74,6 +84,10 @@ const filteredRows = computed(() => filterExplorerRows(
     childrenByDir: treeState.childrenByDir.value
   }
 ))
+const matchingRows = computed(() => filteredRows.value.filter((row) => {
+  const node = treeState.nodeByPath.value[row.path]
+  return node && explorerNameMatches(node, debouncedFilterQuery.value)
+}))
 const visibleNodePaths = computed(() => filteredRows.value.map((row) => row.path))
 const hasActiveFilter = computed(() => debouncedFilterQuery.value.trim().length > 0)
 const hasFilterText = computed(() => filterQuery.value.trim().length > 0)
@@ -200,10 +214,44 @@ function toggleFilterVisibility() {
 }
 
 function clearFilter() {
+  if (filterDebounceTimer !== null) {
+    window.clearTimeout(filterDebounceTimer)
+    filterDebounceTimer = null
+  }
   filterQuery.value = ''
   debouncedFilterQuery.value = ''
+  if (unfilteredScrollTop !== null) {
+    const position = unfilteredScrollTop
+    unfilteredScrollTop = null
+    void nextTick(() => { if (treeRef.value) treeRef.value.scrollTop = position })
+  }
   isFilterVisible.value = true
   focusFilterInput()
+}
+
+async function onFilterKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (filterQuery.value.trim()) clearFilter()
+    else { isFilterVisible.value = false; treeState.focusTree() }
+  } else if (event.key === 'Enter' && filterQuery.value.trim()) {
+    event.preventDefault()
+    const query = filterQuery.value
+    const workspace = props.folderPath
+    await treeState.preloadAllDirs()
+    if (query !== filterQuery.value || workspace !== props.folderPath) return
+    const rows = filterExplorerRows(query, treeState.visibleRows.value, {
+      rootPath: workspace,
+      childrenByDir: treeState.childrenByDir.value
+    }).filter((row) => {
+      const node = treeState.nodeByPath.value[row.path]
+      return node && explorerNameMatches(node, query)
+    })
+    if (rows.length === 1) {
+      const node = treeState.nodeByPath.value[rows[0].path]
+      if (node && !node.is_dir) await operations.openNode(node.path)
+    }
+  }
 }
 
 function handleRowClick(event: MouseEvent, node: TreeNode) {
@@ -348,29 +396,35 @@ async function onContextAction(action: MenuAction) {
 
 watch(
   () => props.folderPath,
-  async () => {
+  async (workspace, previous) => {
+    if (previous && treeRef.value && !hasActiveFilter.value) {
+      window.localStorage.setItem(scrollStorageKey(previous), String(treeRef.value.scrollTop))
+    }
+    unfilteredScrollTop = null
+    treeState.resetState()
     await treeState.initializeExplorer()
+    if (workspace !== props.folderPath) return
     fsSync.resetWatcherSession()
+    await nextTick()
+    const saved = Number(window.localStorage.getItem(scrollStorageKey(workspace)))
+    if (treeRef.value && Number.isFinite(saved) && saved >= 0) treeRef.value.scrollTop = saved
   },
   { immediate: true }
 )
 
-watch(
-  () => props.activePath,
-  async (next) => {
-    if (!next || !props.folderPath) return
-    await treeState.revealPathInView(next)
-  },
-  { immediate: true }
-)
-
-watch(filterQuery, (next) => {
+watch(filterQuery, (next, previous) => {
+  if (!previous.trim() && next.trim()) unfilteredScrollTop = treeRef.value?.scrollTop ?? 0
   if (filterDebounceTimer) {
     window.clearTimeout(filterDebounceTimer)
   }
 
   filterDebounceTimer = window.setTimeout(() => {
     debouncedFilterQuery.value = next
+    if (!next.trim() && unfilteredScrollTop !== null) {
+      const position = unfilteredScrollTop
+      unfilteredScrollTop = null
+      void nextTick(() => { if (treeRef.value) treeRef.value.scrollTop = position })
+    }
     filterDebounceTimer = null
   }, 180)
 })
@@ -429,6 +483,7 @@ onBeforeUnmount(() => {
           size="sm"
           class-name="explorer-filter !pl-8 pr-8"
           placeholder="Filter files and folders..."
+          @keydown="onFilterKeydown"
         />
         <button
           v-if="hasFilterText"
@@ -442,10 +497,13 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
+      <p v-if="hasActiveFilter" class="explorer-empty-state px-2 text-xs" aria-live="polite">{{ matchingRows.length }} {{ matchingRows.length === 1 ? 'result' : 'results' }}</p>
+
       <div
         ref="treeRef"
         tabindex="0"
         class="min-h-0 flex-1 overflow-auto bg-transparent p-0.5 outline-none focus-visible:ring-0"
+        @scroll="persistScroll"
         @keydown="keyboard.onTreeKeydown"
         @contextmenu.prevent="onTreeContextMenu"
         @click="clearSelectionIfBackground"
@@ -469,6 +527,7 @@ onBeforeUnmount(() => {
             :cut-pending="Boolean(operations.clipboard.value?.mode === 'cut' && operations.clipboard.value.paths.includes(row.path))"
             :editing="operations.editingPath.value === row.path"
             :rename-value="operations.editingValue.value"
+            :filter-query="debouncedFilterQuery"
             :context-active="contextPathSet.has(row.path)"
             :dnd="dnd"
             @toggle="treeState.toggleExpand"

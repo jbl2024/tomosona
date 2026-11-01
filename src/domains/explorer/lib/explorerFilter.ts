@@ -67,8 +67,7 @@ function collectMatches(
 
 function matchesExplorerQuery(node: TreeNode, normalizedQuery: string): boolean {
   const name = normalizeForSearch(node.name)
-  const path = normalizeForSearch(node.path)
-  return fuzzyIncludes(name, normalizedQuery) || fuzzyIncludes(path, normalizedQuery)
+  return fuzzyIncludes(name, normalizedQuery)
 }
 
 function normalizeForSearch(value: string): string {
@@ -94,4 +93,37 @@ function fuzzyIncludes(candidate: string, query: string): boolean {
   }
 
   return false
+}
+
+/** Returns the character positions matching a fuzzy name query, or an empty set. */
+export function explorerMatchPositions(name: string, query: string): Set<number> {
+  const needle = normalizeForSearch(query)
+  if (!needle) return new Set()
+  const chars = Array.from(name)
+  const normalized = chars.map((char) => char.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  const joined = normalized.join('')
+  const start = joined.indexOf(needle)
+  const indexes: number[] = []
+  if (start >= 0) {
+    for (let i = start; i < start + needle.length; i++) indexes.push(i)
+  } else {
+    let next = 0
+    for (let i = 0; i < joined.length && next < needle.length; i++) {
+      if (joined[i] === needle[next]) { indexes.push(i); next++ }
+    }
+    if (next !== needle.length) return new Set()
+  }
+  const positions = new Set<number>()
+  let offset = 0
+  normalized.forEach((part, index) => {
+    if (indexes.some((position) => position >= offset && position < offset + part.length)) positions.add(index)
+    offset += part.length
+  })
+  return positions
+}
+
+/** Whether a node's own name matches the local explorer query. */
+export function explorerNameMatches(node: TreeNode, query: string): boolean {
+  const normalized = normalizeForSearch(query)
+  return Boolean(normalized && matchesExplorerQuery(node, normalized))
 }

@@ -25,7 +25,7 @@
 
 ## 4. Filtering and navigation state
 
-- [ ] 4.1 Extend the local tree filter with match highlighting, counts, empty state, Enter and two-step Escape while retaining accent-insensitive fuzzy behavior; test matching folders without nonmatching descendants, ancestors, unloaded branches and unique results.
+- [x] 4.1 Extend the local tree filter with match highlighting, counts, empty state, Enter and two-step Escape while retaining accent-insensitive fuzzy behavior; test matching folders without nonmatching descendants, ancestors, unloaded branches and unique results.
 - [ ] 4.2 Preserve expansion and scroll around filtering and across workspace restarts; test collapsed parents, stale paths, external changes and explicit reveal without unwanted navigation.
 - [ ] 4.3 Complete tree keyboard controls, focus restoration and accessible labels; test synchronized single selection and focus, independent active-note state, traversal, arrows, F2, Space and key isolation in inputs and dialogs.
 - [ ] 4.4 Ensure deeply nested active paths remain accessible from the editor and test explorer/editor synchronization on navigation and rename.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { filterExplorerRows } from './explorerFilter'
+import { explorerMatchPositions, filterExplorerRows } from './explorerFilter'
 
 function dirNode(path: string): TreeNode {
   return {
@@ -66,8 +66,8 @@ describe('filterExplorerRows', () => {
     ])
   })
 
-  it('matches non-contiguous fuzzy queries against names and paths', () => {
-    expect(filterExplorerRows('jr13', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
+  it('matches non-contiguous fuzzy queries against names', () => {
+    expect(filterExplorerRows('213', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
       { path: '/vault/journal', depth: 0 },
       { path: '/vault/journal/2026/03/2026-03-13.md', depth: 1 }
     ])
@@ -94,36 +94,26 @@ describe('filterExplorerRows', () => {
 
   it('matches accent-insensitively on directory names too', () => {
     expect(filterExplorerRows('resume', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
-      { path: '/vault/Résumés', depth: 0 },
-      { path: '/vault/Résumés/thèmes.md', depth: 1 }
+      { path: '/vault/Résumés', depth: 0 }
     ])
   })
 
-  it('matches through the full normalized path, not only the basename', () => {
-    expect(filterExplorerRows('resumetheme', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
-      { path: '/vault/Résumés', depth: 0 },
-      { path: '/vault/Résumés/thèmes.md', depth: 1 }
-    ])
+  it('does not match across ancestor and child names', () => {
+    expect(filterExplorerRows('resumetheme', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([])
   })
 
   it('returns an empty list when nothing matches', () => {
     expect(filterExplorerRows('zzz', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([])
   })
 
-  it('includes a matching directory and path-matching children beneath it', () => {
+  it('does not include nonmatching children of a matching directory', () => {
     expect(filterExplorerRows('journal', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
-      { path: '/vault/journal', depth: 0 },
-      { path: '/vault/journal/2026/03/2026-03-12.md', depth: 1 },
-      { path: '/vault/journal/2026/03/2026-03-13.md', depth: 1 }
+      { path: '/vault/journal', depth: 0 }
     ])
   })
 
-  it('includes all matching descendants under a matching directory', () => {
-    expect(filterExplorerRows('journal2', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([
-      { path: '/vault/journal', depth: 0 },
-      { path: '/vault/journal/2026/03/2026-03-12.md', depth: 1 },
-      { path: '/vault/journal/2026/03/2026-03-13.md', depth: 1 }
-    ])
+  it('does not match a child through its ancestor path', () => {
+    expect(filterExplorerRows('journal2', visibleRows, { rootPath: '/vault', childrenByDir })).toEqual([])
   })
 
   it('works with partially loaded trees by only searching loaded directories', () => {
@@ -143,5 +133,13 @@ describe('filterExplorerRows', () => {
       { path: '/vault/journal/2026/03/2026-03-12.md', depth: 1 },
       { path: '/vault/journal/2026/03/2026-03-13.md', depth: 1 }
     ])
+  })
+})
+
+describe('explorerMatchPositions', () => {
+  it('highlights accent-insensitive and fuzzy matches in the displayed name', () => {
+    expect([...explorerMatchPositions('Mes thèmes.md', 'themes')]).toEqual([4, 5, 6, 7, 8, 9])
+    expect([...explorerMatchPositions('Roadmap.md', 'rmp')]).toEqual([0, 4, 6])
+    expect([...explorerMatchPositions('Roadmap.md', 'xyz')]).toEqual([])
   })
 })

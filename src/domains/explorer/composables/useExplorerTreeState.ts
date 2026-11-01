@@ -223,12 +223,6 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
       }
     }
 
-    const activePath = options.activePath.value?.trim() ?? ''
-    if (activePath) {
-      await revealPathInView(activePath, { behavior: 'auto' })
-      return
-    }
-
     if (!options.selection.selectedPaths.value.length && visibleNodePaths.value.length) {
       options.selection.selectSingle(visibleNodePaths.value[0])
       focusedPath.value = visibleNodePaths.value[0]
