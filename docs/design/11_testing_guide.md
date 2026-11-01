@@ -138,6 +138,23 @@ async function flushUi() {
 
 Use fake timers for debounced behavior, and restore real timers in cleanup.
 
+### Ancestor Event Handlers
+
+Vue stamps every dispatched event with `event._vts` and skips a handler when
+`event._vts <= invoker.attached` (see `createInvoker` in `@vue/runtime-dom`).
+The guard exists so a listener attached right after a dispatch does not react to
+that same event. In tests it means a handler bound on an **ancestor** can be
+silently skipped when the child handler runs first and both the mount and the
+dispatch land in the same millisecond.
+
+Assert on the child's own effect (`event.defaultPrevented`) and observe the
+ancestor with a native listener instead of a Vue `onXxx` prop:
+
+```ts
+let ancestorPointerDowns = 0
+root.addEventListener('pointerdown', () => { ancestorPointerDowns += 1 })
+```
+
 ## State Reset And Cleanup
 
 Clean up browser and mock state after every test that changes it:

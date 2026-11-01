@@ -1,4 +1,4 @@
-import { createApp, defineComponent, h, nextTick, ref } from 'vue'
+import { createApp, h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ExplorerItem from './ExplorerItem.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
@@ -56,49 +56,45 @@ describe('ExplorerItem', () => {
     app.unmount()
   })
 
-  it('stops non-primary pointerdown events so right click cannot start drag', async () => {
-    const pointerDowns = ref(0)
+  it('stops non-primary pointerdown events so right click cannot start drag', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
 
-    const app = createApp(defineComponent({
-      setup() {
-        return () =>
-          h(
-            'div',
-            {
-              onPointerdown: () => {
-                pointerDowns.value += 1
-              }
-            },
-            [
-              h(ExplorerItem, {
-                node: fileNode('/vault/a.md'),
-                depth: 0,
-                expanded: false,
-                selected: false,
-                active: false,
-                focused: false,
-                cutPending: false,
-                editing: false,
-                renameValue: ''
-              })
-            ]
-          )
-      }
+    const app = createApp(() => h(ExplorerItem, {
+      node: fileNode('/vault/a.md'),
+      depth: 0,
+      expanded: false,
+      selected: false,
+      active: false,
+      focused: false,
+      cutPending: false,
+      editing: false,
+      renameValue: ''
     }))
-
     app.mount(root)
 
     const row = root.querySelector('[data-explorer-path="/vault/a.md"]') as HTMLElement
-    row.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 2 }))
+    // A plain ancestor listener stands in for the DnD provider, which attaches
+    // native listeners above the row. It must never see a non-primary press.
+    //
+    // The listener is deliberately not a Vue `onPointerdown` handler: Vue 3.5
+    // skips an invoker when `event._vts <= invoker.attached`, so a handler
+    // attached in the same millisecond as the dispatch is silently dropped and
+    // the assertion would flake.
+    const ancestorPointerDowns = vi.fn()
+    root.addEventListener('pointerdown', ancestorPointerDowns)
 
-    expect(pointerDowns.value).toBe(0)
+    const right = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 2 })
+    row.dispatchEvent(right)
+    expect(right.defaultPrevented).toBe(true)
+    expect(ancestorPointerDowns).not.toHaveBeenCalled()
 
-    row.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    const left = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
+    row.dispatchEvent(left)
+    expect(left.defaultPrevented).toBe(false)
+    expect(ancestorPointerDowns).toHaveBeenCalledTimes(1)
 
-    expect(pointerDowns.value).toBe(1)
-
+    root.removeEventListener('pointerdown', ancestorPointerDowns)
     app.unmount()
   })
 })
