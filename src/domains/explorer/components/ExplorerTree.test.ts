@@ -373,12 +373,141 @@ describe('ExplorerTree', () => {
       return []
     })
 
-    const mounted = await mountHarness('/vault/photo.png')
+    const mounted = await mountHarness('/vault/other.md')
     const row = mounted.root.querySelector('[data-explorer-path="/vault/photo.png"]') as HTMLElement
     row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     await nextTick()
 
     expect(mounted.events).toEqual(['open:/vault/photo.png'])
+
+    mounted.app.unmount()
+  })
+
+  it('opens a note that is not active yet', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md'), fileNode('/vault/b.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const row = mounted.root.querySelector('[data-explorer-path="/vault/b.md"]') as HTMLElement
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(mounted.events).toEqual(['open:/vault/b.md'])
+
+    mounted.app.unmount()
+  })
+
+  it('takes the keyboard back on a folder click without opening anything', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [{ name: 'notes', path: '/vault/notes', is_dir: true, is_markdown: false, has_children: true }]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    const focusSpy = vi.spyOn(tree, 'focus')
+    const row = mounted.root.querySelector('[data-explorer-path="/vault/notes"]') as HTMLElement
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(mounted.events).toEqual([])
+    expect(focusSpy).toHaveBeenCalled()
+
+    mounted.app.unmount()
+  })
+
+  it('takes the keyboard back on a background click', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    const focusSpy = vi.spyOn(tree, 'focus')
+    tree.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(focusSpy).toHaveBeenCalled()
+
+    mounted.app.unmount()
+  })
+
+  it('hands keyboard focus back to the explorer when the open note is clicked again', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md'), fileNode('/vault/b.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    const focusSpy = vi.spyOn(tree, 'focus')
+    const row = mounted.root.querySelector('[data-explorer-path="/vault/a.md"]') as HTMLElement
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    // Re-clicking the active note must not re-open it nor pull the caret back.
+    expect(mounted.events).toEqual([])
+    expect(focusSpy).toHaveBeenCalled()
+
+    mounted.app.unmount()
+  })
+
+  it('leaves the caret in the editor when a double click opens a new note', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md'), fileNode('/vault/b.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    const focusSpy = vi.spyOn(tree, 'focus')
+    const row = mounted.root.querySelector('[data-explorer-path="/vault/b.md"]') as HTMLElement
+
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+    await nextTick()
+    // The shell opened the note and moved focus to the editor.
+    mounted.activePath.value = '/vault/b.md'
+    await nextTick()
+    focusSpy.mockClear()
+
+    // Second click and double-click of the same gesture must not reclaim focus.
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }))
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(mounted.events).toEqual(['open:/vault/b.md'])
+    expect(focusSpy).not.toHaveBeenCalled()
+
+    mounted.app.unmount()
+  })
+
+  it('does not re-open the active note on double click', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    const row = mounted.root.querySelector('[data-explorer-path="/vault/a.md"]') as HTMLElement
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(mounted.events).toEqual([])
 
     mounted.app.unmount()
   })
@@ -419,7 +548,7 @@ describe('ExplorerTree', () => {
       return []
     })
 
-    const mounted = await mountHarness('/vault/test.txt')
+    const mounted = await mountHarness('/vault/other.md')
     const row = mounted.root.querySelector('[data-explorer-path="/vault/test.txt"]') as HTMLElement
     row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
     await nextTick()
@@ -447,7 +576,7 @@ describe('ExplorerTree', () => {
       return []
     })
 
-    const mounted = await mountHarness('/vault/main.ts')
+    const mounted = await mountHarness('/vault/other.md')
     const row = mounted.root.querySelector('[data-explorer-path="/vault/main.ts"]') as HTMLElement
     row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
     await nextTick()

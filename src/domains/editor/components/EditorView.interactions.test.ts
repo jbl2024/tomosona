@@ -121,6 +121,49 @@ describe('EditorView interactions contract', () => {
     document.body.innerHTML = ''
   })
 
+  it('replays a focus request that arrives while the note is still loading', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const path = ref('a.md')
+    const editorRef = ref<unknown>(null)
+    const pendingContent = deferred<string>()
+
+    const app = createApp(defineComponent({
+      setup: () => () => h(EditorView, {
+        ref: editorRef,
+        path: path.value,
+        openPaths: [path.value],
+        openFile: async (valuePath: string) => valuePath === 'a.md' ? '# A\n\nBody' : pendingContent.promise,
+        saveFile: async () => ({ persisted: true }),
+        renameFileFromTitle: async (valuePath: string, title: string) => ({ path: valuePath, title }),
+        loadLinkTargets: async () => [],
+        loadLinkHeadings: async () => [],
+        loadPropertyTypeSchema: async () => ({}),
+        savePropertyTypeSchema: async () => {},
+        openLinkTarget: async () => true
+      })
+    }))
+    app.mount(root)
+    await flushUi()
+
+    const holder = root.querySelector('.editor-holder') as HTMLElement
+
+    // Opening a freshly created note: the shell asks for the caret before the
+    // content read resolves.
+    path.value = 'new.md'
+    await nextTick()
+    ;(editorRef.value as { focusEditor: () => void }).focusEditor()
+    await flushUi()
+    expect(holder.contains(document.activeElement)).toBe(false)
+
+    pendingContent.resolve('')
+    await flushUi()
+    expect(holder.contains(document.activeElement)).toBe(true)
+
+    app.unmount()
+    document.body.innerHTML = ''
+  })
+
   it('keeps event contract and supports keyboard flow without crashes', async () => {
     const root = document.createElement('div')
     document.body.appendChild(root)

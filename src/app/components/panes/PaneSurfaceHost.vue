@@ -119,7 +119,9 @@ defineExpose<EditorSurfaceExposed>({
   saveNow: async () => await withEditor((editor) => editor.saveNow(), Promise.resolve()),
   reloadCurrent: async () => await withEditor((editor) => editor.reloadCurrent(), Promise.resolve()),
   applyWorkspaceFsChanges: async (changes: WorkspaceFsChange[]) => { await editorSurfaceRef.value?.applyWorkspaceFsChanges(changes) },
-  focusEditor: () => withEditor((editor) => editor.focusEditor(), undefined),
+  // Focus is not gated on `pageReady`: the editor surface queues the request
+  // while the note is still loading and replays it once the content is committed.
+  focusEditor: () => editorSurfaceRef.value?.focusEditor(),
   openNoteHistory: async () => await withEditor((editor) => editor.openNoteHistory(), Promise.resolve()),
   isSourceSurface: () => withEditor((editor) => editor.isSourceSurface(), false),
   setMarkdownSourceSurfaceEnabled: async (enabled: boolean) => await withEditor((editor) => editor.setMarkdownSourceSurfaceEnabled(enabled), Promise.resolve()),

@@ -432,12 +432,29 @@ async function confirmInlineNote(name: string) {
   }
 }
 
+/** True when the pointer landed inside an editable control such as the rename input. */
+function isEditableClickTarget(target: EventTarget | null): boolean {
+  const element = target instanceof HTMLElement ? target : null
+  if (!element) return false
+  const tag = element.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || element.isContentEditable
+}
+
 function handleRowClick(event: MouseEvent, node: TreeNode) {
   if (dnd.shouldSuppressPointerInteraction()) {
     event.preventDefault()
     event.stopPropagation()
     return
   }
+
+  // Clicks inside the rename input belong to that input, not to row selection.
+  if (isEditableClickTarget(event.target)) return
+
+  // Pointer interaction hands the keyboard to the explorer; opening a note below
+  // moves it to the editor once the note is ready. The second click of a
+  // double-click (detail > 1) is excluded so it cannot steal the focus that the
+  // open flow just placed in the editor.
+  if (event.detail <= 1) treeState.focusTree()
 
   const ordered = visibleNodePaths.value
   const isToggle = isMac ? event.metaKey : event.ctrlKey
@@ -459,14 +476,13 @@ function handleRowClick(event: MouseEvent, node: TreeNode) {
   }
 
   if (!node.is_dir && !event.shiftKey && !isToggle) {
-    if (node.is_markdown) {
-      if (rowActionMode.value === 'context-toggle') {
-        emit('toggle-context', node.path)
-        return
-      }
-      emit('open', node.path)
+    if (node.is_markdown && rowActionMode.value === 'context-toggle') {
+      emit('toggle-context', node.path)
       return
     }
+    // Already open: keep the keyboard in the explorer instead of re-focusing
+    // the editor.
+    if (node.path === props.activePath) return
     emit('open', node.path)
   }
 }
@@ -478,6 +494,8 @@ async function handleDoubleClick(node: TreeNode) {
 
   if (node.is_dir) return
   if (node.is_markdown || await isTextFile(node.path)) {
+    // Already open: keep the current focus instead of re-focusing the editor.
+    if (node.path === props.activePath) return
     emit('open', node.path)
   } else {
     void openPathExternal(node.path)
@@ -511,6 +529,7 @@ function clearSelectionIfBackground(event: MouseEvent) {
   if (event.target === event.currentTarget) {
     selectionManager.clearSelection()
     emit('select', [])
+    treeState.focusTree()
   }
 }
 

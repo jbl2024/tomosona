@@ -825,10 +825,23 @@ function getDocumentSession(path: string) {
   return documentRuntime?.getSession(path) ?? null
 }
 
+/**
+ * Focus requests that arrive while a note is still loading are replayed once the
+ * session finishes loading. Opening or creating a note asks for the caret before
+ * the file content is committed, so dropping the request would leave the caret
+ * outside the body.
+ */
+let pendingEditorFocus = false
+
 function focusEditor() {
   if (isSourceSurface.value) {
     const sourceEditor = holder.value?.querySelector('.editor-session-pane[data-active="true"] .tomosona-source-editor .cm-content') as HTMLElement | null
     sourceEditor?.focus()
+    return
+  }
+  const session = currentPath.value ? getDocumentSession(currentPath.value) : null
+  if (session && !session.isLoaded) {
+    pendingEditorFocus = true
     return
   }
   layout.focusEditor()
@@ -852,6 +865,17 @@ async function loadVisibleDocument(path: string, requestId: number) {
 }
 
 const activeSession = computed(() => currentPath.value ? getSession(currentPath.value) : null)
+
+watch(
+  () => activeSession.value?.isLoaded,
+  (loaded) => {
+    if (!loaded || !pendingEditorFocus) return
+    pendingEditorFocus = false
+    // Wait for the content commit to render before placing the caret.
+    void nextTick().then(() => layout.focusEditor())
+  }
+)
+
 const activeConflict = computed(() => activeSession.value?.conflict ?? null)
 const noteHistoryRestoreDisabledReason = computed(() =>
   activeSession.value?.dirty ? 'Save or discard current edits before restoring a snapshot.' : ''

@@ -52,6 +52,15 @@
   selection. Starting from a selected row moves the normalized selection.
 - Folder moves reuse the existing confirmation prompt and name-conflict flow
   from `useExplorerOperations.ts`.
+- The tree takes the keyboard back on every click, so keyboard navigation stays
+  usable. Only actually opening a note (or a binary file) hands focus to the
+  editor, and that hand-off happens after the open request is emitted so it wins
+  over the tree focus. Clicking an entry that is already open therefore does not
+  re-open it and leaves focus in the tree. The second click of a double-click
+  (`event.detail > 1`) is excluded so opening a new note still leaves the caret
+  in the editor.
+- Clicks inside an editable control (the inline rename input) never reach row
+  selection, so renaming is not interrupted by a focus change.
 
 ## Mutation preflight foundation
 
