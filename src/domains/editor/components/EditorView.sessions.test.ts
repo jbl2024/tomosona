@@ -93,10 +93,10 @@ describe('EditorView per-document sessions', () => {
     const controls: HarnessControls = { path: ref('/vault/deep/folder/One.md'), openPaths: ref(['/vault/deep/folder/One.md', '/vault/Other.md']) }
     const mounted = mountHarness({ controls, openFile: async () => '# Note\n\nBody' })
     await flushEditorUi()
-    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('deep/folder/One.md')
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('deep/folder/One.md')
     controls.path.value = '/vault/Other.md'
     await flushEditorUi()
-    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('Other.md')
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('Other.md')
     controls.openPaths.value = ['/vault/deep/folder/Renamed.md', '/vault/Other.md']
     controls.path.value = '/vault/deep/folder/Renamed.md'
     await flushEditorUi()
@@ -132,7 +132,7 @@ describe('EditorView per-document sessions', () => {
     })
     await effects.handlePathRenamed({ from: original, to: renamed })
     await flushEditorUi()
-    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('projects/deep/Renamed.md')
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('projects/deep/Renamed.md')
     mounted.app.unmount()
   })
 
@@ -187,14 +187,14 @@ describe('EditorView per-document sessions', () => {
     await flushEditorUi()
 
     expect(sourceEditorText(mounted.root)).toContain('<div>App</div>')
-    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('src/App.vue')
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('src/App.vue')
 
     controls.path.value = 'src/main.ts'
     await flushEditorUi()
 
     expect(openFile).toHaveBeenCalledWith('src/main.ts')
     expect(sourceEditorText(mounted.root)).toContain('createApp({})')
-    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('src/main.ts')
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('src/main.ts')
 
     mounted.app.unmount()
   })

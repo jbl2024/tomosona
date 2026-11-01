@@ -9,6 +9,8 @@ export type FileEditorStatus = {
   dirty: boolean
   saving: boolean
   saveError: string
+  /** Set when the note could not be read at all, so the tab can flag it. */
+  inaccessible?: boolean
 }
 
 export function useEditorState() {
@@ -19,7 +21,8 @@ export function useEditorState() {
   const defaultStatus: FileEditorStatus = {
     dirty: false,
     saving: false,
-    saveError: ''
+    saveError: '',
+    inaccessible: false
   }
 
   function getStatus(path: string): FileEditorStatus {

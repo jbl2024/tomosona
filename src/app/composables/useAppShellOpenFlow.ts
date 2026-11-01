@@ -175,10 +175,10 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     return await options.navigationPort.openDailyNote(formatIsoDate(value), options.navigationPort.openTabWithAutosave)
   }
 
-  async function showExplorerForActiveFile(optionsOverride: { focusTree?: boolean } = {}) {
+  async function showExplorerForActiveFile(optionsOverride: { focusTree?: boolean; path?: string } = {}) {
     options.workspacePort.setSidebarMode('explorer')
     if (!options.workspacePort.sidebarVisible.value) return
-    const activePath = options.editorPort.activeFilePath.value
+    const activePath = optionsOverride.path ?? options.editorPort.activeFilePath.value
     if (!activePath) return
     await nextTick()
     for (let attempt = 0; attempt < 4; attempt += 1) {

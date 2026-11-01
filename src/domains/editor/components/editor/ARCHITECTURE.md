@@ -44,6 +44,10 @@
 - Block + table overlays rendering: `EditorContextOverlays.vue`
 - Note history restore modal: `EditorNoteHistoryDialog.vue`
 - Source/raw-text surface rendering: `SourceEditorPane.vue`
+- Document location breadcrumb: `EditorPathBreadcrumb.vue`
+  Segment building and condensation live in `lib/breadcrumbSegments.ts`. The component
+  owns no explorer or clipboard access: it emits `segment-action` and the shell routes
+  it to its ports, so revealing a folder never changes the active document.
 
 ## Invariants
 - `EditorView.vue` stays a shell; it wires runtimes and template, but does not own editor workflows directly.
@@ -62,6 +66,8 @@
 - Markdown source mode is a path preference stored separately from the note content so switching back to rich mode preserves the user's choice.
 - Loading overlays for complex docs should remain visible until `waitForHeavyRenderIdle` settles after `setContent`.
 - Overlay trigger is not size-only: heavy markdown complexity and runtime pending render signals can escalate loading UI for below-threshold files.
+- The breadcrumb is never editable in place; renaming keeps its dedicated action so internal links stay safe.
+- The status bar shows the document name, never its path: the breadcrumb owns the location.
 
 ## Anti-patterns
 - Re-introducing editor orchestration directly in `EditorView.vue`.

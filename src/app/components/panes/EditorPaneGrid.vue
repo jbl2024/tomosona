@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { DnDProvider } from '@vue-dnd-kit/core'
 import EditorPaneTabs, { type FileEditorStatus } from './EditorPaneTabs.vue'
 import PaneSurfaceHost from './PaneSurfaceHost.vue'
 import type { MultiPaneLayout, PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
@@ -42,6 +43,10 @@ export type EditorPaneGridExposed = {
   resetZoom: () => number
   getZoom: () => number
   saveOpenDocument: (path: string) => Promise<boolean>
+  /** Scroll offset of a pane's editor surface, 0 when it is not mounted. */
+  getPaneScrollTop: (paneId: string) => number
+  /** Applies a scroll offset once the pane's surface is ready. */
+  setPaneScrollTop: (paneId: string, value: number) => Promise<boolean>
 }
 
 type EditorViewExposed = {
@@ -66,6 +71,8 @@ type EditorViewExposed = {
   isSourceSurface: () => boolean
   setMarkdownSourceSurfaceEnabled: (enabled: boolean) => Promise<void>
   saveOpenDocument: (path: string) => Promise<boolean>
+  getScrollTop: () => number
+  setScrollTop: (value: number) => boolean
 }
 
 const props = defineProps<{
@@ -104,6 +111,15 @@ const emit = defineEmits<{
   'pane-tab-close-left': [payload: { paneId: string; tabId: string }]
   'pane-tab-close-right': [payload: { paneId: string; tabId: string }]
   'pane-tab-close-all': [payload: { paneId: string }]
+  'pane-tab-close-unpinned': [payload: { paneId: string }]
+  'pane-tab-pin': [payload: { paneId: string; tabId: string; pinned: boolean }]
+  'pane-tab-duplicate-in-other-pane': [payload: { paneId: string; tabId: string }]
+  'pane-tab-move-to-other-pane': [payload: { paneId: string; tabId: string }]
+  'pane-tab-copy-link': [payload: { paneId: string; tabId: string }]
+  'pane-tab-reveal-in-explorer': [payload: { paneId: string; tabId: string }]
+  'pane-tab-reorder': [payload: { paneId: string; tabId: string; targetSlot: number }]
+  'pane-tab-drop': [payload: { paneId: string; tabId: string }]
+  'pane-create-note': [payload: { paneId: string }]
   'pane-request-move-tab': [payload: { paneId: string; direction: 'next' | 'previous' }]
   status: [payload: { path: string; dirty: boolean; saving: boolean; saveError: string }]
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
@@ -111,6 +127,7 @@ const emit = defineEmits<{
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
   'signal-summary': [payload: { paneId: string; summary: EditorSignalSummary }]
   'external-reload': [payload: { path: string }]
+  'breadcrumb-action': [payload: { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -178,6 +195,13 @@ function paneDocumentPaths(pane: PaneState): string[] {
   return pane.openTabs
     .filter((tab): tab is Extract<PaneTab, { type: 'document' }> => tab.type === 'document')
     .map((tab) => tab.path)
+}
+
+/** Document paths open in every pane except the given one, for cross-pane gating. */
+function otherPaneDocumentPaths(paneId: string): string[] {
+  return paneList.value
+    .filter((pane) => pane.id !== paneId)
+    .flatMap((pane) => paneDocumentPaths(pane))
 }
 
 function onResizerPointerDown(axis: 'column' | 'row', event: PointerEvent) {
@@ -329,6 +353,27 @@ function getZoom() {
   return ensureCall((editor) => editor.getZoom(), 1)
 }
 
+function getPaneScrollTop(paneId: string): number {
+  return editorRefs[paneId]?.getScrollTop() ?? 0
+}
+
+/**
+ * Applies a scroll offset to a pane's editor surface.
+ *
+ * The surface is not mounted while the note loads, so the request is retried
+ * across a few frames instead of being dropped.
+ */
+async function setPaneScrollTop(paneId: string, value: number): Promise<boolean> {
+  const editor = editorRefs[paneId]
+  if (!editor) return false
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (editor.setScrollTop(value)) return true
+    await nextTick()
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  }
+  return false
+}
+
 defineExpose<EditorPaneGridExposed>({
   saveNow,
   saveOpenDocument,
@@ -351,6 +396,8 @@ defineExpose<EditorPaneGridExposed>({
   zoomOut,
   resetZoom,
   getZoom,
+  getPaneScrollTop,
+  setPaneScrollTop,
 })
 
 onBeforeUnmount(() => {
@@ -360,103 +407,119 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    ref="gridRoot"
-    class="pane-grid"
-    :style="{ gridTemplateColumns: gridColumns, gridTemplateRows: gridRows }"
-  >
-    <section
-      v-for="(pane, index) in paneList"
-      :key="pane.id"
-      class="editor-pane"
-      :class="{ 'editor-pane-active': pane.id === layout.activePaneId }"
-      :style="paneGridPosition(index)"
-      @pointerdown.capture="emit('pane-focus', { paneId: pane.id })"
-      @focusin.capture="emit('pane-focus', { paneId: pane.id })"
+  <!-- The tab strip registers draggables and droppables, so the grid owns the
+       provider. The explorer keeps its own, separate one. -->
+  <DnDProvider :auto-scroll-viewport="true" preview-to="body">
+    <div
+      ref="gridRoot"
+      class="pane-grid"
+      :style="{ gridTemplateColumns: gridColumns, gridTemplateRows: gridRows }"
     >
-      <EditorPaneTabs
-        :pane="pane"
-        :is-active-pane="pane.id === layout.activePaneId"
-        :get-status="getStatus"
-        @pane-focus="emit('pane-focus', $event)"
-        @tab-click="emit('pane-tab-click', $event)"
-        @tab-close="emit('pane-tab-close', $event)"
-        @tab-close-others="emit('pane-tab-close-others', $event)"
-        @tab-close-left="emit('pane-tab-close-left', $event)"
-        @tab-close-right="emit('pane-tab-close-right', $event)"
-        @tab-close-all="emit('pane-tab-close-all', $event)"
-        @request-move-tab="emit('pane-request-move-tab', $event)"
-      />
+      <section
+        v-for="(pane, index) in paneList"
+        :key="pane.id"
+        class="editor-pane"
+        :class="{ 'editor-pane-active': pane.id === layout.activePaneId }"
+        :style="paneGridPosition(index)"
+        @pointerdown.capture="emit('pane-focus', { paneId: pane.id })"
+        @focusin.capture="emit('pane-focus', { paneId: pane.id })"
+      >
+        <EditorPaneTabs
+          :pane="pane"
+          :is-active-pane="pane.id === layout.activePaneId"
+          :get-status="getStatus"
+          :pane-count="paneList.length"
+          :other-pane-paths="otherPaneDocumentPaths(pane.id)"
+          @pane-focus="emit('pane-focus', $event)"
+          @tab-click="emit('pane-tab-click', $event)"
+          @tab-close="emit('pane-tab-close', $event)"
+          @tab-close-others="emit('pane-tab-close-others', $event)"
+          @tab-close-left="emit('pane-tab-close-left', $event)"
+          @tab-close-right="emit('pane-tab-close-right', $event)"
+          @tab-close-all="emit('pane-tab-close-all', $event)"
+          @tab-close-unpinned="emit('pane-tab-close-unpinned', $event)"
+          @tab-pin="emit('pane-tab-pin', $event)"
+          @tab-duplicate-in-other-pane="emit('pane-tab-duplicate-in-other-pane', $event)"
+          @tab-move-to-other-pane="emit('pane-tab-move-to-other-pane', $event)"
+          @tab-copy-link="emit('pane-tab-copy-link', $event)"
+          @tab-reveal-in-explorer="emit('pane-tab-reveal-in-explorer', $event)"
+          @tab-reorder="emit('pane-tab-reorder', $event)"
+          @tab-drop="emit('pane-tab-drop', $event)"
+          @create-note="emit('pane-create-note', $event)"
+          @request-move-tab="emit('pane-request-move-tab', $event)"
+        />
 
-      <PaneSurfaceHost
-        :ref="(instance: unknown) => setEditorRef(pane.id, instance)"
-        :pane-id="pane.id"
-        :is-active-pane="pane.id === layout.activePaneId"
-        :active-tab="paneActiveTab(pane)"
-        :open-tabs="pane.openTabs"
-        :open-document-paths="paneDocumentPaths(pane)"
-        :all-workspace-files="allWorkspaceFiles"
-        :active-document-path="activeDocumentPath"
-        :open-externally="openExternally"
-        :launchpad="{
-          showExperience: pane.id === layout.activePaneId,
-          mode: workspacePath ? 'workspace-launchpad' : 'no-workspace',
-          workspaceLabel: launchpad.workspaceLabel,
-          recentWorkspaces: launchpad.recentWorkspaces,
-          recentViewedNotes: launchpad.recentViewedNotes,
-          recentUpdatedNotes: launchpad.recentUpdatedNotes,
-          showWizardAction: launchpad.showWizardAction
-        }"
-        :workspace-path="workspacePath"
-        :get-status="getStatus"
-        :open-file="openFile"
-        :save-file="saveFile"
-        :read-note-snapshot="readNoteSnapshot"
-        :save-note-buffer="saveNoteBuffer"
-        :rename-file-from-title="renameFileFromTitle"
-        :load-link-targets="loadLinkTargets"
-        :load-link-headings="loadLinkHeadings"
-        :load-property-type-schema="loadPropertyTypeSchema"
-        :save-property-type-schema="savePropertyTypeSchema"
-        :open-link-target="openLinkTarget"
-        :spellcheck-enabled="spellcheckEnabled"
-        :ruler-visible="rulerVisible"
-        :cursor-style="cursorStyle"
-        :cursor-blink="cursorBlink"
-        @status="emit('status', $event)"
-        @path-renamed="emit('path-renamed', $event)"
-        @outline="emit('outline', $event)"
-        @properties="emit('properties', $event)"
-        @signal-summary="emit('signal-summary', { paneId: pane.id, summary: $event })"
-        @external-reload="emit('external-reload', $event)"
-        @open-note="emit('open-note', $event)"
-        @launchpad-open-workspace="emit('launchpad-open-workspace')"
-        @launchpad-open-wizard="emit('launchpad-open-wizard')"
-        @launchpad-open-command-palette="emit('launchpad-open-command-palette')"
-        @launchpad-open-shortcuts="emit('launchpad-open-shortcuts')"
-        @launchpad-open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
-        @launchpad-open-today="emit('launchpad-open-today')"
-        @launchpad-open-quick-open="emit('launchpad-open-quick-open')"
-        @launchpad-create-note="emit('launchpad-create-note')"
-        @launchpad-open-recent-note="emit('launchpad-open-recent-note', $event)"
-        @launchpad-quick-start="emit('launchpad-quick-start', $event)"
-      />
-    </section>
+        <PaneSurfaceHost
+          :ref="(instance: unknown) => setEditorRef(pane.id, instance)"
+          :pane-id="pane.id"
+          :is-active-pane="pane.id === layout.activePaneId"
+          :active-tab="paneActiveTab(pane)"
+          :open-tabs="pane.openTabs"
+          :open-document-paths="paneDocumentPaths(pane)"
+          :all-workspace-files="allWorkspaceFiles"
+          :active-document-path="activeDocumentPath"
+          :open-externally="openExternally"
+          :launchpad="{
+            showExperience: pane.id === layout.activePaneId,
+            mode: workspacePath ? 'workspace-launchpad' : 'no-workspace',
+            workspaceLabel: launchpad.workspaceLabel,
+            recentWorkspaces: launchpad.recentWorkspaces,
+            recentViewedNotes: launchpad.recentViewedNotes,
+            recentUpdatedNotes: launchpad.recentUpdatedNotes,
+            showWizardAction: launchpad.showWizardAction
+          }"
+          :workspace-path="workspacePath"
+          :get-status="getStatus"
+          :open-file="openFile"
+          :save-file="saveFile"
+          :read-note-snapshot="readNoteSnapshot"
+          :save-note-buffer="saveNoteBuffer"
+          :rename-file-from-title="renameFileFromTitle"
+          :load-link-targets="loadLinkTargets"
+          :load-link-headings="loadLinkHeadings"
+          :load-property-type-schema="loadPropertyTypeSchema"
+          :save-property-type-schema="savePropertyTypeSchema"
+          :open-link-target="openLinkTarget"
+          :spellcheck-enabled="spellcheckEnabled"
+          :ruler-visible="rulerVisible"
+          :cursor-style="cursorStyle"
+          :cursor-blink="cursorBlink"
+          @status="emit('status', $event)"
+          @path-renamed="emit('path-renamed', $event)"
+          @outline="emit('outline', $event)"
+          @properties="emit('properties', $event)"
+          @signal-summary="emit('signal-summary', { paneId: pane.id, summary: $event })"
+          @external-reload="emit('external-reload', $event)"
+          @breadcrumb-action="emit('breadcrumb-action', $event)"
+          @open-note="emit('open-note', $event)"
+          @launchpad-open-workspace="emit('launchpad-open-workspace')"
+          @launchpad-open-wizard="emit('launchpad-open-wizard')"
+          @launchpad-open-command-palette="emit('launchpad-open-command-palette')"
+          @launchpad-open-shortcuts="emit('launchpad-open-shortcuts')"
+          @launchpad-open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
+          @launchpad-open-today="emit('launchpad-open-today')"
+          @launchpad-open-quick-open="emit('launchpad-open-quick-open')"
+          @launchpad-create-note="emit('launchpad-create-note')"
+          @launchpad-open-recent-note="emit('launchpad-open-recent-note', $event)"
+          @launchpad-quick-start="emit('launchpad-quick-start', $event)"
+        />
+      </section>
 
-    <div
-      v-if="hasColumnSplit"
-      class="pane-resizer pane-resizer-col"
-      :style="{ gridColumn: '2', gridRow: hasRowSplit ? '1 / 4' : '1' }"
-      @pointerdown="onResizerPointerDown('column', $event)"
-    ></div>
+      <div
+        v-if="hasColumnSplit"
+        class="pane-resizer pane-resizer-col"
+        :style="{ gridColumn: '2', gridRow: hasRowSplit ? '1 / 4' : '1' }"
+        @pointerdown="onResizerPointerDown('column', $event)"
+      ></div>
 
-    <div
-      v-if="hasRowSplit"
-      class="pane-resizer pane-resizer-row"
-      :style="{ gridColumn: '1 / 4', gridRow: '2' }"
-      @pointerdown="onResizerPointerDown('row', $event)"
-    ></div>
-  </div>
+      <div
+        v-if="hasRowSplit"
+        class="pane-resizer pane-resizer-row"
+        :style="{ gridColumn: '1 / 4', gridRow: '2' }"
+        @pointerdown="onResizerPointerDown('row', $event)"
+      ></div>
+    </div>
+  </DnDProvider>
 </template>
 
 <style scoped>

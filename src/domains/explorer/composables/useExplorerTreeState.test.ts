@@ -191,4 +191,25 @@ describe('useExplorerTreeState', () => {
     expect(scrollToSpy).toHaveBeenCalledWith({ top: 80, behavior: 'smooth' })
     rectSpy.mockRestore()
   })
+
+  it('expands a revealed folder so its contents are visible', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [dirNode('/vault/notes')]
+      }
+      if (dirPath === '/vault/notes') {
+        return [fileNode('/vault/notes/today.md')]
+      }
+      return []
+    })
+
+    const { state, selected } = createState()
+    await state.initializeExplorer()
+    expect(state.expandedPaths.value.has('/vault/notes')).toBe(false)
+
+    await state.revealPathInView('/vault/notes')
+
+    expect(state.expandedPaths.value.has('/vault/notes')).toBe(true)
+    expect(selected.value).toEqual(['/vault/notes'])
+  })
 })

@@ -58,7 +58,8 @@ function createKeyboard(isMacOs = false) {
     splitPane: vi.fn(),
     focusPane: vi.fn(),
     moveActiveTabToAdjacentPane: vi.fn(),
-    openNextTab: vi.fn(),
+    cycleRecentTab: vi.fn(),
+    reopenLastClosedTab: vi.fn(),
     openSearchPanel: vi.fn(),
     showExplorerForActiveFile: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -231,6 +232,30 @@ describe('useAppShellKeyboard', () => {
 
     expect(actions.closeActiveTab).toHaveBeenCalledTimes(1)
     expect(event.defaultPrevented).toBe(true)
+    scope.stop()
+  })
+
+  it('reopens the last closed tab on Mod+Shift+T', () => {
+    const { scope, actions } = createKeyboard()
+
+    const event = new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(event)
+
+    expect(actions.reopenLastClosedTab).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(true)
+    scope.stop()
+  })
+
+  it('cycles the recent tabs in both directions on Ctrl+Tab', () => {
+    const { scope, actions } = createKeyboard()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, bubbles: true, cancelable: true }))
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    )
+
+    expect(actions.cycleRecentTab).toHaveBeenNthCalledWith(1, 'next')
+    expect(actions.cycleRecentTab).toHaveBeenNthCalledWith(2, 'previous')
     scope.stop()
   })
 

@@ -3,7 +3,10 @@
  * WorkspaceStatusBar
  *
  * Purpose:
- * - Render document state on the left and navigable editor signals on the right.
+ * - Render operational state on the left and navigable editor signals on the right.
+ *
+ * Boundaries:
+ * - Shows the document name, never its path: the breadcrumb owns the location.
  */
 
 import type {
@@ -20,6 +23,8 @@ defineProps<{
   indexStateClass: string
   signalSummary: EditorSignalSummary
   spellcheckEnabled: boolean
+  /** Last save failure for the active document, empty when the save succeeded. */
+  saveError?: string
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +42,9 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
   <footer class="status-bar">
     <span class="status-item">{{ activeFileLabel }}</span>
     <span class="status-item status-item-state">{{ activeStateLabel }}</span>
+    <span v-if="saveError" class="status-item status-item-error" role="alert" :title="saveError">
+      save failed
+    </span>
     <button type="button" class="status-item status-item-index status-trigger" :class="indexStateClass" @click="emit('open-index-status')">
       <span class="status-dot" :class="indexStateClass"></span>
       <span>index: {{ indexStateLabel }}</span>
@@ -124,6 +132,11 @@ function navigateSignal(kind: EditorSignalKind, event: MouseEvent) {
 
 .status-item-index {
   gap: 6px;
+}
+
+.status-item-error {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .status-dot {

@@ -23,6 +23,10 @@ export type AppShellCommandsDocumentPort = {
   toRelativePath: (path: string) => string
   clearEditorStatusForPaths: (paths: string[]) => void
   resetActiveOutline: () => void
+  /** Reports whether the document has unsaved changes. */
+  isDirty: (path: string) => boolean
+  /** Saves an open note buffer by path; false when no pane holds it. */
+  saveOpenDocument: (path: string) => Promise<boolean>
 }
 
 /** Groups pane and surface operations consumed by shell commands. */
@@ -43,11 +47,13 @@ export type AppShellCommandsPanePort = {
   focusAdjacentPane: (direction: PaneDirection) => boolean
   moveActiveTabToAdjacentPane: (direction: PaneDirection) => boolean
   closePane: (paneId: string) => boolean
+  openDocumentInPane: (path: string, paneId: string) => void
   joinAllPanes: () => void
   resetToSinglePane: () => void
   closeAllTabsAndResetLayout: () => void
   closeAllTabsInPane: (paneId: string) => void
   closeOtherTabsInPane: (paneId: string, tabId: string) => void
+  reopenLastClosedTab: () => boolean
 }
 
 /** Groups shell navigation and history actions reused across palette and launchpad. */
@@ -244,6 +250,10 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     return true
   }
 
+  function reopenLastClosedTabFromPalette() {
+    return options.panePort.reopenLastClosedTab()
+  }
+
   async function splitPaneFromPalette(axis: PaneAxis) {
     const createdPaneId = options.panePort.splitPane(options.panePort.activePaneId.value, axis)
     if (!createdPaneId) return false
@@ -264,11 +274,51 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     return options.panePort.moveActiveTabToAdjacentPane('next')
   }
 
-  function closeActivePaneFromPalette() {
-    return options.panePort.closePane(options.panePort.activePaneId.value)
+  /**
+   * Saves every dirty document of a pane before its tabs are dropped.
+   *
+   * Returns false when a save did not clear the dirty flag, so the caller keeps
+   * the pane instead of discarding unsaved changes silently.
+   */
+  async function savePaneDocuments(paneId: string): Promise<boolean> {
+    const pane = options.panePort.panesById.value[paneId]
+    if (!pane) return true
+    for (const tab of pane.openTabs) {
+      if (tab.type !== 'document') continue
+      if (!options.documentPort.isDirty(tab.path)) continue
+      await options.documentPort.saveOpenDocument(tab.path)
+      if (options.documentPort.isDirty(tab.path)) return false
+    }
+    return true
   }
 
-  function joinPanesFromPalette() {
+  async function closeActivePaneFromPalette() {
+    const paneId = options.panePort.activePaneId.value
+    if (!await savePaneDocuments(paneId)) return false
+    return options.panePort.closePane(paneId)
+  }
+
+  /**
+   * Opens the active document in the other pane as a second view.
+   *
+   * This duplicates the view, never the file: the same path is opened again, so
+   * both panes share the document and no file is created.
+   */
+  function openActiveDocumentToTheRightFromPalette() {
+    const path = options.workspacePort.activeFilePath.value
+    if (!path) return false
+    const activePaneId = options.panePort.activePaneId.value
+    const targetPaneId = Object.keys(options.panePort.panesById.value)
+      .find((paneId) => paneId !== activePaneId)
+    if (!targetPaneId) return false
+    options.panePort.openDocumentInPane(path, targetPaneId)
+    return true
+  }
+
+  async function joinPanesFromPalette() {
+    for (const paneId of Object.keys(options.panePort.panesById.value)) {
+      if (!await savePaneDocuments(paneId)) return false
+    }
     options.panePort.joinAllPanes()
     return true
   }
@@ -295,11 +345,13 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     openWorkspaceFromPalette,
     closeWorkspaceFromPalette,
     closeOtherTabsFromPalette,
+    reopenLastClosedTabFromPalette,
     splitPaneFromPalette,
     focusPaneFromPalette,
     focusNextPaneFromPalette,
     moveTabToNextPaneFromPalette,
     closeActivePaneFromPalette,
+    openActiveDocumentToTheRightFromPalette,
     joinPanesFromPalette,
     resetPaneLayoutFromPalette
   }

@@ -71,11 +71,13 @@ export type AppShellPaletteActionPort = {
   closeAllTabsFromPalette: () => boolean | Promise<boolean>
   closeAllTabsOnCurrentPaneFromPalette: () => boolean | Promise<boolean>
   closeOtherTabsFromPalette: () => boolean | Promise<boolean>
+  reopenLastClosedTabFromPalette: () => boolean | Promise<boolean>
   splitPaneFromPalette: (axis: 'row' | 'column') => boolean | Promise<boolean>
   focusPaneFromPalette: (index: number) => boolean | Promise<boolean>
   focusNextPaneFromPalette: () => boolean | Promise<boolean>
   moveTabToNextPaneFromPalette: () => boolean | Promise<boolean>
   closeActivePaneFromPalette: () => boolean | Promise<boolean>
+  openActiveDocumentToTheRightFromPalette: () => boolean | Promise<boolean>
   joinPanesFromPalette: () => boolean | Promise<boolean>
   resetPaneLayoutFromPalette: () => boolean | Promise<boolean>
   revealActiveInExplorer: () => boolean | Promise<boolean>
@@ -154,6 +156,7 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'manage-spellcheck-dictionary': 16.75,
   'create-new-file': 17,
   'close-other-tabs': 18,
+  'reopen-closed-tab': 18.5,
   'close-all-tabs': 19,
   'close-all-tabs-current-pane': 20,
   'split-pane-right': 21,
@@ -165,6 +168,7 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'focus-next-pane': 27,
   'move-tab-next-pane': 28,
   'close-active-pane': 29,
+  'open-to-the-right': 29.5,
   'join-panes': 30,
   'reset-pane-layout': 31,
   'zoom-in': 32,
@@ -375,6 +379,11 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       run: () => options.actionPort.closeOtherTabsFromPalette()
     }),
     createPaletteAction('layout', {
+      id: 'reopen-closed-tab',
+      label: 'Reopen Closed Tab',
+      run: () => options.actionPort.reopenLastClosedTabFromPalette()
+    }),
+    createPaletteAction('layout', {
       id: 'split-pane-right',
       label: 'Split Pane Right',
       run: () => options.actionPort.splitPaneFromPalette('row')
@@ -418,6 +427,13 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       id: 'close-active-pane',
       label: 'Close Active Pane',
       run: () => options.actionPort.closeActivePaneFromPalette()
+    }),
+    createPaletteAction('layout', {
+      id: 'open-to-the-right',
+      label: 'Open to the Right',
+      description: 'Open the active note in the other pane as a second view',
+      keywords: ['split', 'duplicate', 'view', 'panneau'],
+      run: () => options.actionPort.openActiveDocumentToTheRightFromPalette()
     }),
     createPaletteAction('layout', {
       id: 'join-panes',

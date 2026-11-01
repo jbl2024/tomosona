@@ -110,7 +110,8 @@ const emit = defineEmits([
   'outline',
   'properties',
   'signal-summary',
-  'external-reload'
+  'external-reload',
+  'breadcrumb-action'
 ])
 
 function emitStatus(payload: { path: string; dirty: boolean; saving: boolean; saveError: string }) {
@@ -1179,7 +1180,16 @@ defineExpose({
   resetZoom: () => resetEditorZoom(),
   getZoom,
   setMarkdownSourceSurfaceEnabled,
-  isSourceSurface: () => isSourceSurface.value
+  isSourceSurface: () => isSourceSurface.value,
+  /** Current scroll offset of the editor surface, 0 when it is not mounted. */
+  getScrollTop: () => holder.value?.scrollTop ?? 0,
+  /** Applies a scroll offset; false when the surface is not mounted yet. */
+  setScrollTop: (value: number) => {
+    const element = holder.value
+    if (!element) return false
+    element.scrollTop = Math.max(0, value)
+    return true
+  }
 })
 </script>
 
@@ -1218,7 +1228,11 @@ defineExpose({
           </button>
         </div>
       </div>
-      <EditorPathBreadcrumb :path="currentPath" :workspace-path="workspacePathRef" />
+      <EditorPathBreadcrumb
+        :path="currentPath"
+        :workspace-path="workspacePathRef"
+        @segment-action="emit('breadcrumb-action', $event)"
+      />
       <div
         class="relative min-h-0 flex-1 overflow-hidden"
         :data-menu-open="blockGutterMenuOpen ? 'true' : 'false'"

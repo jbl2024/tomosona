@@ -112,6 +112,7 @@ import {
   useAppNavigationController,
   type HomeHistorySnapshot
 } from './composables/useAppNavigationController'
+import { usePaneReadingPositions } from './composables/usePaneReadingPositions'
 import {
   buildHomeHistorySnapshot,
   homeHistoryLabel,
@@ -998,7 +999,10 @@ const navigationPanePort = {
   revealDocumentInPane: (path: string, paneId?: string) => multiPane.revealDocumentInPane(path, paneId),
   setActivePathInPane: (paneId: string, path: string) => multiPane.setActivePathInPane(paneId, path),
   openSurfaceInPane: (type: 'home', paneId?: string) => multiPane.openSurfaceInPane(type, paneId),
-  findPaneContainingSurface: (type: 'home') => multiPane.findPaneContainingSurface(type)
+  findPaneContainingSurface: (type: 'home') => multiPane.findPaneContainingSurface(type),
+  getRecentTabTarget: (direction: 'next' | 'previous') => multiPane.getRecentTabTarget(direction),
+  cycleRecentTab: (direction: 'next' | 'previous') => multiPane.cycleRecentTab(direction),
+  reopenLastClosedTab: () => multiPane.reopenLastClosedTab()
 }
 
 const navigationHistoryPort = {
@@ -1015,11 +1019,20 @@ const navigationHistoryPort = {
   }
 }
 
+const readingPositions = usePaneReadingPositions()
 const navigation = useAppNavigationController({
   workspacePort: navigationWorkspacePort,
   editorPort: navigationEditorPort,
   panePort: navigationPanePort,
-  historyPort: navigationHistoryPort
+  historyPort: navigationHistoryPort,
+  readingPositionPort: {
+    capture: (paneId, path) => {
+      readingPositions.capture(paneId, path, editorRef.value?.getPaneScrollTop(paneId) ?? 0)
+    },
+    restore: (paneId, path) => {
+      void editorRef.value?.setPaneScrollTop(paneId, readingPositions.read(paneId, path))
+    }
+  }
 })
 const {
   isApplyingHistoryNavigation,
@@ -1030,7 +1043,8 @@ const {
   openHistoryEntry,
   goBackInHistory,
   goForwardInHistory,
-  openNextTabWithAutosave,
+  cycleRecentTabWithAutosave,
+  reopenLastClosedTab,
 } = navigation
 shellOpenFlow = useAppShellOpenFlow({
   workspacePort: {
@@ -1183,7 +1197,16 @@ const paneRuntime = useAppShellPaneRuntime({
   },
   setActiveTabWithAutosave,
   propertiesPreview,
-  propertyParseErrorCount
+  propertyParseErrorCount,
+  copyNoteLink: (path: string) => {
+    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(path)))
+  },
+  revealPathInExplorer: (path: string) => {
+    void showExplorerForActiveFile({ focusTree: true, path })
+  },
+  createNoteInPane: () => {
+    void createNewFileFromActiveDirectory()
+  }
 })
 const {
   onPaneTabClick,
@@ -1192,6 +1215,15 @@ const {
   onPaneTabCloseLeft,
   onPaneTabCloseRight,
   onPaneTabCloseAll,
+  onPaneTabCloseUnpinned,
+  onPaneTabPin,
+  onPaneTabReorder,
+  onPaneTabDrop,
+  onPaneTabDuplicateInOtherPane,
+  onPaneTabMoveToOtherPane,
+  onPaneTabCopyLink,
+  onPaneTabRevealInExplorer,
+  onPaneCreateNote,
   closeActiveTab,
   onEditorStatus,
   onEditorOutline,
@@ -1200,6 +1232,20 @@ const {
   onGlobalSearchModeSelect,
   saveActiveTab,
 } = paneRuntime
+
+/**
+ * Routes a breadcrumb segment action to the shell ports.
+ *
+ * A folder segment only reveals its folder: the active document must not
+ * change, so this never goes through the open flow.
+ */
+function onBreadcrumbAction(payload: { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }) {
+  if (payload.action === 'copy-link') {
+    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(payload.path)))
+    return
+  }
+  void showExplorerForActiveFile({ focusTree: true, path: payload.path })
+}
 
 const activeProtection = ref({ isProtected: false, isLocked: false })
 async function refreshActiveProtection(path: string) {
@@ -1465,7 +1511,9 @@ const commands = useAppShellCommands({
     toRelativePath,
     clearEditorStatusForPaths: (paths: string[]) =>
       clearEditorStatusForPathsInPane(paths, (path) => editorState.clearStatus(path)),
-    resetActiveOutline: () => editorState.setActiveOutline([])
+    resetActiveOutline: () => editorState.setActiveOutline([]),
+    isDirty: (path) => editorState.getStatus(path).dirty,
+    saveOpenDocument: async (path) => await (editorRef.value?.saveOpenDocument(path) ?? Promise.resolve(false))
   },
   panePort: {
     activePaneId: computed(() => multiPane.layout.value.activePaneId),
@@ -1477,11 +1525,13 @@ const commands = useAppShellCommands({
     focusAdjacentPane: (direction) => multiPane.focusAdjacentPane(direction),
     moveActiveTabToAdjacentPane: (direction) => multiPane.moveActiveTabToAdjacentPane(direction),
     closePane: (paneId) => multiPane.closePane(paneId),
+    openDocumentInPane: (path, paneId) => multiPane.openDocumentInPane(path, paneId),
     joinAllPanes: () => multiPane.joinAllPanes(),
     resetToSinglePane: () => multiPane.resetToSinglePane(),
     closeAllTabsAndResetLayout: () => multiPane.closeAllTabsAndResetLayout(),
     closeAllTabsInPane: (paneId) => multiPane.closeAllTabsInPane(paneId),
-    closeOtherTabsInPane: (paneId, tabId) => multiPane.closeOtherTabsInPane(paneId, tabId)
+    closeOtherTabsInPane: (paneId, tabId) => multiPane.closeOtherTabsInPane(paneId, tabId),
+    reopenLastClosedTab: () => multiPane.reopenLastClosedTab()
   },
   navigationPort: {
     openTabWithAutosave,
@@ -1523,11 +1573,13 @@ const {
   openWorkspaceFromPalette,
   closeWorkspaceFromPalette,
   closeOtherTabsFromPalette,
+  reopenLastClosedTabFromPalette,
   splitPaneFromPalette,
   focusPaneFromPalette,
   focusNextPaneFromPalette,
   moveTabToNextPaneFromPalette,
   closeActivePaneFromPalette,
+  openActiveDocumentToTheRightFromPalette,
   joinPanesFromPalette,
   resetPaneLayoutFromPalette
 } = commands
@@ -1561,11 +1613,13 @@ entryActions.bindShellPaletteActionPort({
   closeAllTabsFromPalette,
   closeAllTabsOnCurrentPaneFromPalette,
   closeOtherTabsFromPalette,
+  reopenLastClosedTabFromPalette,
   splitPaneFromPalette,
   focusPaneFromPalette,
   focusNextPaneFromPalette,
   moveTabToNextPaneFromPalette,
   closeActivePaneFromPalette,
+  openActiveDocumentToTheRightFromPalette,
   joinPanesFromPalette,
   resetPaneLayoutFromPalette,
   revealActiveInExplorer,
@@ -1857,7 +1911,8 @@ useAppShellKeyboard({
     splitPane: splitPaneFromPalette,
     focusPane: focusPaneFromPalette,
     moveActiveTabToAdjacentPane: (direction) => multiPane.moveActiveTabToAdjacentPane(direction),
-    openNextTab: openNextTabWithAutosave,
+    cycleRecentTab: cycleRecentTabWithAutosave,
+    reopenLastClosedTab,
     openSearchPanel,
     showExplorerForActiveFile,
     toggleSidebar: () => workspace.toggleSidebar(),
@@ -2039,8 +2094,18 @@ useAppShellKeyboard({
           @pane-tab-close-left="onPaneTabCloseLeft($event)"
           @pane-tab-close-right="onPaneTabCloseRight($event)"
           @pane-tab-close-all="onPaneTabCloseAll($event)"
+          @pane-tab-close-unpinned="onPaneTabCloseUnpinned($event)"
+          @pane-tab-pin="onPaneTabPin($event)"
+          @pane-tab-reorder="onPaneTabReorder($event)"
+          @pane-tab-drop="onPaneTabDrop($event)"
+          @pane-tab-duplicate-in-other-pane="onPaneTabDuplicateInOtherPane($event)"
+          @pane-tab-move-to-other-pane="onPaneTabMoveToOtherPane($event)"
+          @pane-tab-copy-link="onPaneTabCopyLink($event)"
+          @pane-tab-reveal-in-explorer="onPaneTabRevealInExplorer($event)"
+          @pane-create-note="onPaneCreateNote($event)"
           @pane-request-move-tab="multiPane.moveActiveTabToAdjacentPane($event.direction)"
           @external-reload="filesystem.notifyInfo(`Reloaded ${basenameLabel($event.path)} from disk.`)"
+          @breadcrumb-action="onBreadcrumbAction($event)"
           @status="onEditorStatus"
           @path-renamed="onEditorPathRenamed"
           @outline="onEditorOutline"
@@ -2073,12 +2138,13 @@ useAppShellKeyboard({
     </main>
 
     <WorkspaceStatusBar
-      :active-file-label="activeFilePath ? toRelativePath(activeFilePath) : 'No file'"
+      :active-file-label="activeFilePath ? basenameLabel(activeFilePath) : 'No file'"
       :active-state-label="activeStatus.saving ? 'saving...' : virtualDocs[activeFilePath] ? 'unsaved' : activeStatus.dirty ? 'edit' : 'saved'"
       :index-state-label="indexStateLabel"
       :index-state-class="indexStateClass"
       :signal-summary="activeEditorSignalSummary"
       :spellcheck-enabled="spellcheckEnabled"
+      :save-error="activeStatus.saveError"
       @open-index-status="openIndexStatusModal"
       @navigate-signal="navigateActiveEditorSignal($event.kind, $event.direction)"
       @toggle-spellcheck="toggleSpellcheckEnabled"

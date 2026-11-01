@@ -12,6 +12,21 @@ export type PaneState = {
   openTabs: PaneTab[]
   activeTabId: string
   activePath?: string
+  /**
+   * Tab ids ordered most-recently-consulted first.
+   *
+   * Why: closing the active tab must return to the last consulted tab, and
+   * `Ctrl+Tab` cycles that order. Both are pure reads of this list, so the
+   * order has to live in the state rather than be derived from timestamps.
+   */
+  recentTabIds: string[]
+}
+
+/** A tab removed from a pane, kept so the user can reopen it. */
+export type ClosedTabEntry = {
+  paneId: PaneId
+  tab: PaneTab
+  index: number
 }
 
 export type SplitNode =
@@ -33,6 +48,9 @@ export type MultiPaneLayout = {
 export type MoveDirection = 'next' | 'previous'
 
 const MAX_PANES = 4
+
+/** Upper bound on the session-only reopen stack. */
+const MAX_CLOSED_TABS = 20
 
 function documentTabId(path: string): string {
   return `doc:${path}`
@@ -59,7 +77,8 @@ export function createInitialLayout(): MultiPaneLayout {
         id: initialPaneId,
         openTabs: [],
         activeTabId: '',
-        activePath: ''
+        activePath: '',
+        recentTabIds: []
       }
     },
     activePaneId: initialPaneId
@@ -155,17 +174,34 @@ function hasTabPath(tab: PaneTab): tab is Extract<PaneTab, { path: string }> {
   return 'path' in tab
 }
 
+/** Drops ids that no longer belong to an open tab. */
+function pruneRecentTabIds(recentTabIds: string[], openTabs: PaneTab[]): string[] {
+  return recentTabIds.filter((id) => openTabs.some((tab) => tab.id === id))
+}
+
+/** Moves a tab id to the front of the most-recently-consulted order. */
+function touchRecentTab(recentTabIds: string[], tabId: string, openTabs: PaneTab[]): string[] {
+  if (!tabId) return pruneRecentTabIds(recentTabIds, openTabs)
+  return pruneRecentTabIds([tabId, ...recentTabIds.filter((id) => id !== tabId)], openTabs)
+}
+
+/** Builds the next pane state, keeping the MRU order consistent with the tabs. */
+function withTabs(pane: PaneState, nextTabs: PaneTab[], activeTabId: string): PaneState {
+  return {
+    ...pane,
+    openTabs: nextTabs,
+    activeTabId,
+    activePath: documentPathForTabId(nextTabs, activeTabId),
+    recentTabIds: touchRecentTab(pane.recentTabIds, activeTabId, nextTabs)
+  }
+}
+
 function clearTabRangeAfterMutation(
   pane: PaneState,
   nextTabs: PaneTab[],
   activeTabId: string
 ): PaneState {
-  return {
-    ...pane,
-    openTabs: nextTabs,
-    activeTabId,
-    activePath: documentPathForTabId(nextTabs, activeTabId)
-  }
+  return withTabs(pane, nextTabs, activeTabId)
 }
 
 function closeTabsRelativeToTab(
@@ -173,16 +209,18 @@ function closeTabsRelativeToTab(
   paneId: PaneId,
   tabId: string,
   direction: 'left' | 'right'
-): { nextLayout: MultiPaneLayout; removedDocumentPaths: string[] } {
+): { nextLayout: MultiPaneLayout; removedDocumentPaths: string[]; removedEntries: ClosedTabEntry[] } {
   const pane = layoutState.panesById[paneId]
-  if (!pane) return { nextLayout: layoutState, removedDocumentPaths: [] }
+  if (!pane) return { nextLayout: layoutState, removedDocumentPaths: [], removedEntries: [] }
 
   const tabIndex = pane.openTabs.findIndex((tab) => tab.id === tabId)
-  if (tabIndex < 0) return { nextLayout: layoutState, removedDocumentPaths: [] }
+  if (tabIndex < 0) return { nextLayout: layoutState, removedDocumentPaths: [], removedEntries: [] }
 
   const nextTabs = pane.openTabs.filter((_, index) => direction === 'left' ? index >= tabIndex : index <= tabIndex)
-  const removedTabs = pane.openTabs.filter((_, index) => direction === 'left' ? index < tabIndex : index > tabIndex)
-  const removedDocumentPaths = removedTabs.flatMap((tab) =>
+  const removedEntries = pane.openTabs
+    .map((tab, index) => ({ paneId, tab, index }))
+    .filter(({ index }) => direction === 'left' ? index < tabIndex : index > tabIndex)
+  const removedDocumentPaths = removedEntries.flatMap(({ tab }) =>
     tab.type === 'document' || tab.type === 'file-inspector' ? [tab.path] : []
   )
   const activeTabId = tabId
@@ -196,7 +234,8 @@ function closeTabsRelativeToTab(
         [paneId]: clearTabRangeAfterMutation(pane, nextTabs, activeTabId)
       }
     },
-    removedDocumentPaths
+    removedDocumentPaths,
+    removedEntries
   }
 }
 
@@ -239,21 +278,25 @@ export function hydrateLayout(payload: unknown): MultiPaneLayout | null {
         openTabs.push({ id: fileInspectorTabId(path), type: 'file-inspector', path, pinned: Boolean(tab.pinned) })
         continue
       }
-      if (tab.type === 'home') {
-        const id = surfaceTabId('home')
-        if (openTabs.some((item) => item.id === id)) continue
-        openTabs.push({ id, type: 'home', pinned: Boolean(tab.pinned) })
-      }
+      // `home` tabs are no longer rendered: an empty pane shows its home
+      // surface directly, so a persisted home tab is dropped on hydration.
     }
 
     const activeTabIdRaw = typeof paneObj.activeTabId === 'string' ? paneObj.activeTabId : ''
     const activeTabId = openTabs.some((tab) => tab.id === activeTabIdRaw) ? activeTabIdRaw : (openTabs[0]?.id ?? '')
+    const rawRecent = Array.isArray(paneObj.recentTabIds) ? paneObj.recentTabIds : []
+    const recentTabIds = touchRecentTab(
+      rawRecent.filter((id): id is string => typeof id === 'string'),
+      activeTabId,
+      openTabs
+    )
 
     panesById[paneId] = {
       id: paneId,
       openTabs,
       activeTabId,
-      activePath: documentPathForTabId(openTabs, activeTabId)
+      activePath: documentPathForTabId(openTabs, activeTabId),
+      recentTabIds
     }
   }
 
@@ -275,7 +318,8 @@ export function serializeLayout(layout: MultiPaneLayout): MultiPaneLayout {
           id: pane.id,
           openTabs: pane.openTabs.map((tab) => ({ ...tab })),
           activeTabId: pane.activeTabId,
-          activePath: pane.activePath ?? ''
+          activePath: pane.activePath ?? '',
+          recentTabIds: [...pane.recentTabIds]
         }
       ])
     ),
@@ -285,8 +329,56 @@ export function serializeLayout(layout: MultiPaneLayout): MultiPaneLayout {
 
 export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInitialLayout()) {
   const layout = ref<MultiPaneLayout>(serializeLayout(initial))
+  /**
+   * Session-only reopen stack, oldest first.
+   *
+   * Why not persisted: restoring it across restarts would let a user resurrect a
+   * tab from a previous session with no way to tell where it came from.
+   */
+  const closedTabs = ref<ClosedTabEntry[]>([])
 
   const paneOrder = computed(() => listPaneIdsInOrder(layout.value.root))
+
+  function pushClosedTab(entry: ClosedTabEntry) {
+    const next = [...closedTabs.value, entry]
+    closedTabs.value = next.length > MAX_CLOSED_TABS ? next.slice(next.length - MAX_CLOSED_TABS) : next
+  }
+
+  /**
+   * Reopens the most recently closed tab in the pane it came from.
+   *
+   * Falls back to the active pane when that pane no longer exists, and returns
+   * false when the stack is empty so callers can disable the command.
+   */
+  function reopenLastClosedTab(): boolean {
+    while (closedTabs.value.length) {
+      const entry = closedTabs.value[closedTabs.value.length - 1]
+      closedTabs.value = closedTabs.value.slice(0, -1)
+
+      const paneId = layout.value.panesById[entry.paneId] ? entry.paneId : layout.value.activePaneId
+      const pane = layout.value.panesById[paneId]
+      if (!pane) continue
+
+      const existing = pane.openTabs.find((tab) => tab.id === entry.tab.id)
+      if (existing) {
+        setActiveTabInPane(paneId, existing.id)
+        return true
+      }
+
+      const nextTabs = [...pane.openTabs]
+      nextTabs.splice(Math.max(0, Math.min(entry.index, nextTabs.length)), 0, { ...entry.tab })
+      layout.value = {
+        ...layout.value,
+        panesById: {
+          ...layout.value.panesById,
+          [paneId]: withTabs(pane, nextTabs, entry.tab.id)
+        },
+        activePaneId: paneId
+      }
+      return true
+    }
+    return false
+  }
 
   function paneCount(): number {
     return Object.keys(layout.value.panesById).length
@@ -328,11 +420,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          activeTabId: tabId,
-          activePath: documentPathForTabId(pane.openTabs, tabId)
-        }
+        [paneId]: withTabs(pane, pane.openTabs, tabId)
       },
       activePaneId: paneId
     }
@@ -392,12 +480,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: [...pane.openTabs, tab],
-          activeTabId: tab.id,
-          activePath: target
-        }
+        [paneId]: withTabs(pane, [...pane.openTabs, tab], tab.id)
       },
       activePaneId: paneId
     }
@@ -429,14 +512,47 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: [...pane.openTabs, tab],
-          activeTabId: tab.id,
-          activePath: target
-        }
+        [paneId]: withTabs(pane, [...pane.openTabs, tab], tab.id)
       },
       activePaneId: paneId
+    }
+  }
+
+  /**
+   * Relocates an existing tab into another pane.
+   *
+   * This is deliberately not `openDocumentInPane`: that one redirects to the
+   * pane already holding the path, which would close the source tab without
+   * opening anything in the target. Here the tab object itself moves, so its
+   * id, document and pinned state survive. When the target already shows the
+   * same tab id, the move collapses into an activation, keeping one tab per
+   * pane.
+   */
+  function moveTabToPane(sourcePaneId: PaneId, tabId: string, targetPaneId: PaneId) {
+    if (sourcePaneId === targetPaneId) return
+    const sourcePane = layout.value.panesById[sourcePaneId]
+    const targetPane = layout.value.panesById[targetPaneId]
+    if (!sourcePane || !targetPane) return
+    const sourceTab = sourcePane.openTabs.find((tab) => tab.id === tabId)
+    if (!sourceTab) return
+
+    const nextSourceTabs = sourcePane.openTabs.filter((tab) => tab.id !== tabId)
+    const nextSourceActive = sourcePane.activeTabId === tabId
+      ? (sourcePane.recentTabIds.find((id) => id !== tabId && nextSourceTabs.some((tab) => tab.id === id))
+        ?? nextSourceTabs[0]?.id
+        ?? '')
+      : sourcePane.activeTabId
+    const alreadyInTarget = targetPane.openTabs.some((tab) => tab.id === tabId)
+    const nextTargetTabs = alreadyInTarget ? targetPane.openTabs : [...targetPane.openTabs, sourceTab]
+
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [sourcePaneId]: withTabs(sourcePane, nextSourceTabs, nextSourceActive),
+        [targetPaneId]: withTabs(targetPane, nextTargetTabs, tabId)
+      },
+      activePaneId: targetPaneId
     }
   }
 
@@ -459,40 +575,10 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       return
     }
 
-    const sourcePane = layout.value.panesById[existingPaneId]
-    if (!sourcePane) return
-
-    const sourceTab = sourcePane.openTabs.find((tab) => hasTabPath(tab) && tab.type === 'document' && tab.path === targetPath)
+    const sourceTab = layout.value.panesById[existingPaneId]?.openTabs
+      .find((tab) => hasTabPath(tab) && tab.type === 'document' && tab.path === targetPath)
     if (!sourceTab) return
-
-    const nextSourceTabs = sourcePane.openTabs.filter((tab) => tab.id !== sourceTab.id)
-    const nextSourceActive = sourcePane.activeTabId === sourceTab.id
-      ? (nextSourceTabs[0]?.id ?? '')
-      : sourcePane.activeTabId
-    const movedTab: PaneTab = {
-      ...sourceTab,
-      id: documentTabId(targetPath)
-    }
-
-    layout.value = {
-      ...layout.value,
-      panesById: {
-        ...layout.value.panesById,
-        [existingPaneId]: {
-          ...sourcePane,
-          openTabs: nextSourceTabs,
-          activeTabId: nextSourceActive,
-          activePath: documentPathForTabId(nextSourceTabs, nextSourceActive)
-        },
-        [paneId]: {
-          ...targetPane,
-          openTabs: [...targetPane.openTabs, movedTab],
-          activeTabId: movedTab.id,
-          activePath: targetPath
-        }
-      },
-      activePaneId: paneId
-    }
+    moveTabToPane(existingPaneId, sourceTab.id, paneId)
   }
 
   function openSurfaceInPane(type: Exclude<SurfaceType, 'document'>, paneId: PaneId = layout.value.activePaneId) {
@@ -517,12 +603,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: [...pane.openTabs, tab],
-          activeTabId: tab.id,
-          activePath: ''
-        }
+        [paneId]: withTabs(pane, [...pane.openTabs, tab], tab.id)
       },
       activePaneId: paneId
     }
@@ -535,20 +616,19 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     if (index < 0) return
 
     const nextTabs = pane.openTabs.filter((tab) => tab.id !== tabId)
+    // Closing the active tab returns to the most recently consulted tab, which
+    // is usually closer to the user's intent than the visual neighbour.
     const activeTabId = pane.activeTabId === tabId
-      ? (nextTabs[index]?.id ?? nextTabs[index - 1]?.id ?? '')
+      ? (pane.recentTabIds.find((id) => id !== tabId && nextTabs.some((tab) => tab.id === id)) ?? nextTabs[0]?.id ?? '')
       : pane.activeTabId
+
+    pushClosedTab({ paneId, tab: pane.openTabs[index], index })
 
     layout.value = {
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: nextTabs,
-          activeTabId,
-          activePath: documentPathForTabId(nextTabs, activeTabId)
-        }
+        [paneId]: withTabs(pane, nextTabs, activeTabId)
       }
     }
   }
@@ -559,20 +639,19 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     const active = pane.openTabs.find((tab) => tab.id === tabId)
     if (!active) return []
 
-    const removedDocumentPaths = pane.openTabs
-      .filter((tab) => tab.id !== tabId)
+    // Pinned tabs survive "close others"; the requested tab always survives.
+    const kept = pane.openTabs.filter((tab) => tab.id === tabId || tab.pinned)
+    const removed = pane.openTabs.filter((tab) => tab.id !== tabId && !tab.pinned)
+    removed.forEach((tab) => pushClosedTab({ paneId, tab, index: pane.openTabs.indexOf(tab) }))
+
+    const removedDocumentPaths = removed
       .flatMap((tab) => (tab.type === 'document' || tab.type === 'file-inspector' ? [tab.path] : []))
 
     layout.value = {
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: [active],
-          activeTabId: active.id,
-          activePath: active.type === 'document' || active.type === 'file-inspector' ? active.path : ''
-        }
+        [paneId]: withTabs(pane, kept, active.id)
       },
       activePaneId: paneId
     }
@@ -584,6 +663,7 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
   function closeTabsLeftInPane(paneId: PaneId, tabId: string): string[] {
     const next = closeTabsRelativeToTab(layout.value, paneId, tabId, 'left')
     layout.value = next.nextLayout
+    next.removedEntries.forEach(pushClosedTab)
     return next.removedDocumentPaths
   }
 
@@ -591,25 +671,114 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
   function closeTabsRightInPane(paneId: PaneId, tabId: string): string[] {
     const next = closeTabsRelativeToTab(layout.value, paneId, tabId, 'right')
     layout.value = next.nextLayout
+    next.removedEntries.forEach(pushClosedTab)
     return next.removedDocumentPaths
   }
 
   function closeAllTabsInPane(paneId: PaneId) {
     const pane = layout.value.panesById[paneId]
     if (!pane) return
+    pane.openTabs.forEach((tab, index) => pushClosedTab({ paneId, tab, index }))
     layout.value = {
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [paneId]: {
-          ...pane,
-          openTabs: [],
-          activeTabId: '',
-          activePath: ''
-        }
+        [paneId]: withTabs(pane, [], '')
       },
       activePaneId: paneId
     }
+  }
+
+  /**
+   * Pins or unpins a tab, keeping pinned tabs as a prefix of the strip.
+   *
+   * Pinning moves the tab to the front; unpinning drops it into the first
+   * unpinned slot, right after the remaining pinned prefix. Pinning is layout
+   * state only: it never touches the note itself or its favourite status.
+   */
+  function setTabPinnedInPane(paneId: PaneId, tabId: string, pinned: boolean) {
+    const pane = layout.value.panesById[paneId]
+    if (!pane) return
+    const tab = pane.openTabs.find((item) => item.id === tabId)
+    if (!tab || tab.pinned === pinned) return
+
+    const others = pane.openTabs.filter((item) => item.id !== tabId)
+    const updated = { ...tab, pinned }
+    const nextTabs = pinned
+      ? [updated, ...others]
+      : [
+          ...others.slice(0, others.filter((item) => item.pinned).length),
+          updated,
+          ...others.slice(others.filter((item) => item.pinned).length)
+        ]
+
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [paneId]: withTabs(pane, nextTabs, pane.activeTabId)
+      }
+    }
+  }
+
+  /**
+   * Moves a tab to an insertion slot expressed against the current order.
+   *
+   * `targetSlot` is a gap index in the current array (`0..length`), which is
+   * what a drop between two tabs naturally reports. The slot is clamped to the
+   * tab's own region, so a dragged tab can never cross the pinned boundary:
+   * pinned tabs stay in the prefix and unpinned tabs stay after it.
+   */
+  function reorderTabInPane(paneId: PaneId, tabId: string, targetSlot: number) {
+    const pane = layout.value.panesById[paneId]
+    if (!pane) return
+    const from = pane.openTabs.findIndex((tab) => tab.id === tabId)
+    if (from < 0) return
+    const tab = pane.openTabs[from]
+    const pinnedCount = pane.openTabs.filter((item) => item.pinned).length
+    const min = tab.pinned ? 0 : pinnedCount
+    const max = tab.pinned ? pinnedCount : pane.openTabs.length
+    const slot = Math.min(Math.max(targetSlot, min), max)
+    const to = slot > from ? slot - 1 : slot
+    if (to === from) return
+
+    const nextTabs = [...pane.openTabs]
+    nextTabs.splice(from, 1)
+    nextTabs.splice(to, 0, tab)
+
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [paneId]: withTabs(pane, nextTabs, pane.activeTabId)
+      }
+    }
+  }
+
+  /** Closes every unpinned tab and keeps the pinned ones in place. */
+  function closeAllUnpinnedTabsInPane(paneId: PaneId): string[] {
+    const pane = layout.value.panesById[paneId]
+    if (!pane) return []
+
+    const kept = pane.openTabs.filter((tab) => tab.pinned)
+    const removed = pane.openTabs.filter((tab) => !tab.pinned)
+    if (!removed.length) return []
+    removed.forEach((tab) => pushClosedTab({ paneId, tab, index: pane.openTabs.indexOf(tab) }))
+
+    const activeTabId = kept.some((tab) => tab.id === pane.activeTabId)
+      ? pane.activeTabId
+      : (pane.recentTabIds.find((id) => kept.some((tab) => tab.id === id)) ?? kept[0]?.id ?? '')
+
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [paneId]: withTabs(pane, kept, activeTabId)
+      },
+      activePaneId: paneId
+    }
+
+    return removed.flatMap((tab) => (tab.type === 'document' || tab.type === 'file-inspector' ? [tab.path] : []))
   }
 
   function splitPane(paneId: PaneId, axis: 'row' | 'column'): PaneId | null {
@@ -623,7 +792,8 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       id: newPaneId,
       openTabs: [],
       activeTabId: '',
-      activePath: ''
+      activePath: '',
+      recentTabIds: []
     }
 
     const pathToSource = buildPathToPane(layout.value.root, paneId)
@@ -742,19 +912,8 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
         ...layout.value,
         panesById: {
           ...layout.value.panesById,
-          [sourceId]: {
-            ...source,
-            openTabs: sourceTabs,
-            activeTabId: nextSourceActive,
-            activePath: documentPathForTabId(sourceTabs, nextSourceActive)
-          },
-          [targetId]: {
-            ...target,
-            activeTabId: duplicateInTarget.id,
-            activePath: duplicateInTarget.type === 'document' || duplicateInTarget.type === 'file-inspector'
-              ? duplicateInTarget.path
-              : ''
-          }
+          [sourceId]: withTabs(source, sourceTabs, nextSourceActive),
+          [targetId]: withTabs(target, target.openTabs, duplicateInTarget.id)
         },
         activePaneId: targetId
       }
@@ -765,22 +924,62 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ...layout.value,
       panesById: {
         ...layout.value.panesById,
-        [sourceId]: {
-          ...source,
-          openTabs: sourceTabs,
-          activeTabId: nextSourceActive,
-          activePath: documentPathForTabId(sourceTabs, nextSourceActive)
-        },
-        [targetId]: {
-          ...target,
-          openTabs: [...target.openTabs, { ...sourceTab }],
-          activeTabId: sourceTab.id,
-          activePath: sourceTab.type === 'document' || sourceTab.type === 'file-inspector' ? sourceTab.path : ''
-        }
+        [sourceId]: withTabs(source, sourceTabs, nextSourceActive),
+        [targetId]: withTabs(target, [...target.openTabs, { ...sourceTab }], sourceTab.id)
       },
       activePaneId: targetId
     }
 
+    return true
+  }
+
+  /**
+   * Activates the next or previous tab in the active pane's MRU order.
+   *
+   * The MRU order is deliberately not reordered here: cycling has to be a stable
+   * walk, otherwise `Ctrl+Tab` followed by `Ctrl+Shift+Tab` would not return to
+   * the tab the user started from.
+   */
+  /**
+   * Returns the tab the MRU cycle would activate, without changing anything.
+   *
+   * The walk is a pure step over `recentTabIds` and never reorders it, so
+   * `Ctrl+Tab` followed by `Ctrl+Shift+Tab` lands back on the starting tab.
+   */
+  function recentTabTargetId(pane: PaneState, direction: MoveDirection): string {
+    const order = pane.recentTabIds.filter((id) => pane.openTabs.some((tab) => tab.id === id))
+    if (order.length < 2) return ''
+    const current = order.indexOf(pane.activeTabId)
+    const step = direction === 'next' ? 1 : -1
+    const nextIndex = current < 0 ? 0 : (current + step + order.length) % order.length
+    const nextId = order[nextIndex]
+    return nextId && nextId !== pane.activeTabId ? nextId : ''
+  }
+
+  /** Returns the path the MRU cycle would activate in the active pane. */
+  function getRecentTabTarget(direction: MoveDirection): string {
+    const pane = layout.value.panesById[layout.value.activePaneId]
+    if (!pane) return ''
+    const nextId = recentTabTargetId(pane, direction)
+    return nextId ? documentPathForTabId(pane.openTabs, nextId) : ''
+  }
+
+  function cycleRecentTab(direction: MoveDirection): boolean {
+    const pane = layout.value.panesById[layout.value.activePaneId]
+    if (!pane) return false
+    const nextId = recentTabTargetId(pane, direction)
+    if (!nextId) return false
+    layout.value = {
+      ...layout.value,
+      panesById: {
+        ...layout.value.panesById,
+        [pane.id]: {
+          ...pane,
+          activeTabId: nextId,
+          activePath: documentPathForTabId(pane.openTabs, nextId)
+        }
+      }
+    }
     return true
   }
 
@@ -824,12 +1023,13 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       const resolvedActiveTabId = shouldRemapActiveTab
         ? (activeTab?.type === 'document' ? renamedTabId : fileInspectorTabId(to))
         : (nextTabs.some((tab) => tab.id === pane.activeTabId) ? pane.activeTabId : (nextTabs[0]?.id ?? ''))
-      nextPanes[paneId] = {
-        ...pane,
-        openTabs: nextTabs,
-        activeTabId: resolvedActiveTabId,
-        activePath: documentPathForTabId(nextTabs, resolvedActiveTabId)
-      }
+      // Remap the MRU order through the same id rewrite so it keeps pointing at
+      // the renamed tab instead of a stale id.
+      const remappedRecent = pane.recentTabIds.map((id) => {
+        if (id !== documentTabId(from) && id !== fileInspectorTabId(from)) return id
+        return id === documentTabId(from) ? renamedTabId : fileInspectorTabId(to)
+      })
+      nextPanes[paneId] = withTabs({ ...pane, recentTabIds: remappedRecent }, nextTabs, resolvedActiveTabId)
     }
 
     layout.value = {
@@ -843,12 +1043,11 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     const single = createInitialLayout()
 
     if (activeTab) {
-      single.panesById[single.activePaneId] = {
-        ...single.panesById[single.activePaneId],
-        openTabs: [{ ...activeTab }],
-        activeTabId: activeTab.id,
-        activePath: activeTab.type === 'document' || activeTab.type === 'file-inspector' ? activeTab.path : ''
-      }
+      single.panesById[single.activePaneId] = withTabs(
+        single.panesById[single.activePaneId],
+        [{ ...activeTab }],
+        activeTab.id
+      )
     }
 
     layout.value = single
@@ -887,12 +1086,11 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
       ? activeTab.id
       : (mergedTabs[0]?.id ?? '')
 
-    single.panesById[single.activePaneId] = {
-      ...single.panesById[single.activePaneId],
-      openTabs: mergedTabs,
-      activeTabId: mergedActiveTabId,
-      activePath: documentPathForTabId(mergedTabs, mergedActiveTabId)
-    }
+    single.panesById[single.activePaneId] = withTabs(
+      single.panesById[single.activePaneId],
+      mergedTabs,
+      mergedActiveTabId
+    )
     layout.value = single
   }
 
@@ -924,6 +1122,9 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
   return {
     layout,
     paneOrder,
+    closedTabs,
+    reopenLastClosedTab,
+    cycleRecentTab,
     openDocumentInPane,
     openInspectorInPane,
     revealDocumentInPane,
@@ -938,6 +1139,11 @@ export function useMultiPaneWorkspaceState(initial: MultiPaneLayout = createInit
     closeTabsLeftInPane,
     closeTabsRightInPane,
     closeAllTabsInPane,
+    closeAllUnpinnedTabsInPane,
+    setTabPinnedInPane,
+    getRecentTabTarget,
+    reorderTabInPane,
+    moveTabToPane,
     closeAllTabsAndResetLayout,
     splitPane,
     closePane,

@@ -11,7 +11,7 @@ function mountHarness() {
     setup() {
       return () =>
         h(WorkspaceStatusBar, {
-          activeFileLabel: 'notes/test.md',
+          activeFileLabel: 'test.md',
           activeStateLabel: 'saved',
           indexStateLabel: 'indexed',
           indexStateClass: 'status-item-indexed',
@@ -74,6 +74,42 @@ describe('WorkspaceStatusBar', () => {
     mounted.app.unmount()
   })
 
+  it('shows the document name without repeating its path', () => {
+    const mounted = mountHarness()
+    const labels = Array.from(mounted.root.querySelectorAll('.status-item'))
+      .map((item) => item.textContent?.trim() ?? '')
+
+    expect(labels).toContain('test.md')
+    expect(labels.some((label) => label.includes('/'))).toBe(false)
+
+    mounted.app.unmount()
+  })
+
+  it('reports a failed save as operational information', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const app = createApp(defineComponent({
+      setup() {
+        return () => h(WorkspaceStatusBar, {
+          activeFileLabel: 'test.md',
+          activeStateLabel: 'editing',
+          indexStateLabel: 'indexed',
+          indexStateClass: 'status-item-indexed',
+          spellcheckEnabled: true,
+          saveError: 'disk is read-only',
+          signalSummary: { path: 'notes/test.md', spellcheckEnabled: true, findActive: false, spellcheckCount: 0, findCount: 0, linkCount: 0 }
+        })
+      }
+    }))
+
+    app.mount(root)
+    const error = root.querySelector<HTMLElement>('.status-item-error')
+    expect(error?.textContent?.trim()).toBe('save failed')
+    expect(error?.getAttribute('role')).toBe('alert')
+    expect(error?.getAttribute('title')).toBe('disk is read-only')
+    app.unmount()
+  })
+
   it('shows an actionable disabled spellcheck state', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
@@ -81,7 +117,7 @@ describe('WorkspaceStatusBar', () => {
     const app = createApp(defineComponent({
       setup() {
         return () => h(WorkspaceStatusBar, {
-          activeFileLabel: 'notes/test.md',
+          activeFileLabel: 'test.md',
           activeStateLabel: 'saved',
           indexStateLabel: 'indexed',
           indexStateClass: 'status-item-indexed',

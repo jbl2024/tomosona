@@ -40,6 +40,17 @@ block structure, drops frontmatter, sanitizes embedded HTML, and keeps links ine
 preview surface has no navigation handler. It never shells out to an external converter, so
 previews do not depend on Pandoc being installed.
 
+## Breadcrumb Segments
+
+`breadcrumbSegments.ts` turns a document path into the ordered segments the editor
+breadcrumb renders. It is pure string work: no Vue, no I/O, no navigation.
+
+- Folder segments carry absolute paths so the explorer reveal port can consume them
+  directly; the document segment keeps the document's own path.
+- Only the displayed label drops the Markdown extension. Paths are never rewritten.
+- `condenseBreadcrumbSegments` keeps the first and last segments visible and returns
+  the middle ones, which the breadcrumb hides behind an ellipsis in a narrow pane.
+
 ## Deliberate Non-goals
 
 - Full CommonMark compatibility.

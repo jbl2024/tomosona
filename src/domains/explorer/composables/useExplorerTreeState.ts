@@ -290,6 +290,12 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
         await loadChildren(dir)
       }
     }
+    // A folder target is expanded too, so revealing it shows its contents
+    // instead of only selecting a collapsed row.
+    if (nodeByPath.value[path]?.is_dir && !expandedPaths.value.has(path)) {
+      expandedPaths.value = new Set(expandedPaths.value).add(path)
+      await loadChildren(path)
+    }
     persistExpandedState()
     options.selection.selectSingle(path)
     focusedPath.value = path

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { DocumentIcon, HomeIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
-import { usePageProtectionBadges } from '../../../shared/composables/usePageProtectionBadges'
+import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { usePageProtectionStates } from '../../../shared/composables/usePageProtectionBadges'
 import type { PaneState, PaneTab } from '../../composables/useMultiPaneWorkspaceState'
+import { makeDroppable } from '@vue-dnd-kit/core'
 import UiMenu from '../../../shared/components/ui/UiMenu.vue'
 import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
+import EditorPaneTab from './EditorPaneTab.vue'
+import EditorPaneTabList from './EditorPaneTabList.vue'
+import { hasHomonym, tabFolder, tabLabel, tabPath } from './tabLabels'
 
 /**
  * Module: EditorPaneTabs
@@ -13,20 +17,36 @@ import UiMenuList from '../../../shared/components/ui/UiMenuList.vue'
  * - Render the tab strip for a pane and own the local tab context menu.
  * - Keep pointer gestures and menu positioning close to the tab UI, while the
  *   shell still owns the actual tab state mutations.
+ *
+ * Presentation rules:
+ * - A tab label is the document name without its Markdown extension; the path
+ *   stays untouched everywhere else.
+ * - At most one transient marker is shown per tab (failed save, then saving,
+ *   then unsaved). Protection and pinning are stable, path-derived flags.
+ * - The close control always occupies its slot so revealing it never shifts
+ *   the title.
  */
 
 export type FileEditorStatus = {
   dirty: boolean
   saving: boolean
   saveError: string
+  /** Set when the note could not be read at all. */
+  inaccessible?: boolean
 }
 
 const props = defineProps<{
   pane: PaneState
   isActivePane: boolean
   getStatus: (path: string) => FileEditorStatus
+  /** Total panes in the layout; cross-pane actions need at least two. */
+  paneCount?: number
+  /** Document paths already open in the other pane, for cross-pane gating. */
+  otherPanePaths?: string[]
 }>()
-const protectedPaths = usePageProtectionBadges(() => props.pane.openTabs.flatMap((tab) => tab.type === 'document' ? [tab.path] : []))
+const { protectedPaths, lockedPaths } = usePageProtectionStates(
+  () => props.pane.openTabs.flatMap((tab) => tab.type === 'document' ? [tab.path] : [])
+)
 
 const emit = defineEmits<{
   'pane-focus': [payload: { paneId: string }]
@@ -36,21 +56,113 @@ const emit = defineEmits<{
   'tab-close-left': [payload: { paneId: string; tabId: string }]
   'tab-close-right': [payload: { paneId: string; tabId: string }]
   'tab-close-all': [payload: { paneId: string }]
+  'tab-close-unpinned': [payload: { paneId: string }]
+  'tab-pin': [payload: { paneId: string; tabId: string; pinned: boolean }]
+  'tab-duplicate-in-other-pane': [payload: { paneId: string; tabId: string }]
+  'tab-move-to-other-pane': [payload: { paneId: string; tabId: string }]
+  'tab-copy-link': [payload: { paneId: string; tabId: string }]
+  'tab-reveal-in-explorer': [payload: { paneId: string; tabId: string }]
+  'tab-reorder': [payload: { paneId: string; tabId: string; targetSlot: number }]
+  'tab-drop': [payload: { paneId: string; tabId: string }]
+  'create-note': [payload: { paneId: string }]
   'request-move-tab': [payload: { paneId: string; direction: 'next' | 'previous' }]
 }>()
 
-const tabs = computed(() => props.pane.openTabs.map((tab) => {
-  const status = tab.type === 'document'
-    ? props.getStatus(tab.path)
-    : { dirty: false, saving: false, saveError: '' }
-  return {
-    ...tab,
-    title: tabTitle(tab),
-    icon: tabIcon(tab),
-    dirty: status.dirty,
-    saving: status.saving
+const EMPTY_STATUS: FileEditorStatus = { dirty: false, saving: false, saveError: '', inaccessible: false }
+
+/** Number of pinned tabs, i.e. the boundary a drag may not cross. */
+const pinnedCount = computed(() => props.pane.openTabs.filter((tab) => tab.pinned).length)
+
+const tabs = computed(() => {
+  const labels = props.pane.openTabs.map((tab) => tabLabel(tab))
+  return props.pane.openTabs.map((tab, index) => {
+    const status = tab.type === 'document' ? props.getStatus(tab.path) : EMPTY_STATUS
+    const isProtected = tab.type === 'document' && protectedPaths.value.has(tab.path)
+    const isLocked = isProtected && lockedPaths.value.has(tab.path)
+    const inaccessible = Boolean(status.inaccessible)
+    const marker = tabStateMarker(status)
+    return {
+      ...tab,
+      title: labels[index],
+      tooltip: tabTooltip(tab, labels[index], labels, {
+        status,
+        isProtected,
+        isLocked,
+        inaccessible
+      }),
+      dirty: status.dirty,
+      saving: status.saving,
+      saveError: status.saveError,
+      inaccessible,
+      protected: isProtected,
+      locked: isLocked,
+      protectionLabel: isProtected ? (isLocked ? 'Locked protected note' : 'Protected note, unlocked for this session') : '',
+      stateMarker: marker.glyph,
+      stateLabel: marker.label
+    }
+  })
+})
+
+const scrollRef = ref<HTMLElement | null>(null)
+const hasOverflow = ref(false)
+const canScrollBack = ref(false)
+const canScrollForward = ref(false)
+const tabListOpen = ref(false)
+
+const paneTabIds = computed(() => props.pane.openTabs.map((tab) => tab.id))
+
+/**
+ * The single drop target for the strip.
+ *
+ * Tabs are draggable only. Two overlapping droppables (strip plus tab) raced
+ * for the same drop, and the strip won: a same-pane reorder fell through to the
+ * early return below and did nothing. One zone resolves both cases from the
+ * hovered tab, which carries its own index and left/right placement.
+ *
+ * A drop on empty strip space is a no-op, so a tab dragged back onto itself
+ * never jumps to the end of the strip.
+ */
+const stripDrop = makeDroppable(scrollRef, {
+  events: {
+    onDrop: (event) => {
+      const draggedId = event.draggedItems?.[0]?.item
+      if (typeof draggedId !== 'string') return
+      if (!paneTabIds.value.includes(draggedId)) {
+        emit('tab-drop', { paneId: props.pane.id, tabId: draggedId })
+        return
+      }
+      const hovered = event.hoveredDraggable
+      if (!hovered || hovered.index < 0) return
+      const targetSlot = hovered.placement?.right ? hovered.index + 1 : hovered.index
+      emit('tab-reorder', { paneId: props.pane.id, tabId: draggedId, targetSlot })
+    }
   }
-}))
+}, () => paneTabIds.value)
+
+/**
+ * Recomputes the overflow flags from the live scroll box.
+ *
+ * Only writes when a flag actually changes, so a `ResizeObserver` firing on
+ * every frame cannot cause a render loop.
+ */
+function measureOverflow() {
+  const element = scrollRef.value
+  if (!element) return
+  const overflow = element.scrollWidth > element.clientWidth + 1
+  if (overflow !== hasOverflow.value) hasOverflow.value = overflow
+  const back = overflow && element.scrollLeft > 1
+  if (back !== canScrollBack.value) canScrollBack.value = back
+  const forward = overflow && element.scrollLeft + element.clientWidth < element.scrollWidth - 1
+  if (forward !== canScrollForward.value) canScrollForward.value = forward
+}
+
+function scrollStrip(direction: 'back' | 'forward') {
+  const element = scrollRef.value
+  if (!element) return
+  const step = Math.max(120, Math.round(element.clientWidth * 0.7))
+  element.scrollLeft += direction === 'forward' ? step : -step
+  measureOverflow()
+}
 
 const contextMenuTabId = ref('')
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -72,11 +184,46 @@ const contextMenuStyle = computed(() => ({
   top: `${contextMenuPosition.value.y}px`,
   zIndex: 60
 }))
+const contextMenuTab = computed(() => tabs.value[contextMenuTabIndex.value] ?? null)
+const contextMenuTabPath = computed(() => {
+  const tab = contextMenuTab.value
+  return tab && (tab.type === 'document' || tab.type === 'file-inspector') ? tab.path : ''
+})
+const hasOtherPane = computed(() => (props.paneCount ?? 1) > 1)
+const contextMenuPathInOtherPane = computed(() => {
+  const path = contextMenuTabPath.value
+  return Boolean(path) && (props.otherPanePaths ?? []).includes(path)
+})
 const contextMenuItems = computed(() => [
+  {
+    action: 'tab-pin' as const,
+    label: contextMenuTab.value?.pinned ? 'Unpin Tab' : 'Pin Tab',
+    disabled: false
+  },
+  {
+    action: 'tab-duplicate-in-other-pane' as const,
+    label: 'Duplicate in Other Pane',
+    disabled: !hasOtherPane.value || contextMenuPathInOtherPane.value
+  },
+  {
+    action: 'tab-move-to-other-pane' as const,
+    label: 'Move to Other Pane',
+    disabled: !hasOtherPane.value || contextMenuPathInOtherPane.value
+  },
+  {
+    action: 'tab-copy-link' as const,
+    label: 'Copy Note Link',
+    disabled: !contextMenuTabPath.value
+  },
+  {
+    action: 'tab-reveal-in-explorer' as const,
+    label: 'Reveal in Explorer',
+    disabled: !contextMenuTabPath.value
+  },
   {
     action: 'tab-close' as const,
     label: 'Close',
-    disabled: false
+    disabled: Boolean(contextMenuTab.value?.pinned)
   },
   {
     action: 'tab-close-others' as const,
@@ -95,22 +242,46 @@ const contextMenuItems = computed(() => [
   }
 ])
 
-function fileName(path: string): string {
-  const normalized = path.replace(/\\/g, '/')
-  const parts = normalized.split('/')
-  return parts[parts.length - 1] || path
+/**
+ * Picks the single transient marker a tab may show.
+ *
+ * Priority is failed save, then saving, then unsaved: a failed save is the only
+ * one the user must not miss, and stacking markers makes the strip unreadable.
+ */
+function tabStateMarker(status: FileEditorStatus): { glyph: string; label: string } {
+  if (status.saveError) return { glyph: '!', label: `Save failed: ${status.saveError}` }
+  if (status.saving) return { glyph: '~', label: 'Saving' }
+  if (status.dirty) return { glyph: '●', label: 'Unsaved changes' }
+  return { glyph: '', label: '' }
 }
 
-function tabTitle(tab: PaneTab): string {
-  if (tab.type === 'document') return fileName(tab.path)
-  if (tab.type === 'file-inspector') return fileName(tab.path)
-  if (tab.type === 'home') return 'Home'
-  return 'Home'
-}
-
-function tabIcon(tab: PaneTab) {
-  if (tab.type === 'file-inspector') return DocumentIcon
-  return null
+/**
+ * Builds the hover and focus tooltip: name, full path, then only the details
+ * that the strip cannot show inline.
+ */
+function tabTooltip(
+  tab: PaneTab,
+  label: string,
+  labels: string[],
+  state: { status: FileEditorStatus; isProtected: boolean; isLocked: boolean; inaccessible: boolean }
+): string {
+  const lines = [label]
+  const path = tabPath(tab)
+  if (path) {
+    lines.push(path.replace(/\\/g, '/').split('/').filter(Boolean).join(' / '))
+  }
+  if (hasHomonym(label, labels)) {
+    lines.push(`Another open tab has the same name — this one is in ${tabFolder(tab) || 'the workspace root'}`)
+  }
+  if (tab.pinned) lines.push('Pinned')
+  if (state.inaccessible) {
+    lines.push('Cannot be read')
+  } else if (state.isProtected) {
+    lines.push(state.isLocked ? 'Locked protected note' : 'Protected note, unlocked for this session')
+  }
+  const marker = tabStateMarker(state.status)
+  if (marker.label) lines.push(marker.label)
+  return lines.join('\n')
 }
 
 function closeContextMenu() {
@@ -126,10 +297,42 @@ function openContextMenu(tabId: string, event: MouseEvent) {
   contextMenuActiveIndex.value = null
 }
 
-function emitContextMenuAction(action: 'tab-close' | 'tab-close-others' | 'tab-close-left' | 'tab-close-right') {
+type ContextMenuAction =
+  | 'tab-pin'
+  | 'tab-duplicate-in-other-pane'
+  | 'tab-move-to-other-pane'
+  | 'tab-copy-link'
+  | 'tab-reveal-in-explorer'
+  | 'tab-close'
+  | 'tab-close-others'
+  | 'tab-close-left'
+  | 'tab-close-right'
+
+function emitContextMenuAction(action: ContextMenuAction) {
   const tabId = contextMenuTabId.value
   if (!tabId) return
+  const pinned = Boolean(contextMenuTab.value?.pinned)
   closeContextMenu()
+  if (action === 'tab-pin') {
+    emit('tab-pin', { paneId: props.pane.id, tabId, pinned: !pinned })
+    return
+  }
+  if (action === 'tab-duplicate-in-other-pane') {
+    emit('tab-duplicate-in-other-pane', { paneId: props.pane.id, tabId })
+    return
+  }
+  if (action === 'tab-move-to-other-pane') {
+    emit('tab-move-to-other-pane', { paneId: props.pane.id, tabId })
+    return
+  }
+  if (action === 'tab-copy-link') {
+    emit('tab-copy-link', { paneId: props.pane.id, tabId })
+    return
+  }
+  if (action === 'tab-reveal-in-explorer') {
+    emit('tab-reveal-in-explorer', { paneId: props.pane.id, tabId })
+    return
+  }
   if (action === 'tab-close') {
     emit('tab-close', { paneId: props.pane.id, tabId })
     return
@@ -150,7 +353,9 @@ function selectTab(tabId: string) {
   emit('tab-click', { paneId: props.pane.id, tabId })
 }
 
-function setTabRef(tabId: string, element: HTMLElement | null) {
+/** Stores the tab's root element so the active tab can be scrolled into view. */
+function setTabRef(tabId: string, instance: unknown) {
+  const element = (instance as { $el?: HTMLElement } | null)?.$el
   if (element) {
     tabRefs.set(tabId, element)
     return
@@ -168,13 +373,58 @@ async function revealActiveTab() {
     inline: 'nearest',
     behavior: 'auto'
   })
+  measureOverflow()
 }
 
-function onTabAuxClick(tabId: string, event: MouseEvent) {
+function toggleTabList() {
+  tabListOpen.value = !tabListOpen.value
+}
+
+function closeTabList() {
+  tabListOpen.value = false
+}
+
+function onTabListTabClick(payload: { tabId: string }) {
+  closeTabList()
+  selectTab(payload.tabId)
+}
+
+function onTabListCloseOthers(payload: { tabId: string }) {
+  closeTabList()
+  emit('tab-close-others', { paneId: props.pane.id, tabId: payload.tabId })
+}
+
+function onTabListCloseRight(payload: { tabId: string }) {
+  closeTabList()
+  emit('tab-close-right', { paneId: props.pane.id, tabId: payload.tabId })
+}
+
+function onTabListCloseUnpinned() {
+  closeTabList()
+  emit('tab-close-unpinned', { paneId: props.pane.id })
+}
+
+function onTabListCloseAll() {
+  closeTabList()
+  emit('tab-close-all', { paneId: props.pane.id })
+}
+
+/**
+ * Closes a tab unless it is pinned.
+ *
+ * A pinned tab is only unpinned from its context menu, so neither the close
+ * control nor a middle click can drop it by accident.
+ */
+function requestClose(tab: { id: string; pinned: boolean }) {
+  if (tab.pinned) return
+  emit('tab-close', { paneId: props.pane.id, tabId: tab.id })
+}
+
+function onTabAuxClick(tab: { id: string; pinned: boolean }, event: MouseEvent) {
   if (event.button !== 1) return
   event.preventDefault()
   closeContextMenu()
-  emit('tab-close', { paneId: props.pane.id, tabId })
+  requestClose(tab)
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
@@ -253,80 +503,123 @@ watch(() => props.pane.activeTabId, revealActiveTab, {
   flush: 'post'
 })
 
+watch(() => props.pane.openTabs.length, () => { void nextTick(measureOverflow) })
+
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown, true)
+  scrollRef.value?.addEventListener('scroll', measureOverflow, { passive: true })
+  if (typeof ResizeObserver !== 'undefined' && scrollRef.value) {
+    resizeObserver = new ResizeObserver(measureOverflow)
+    resizeObserver.observe(scrollRef.value)
+  }
+  void nextTick(measureOverflow)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown, true)
+  scrollRef.value?.removeEventListener('scroll', measureOverflow)
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 </script>
 
 <template>
-  <div ref="wrapRef" class="pane-tabs" @mousedown="emit('pane-focus', { paneId: pane.id })">
-    <div class="pane-tabs-scroll">
-      <div
-        v-for="tab in tabs"
+  <div
+    ref="wrapRef"
+    class="pane-tabs"
+    :class="{ 'is-active-pane': isActivePane }"
+    @mousedown="emit('pane-focus', { paneId: pane.id })"
+  >
+    <button
+      v-if="hasOverflow"
+      type="button"
+      class="pane-tab-scroll"
+      aria-label="Scroll tabs left"
+      title="Scroll tabs left"
+      :disabled="!canScrollBack"
+      @click="scrollStrip('back')"
+    >
+      ‹
+    </button>
+    <div
+      ref="scrollRef"
+      class="pane-tabs-scroll"
+      :class="{ 'is-drop-target': stripDrop.isDragOver.value }"
+      @dblclick.self="emit('create-note', { paneId: pane.id })"
+    >
+      <EditorPaneTab
+        v-for="(tab, index) in tabs"
         :key="tab.id"
-        :ref="(element) => setTabRef(tab.id, element as HTMLElement | null)"
-        role="button"
-        tabindex="0"
-        class="pane-tab-item"
-        :class="{
-          active: pane.activeTabId === tab.id,
-          'active-pane': pane.activeTabId === tab.id && isActivePane
-        }"
-        @click="selectTab(tab.id)"
-        @contextmenu.prevent="openContextMenu(tab.id, $event)"
-        @auxclick.stop="onTabAuxClick(tab.id, $event)"
-        @keydown.enter.prevent="selectTab(tab.id)"
-        @keydown.space.prevent="selectTab(tab.id)"
-      >
-        <span v-if="tab.type === 'home'" class="pane-tab-icon pane-tab-icon--hero">
-          <HomeIcon />
-        </span>
-        <span v-else-if="tabIcon(tab)" class="pane-tab-icon pane-tab-icon--hero">
-          <component :is="tabIcon(tab)" />
-        </span>
-        <span v-else-if="tab.icon" class="pane-tab-icon">{{ tab.icon }}</span>
-        <span class="pane-tab-name">{{ tab.title }}</span>
-        <span v-if="tab.type === 'document' && protectedPaths.has(tab.path)" title="Password protected" aria-label="Password protected"><LockClosedIcon class="h-4 w-4" /></span>
-        <span v-if="tab.saving" class="pane-tab-state" title="Saving">~</span>
-        <span v-else-if="tab.dirty" class="pane-tab-state" title="Unsaved">•</span>
-        <button
-          type="button"
-          class="pane-tab-close"
-          aria-label="Close tab"
-          @click.stop="emit('tab-close', { paneId: pane.id, tabId: tab.id })"
-        >
-          x
-        </button>
-      </div>
-      <div v-if="!tabs.length" class="pane-tab-empty">No open files</div>
+        :ref="(element) => setTabRef(tab.id, element)"
+        :tab="tab"
+        :active="pane.activeTabId === tab.id"
+        :index="index"
+        :pinned-count="pinnedCount"
+        :pane-tab-ids="paneTabIds"
+        @select="selectTab(tab.id)"
+        @close="requestClose(tab)"
+        @contextmenu="openContextMenu(tab.id, $event)"
+        @auxclick="onTabAuxClick(tab, $event)"
+      />
     </div>
+    <button
+      v-if="hasOverflow"
+      type="button"
+      class="pane-tab-scroll"
+      aria-label="Scroll tabs right"
+      title="Scroll tabs right"
+      :disabled="!canScrollForward"
+      @click="scrollStrip('forward')"
+    >
+      ›
+    </button>
     <div class="pane-tabs-actions">
-      <button type="button" class="pane-tab-action" @click="emit('request-move-tab', { paneId: pane.id, direction: 'previous' })" title="Move active tab to previous pane">←</button>
-      <button type="button" class="pane-tab-action" @click="emit('request-move-tab', { paneId: pane.id, direction: 'next' })" title="Move active tab to next pane">→</button>
       <button
         type="button"
         class="pane-tab-action"
-        :disabled="!pane.activeTabId"
-        @click="emit('tab-close-others', { paneId: pane.id, tabId: pane.activeTabId })"
-        title="Close other tabs"
+        aria-label="All open tabs"
+        title="All open tabs"
+        :aria-expanded="tabListOpen ? 'true' : 'false'"
+        @click="toggleTabList"
       >
-        O
+        <ChevronDownIcon aria-hidden="true" />
       </button>
       <button
         type="button"
         class="pane-tab-action"
-        @click="emit('tab-close-all', { paneId: pane.id })"
-        title="Close all tabs"
+        aria-label="Move active tab to the previous pane"
+        title="Move active tab to the previous pane"
+        :disabled="!pane.activeTabId"
+        @click="emit('request-move-tab', { paneId: pane.id, direction: 'previous' })"
       >
-        A
+        <ArrowLeftIcon aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="pane-tab-action"
+        aria-label="Move active tab to the next pane"
+        title="Move active tab to the next pane"
+        :disabled="!pane.activeTabId"
+        @click="emit('request-move-tab', { paneId: pane.id, direction: 'next' })"
+      >
+        <ArrowRightIcon aria-hidden="true" />
       </button>
     </div>
+    <UiMenu v-if="tabListOpen" class-name="pane-tab-list-menu">
+      <EditorPaneTabList
+        :pane="pane"
+        @tab-click="onTabListTabClick"
+        @close-others="onTabListCloseOthers"
+        @close-right="onTabListCloseRight"
+        @close-unpinned="onTabListCloseUnpinned"
+        @close-all="onTabListCloseAll"
+        @dismiss="closeTabList"
+      />
+    </UiMenu>
     <UiMenu v-if="contextMenuOpen" class-name="pane-tab-menu" :style="contextMenuStyle">
       <UiMenuList>
         <button
@@ -349,14 +642,46 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pane-tabs {
+  position: relative;
   display: flex;
   align-items: stretch;
-  min-height: 32px;
+  min-height: 38px;
   border-bottom: 1px solid var(--tabbar-border);
   background: var(--tabbar-bg);
   font-size: 0.84rem;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.pane-tab-scroll {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--tabbar-tab-text);
+  padding: 0 0.2rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pane-tab-scroll:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pane-tab-list-menu {
+  position: absolute;
+  top: 100%;
+  right: 0.3rem;
+  z-index: 60;
+}
+
+/* The active pane is signalled on the strip, not on the active tab, so the two
+   affordances never compete for the same pixels. The tint carries the light
+   theme, the top accent carries the dark one. */
+.pane-tabs.is-active-pane {
+  background: var(--tabbar-tab-active-pane-bg);
+  box-shadow: inset 0 2px 0 var(--tabbar-tab-active-indicator);
 }
 
 .pane-tabs-scroll {
@@ -373,71 +698,9 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.pane-tab-item {
-  max-width: 220px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.52rem;
-  border: 0;
-  background: transparent;
-  color: var(--tabbar-tab-text);
-  cursor: pointer;
-  position: relative;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.pane-tab-item::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 1px;
-  background: var(--tabbar-tab-separator);
-}
-
-.pane-tab-item.active {
-  background: var(--tabbar-tab-active-bg);
-  color: var(--tabbar-tab-text-active);
-}
-
-.pane-tab-item.active-pane {
-  background: var(--tabbar-tab-active-pane-bg);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tabbar-tab-active-indicator) 70%, transparent);
-}
-
-.pane-tab-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.pane-tab-icon {
-  font-size: 0.7rem;
-  opacity: 0.78;
-}
-
-.pane-tab-icon--hero {
-  width: 0.95rem;
-  height: 0.95rem;
-  opacity: 0.9;
-}
-
-.pane-tab-state {
-  font-size: 0.7rem;
-  opacity: 0.75;
-}
-
-.pane-tab-close {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 0.72rem;
-  cursor: pointer;
-  line-height: 1;
+/* A tab dragged from another pane needs a visible landing zone. */
+.pane-tabs-scroll.is-drop-target {
+  box-shadow: inset 0 0 0 2px var(--tabbar-tab-active-indicator);
 }
 
 .pane-tabs-actions {
@@ -458,18 +721,22 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
+.pane-tab-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pane-tab-action :deep(svg) {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .pane-tab-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.pane-tab-empty {
-  display: inline-flex;
-  align-items: center;
-  color: var(--tabbar-empty);
-  padding: 0.32rem 0.56rem;
-  font-size: 0.76rem;
-}
 
 .pane-tab-menu {
   min-width: 220px;
@@ -478,5 +745,4 @@ onBeforeUnmount(() => {
 .pane-tab-menu-item {
   justify-content: flex-start;
 }
-
 </style>

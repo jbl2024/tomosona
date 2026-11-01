@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import EditorView from '../../../domains/editor/components/EditorView.vue'
 import FileInspectorPaneSurface from './FileInspectorPaneSurface.vue'
 import LockedPageSurface from './LockedPageSurface.vue'
@@ -53,12 +53,13 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  status: [payload: { path: string; dirty: boolean; saving: boolean; saveError: string }]
+  status: [payload: { path: string; dirty: boolean; saving: boolean; saveError: string; inaccessible?: boolean }]
   'path-renamed': [payload: { from: string; to: string; manual: boolean }]
   outline: [payload: Array<{ level: 1 | 2 | 3; text: string }>]
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
   'signal-summary': [payload: EditorSignalSummary]
   'external-reload': [payload: { path: string }]
+  'breadcrumb-action': [payload: { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
@@ -93,6 +94,8 @@ type EditorSurfaceExposed = {
   zoomOut: () => number
   resetZoom: () => number
   getZoom: () => number
+  getScrollTop: () => number
+  setScrollTop: (value: number) => boolean
 }
 
 const activeNotePath = computed(() => props.activeTab?.type === 'document' ? props.activeTab.path : '')
@@ -100,6 +103,23 @@ const pageUnlock = useInlinePageUnlock(activeNotePath)
 const pageReady = computed(() => pageUnlock.state.value === 'unlocked' && !pageUnlock.waitingReads.value[activeNotePath.value])
 const readSnapshot = (path: string) => pageUnlock.read(() => props.readNoteSnapshot!(path))
 const readFile = (path: string) => pageUnlock.read(() => props.openFile!(path))
+
+// A note that fails to load is still an open tab, so the strip has to be able
+// to flag it. The editor never emits a status for such a path, so the pane
+// surface reports the read failure itself and merges it with the last known
+// save state.
+watch([activeNotePath, () => pageUnlock.state.value], () => {
+  const path = activeNotePath.value
+  if (!path) return
+  const current = props.getStatus(path)
+  emit('status', {
+    path,
+    dirty: current.dirty,
+    saving: current.saving,
+    saveError: current.saveError,
+    inaccessible: pageUnlock.state.value === 'error'
+  })
+})
 
 const editorSurfaceRef = ref<EditorSurfaceExposed | null>(null)
 const activeInspectorTab = computed(() => props.activeTab?.type === 'file-inspector' ? props.activeTab : null)
@@ -138,6 +158,8 @@ defineExpose<EditorSurfaceExposed>({
   zoomOut: () => withEditor((editor) => editor.zoomOut(), 1),
   resetZoom: () => withEditor((editor) => editor.resetZoom(), 1),
   getZoom: () => withEditor((editor) => editor.getZoom(), 1),
+  getScrollTop: () => withEditor((editor) => editor.getScrollTop(), 0),
+  setScrollTop: (value: number) => withEditor((editor) => editor.setScrollTop(value), false),
 })
 </script>
 
@@ -170,6 +192,7 @@ defineExpose<EditorSurfaceExposed>({
     @properties="emit('properties', $event)"
     @signal-summary="emit('signal-summary', $event)"
     @external-reload="emit('external-reload', $event)"
+    @breadcrumb-action="emit('breadcrumb-action', $event)"
   />
 
   <LockedPageSurface
@@ -193,7 +216,7 @@ defineExpose<EditorSurfaceExposed>({
   />
 
   <WorkspaceLaunchpad
-    v-if="activeTab?.type === 'home'"
+    v-if="!activeTab || activeTab.type === 'home'"
     :mode="launchpad.mode"
     :workspace-label="launchpad.workspaceLabel"
     :recent-workspaces="launchpad.recentWorkspaces"
@@ -212,27 +235,6 @@ defineExpose<EditorSurfaceExposed>({
     @quick-start="emit('launchpad-quick-start', $event)"
   />
 
-  <WorkspaceLaunchpad
-    v-else-if="!activeTab && launchpad.showExperience"
-    :mode="launchpad.mode"
-    :workspace-label="launchpad.workspaceLabel"
-    :recent-workspaces="launchpad.recentWorkspaces"
-    :recent-viewed-notes="launchpad.recentViewedNotes"
-    :recent-updated-notes="launchpad.recentUpdatedNotes"
-    :show-wizard-action="launchpad.showWizardAction"
-    @open-workspace="emit('launchpad-open-workspace')"
-    @open-wizard="emit('launchpad-open-wizard')"
-    @open-command-palette="emit('launchpad-open-command-palette')"
-    @open-shortcuts="emit('launchpad-open-shortcuts')"
-    @open-recent-workspace="emit('launchpad-open-recent-workspace', $event)"
-    @open-today="emit('launchpad-open-today')"
-    @open-quick-open="emit('launchpad-open-quick-open')"
-    @create-note="emit('launchpad-create-note')"
-    @open-recent-note="emit('launchpad-open-recent-note', $event)"
-    @quick-start="emit('launchpad-quick-start', $event)"
-  />
-
-  <div v-else-if="!activeTab" class="surface-placeholder">Open a tab to start.</div>
 </template>
 
 <style scoped>

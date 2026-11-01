@@ -63,7 +63,8 @@ export type AppShellKeyboardActionsPort = {
   splitPane: (axis: 'row' | 'column') => boolean | void | Promise<boolean | void>
   focusPane: (index: number) => boolean | void | Promise<boolean | void>
   moveActiveTabToAdjacentPane: (direction: 'next' | 'previous') => boolean | void | Promise<boolean | void>
-  openNextTab: () => boolean | void | Promise<boolean | void>
+  cycleRecentTab: (direction: 'next' | 'previous') => boolean | void | Promise<boolean | void>
+  reopenLastClosedTab: () => boolean | void | Promise<boolean | void>
   openSearchPanel: () => void
   showExplorerForActiveFile: (options: { focusTree?: boolean }) => boolean | void | Promise<boolean | void>
   toggleSidebar: () => void
@@ -241,6 +242,12 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       return
     }
 
+    if (isMod && event.shiftKey && !event.altKey && key === 't') {
+      event.preventDefault()
+      void options.actionsPort.reopenLastClosedTab()
+      return
+    }
+
     if (options.guardsPort.hasBlockingModalOpen()) return
 
     const isPanelModifier = options.isMacOs ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
@@ -331,9 +338,11 @@ export function useAppShellKeyboard(options: UseAppShellKeyboardOptions) {
       void options.actionsPort.moveActiveTabToAdjacentPane('previous')
       return
     }
+    // Ctrl+Tab walks the most-recently-consulted order, not the visual one, so
+    // the previous document is always one keystroke away.
     if (key === 'tab') {
       event.preventDefault()
-      void options.actionsPort.openNextTab()
+      void options.actionsPort.cycleRecentTab(event.shiftKey ? 'previous' : 'next')
       return
     }
     if (key === 'f' && event.shiftKey) {

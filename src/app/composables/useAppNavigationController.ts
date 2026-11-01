@@ -57,6 +57,12 @@ export type AppNavigationPanePort = {
   setActivePathInPane: (paneId: string, path: string) => void
   openSurfaceInPane: (type: 'home', paneId?: string) => void
   findPaneContainingSurface: (type: 'home') => string | null
+  /** Path the MRU cycle would activate in the active pane, or an empty string. */
+  getRecentTabTarget: (direction: 'next' | 'previous') => string
+  /** Activates the next tab in most-recently-consulted order. */
+  cycleRecentTab: (direction: 'next' | 'previous') => boolean
+  /** Reopens the last closed tab; returns false when the stack is empty. */
+  reopenLastClosedTab: () => boolean
 }
 
 /**
@@ -83,12 +89,27 @@ export type AppNavigationHistoryPort = {
   }
 }
 
+/**
+ * Per-pane reading positions.
+ *
+ * History navigation restores the document and where the reader was in it, so
+ * the controller needs to capture the outgoing position and restore the
+ * incoming one. The editor surface owns the actual scrolling.
+ */
+export type AppNavigationReadingPositionPort = {
+  /** Stores the pane's current scroll offset for the given path. */
+  capture: (paneId: string, path: string) => void
+  /** Applies the pane's stored scroll offset for the given path. */
+  restore: (paneId: string, path: string) => void
+}
+
 /** Declares the cohesive ports required by the app navigation controller. */
 export type UseAppNavigationControllerOptions = {
   workspacePort: AppNavigationWorkspacePort
   editorPort: AppNavigationEditorPort
   panePort: AppNavigationPanePort
   historyPort: AppNavigationHistoryPort
+  readingPositionPort: AppNavigationReadingPositionPort
 }
 
 /**
@@ -97,7 +118,7 @@ export type UseAppNavigationControllerOptions = {
  */
 export function useAppNavigationController(options: UseAppNavigationControllerOptions) {
   const isApplyingHistoryNavigation = ref(false)
-  const { workspacePort, editorPort, panePort, historyPort } = options
+  const { workspacePort, editorPort, panePort, historyPort, readingPositionPort } = options
 
   async function openSurfaceHistoryEntry<T>(
     payload: unknown,
@@ -224,8 +245,16 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
       })
     }
 
+    // Capture where the reader was before the switch, then restore the target's
+    // own position: going back must land on the paragraph, not the top.
+    const paneId = panePort.getActivePaneId()
+    const previousPath = editorPort.activeFilePath.value
+    if (previousPath) readingPositionPort.capture(paneId, previousPath)
+
     const opened = await openTabWithAutosave(entry.path, { recordHistory: false })
     if (!opened) return false
+    await nextTick()
+    readingPositionPort.restore(paneId, entry.path)
     return true
   }
 
@@ -261,17 +290,36 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     return false
   }
 
-  /** Advances to the next document tab inside the active pane. */
-  async function openNextTabWithAutosave() {
-    const paneId = panePort.getActivePaneId()
-    const tabs = panePort.getDocumentPathsForPane(paneId)
-    if (!tabs.length) return false
-    const currentPath = panePort.getActiveDocumentPath(paneId)
-    const currentIndex = tabs.findIndex((path) => path === currentPath)
-    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % tabs.length
-    const nextPath = tabs[nextIndex] ?? ''
-    if (!nextPath) return false
-    return await setActiveTabWithAutosave(nextPath)
+  /**
+   * Cycles the active pane tabs in most-recently-consulted order.
+   *
+   * The target is resolved before the switch so the autosave guard can run on
+   * the outgoing document, exactly like a normal tab activation.
+   */
+  async function cycleRecentTabWithAutosave(direction: 'next' | 'previous'): Promise<boolean> {
+    const target = panePort.getRecentTabTarget(direction)
+    if (!target) return false
+    const canSwitch = await ensureActiveTabSavedBeforeSwitch(target)
+    if (!canSwitch) return false
+    if (!panePort.cycleRecentTab(direction)) return false
+    historyPort.documentHistory.record(target)
+    workspacePort.recordRecentNote(target)
+    await nextTick()
+    editorPort.focusEditor()
+    return true
+  }
+
+  /** Reopens the last closed tab and focuses its document. */
+  async function reopenLastClosedTab(): Promise<boolean> {
+    if (!panePort.reopenLastClosedTab()) return false
+    const path = panePort.getActiveDocumentPath()
+    if (path) {
+      historyPort.documentHistory.record(path)
+      workspacePort.recordRecentNote(path)
+    }
+    await nextTick()
+    editorPort.focusEditor()
+    return true
   }
 
   return {
@@ -284,6 +332,7 @@ export function useAppNavigationController(options: UseAppNavigationControllerOp
     openHistoryEntry,
     goBackInHistory,
     goForwardInHistory,
-    openNextTabWithAutosave
+    cycleRecentTabWithAutosave,
+    reopenLastClosedTab
   }
 }
