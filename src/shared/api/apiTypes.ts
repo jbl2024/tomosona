@@ -131,12 +131,12 @@ export type PathMove = {
 }
 
 /** Reasons an advisory move preflight cannot proceed without user intervention. */
-export type MovePreflightIssue = 'invalid_source' | 'stale_source' | 'workspace_root' | 'symlink' | 'read_only' | 'descendant' | 'same_location' | 'collision'
+export type MovePreflightIssue = 'invalid_source' | 'invalid_name' | 'unavailable' | 'stale_source' | 'workspace_root' | 'symlink' | 'read_only' | 'descendant' | 'same_location' | 'collision'
 
 /** Advisory metadata for detecting a changed source before execution. */
 export type MovePreflightVersion = { size: number; modifiedMs: number | null; isDir: boolean }
 
-/** A proposed move checked against a point-in-time filesystem snapshot. */
+/** A proposed path mutation checked against a point-in-time filesystem snapshot. */
 export type MovePreflightEntry = { sourcePath: string; destinationPath: string | null; sourceVersion: MovePreflightVersion | null; issue: MovePreflightIssue | null }
 
 export type PathMoveRewriteResult = {

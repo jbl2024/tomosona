@@ -215,7 +215,7 @@ pub(crate) fn ensure_parent_within_root(root: &Path, path: &Path) -> Result<()> 
     Ok(())
 }
 
-fn validate_name(name: &str) -> Result<String> {
+pub(crate) fn validate_name(name: &str) -> Result<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
         return Err(AppError::InvalidName);

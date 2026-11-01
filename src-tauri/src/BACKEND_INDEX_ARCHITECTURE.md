@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `lib.rs` | Tauri command surface, shared error/result types, shared runtime state and logging | keep the IPC assembly point small and avoid burying feature logic in the entrypoint |
 | `workspace_runtime.rs` | active workspace, workspace-local DB opening, internal workspace file paths | keep workspace lifecycle separate from index/query logic |
-| `workspace_move_preflight.rs` | read-only move planning and advisory source revalidation | isolate filesystem checks from mutation execution and keep their limits explicit |
+| `workspace_mutation_preflight.rs` | read-only mutation planning and advisory source revalidation | isolate filesystem checks from mutation execution and keep their limits explicit |
 | `workspace_paths.rs` | path normalization, hidden-path rules, note key helpers, wikilink rewrite helpers | centralize path safety rules so every backend command uses the same boundary checks |
 | `markdown_index.rs` | markdown parsing, frontmatter/property extraction, lexical note-level reindex | isolate note-level parsing and indexing from workspace orchestration |
 | `page_protection.rs` | encrypted page envelopes, session keys, protection commands and file-transition coordination | keep password handling and protected page storage in the native backend |

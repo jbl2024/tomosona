@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { preflightMoveEntries, revalidateMoveEntry } from './workspaceApi'
+import { preflightMoveEntries, preflightRenameEntry, preflightTrashEntries, revalidateMoveEntry } from './workspaceApi'
 
 const invoke = vi.hoisted(() => vi.fn())
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
@@ -23,6 +23,16 @@ describe('workspace move preflight IPC', () => {
     invoke.mockResolvedValue(result)
     await expect(revalidateMoveEntry('/vault/a.md', '/vault/notes', version)).resolves.toEqual(result)
     expect(invoke).toHaveBeenCalledWith('revalidate_move_entry', { sourcePath: '/vault/a.md', targetDirPath: '/vault/notes', expectedVersion: version })
+  })
+
+  it('forwards rename and trash checks without performing mutations', async () => {
+    invoke.mockResolvedValue({})
+    await preflightRenameEntry('/vault/a.md', 'b.md')
+    await preflightTrashEntries(['/vault/a.md', '/vault/b.md'])
+    expect(invoke.mock.calls).toEqual([
+      ['preflight_rename_entry', { sourcePath: '/vault/a.md', newName: 'b.md' }],
+      ['preflight_trash_entries', { sourcePaths: ['/vault/a.md', '/vault/b.md'] }]
+    ])
   })
 
   it('propagates an invalid destination failure', async () => {

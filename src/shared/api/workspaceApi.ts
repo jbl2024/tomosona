@@ -145,6 +145,16 @@ export async function preflightMoveEntries(sourcePaths: string[], targetDirPath:
   return await invoke('preflight_move_entries', { sourcePaths, targetDirPath })
 }
 
+/** Checks a proposed rename without changing the filesystem. */
+export async function preflightRenameEntry(sourcePath: string, newName: string): Promise<MovePreflightEntry> {
+  return await invoke('preflight_rename_entry', { sourcePath, newName })
+}
+
+/** Checks which selected entries can be moved to the workspace trash. */
+export async function preflightTrashEntries(sourcePaths: string[]): Promise<MovePreflightEntry[]> {
+  return await invoke('preflight_trash_entries', { sourcePaths })
+}
+
 /** Rechecks a planned source against its advisory metadata before execution. */
 export async function revalidateMoveEntry(sourcePath: string, targetDirPath: string, expectedVersion: MovePreflightVersion): Promise<MovePreflightEntry> {
   return await invoke('revalidate_move_entry', { sourcePath, targetDirPath, expectedVersion })

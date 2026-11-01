@@ -9,7 +9,7 @@
 
 ## 2. Safe mutations and recovery
 
-- [ ] 2.1 Extend typed workspace mutation contracts and native preflight for normalized paths, containment, symlinks, permissions, stale sources and collisions; test invalid and cross-workspace cases in Rust.
+- [x] 2.1 Extend typed workspace mutation contracts and native preflight for normalized paths, containment, symlinks, permissions, stale sources and collisions; test invalid and cross-workspace cases in Rust.
 - [ ] 2.2 Implement safe reference impact detection and updates using existing resolution semantics, including folder moves, aliases, fragments, relative links, ambiguity and locked pages; test warnings, cancellation and preservation.
 - [ ] 2.3 Coordinate dirty editor buffers and path mappings with tabs, history, favorites, indexing, protection and title-heading behavior; test open and unsaved notes and failure paths.
 - [ ] 2.4 Add bounded operation receipts and validated restoration of moved, renamed and trashed entries and changed references; test external edits, occupied paths, partial failures and rollback failures without overwrites.
