@@ -1,6 +1,8 @@
 import { createApp, defineComponent, h, nextTick, ref, type Ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import EditorView from './EditorView.vue'
+import { useWorkspaceMutationEffects } from '../../../app/composables/useWorkspaceMutationEffects'
+import { applyImmediatePathMovesLocally } from '../../../app/lib/appShellPathMoveEffects'
 
 async function flushEditorUi() {
   await nextTick()
@@ -29,6 +31,7 @@ function mountHarness(options: {
         h(EditorView, {
           ref: editorRef,
           path: options.controls.path.value,
+          workspacePath: '/vault',
           openPaths: options.controls.openPaths.value,
           openFile: options.openFile,
           saveFile: async () => ({ persisted: true }),
@@ -86,6 +89,49 @@ describe('EditorView per-document sessions', () => {
     document.body.innerHTML = ''
   })
 
+  it('keeps the displayed location in sync when navigating and renaming a nested note', async () => {
+    const controls: HarnessControls = { path: ref('/vault/deep/folder/One.md'), openPaths: ref(['/vault/deep/folder/One.md', '/vault/Other.md']) }
+    const mounted = mountHarness({ controls, openFile: async () => '# Note\n\nBody' })
+    await flushEditorUi()
+    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('deep/folder/One.md')
+    controls.path.value = '/vault/Other.md'
+    await flushEditorUi()
+    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('Other.md')
+    controls.openPaths.value = ['/vault/deep/folder/Renamed.md', '/vault/Other.md']
+    controls.path.value = '/vault/deep/folder/Renamed.md'
+    await flushEditorUi()
+    expect(mounted.root.querySelector('.editor-path')?.getAttribute('title')).toBe('deep/folder/Renamed.md')
+    mounted.app.unmount()
+  })
+
+  it('updates the editor location from an explorer rename event', async () => {
+    const original = '/vault/projects/deep/One.md'
+    const renamed = '/vault/projects/deep/Renamed.md'
+    const controls: HarnessControls = { path: ref(original), openPaths: ref([original]) }
+    const mounted = mountHarness({ controls, openFile: async () => '# Note\n\nBody' })
+    await flushEditorUi()
+    const effects = useWorkspaceMutationEffects({
+      workingFolderPath: ref('/vault'), allWorkspaceFiles: ref([original]), favoriteItems: ref([]), filesystemErrorMessage: ref(''),
+      getImmediatePathCandidates: () => controls.openPaths.value,
+      applyImmediateLocalPathMoves: (moves, expanded) => applyImmediatePathMovesLocally({
+        multiPane: { replacePath: (from, to) => {
+          if (controls.path.value === from) controls.path.value = to
+          controls.openPaths.value = controls.openPaths.value.map((path) => path === from ? to : path)
+        } },
+        documentHistory: { replacePath: () => {} }, editorState: { movePath: () => {} },
+        renameLaunchpadRecentNote: () => {}, virtualDocs: ref({}), backlinks: ref([])
+      }, moves, expanded),
+      applyDeferredLocalPathMoves: () => {}, renameFavorite: async () => {},
+      updateWikilinksForRename: async () => ({ updated_files: 0 }),
+      updateWikilinksForPathMoves: async () => ({ updated_files: 0, reindexed_files: 0, moved_markdown_files: 0, expanded_markdown_moves: [] }),
+      moveNoteHistoryEntries: async () => {}, runWorkspaceMutation: async () => {}
+    })
+    await effects.handlePathRenamed({ from: original, to: renamed })
+    await flushEditorUi()
+    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('projects/deep/Renamed.md')
+    mounted.app.unmount()
+  })
+
   it('switches between files and preserves per-file loaded session state', async () => {
     const controls: HarnessControls = {
       path: ref('a.md'),
@@ -137,12 +183,14 @@ describe('EditorView per-document sessions', () => {
     await flushEditorUi()
 
     expect(sourceEditorText(mounted.root)).toContain('<div>App</div>')
+    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('src/App.vue')
 
     controls.path.value = 'src/main.ts'
     await flushEditorUi()
 
     expect(openFile).toHaveBeenCalledWith('src/main.ts')
     expect(sourceEditorText(mounted.root)).toContain('createApp({})')
+    expect(mounted.root.querySelector('.editor-path')?.textContent?.trim()).toBe('src/main.ts')
 
     mounted.app.unmount()
   })

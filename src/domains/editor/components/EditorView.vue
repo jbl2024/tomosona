@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch, type Ref } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Bars3Icon } from '@heroicons/vue/24/outline'
+import EditorPathBreadcrumb from './editor/EditorPathBreadcrumb.vue'
 import PagePasswordDialog from '../../../shared/components/ui/PagePasswordDialog.vue'
 import { usePagePasswordPrompt } from '../../../shared/composables/usePagePasswordPrompt'
 import { isPageLockedError } from '../../../shared/api/pageProtectionApi'
@@ -1184,6 +1185,7 @@ defineExpose({
           </button>
         </div>
       </div>
+      <EditorPathBreadcrumb :path="currentPath" :workspace-path="workspacePathRef" />
       <div
         class="relative min-h-0 flex-1 overflow-hidden"
         :data-menu-open="blockGutterMenuOpen ? 'true' : 'false'"

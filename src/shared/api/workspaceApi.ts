@@ -5,6 +5,8 @@ import type {
   ConflictStrategy,
   EntryKind,
   FileMetadata,
+  MovePreflightEntry,
+  MovePreflightVersion,
   TreeNode,
   WorkspaceFsChangedPayload
 } from './apiTypes'
@@ -136,6 +138,16 @@ export async function copyEntry(
   conflictStrategy: ConflictStrategy
 ): Promise<string> {
   return await invoke('copy_entry', { sourcePath, targetDirPath, conflictStrategy })
+}
+
+/** Checks proposed moves without writing; actual operations must revalidate. */
+export async function preflightMoveEntries(sourcePaths: string[], targetDirPath: string): Promise<MovePreflightEntry[]> {
+  return await invoke('preflight_move_entries', { sourcePaths, targetDirPath })
+}
+
+/** Rechecks a planned source against its advisory metadata before execution. */
+export async function revalidateMoveEntry(sourcePath: string, targetDirPath: string, expectedVersion: MovePreflightVersion): Promise<MovePreflightEntry> {
+  return await invoke('revalidate_move_entry', { sourcePath, targetDirPath, expectedVersion })
 }
 
 /** Moves a workspace entry into another directory. */

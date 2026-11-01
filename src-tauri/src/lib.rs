@@ -13,6 +13,7 @@ mod page_protection;
 mod search_index;
 mod terminal;
 mod wikilink_graph;
+mod workspace_move_preflight;
 mod workspace_paths;
 mod workspace_runtime;
 mod workspace_watch;
@@ -65,6 +66,7 @@ use wikilink_graph::{
     update_wikilinks_for_rename as update_wikilinks_for_rename_impl, Backlink, PathMoveInput,
     PathMoveRewriteResult, WikilinkRewriteResult,
 };
+use workspace_move_preflight::{preflight_move_entries, revalidate_move_entry};
 pub(crate) use workspace_paths::{
     ensure_within_root, has_hidden_dir_component, normalize_key_text, normalize_note_key,
     normalize_workspace_path, normalize_workspace_relative_from_input,
@@ -358,6 +360,8 @@ pub fn run() {
             duplicate_entry,
             copy_entry,
             move_entry,
+            preflight_move_entries,
+            revalidate_move_entry,
             trash_entry,
             open_path_external,
             open_external_url,

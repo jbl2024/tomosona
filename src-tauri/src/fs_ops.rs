@@ -20,8 +20,8 @@ use crate::{
     workspace_watch, AppError, Result,
 };
 
-const TRASH_DIR_NAME: &str = ".tomosona-trash";
-const INTERNAL_DIR_NAME: &str = ".tomosona";
+pub(crate) const TRASH_DIR_NAME: &str = ".tomosona-trash";
+pub(crate) const INTERNAL_DIR_NAME: &str = ".tomosona";
 const DB_FILE_NAME: &str = "tomosona.sqlite";
 const GITIGNORE_FILE_NAME: &str = ".gitignore";
 const TOMOSONA_IGNORE_FILE_NAME: &str = ".tomosonaignore";
@@ -167,7 +167,7 @@ fn should_skip_non_dir_file(root: &Path, matcher: Option<&Gitignore>, path: &Pat
     skip_by_ignore_rules(root, matcher, path, false)
 }
 
-fn normalize_existing_dir(path: &str) -> Result<PathBuf> {
+pub(crate) fn normalize_existing_dir(path: &str) -> Result<PathBuf> {
     let pb = PathBuf::from(path);
     if pb.as_os_str().is_empty() || !pb.is_dir() {
         return Err(AppError::InvalidPath);

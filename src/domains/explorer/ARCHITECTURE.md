@@ -52,3 +52,12 @@
   selection. Starting from a selected row moves the normalized selection.
 - Folder moves reuse the existing confirmation prompt and name-conflict flow
   from `useExplorerOperations.ts`.
+
+## Move preflight foundation
+
+The typed workspace API exposes read-only move preflight and source-metadata
+revalidation. Results are advisory snapshots: permissions, paths, contents and
+filesystem identities can change afterward, and size/mtime alone cannot prove
+identity. Existing mutations do not yet use these commands. The future mutation
+workflow must validate again at the write boundary and handle failures and
+partial results without assuming a preflight guarantees success.
