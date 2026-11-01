@@ -219,7 +219,7 @@ watch(dndState, (state) => {
 
     <span v-if="node.isProtected" class="relative">
       <button type="button" aria-label="Password protected" title="About page protection" @click.stop="showProtectionInfo = !showProtectionInfo"><LockClosedIcon class="h-4 w-4" /></button>
-      <span v-if="showProtectionInfo" role="status" class="ui-menu absolute right-0 top-full z-50 w-56 p-2 text-xs" @click.stop>This page's content is encrypted and requires its password while locked. Its filename remains visible.</span>
+      <span v-if="showProtectionInfo" role="status" class="explorer-protection-info" @click.stop>This page's content is encrypted and requires its password while locked. Its filename remains visible.</span>
     </span>
 
     <button
@@ -333,5 +333,25 @@ watch(dndState, (state) => {
 .explorer-item-action:hover {
   background: var(--explorer-row-hover-bg);
   color: var(--explorer-row-hover-text);
+}
+
+/* The protection note floats over the tree, so it needs its own opaque surface.
+   The `ui-menu` utility it used to borrow is scoped to UiMenu.vue and never
+   reached this element, which left the text on a transparent background. */
+.explorer-protection-info {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 50;
+  width: 14rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  color: var(--text-main);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
 }
 </style>
