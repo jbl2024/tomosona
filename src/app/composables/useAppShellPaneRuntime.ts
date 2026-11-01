@@ -158,19 +158,6 @@ export function useAppShellPaneRuntime(options: Options) {
     return tab.type === 'document' || tab.type === 'file-inspector' ? tab.path ?? '' : ''
   }
 
-  /**
-   * Opens a second view of the same document in the other pane.
-   *
-   * This duplicates the view, never the file: the same path is opened again in
-   * another pane, so both views share the document.
-   */
-  function onPaneTabDuplicateInOtherPane(payload: { paneId: string; tabId: string }) {
-    const target = otherPaneId(payload.paneId)
-    const path = tabPathInPane(payload.paneId, payload.tabId)
-    if (!target || !path) return
-    options.multiPane.openDocumentInPane(path, target)
-  }
-
   /** Moves a tab to the other pane, keeping its document and pinned state. */
   function onPaneTabMoveToOtherPane(payload: { paneId: string; tabId: string }) {
     const target = otherPaneId(payload.paneId)
@@ -287,7 +274,6 @@ export function useAppShellPaneRuntime(options: Options) {
     onPaneTabPin,
     onPaneTabReorder,
     onPaneTabDrop,
-    onPaneTabDuplicateInOtherPane,
     onPaneTabMoveToOtherPane,
     onPaneTabCopyLink,
     onPaneTabRevealInExplorer,

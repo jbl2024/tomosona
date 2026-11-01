@@ -64,8 +64,6 @@ function mountTabs(pane: PaneState, options: MountOptions = {}) {
           onTabCloseUnpinned: (payload: { paneId: string }) => events.push(`close-unpinned:${payload.paneId}`),
           onTabPin: (payload: { paneId: string; tabId: string; pinned: boolean }) =>
             events.push(`pin:${payload.tabId}:${payload.pinned}`),
-          onTabDuplicateInOtherPane: (payload: { paneId: string; tabId: string }) =>
-            events.push(`duplicate:${payload.tabId}`),
           onTabMoveToOtherPane: (payload: { paneId: string; tabId: string }) =>
             events.push(`move-to-pane:${payload.tabId}`),
           onTabCopyLink: (payload: { paneId: string; tabId: string }) => events.push(`copy-link:${payload.tabId}`),
@@ -456,7 +454,6 @@ describe('EditorPaneTabs', () => {
       Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.pane-tab-menu .ui-menu-item'))
         .find((item) => item.textContent?.trim() === label)
 
-    expect(byLabel('Duplicate in Other Pane')?.disabled).toBe(true)
     expect(byLabel('Move to Other Pane')?.disabled).toBe(true)
     expect(byLabel('Copy Note Link')?.disabled).toBe(false)
     expect(byLabel('Reveal in Explorer')?.disabled).toBe(false)
@@ -484,7 +481,6 @@ describe('EditorPaneTabs', () => {
       Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.pane-tab-menu .ui-menu-item'))
         .find((item) => item.textContent?.trim() === label)
 
-    expect(byLabel('Duplicate in Other Pane')?.disabled).toBe(true)
     expect(byLabel('Move to Other Pane')?.disabled).toBe(true)
 
     mounted.app.unmount()
@@ -515,13 +511,11 @@ describe('EditorPaneTabs', () => {
       await nextTick()
     }
 
-    await clickItem('Duplicate in Other Pane')
     await clickItem('Move to Other Pane')
     await clickItem('Copy Note Link')
     await clickItem('Reveal in Explorer')
 
     expect(mounted.events).toEqual([
-      'focus:pane-1', 'duplicate:doc-1',
       'focus:pane-1', 'move-to-pane:doc-1',
       'focus:pane-1', 'copy-link:doc-1',
       'focus:pane-1', 'reveal:doc-1'
@@ -886,7 +880,6 @@ describe('EditorPaneTabs', () => {
     const menuItems = Array.from(mounted.root.querySelectorAll<HTMLButtonElement>('.pane-tab-menu .ui-menu-item'))
     expect(menuItems.map((item) => item.textContent?.trim())).toEqual([
       'Pin Tab',
-      'Duplicate in Other Pane',
       'Move to Other Pane',
       'Copy Note Link',
       'Reveal in Explorer',
@@ -898,7 +891,7 @@ describe('EditorPaneTabs', () => {
 
     // Disabled entries are skipped: with a single pane the cross-pane actions
     // are unreachable from the keyboard.
-    const expectedFocus = [0, 3, 4, 5, 6]
+    const expectedFocus = [0, 2, 3, 4, 5]
     for (const index of expectedFocus) {
       document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
       await nextTick()

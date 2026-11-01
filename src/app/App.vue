@@ -1224,7 +1224,6 @@ const {
   onPaneTabPin,
   onPaneTabReorder,
   onPaneTabDrop,
-  onPaneTabDuplicateInOtherPane,
   onPaneTabMoveToOtherPane,
   onPaneTabCopyLink,
   onPaneTabRevealInExplorer,
@@ -1589,7 +1588,6 @@ const {
   focusNextPaneFromPalette,
   moveTabToNextPaneFromPalette,
   closeActivePaneFromPalette,
-  openActiveDocumentToTheRightFromPalette,
   joinPanesFromPalette,
   resetPaneLayoutFromPalette
 } = commands
@@ -1629,7 +1627,6 @@ entryActions.bindShellPaletteActionPort({
   focusNextPaneFromPalette,
   moveTabToNextPaneFromPalette,
   closeActivePaneFromPalette,
-  openActiveDocumentToTheRightFromPalette,
   joinPanesFromPalette,
   resetPaneLayoutFromPalette,
   revealActiveInExplorer,
@@ -2108,7 +2105,6 @@ useAppShellKeyboard({
           @pane-tab-pin="onPaneTabPin($event)"
           @pane-tab-reorder="onPaneTabReorder($event)"
           @pane-tab-drop="onPaneTabDrop($event)"
-          @pane-tab-duplicate-in-other-pane="onPaneTabDuplicateInOtherPane($event)"
           @pane-tab-move-to-other-pane="onPaneTabMoveToOtherPane($event)"
           @pane-tab-copy-link="onPaneTabCopyLink($event)"
           @pane-tab-reveal-in-explorer="onPaneTabRevealInExplorer($event)"

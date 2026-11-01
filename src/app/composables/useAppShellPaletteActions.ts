@@ -77,7 +77,6 @@ export type AppShellPaletteActionPort = {
   focusNextPaneFromPalette: () => boolean | Promise<boolean>
   moveTabToNextPaneFromPalette: () => boolean | Promise<boolean>
   closeActivePaneFromPalette: () => boolean | Promise<boolean>
-  openActiveDocumentToTheRightFromPalette: () => boolean | Promise<boolean>
   joinPanesFromPalette: () => boolean | Promise<boolean>
   resetPaneLayoutFromPalette: () => boolean | Promise<boolean>
   revealActiveInExplorer: () => boolean | Promise<boolean>
@@ -168,7 +167,6 @@ export const PALETTE_ACTION_PRIORITY: Record<string, number> = {
   'focus-next-pane': 27,
   'move-tab-next-pane': 28,
   'close-active-pane': 29,
-  'open-to-the-right': 29.5,
   'join-panes': 30,
   'reset-pane-layout': 31,
   'zoom-in': 32,
@@ -427,13 +425,6 @@ export function useAppShellPaletteActions(options: UseAppShellPaletteActionsOpti
       id: 'close-active-pane',
       label: 'Close Active Pane',
       run: () => options.actionPort.closeActivePaneFromPalette()
-    }),
-    createPaletteAction('layout', {
-      id: 'open-to-the-right',
-      label: 'Open to the Right',
-      description: 'Open the active note in the other pane as a second view',
-      keywords: ['split', 'duplicate', 'view', 'panneau'],
-      run: () => options.actionPort.openActiveDocumentToTheRightFromPalette()
     }),
     createPaletteAction('layout', {
       id: 'join-panes',

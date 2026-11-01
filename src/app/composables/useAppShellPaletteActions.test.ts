@@ -36,7 +36,6 @@ function createActionPort(overrides: Partial<AppShellPaletteActionPort> = {}): A
     focusNextPaneFromPalette: noop,
     moveTabToNextPaneFromPalette: noop,
     closeActivePaneFromPalette: noop,
-    openActiveDocumentToTheRightFromPalette: noop,
     joinPanesFromPalette: noop,
     resetPaneLayoutFromPalette: noop,
     revealActiveInExplorer: noop,
@@ -84,19 +83,6 @@ describe('useAppShellPaletteActions', () => {
 
     await action?.run()
     expect(reopenLastClosedTabFromPalette).toHaveBeenCalledTimes(1)
-  })
-
-  it('exposes an open-to-the-right command that runs the duplicate-view port', async () => {
-    const openActiveDocumentToTheRightFromPalette = vi.fn(() => true)
-    const palette = createPalette(createActionPort({ openActiveDocumentToTheRightFromPalette }))
-
-    const action = palette.paletteActions.value.find((item) => item.id === 'open-to-the-right')
-    expect(action).toBeTruthy()
-    expect(action?.label).toBe('Open to the Right')
-    expect(action?.family).toBe('layout')
-
-    await action?.run()
-    expect(openActiveDocumentToTheRightFromPalette).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the existing close commands alongside the reopen command', () => {

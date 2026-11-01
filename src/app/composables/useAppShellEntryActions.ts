@@ -69,7 +69,6 @@ function createShellPaletteActionPort(): AppShellPaletteActionPort {
     focusNextPaneFromPalette: () => false,
     moveTabToNextPaneFromPalette: () => false,
     closeActivePaneFromPalette: () => false,
-    openActiveDocumentToTheRightFromPalette: () => false,
     joinPanesFromPalette: () => false,
     resetPaneLayoutFromPalette: () => false,
     revealActiveInExplorer: () => false,

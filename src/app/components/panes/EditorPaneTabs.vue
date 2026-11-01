@@ -201,11 +201,6 @@ const contextMenuItems = computed(() => [
     disabled: false
   },
   {
-    action: 'tab-duplicate-in-other-pane' as const,
-    label: 'Duplicate in Other Pane',
-    disabled: !hasOtherPane.value || contextMenuPathInOtherPane.value
-  },
-  {
     action: 'tab-move-to-other-pane' as const,
     label: 'Move to Other Pane',
     disabled: !hasOtherPane.value || contextMenuPathInOtherPane.value
@@ -299,7 +294,6 @@ function openContextMenu(tabId: string, event: MouseEvent) {
 
 type ContextMenuAction =
   | 'tab-pin'
-  | 'tab-duplicate-in-other-pane'
   | 'tab-move-to-other-pane'
   | 'tab-copy-link'
   | 'tab-reveal-in-explorer'
@@ -315,10 +309,6 @@ function emitContextMenuAction(action: ContextMenuAction) {
   closeContextMenu()
   if (action === 'tab-pin') {
     emit('tab-pin', { paneId: props.pane.id, tabId, pinned: !pinned })
-    return
-  }
-  if (action === 'tab-duplicate-in-other-pane') {
-    emit('tab-duplicate-in-other-pane', { paneId: props.pane.id, tabId })
     return
   }
   if (action === 'tab-move-to-other-pane') {

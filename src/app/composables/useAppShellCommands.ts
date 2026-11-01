@@ -298,23 +298,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     return options.panePort.closePane(paneId)
   }
 
-  /**
-   * Opens the active document in the other pane as a second view.
-   *
-   * This duplicates the view, never the file: the same path is opened again, so
-   * both panes share the document and no file is created.
-   */
-  function openActiveDocumentToTheRightFromPalette() {
-    const path = options.workspacePort.activeFilePath.value
-    if (!path) return false
-    const activePaneId = options.panePort.activePaneId.value
-    const targetPaneId = Object.keys(options.panePort.panesById.value)
-      .find((paneId) => paneId !== activePaneId)
-    if (!targetPaneId) return false
-    options.panePort.openDocumentInPane(path, targetPaneId)
-    return true
-  }
-
   async function joinPanesFromPalette() {
     for (const paneId of Object.keys(options.panePort.panesById.value)) {
       if (!await savePaneDocuments(paneId)) return false
@@ -351,7 +334,6 @@ export function useAppShellCommands(options: UseAppShellCommandsOptions) {
     focusNextPaneFromPalette,
     moveTabToNextPaneFromPalette,
     closeActivePaneFromPalette,
-    openActiveDocumentToTheRightFromPalette,
     joinPanesFromPalette,
     resetPaneLayoutFromPalette
   }

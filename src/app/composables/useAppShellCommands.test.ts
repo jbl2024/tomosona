@@ -142,32 +142,6 @@ describe('useAppShellCommands pane close and join', () => {
     expect(harness.joinAllPanes).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the active document in the other pane as a second view', () => {
-    const harness = createHarness({
-      activeFilePath: '/vault/a.md',
-      panes: {
-        'pane-1': { activeTabId: 'doc:/vault/a.md', openTabs: [{ id: 'doc:/vault/a.md', type: 'document', path: '/vault/a.md' }] },
-        'pane-2': { activeTabId: '', openTabs: [] }
-      }
-    })
-
-    expect(harness.api.openActiveDocumentToTheRightFromPalette()).toBe(true)
-    // The same path is opened again: a second view, never a copy of the file.
-    expect(harness.openDocumentInPane).toHaveBeenCalledWith('/vault/a.md', 'pane-2')
-  })
-
-  it('reports no open-to-the-right target when only one pane exists', () => {
-    const harness = createHarness({
-      activeFilePath: '/vault/a.md',
-      panes: {
-        'pane-1': { activeTabId: 'doc:/vault/a.md', openTabs: [{ id: 'doc:/vault/a.md', type: 'document', path: '/vault/a.md' }] }
-      }
-    })
-
-    expect(harness.api.openActiveDocumentToTheRightFromPalette()).toBe(false)
-    expect(harness.openDocumentInPane).not.toHaveBeenCalled()
-  })
-
   it('does not join panes when a joined pane holds unsaved changes that fail to save', async () => {
     const harness = createHarness({
       panes: {
