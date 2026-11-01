@@ -51,9 +51,9 @@ note.
 - The last closed tab can be reopened from a command and a shortcut.
 - `Ctrl+Tab` / `Ctrl+Shift+Tab` cycle the active pane through its most recently
   consulted tabs (MRU order), independent of the visual tab order.
-- The tab context menu gains pin, duplicate into the other pane, move to the
-  other pane, copy note link, reveal in explorer, and close variants, and hides
-  the entries that do not apply to the current layout.
+- The tab context menu gains pin, move to the other pane, copy note link,
+  reveal in explorer, and close variants, and hides the entries that do not
+  apply to the current layout.
 - Middle click closes a tab; double click on empty strip space offers note
   creation; double click on a tab does nothing special; tabs can be reordered by
   dragging.
@@ -66,10 +66,6 @@ note.
   document, and tab menu.
 - A tab can be dragged from one pane's strip to another's, with the drop target
   clearly marked.
-- The same note can be open in both panes as two views of one document: edits are
-  shared, reading positions are independent.
-- An "open to the right" command in the palette opens the active document in the
-  other pane as a second view.
 - Shell history back/forward restores the pane's stored reading position for the
   returned document, not just the document itself.
 - A pane can be closed without closing its tabs one by one, and joining panes
@@ -112,7 +108,7 @@ position for the returned document.
 - `editor-tabs`: how a pane presents, labels, states, closes, reorders, pins and
   reopens the documents it holds, including overflow and the tab list.
 - `pane-workspace`: how panes divide the workspace, which one is active, what
-  state each owns, and how documents move or duplicate between them.
+  state each owns, and how documents move between them.
 - `document-breadcrumb`: how the active document's location is presented and used
   as navigation, and what the status bar is left with.
 
@@ -128,8 +124,8 @@ locked/unlocked distinction is new behaviour owned by `editor-tabs`.
 - `src/app/components/panes/EditorPaneGrid.vue`, `PaneSurfaceHost.vue` — active
   pane affordance, empty-pane home surface, drag targets between strips.
 - `src/app/composables/useMultiPaneWorkspaceState.ts` — pinned ordering, reopen
-  stack, move and duplicate between panes, join preserving tabs. `PaneTab` already
-  carries `pinned` and persists it, but nothing sets it today.
+  stack, move between panes, join preserving tabs. `PaneTab` already carries
+  `pinned` and persists it, but nothing sets it today.
 - `src/app/composables/useAppShellKeyboard.ts` — reopen shortcut and
   `Ctrl+Tab`/`Ctrl+Shift+Tab` MRU cycling; no existing binding changes.
 - `src/domains/editor/components/editor/EditorPathBreadcrumb.vue` — becomes

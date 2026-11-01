@@ -13,9 +13,10 @@ Current state that shapes the approach:
 - `EditorPaneTabs.vue` is presentational: it emits intents and owns only the
   context-menu position. It renders `fileName(path)` verbatim, so `.md` shows.
 - `src/app/components/panes/ARCHITECTURE.md` states two invariants this change
-  must revisit: *a document path can exist in at most one pane at a time* and
-  *no duplicate document instance*. `App.vue` enforces the first by redirecting
-  an open request to the pane that already holds the path.
+  keeps: *a document path can exist in at most one pane at a time* and *no
+  duplicate document instance*. `App.vue` enforces the first by redirecting an
+  open request to the pane that already holds the path, which is why a tab moves
+  between panes instead of being reopened there.
 - Pane history already exists at shell level (`TopbarNavigationControls.vue`,
   `useAppShellHistoryUi.ts`) with `Cmd+[` / `Cmd+]` on macOS and `Alt+←/→`
   elsewhere. The pane strip's `←` `→` are `request-move-tab`, not history.
@@ -76,24 +77,6 @@ way to tell where it came from.
 
 *Alternative considered:* persisting it alongside the layout — rejected for the
 reason above.
-
-### Duplicate views relax the uniqueness invariant to per-pane
-
-The global "one path, one pane" rule becomes "one path, one tab per pane". Two
-panes may hold the same document. To keep edits shared, the shell owns one
-in-memory buffer per open path; both views read and write it.
-
-The two editor instances cannot share a ProseMirror state, so the rule is: the
-focused view is authoritative and applies its transactions to the buffer
-immediately; the unfocused view applies the buffer when it regains focus, which
-is also when its own scroll position is re-anchored. Because exactly one pane is
-active at a time, no two views are ever editable simultaneously.
-
-*Alternatives considered:* a CRDT (Yjs) — rejected, new dependency and far more
-machinery than two views need. A read-only mirror in the second pane — rejected,
-it contradicts the requirement that both views are editable. Save-based sync only
-— rejected, the requirement says the other pane shows the content as it is
-edited, not after a save.
 
 ### Overflow uses measured scroll controls, not CSS masks
 
@@ -169,18 +152,10 @@ its own stored reading position for that document, instead of extending
 
 *Alternative considered:* storing scroll/selection in the history payload —
 rejected, it duplicates state the pane already owns per document and would go
-stale when the same document is open in two panes.
+stale as soon as the reader scrolls after the entry was recorded.
 
 ## Risks / Trade-offs
 
-- **Two views of one document can fight over the buffer** → only the focused view
-  applies remote updates; the unfocused view defers until it gains focus, and its
-  scroll position is re-anchored at that moment. Undo stacks stay per view, so an
-  undo in one view cannot corrupt the other.
-- **Relaxing the uniqueness invariant touches `App.vue`'s open redirect** → the
-  redirect becomes per-pane; a regression here would silently open a second tab
-  for the same document in the same pane. Covered by a dedicated test on the
-  redirect.
 - **Persisted layouts contain `home` tabs and no `recentTabIds`** → hydration
   normalizes: drop `home` tabs, seed `recentTabIds` from the current
   `activeTabId`, and treat a missing `pinned` as `false`. Invalid payloads keep
@@ -201,9 +176,7 @@ stale when the same document is open in two panes.
    keep loading.
 2. Land the strip rewrite behind the same emitted intents, then the tab list,
    then pinning, then reopen.
-3. Relax the uniqueness invariant and add the shared buffer last, since it is the
-   only step that changes how documents are opened.
-4. Rollback is per step: each step is independently revertable because the
+3. Rollback is per step: each step is independently revertable because the
    persisted shape only ever gains optional fields.
 
 ## Open Questions

@@ -149,7 +149,7 @@ A tab SHALL be pinnable and unpinnable from its context menu. A pinned tab SHALL
 - **THEN** the tab is not closed; unpinning is offered from the context menu
 
 ### Requirement: Tab context menu
-The tab context menu SHALL offer pinning, duplicating the document into the other pane, moving the tab to the other pane, copying the note link, revealing the note in the explorer, and the close variants. It SHALL hide or disable the entries that do not apply to the current layout.
+The tab context menu SHALL offer pinning, moving the tab to the other pane, copying the note link, revealing the note in the explorer, and the close variants. It SHALL hide or disable the entries that do not apply to the current layout.
 
 #### Scenario: Single pane
 - **WHEN** only one pane exists
@@ -158,10 +158,6 @@ The tab context menu SHALL offer pinning, duplicating the document into the othe
 #### Scenario: Document already in the other pane
 - **WHEN** the document is already open in the other pane
 - **THEN** moving it there is unavailable
-
-#### Scenario: Duplicate is not a copy
-- **WHEN** the user duplicates a tab into the other pane
-- **THEN** the same document is open in both panes and no file is created
 
 ### Requirement: Tab gestures
 Middle click on a tab SHALL close it. Double click on empty strip space SHALL offer note creation. Double click on a tab SHALL NOT trigger a special action. Dragging a tab SHALL reorder it within its pane.

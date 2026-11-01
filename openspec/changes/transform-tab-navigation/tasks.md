@@ -43,7 +43,7 @@
 
 ## 6. Tab context menu and gestures
 
-- [x] 6.1 Extend the tab context menu with pin, duplicate into the other pane, move to the other pane, copy note link, reveal in explorer and the close variants; verify with a test on the rendered entries.
+- [x] 6.1 Extend the tab context menu with pin, move to the other pane, copy note link, reveal in explorer and the close variants; verify with a test on the rendered entries.
 - [x] 6.2 Hide or disable the entries that do not apply to the current layout; verify with tests for a single pane and for a document already open in the other pane.
 - [x] 6.3 Add middle-click close, double-click on empty strip space to offer note creation, and no special action on double-clicking a tab; verify with a test per gesture.
 - [x] 6.4 Add drag reorder within a strip using `@vue-dnd-kit/core`, clamping a dragged tab to its own pinned or unpinned region; verify with tests for a reorder and for a drag that would cross the pinned boundary.
@@ -65,21 +65,13 @@
 - [x] 8.4 Keep each pane's tab selection, reading position and tab menu independent; verify with a test that switching tabs in one pane leaves the other unchanged.
 - [x] 8.5 Add cross-pane tab dragging with a marked drop target, preserving the document, unsaved changes and pinned state; verify with tests for the move, for unsaved changes and for the source pane becoming empty.
 - [x] 8.6 Add closing a pane without closing its tabs one by one and make joining panes preserve the tabs of both without discarding unsaved changes; verify with tests for close, join and join with unsaved changes.
-- [x] 8.7 Expose an open-to-the-right command in the palette that duplicates the active document into the other pane; verify with a palette test that the document opens there as a second view and no file is created.
-- [x] 8.8 Make shell history back/forward restore the active pane's stored reading position for the target document; verify with a test that going back restores both the document and its reading position.
+- [x] 8.7 Make shell history back/forward restore the active pane's stored reading position for the target document; verify with a test that going back restores both the document and its reading position.
 
-## 9. Duplicate views
+## 9. Integration verification
 
-- [ ] 9.1 Relax the uniqueness invariant from one path per workspace to one tab per pane and update the open redirect in `App.vue`; verify with a test that opening a document already in the other pane adds a tab there and that opening it twice in the same pane does not.
-- [ ] 9.2 Add the shell-owned per-path document buffer so both views read and write the same in-memory content, with the focused view authoritative and the unfocused view applying the buffer on focus; verify with a test that an edit in one pane appears in the other and that each view keeps its own scroll position.
-- [ ] 9.3 Confirm duplicating a view creates no file and that undo stays per view; verify with a test on the workspace file list and a test that an undo in one view does not alter the other.
-- [ ] 9.4 Update the invariants in `src/app/components/panes/ARCHITECTURE.md` to describe per-pane uniqueness and the shared buffer; verify the documented invariants match the code.
-
-## 10. Integration verification
-
-- [x] 10.1 Run `npx vitest run` and `npx vue-tsc --noEmit`; resolve regressions and record the counts. — 246 files, 1518 tests + 1 todo, all green; `vue-tsc --noEmit` clean.
-- [x] 10.2 Run `npm run build` and `cargo check` in `src-tauri`; record the outcome. — `npm run build` succeeded (2.23s, only the pre-existing chunk-size warning); `cargo check` finished with no warnings.
-- [ ] 10.3 Exercise the tab strip, tab list, pinning, reopen, cross-pane drag and duplicate views in the running app; record any platform limitation.
+- [x] 9.1 Run `npx vitest run` and `npx vue-tsc --noEmit`; resolve regressions and record the counts. — 246 files, 1523 tests + 1 todo, all green; `vue-tsc --noEmit` clean.
+- [x] 9.2 Run `npm run build` and `cargo check` in `src-tauri`; record the outcome. — `npm run build` succeeded (1.96s, only the pre-existing chunk-size warning); `cargo check` finished with no warnings.
+- [ ] 9.3 Exercise the tab strip, tab list, pinning, reopen and cross-pane drag in the running app; record any platform limitation.
 
 ## Workflow follow-up
 

@@ -50,25 +50,6 @@ A tab SHALL be movable from one pane's strip to another's by dragging, with the 
 - **WHEN** the last tab of a pane is moved away
 - **THEN** the source pane shows its home surface
 
-### Requirement: Duplicate view of one document
-The same document SHALL be openable in both panes as two views of one document. Edits SHALL be shared between the views and reading positions SHALL stay independent. Duplicating a view SHALL NOT create or copy a file.
-
-#### Scenario: Shared edits
-- **WHEN** the document is edited in one pane
-- **THEN** the other pane shows the same content
-
-#### Scenario: Independent positions
-- **WHEN** the two views are scrolled to different sections
-- **THEN** each keeps its own position
-
-#### Scenario: No file created
-- **WHEN** a view is duplicated
-- **THEN** the workspace contains no additional file
-
-#### Scenario: Open-to-the-right command
-- **WHEN** the user runs the palette's open-to-the-right command on the active document
-- **THEN** the document opens in the other pane as a second view and no file is created
-
 ### Requirement: Closing and joining panes
 A pane SHALL be closable without closing its tabs one by one. Joining panes SHALL preserve the open tabs as far as possible and SHALL NOT discard unsaved changes.
 
