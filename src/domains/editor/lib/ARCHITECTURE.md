@@ -32,6 +32,14 @@ The bridge only applies to the rich markdown surface. Raw-text source mode bypas
   more details
 ```
 
+## Preview Rendering
+
+`markdownPreviewHtml.ts` renders note markdown as an HTML fragment for read-only previews
+(explorer quick preview). It reuses `markdownToEditorData` so previews and the editor agree on
+block structure, drops frontmatter, sanitizes embedded HTML, and keeps links inert because the
+preview surface has no navigation handler. It never shells out to an external converter, so
+previews do not depend on Pandoc being installed.
+
 ## Deliberate Non-goals
 
 - Full CommonMark compatibility.

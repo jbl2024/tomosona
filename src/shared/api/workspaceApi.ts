@@ -81,11 +81,6 @@ export async function renderPandocPreviewHtml(path: string): Promise<string> {
   return await invoke('render_pandoc_preview_html', { path })
 }
 
-/** Renders Markdown from memory as standalone HTML via Pandoc stdin; never written to disk. */
-export async function renderMarkdownPreviewHtml(content: string): Promise<string> {
-  return await invoke('render_markdown_preview_html', { content })
-}
-
 /** Renders a spreadsheet preview as standalone HTML for `.xlsx` and `.ods` files. */
 export async function renderSpreadsheetPreviewHtml(path: string): Promise<string> {
   return await invoke('render_spreadsheet_preview_html', { path })

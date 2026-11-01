@@ -93,7 +93,10 @@ onBeforeUnmount(() => {
 
 .explorer-preview-content :deep(h1),
 .explorer-preview-content :deep(h2),
-.explorer-preview-content :deep(h3) {
+.explorer-preview-content :deep(h3),
+.explorer-preview-content :deep(h4),
+.explorer-preview-content :deep(h5),
+.explorer-preview-content :deep(h6) {
   color: var(--text-main);
   margin: 0.75rem 0 0.25rem;
 }
@@ -101,6 +104,30 @@ onBeforeUnmount(() => {
 .explorer-preview-content :deep(p),
 .explorer-preview-content :deep(li) {
   color: var(--text-main);
+}
+
+.explorer-preview-content :deep(ul),
+.explorer-preview-content :deep(ol) {
+  margin: 0.35rem 0 0.35rem 1.15rem;
+  padding: 0;
+}
+
+.explorer-preview-content :deep(ul) {
+  list-style: disc;
+}
+
+.explorer-preview-content :deep(ol) {
+  list-style: decimal;
+}
+
+.explorer-preview-content :deep(.preview-checklist) {
+  list-style: none;
+  margin-left: 0.15rem;
+}
+
+.explorer-preview-content :deep(.preview-checkbox) {
+  color: var(--text-dim);
+  font-family: var(--font-code, ui-monospace, SFMono-Regular, monospace);
 }
 
 .explorer-preview-content :deep(a) {
@@ -111,5 +138,54 @@ onBeforeUnmount(() => {
 .explorer-preview-content :deep(code) {
   background: var(--code-bg, rgba(127, 127, 127, 0.12));
   border-radius: 6px;
+}
+
+.explorer-preview-content :deep(pre) {
+  padding: 0.55rem 0.7rem;
+  overflow-x: auto;
+}
+
+.explorer-preview-content :deep(blockquote) {
+  margin: 0.45rem 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--panel-border);
+  color: var(--text-soft);
+}
+
+.explorer-preview-content :deep(.preview-callout) {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--panel-border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--surface-subtle, rgba(127, 127, 127, 0.06));
+}
+
+.explorer-preview-content :deep(.preview-embed) {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.explorer-preview-content :deep(table) {
+  width: 100%;
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.explorer-preview-content :deep(th),
+.explorer-preview-content :deep(td) {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--panel-border);
+  text-align: left;
+}
+
+.explorer-preview-content :deep(hr) {
+  margin: 0.75rem 0;
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.explorer-preview-content :deep(img) {
+  max-width: 100%;
 }
 </style>

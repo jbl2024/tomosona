@@ -4,9 +4,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { EntryKind, TreeNode } from '../../../shared/api/apiTypes'
 import type { PathMove } from '../../../shared/api/apiTypes'
-import { createInlineNote, listenWorkspaceFsChanged, openPathExternal, renderMarkdownPreviewHtml } from '../../../shared/api/workspaceApi'
+import { createInlineNote, listenWorkspaceFsChanged, openPathExternal } from '../../../shared/api/workspaceApi'
 import { readNoteSnapshot } from '../../../shared/api/editorSyncApi'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
+import { renderMarkdownPreviewHtml } from '../../editor/lib/markdownPreviewHtml'
 import ExplorerConfirmDialog from './ExplorerConfirmDialog.vue'
 import ExplorerCreateInput from './ExplorerCreateInput.vue'
 import ExplorerConflictDialog from './ExplorerConflictDialog.vue'
@@ -22,7 +23,7 @@ import { useExplorerKeyboard } from '../composables/useExplorerKeyboard'
 import { useExplorerOperations } from '../composables/useExplorerOperations'
 import { useExplorerTreeState } from '../composables/useExplorerTreeState'
 import { explorerNameMatches, filterExplorerRows } from '../lib/explorerFilter'
-import { getParentPath } from '../lib/explorerTreeUtils'
+import { errorMessage, getParentPath } from '../lib/explorerTreeUtils'
 import { normalizeDraggedPaths } from '../lib/explorerDndRules'
 import { isTextFile } from '../../../shared/api/workspaceApi'
 
@@ -140,12 +141,12 @@ async function openPreview(path: string) {
   try {
     const snapshot = await readNoteSnapshot(path)
     if (token !== previewToken) return
-    const html = await renderMarkdownPreviewHtml(snapshot.content)
+    const html = renderMarkdownPreviewHtml(snapshot.content)
     if (token !== previewToken) return
     preview.value = { path, title: node.name.replace(/\.(md|markdown)$/i, ''), html, loading: false, error: '', locked: false }
   } catch (err) {
     if (token !== previewToken) return
-    const message = err instanceof Error ? err.message : 'Preview unavailable.'
+    const message = errorMessage(err) ?? 'Preview unavailable.'
     const locked = /locked/i.test(message)
     preview.value = { path, title: node.name.replace(/\.(md|markdown)$/i, ''), html: '', loading: false, error: locked ? '' : message, locked }
   }

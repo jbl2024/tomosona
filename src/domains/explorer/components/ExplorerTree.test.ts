@@ -7,7 +7,6 @@ import { openPathExternal } from '../../../shared/api/workspaceApi'
 const unlistenWorkspaceFsChanged = vi.fn()
 const listChildren = vi.fn()
 const createInlineNote = vi.fn()
-const renderMarkdownPreviewHtml = vi.fn(async (content: string) => `<p>${content}</p>`)
 const readNoteSnapshot = vi.fn(async (path: string) => ({ path, content: `# ${path.split('/').pop()}`, version: null }))
 
 vi.mock('../../../shared/api/workspaceApi', () => ({
@@ -19,7 +18,6 @@ vi.mock('../../../shared/api/workspaceApi', () => ({
   moveEntry: vi.fn(),
   openPathExternal: vi.fn(),
   pathExists: vi.fn(async () => true),
-  renderMarkdownPreviewHtml: (content: string) => renderMarkdownPreviewHtml(content),
   isTextFile: vi.fn(async (path: string) => /\.(txt|text|md|markdown|ts|tsx|js|jsx|vue|css|scss|sass|less|cpp|c|h|hpp|rs|py|go|java|kt|sh|bash|zsh|fish|desktop)$/i.test(path) || !/\.(png|jpe?g|gif|webp|bmp|ico|pdf|zip|tar|gz|bz2|xz|7z|rar|docx?|xlsx?|pptx?|odt|ods|odp|epub|mp3|wav|flac|aac|ogg|m4a|mp4|mkv|mov|avi|webm|exe|dll|so|dylib|bin|iso|woff2?|ttf|otf|eot)$/i.test(path)),
   renameEntry: vi.fn(),
   revealInFileManager: vi.fn(),
@@ -299,7 +297,8 @@ describe('ExplorerTree', () => {
     expect(dialog).not.toBeNull()
     expect(dialog.textContent).toContain('a')
     expect(dialog.textContent).toContain('/vault/a.md')
-    expect(renderMarkdownPreviewHtml).toHaveBeenCalled()
+    // Markdown is rendered in-app, so previews never depend on an external converter.
+    expect(dialog.querySelector('.explorer-preview-content h1')?.textContent).toBe('a.md')
     // Preview must not open a note tab.
     expect(mounted.events.filter((event) => event.startsWith('open:'))).toEqual([])
 
@@ -333,7 +332,35 @@ describe('ExplorerTree', () => {
     const dialog = mounted.root.querySelector('.explorer-preview') as HTMLElement
     expect(dialog).not.toBeNull()
     expect(dialog.textContent).toContain('protected and locked')
-    expect(renderMarkdownPreviewHtml).not.toHaveBeenCalled()
+    expect(dialog.querySelector('.explorer-preview-content')).toBeNull()
+
+    mounted.app.unmount()
+  })
+
+  it('surfaces the underlying preview failure instead of a generic message', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/broken.md')]
+      }
+      return []
+    })
+    // Tauri rejects IPC calls with plain strings, not Error instances.
+    readNoteSnapshot.mockRejectedValueOnce('Operation failed.')
+
+    const mounted = await mountHarness('/vault/broken.md')
+    await vi.runAllTimersAsync()
+    await nextTick()
+    await nextTick()
+
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+    await nextTick()
+    await vi.runAllTimersAsync()
+    await nextTick()
+
+    const dialog = mounted.root.querySelector('.explorer-preview') as HTMLElement
+    expect(dialog.textContent).toContain('Operation failed.')
+    expect(dialog.textContent).not.toContain('Preview unavailable')
 
     mounted.app.unmount()
   })
