@@ -46,7 +46,7 @@
     "dictionary-en": "^4.0.0",
     "dictionary-fr": "^3.0.0",
     "lowlight": "^3.3.0",
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.2.0",
     "nspell": "^2.1.5",
     "vue": "^3.5.44"
   },
