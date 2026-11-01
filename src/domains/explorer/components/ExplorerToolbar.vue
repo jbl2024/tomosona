@@ -12,6 +12,7 @@ defineProps<{
   disabled: boolean
   searchOpen?: boolean
   canReveal?: boolean
+  canUndo?: boolean
   showExtensions?: boolean
   sortOrder?: 'ascending' | 'descending'
 }>()
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   revealActive: []
   toggleExtensions: []
   setSort: [order: 'ascending' | 'descending']
+  undo: []
 }>()
 </script>
 
@@ -72,6 +74,7 @@ const emit = defineEmits<{
         <button type="button" class="ui-menu-item" role="menuitemradio" :aria-checked="sortOrder !== 'descending'" :disabled="disabled" @click="emit('setSort', 'ascending')">{{ sortOrder !== 'descending' ? '✓ ' : '' }}Sort A to Z</button>
         <button type="button" class="ui-menu-item" role="menuitemradio" :aria-checked="sortOrder === 'descending'" :disabled="disabled" @click="emit('setSort', 'descending')">{{ sortOrder === 'descending' ? '✓ ' : '' }}Sort Z to A</button>
         <button type="button" class="ui-menu-item" role="menuitemcheckbox" :aria-checked="Boolean(showExtensions)" :disabled="disabled" @click="emit('toggleExtensions')">{{ showExtensions ? '✓ ' : '' }}Show extensions</button>
+        <button type="button" class="ui-menu-item" :disabled="disabled || !canUndo" @click="emit('undo')">Undo last operation</button>
         <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('refresh')">Refresh explorer</button>
         </UiMenuList>
       </UiMenu>

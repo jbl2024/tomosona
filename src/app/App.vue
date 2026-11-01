@@ -1744,6 +1744,7 @@ const {
   onEditorPathRenamed,
   onExplorerPathRenamed,
   onExplorerPathsMoved,
+  undoLastWorkspaceMutation,
   openActiveNoteHistory,
   onOutlineHeadingClick,
 } = rootWorkflow
@@ -1963,6 +1964,7 @@ useAppShellKeyboard({
       :metadata-rows="metadataRows"
       :properties-preview="activeProtection.isLocked ? [] : propertiesPreview"
       :property-parse-error-count="activeProtection.isLocked ? 0 : propertyParseErrorCount"
+      :can-undo="workspaceMutationEffects.canUndo.value"
       @set-sidebar-mode="setSidebarMode"
       @explorer-open="onExplorerOpen"
       @explorer-path-renamed="onExplorerPathRenamed"
@@ -1972,6 +1974,7 @@ useAppShellKeyboard({
       @explorer-selection="onExplorerSelection"
       @explorer-error="onExplorerError"
       @explorer-convert-to-word="onExplorerConvertToWord"
+      @explorer-undo="undoLastWorkspaceMutation"
       @favorites-open="openFavoriteFromSidebar"
       @favorites-remove="removeFavoriteFromList"
       @select-working-folder="void workspaceRouting.openWorkspacePicker()"

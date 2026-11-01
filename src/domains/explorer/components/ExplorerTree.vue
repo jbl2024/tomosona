@@ -26,6 +26,7 @@ const props = defineProps<{
   activePath?: string
   contextPaths?: string[]
   rowActionMode?: 'menu' | 'context-toggle'
+  canUndo?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +39,7 @@ const emit = defineEmits<{
   'request-create': [payload: { parentPath: string; entryKind: EntryKind }]
   'toggle-context': [path: string]
   'convert-to-word': [path: string]
+  undo: []
 }>()
 
 const treeRef = ref<HTMLElement | null>(null)
@@ -536,6 +538,7 @@ onBeforeUnmount(() => {
         :disabled="!folderPath"
         :search-open="isFilterVisible"
         :can-reveal="Boolean(activePath)"
+        :can-undo="props.canUndo"
         :show-extensions="showExtensions"
         :sort-order="treeState.sortOrder.value"
         @create-file="beginInlineNote(folderPath)"
@@ -547,6 +550,7 @@ onBeforeUnmount(() => {
         @toggle-extensions="toggleExtensions"
         @set-sort="treeState.setSortOrder"
         @toggle-search="toggleFilterVisibility"
+        @undo="emit('undo')"
       />
 
       <div v-if="isFilterVisible || hasFilterText" class="explorer-filter-shell">

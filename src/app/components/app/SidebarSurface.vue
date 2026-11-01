@@ -36,6 +36,7 @@ const props = defineProps<{
   groupedSearchResults: SearchResultGroup[]
   toRelativePath: (path: string) => string
   parseSearchSnippet: (snippet: string) => Array<{ text: string; highlighted: boolean }>
+  canUndo?: boolean
 }>()
 
 /** Events emitted by sidebar controls so the parent shell remains the only state owner. */
@@ -49,6 +50,7 @@ const emit = defineEmits<{
   explorerSelection: [paths: string[]]
   explorerError: [message: string]
   explorerConvertToWord: [path: string]
+  explorerUndo: []
   favoritesOpen: [path: string]
   favoritesRemove: [path: string]
   selectWorkingFolder: []
@@ -130,6 +132,7 @@ defineExpose({
           ref="explorerTreeRef"
           :folder-path="workingFolderPath"
           :active-path="activeFilePath"
+          :can-undo="props.canUndo"
           @open="emit('explorerOpen', $event)"
           @path-renamed="emit('explorerPathRenamed', $event)"
           @paths-moved="emit('explorerPathsMoved', $event)"
@@ -138,6 +141,7 @@ defineExpose({
           @select="emit('explorerSelection', $event)"
           @error="emit('explorerError', $event)"
           @convert-to-word="emit('explorerConvertToWord', $event)"
+          @undo="emit('explorerUndo')"
         />
         <div v-else class="placeholder empty-explorer">
           <span>No workspace selected.</span>

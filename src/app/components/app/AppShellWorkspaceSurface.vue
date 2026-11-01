@@ -68,6 +68,7 @@ defineProps<{
   metadataRows: MetadataRow[]
   propertiesPreview: PropertyPreviewRow[]
   propertyParseErrorCount: number
+  canUndo?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -80,6 +81,7 @@ const emit = defineEmits<{
   explorerSelection: [paths: string[]]
   explorerError: [message: string]
   explorerConvertToWord: [path: string]
+  explorerUndo: []
   favoritesOpen: [path: string]
   favoritesRemove: [path: string]
   selectWorkingFolder: []
@@ -157,6 +159,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
       :grouped-search-results="groupedSearchResults"
       :to-relative-path="toRelativePath"
       :parse-search-snippet="parseSearchSnippet"
+      :can-undo="canUndo"
       @set-sidebar-mode="emit('setSidebarMode', $event)"
       @explorer-open="emit('explorerOpen', $event)"
       @explorer-path-renamed="emit('explorerPathRenamed', $event)"
@@ -166,6 +169,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
       @explorer-selection="emit('explorerSelection', $event)"
       @explorer-error="emit('explorerError', $event)"
       @explorer-convert-to-word="emit('explorerConvertToWord', $event)"
+      @explorer-undo="emit('explorerUndo')"
       @favorites-open="emit('favoritesOpen', $event)"
       @favorites-remove="emit('favoritesRemove', $event)"
       @select-working-folder="emit('selectWorkingFolder')"
