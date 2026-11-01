@@ -139,9 +139,23 @@ export type MovePreflightVersion = { size: number; modifiedMs: number | null; is
 /** A proposed path mutation checked against a point-in-time filesystem snapshot. */
 export type MovePreflightEntry = { sourcePath: string; destinationPath: string | null; sourceVersion: MovePreflightVersion | null; issue: MovePreflightIssue | null }
 
+export type ReferenceSnapshot = {
+  path: string
+  before: string
+  after: string
+}
+
+export type WikilinkRewriteResult = {
+  updated_files: number
+  /** Exact before/after content of every reference rewrite, for undo receipts. */
+  rewritten_snapshots: ReferenceSnapshot[]
+}
+
 export type PathMoveRewriteResult = {
   updated_files: number
   reindexed_files: number
   moved_markdown_files: number
   expanded_markdown_moves: PathMove[]
+  /** Exact before/after content of every reference rewrite, for undo receipts. */
+  rewritten_snapshots: ReferenceSnapshot[]
 }

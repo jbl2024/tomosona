@@ -25,6 +25,7 @@ import {
   setWorkingFolder,
   selectWorkingFolder,
   isTextFile,
+  moveEntry,
   writeTextFile,
 } from '../shared/api/workspaceApi'
 import { convertMarkdownToDocx } from '../shared/api/docxConversionApi'
@@ -618,6 +619,10 @@ const workspaceMutationEffects = useWorkspaceMutationEffects({
   listOpenNotes: () =>
     multiPane.getOpenDocumentPaths().map((path) => ({ path, dirty: editorState.getStatus(path).dirty })),
   saveOpenNote: (path) => editorRef.value?.saveOpenDocument(path) ?? Promise.resolve(false),
+  pathExists,
+  readTextFile,
+  writeTextFile,
+  moveEntry,
 })
 const modalController = useAppModalController({
   quickOpenVisible,
@@ -1713,7 +1718,9 @@ const rootWorkflow = useAppShellRootWorkflow({
   },
   workspaceMutation: {
     handlePathRenamed: (payload) => workspaceMutationEffects.handlePathRenamed(payload),
-    handlePathsMoved: (moves) => workspaceMutationEffects.handlePathsMoved(moves)
+    handlePathsMoved: (moves) => workspaceMutationEffects.handlePathsMoved(moves),
+    undoLastMutation: () => workspaceMutationEffects.undoLastMutation(),
+    canUndo: workspaceMutationEffects.canUndo
   },
   reloadAllFiles: loadAllFiles,
   disposers: [

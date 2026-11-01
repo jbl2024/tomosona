@@ -24,6 +24,8 @@ pub(crate) struct Backlink {
 #[derive(Serialize)]
 pub(crate) struct WikilinkRewriteResult {
     pub updated_files: usize,
+    /// Exact before/after content of every reference rewrite, for undo receipts.
+    pub rewritten_snapshots: Vec<ReferenceSnapshot>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -34,12 +36,21 @@ pub(crate) struct PathMoveInput {
     pub to_path: String,
 }
 
+#[derive(Clone, Serialize)]
+pub(crate) struct ReferenceSnapshot {
+    pub path: String,
+    pub before: String,
+    pub after: String,
+}
+
 #[derive(Serialize)]
 pub(crate) struct PathMoveRewriteResult {
     pub updated_files: usize,
     pub reindexed_files: usize,
     pub moved_markdown_files: usize,
     pub expanded_markdown_moves: Vec<PathMoveInput>,
+    /// Exact before/after content of every reference rewrite, for undo receipts.
+    pub rewritten_snapshots: Vec<ReferenceSnapshot>,
 }
 
 pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
@@ -96,11 +107,15 @@ pub(crate) fn update_wikilinks_for_rename(
     if old_target_key.is_empty()
         || old_target_key == normalize_note_key(&root_canonical, &new_note_path)?
     {
-        return Ok(WikilinkRewriteResult { updated_files: 0 });
+        return Ok(WikilinkRewriteResult {
+            updated_files: 0,
+            rewritten_snapshots: Vec::new(),
+        });
     }
 
     let markdown_files = list_markdown_files_via_find(&root_canonical)?;
     let mut changed_files = 0usize;
+    let mut rewritten_snapshots: Vec<ReferenceSnapshot> = Vec::new();
 
     for candidate in markdown_files {
         let canonical_candidate = match fs::canonicalize(&candidate) {
@@ -121,11 +136,17 @@ pub(crate) fn update_wikilinks_for_rename(
         fs::write(&canonical_candidate, &updated_markdown)?;
         record_workspace_mutation_write(&canonical_candidate, &updated_markdown);
         reindex_markdown_file_now_sync(canonical_candidate.to_string_lossy().to_string())?;
+        rewritten_snapshots.push(ReferenceSnapshot {
+            path: canonical_candidate.to_string_lossy().to_string(),
+            before: markdown,
+            after: updated_markdown,
+        });
         changed_files += 1;
     }
 
     Ok(WikilinkRewriteResult {
         updated_files: changed_files,
+        rewritten_snapshots,
     })
 }
 
@@ -203,12 +224,14 @@ pub(crate) fn update_wikilinks_for_path_moves(
             reindexed_files: 0,
             moved_markdown_files: 0,
             expanded_markdown_moves: Vec::new(),
+            rewritten_snapshots: Vec::new(),
         });
     }
 
     let markdown_files = list_markdown_files_via_find(&root_canonical)?;
     let mut changed_files = 0usize;
     let mut reindex_paths: HashSet<String> = HashSet::new();
+    let mut rewritten_snapshots: Vec<ReferenceSnapshot> = Vec::new();
     let moved_markdown_files = note_moves.len();
 
     for candidate in markdown_files {
@@ -221,7 +244,7 @@ pub(crate) fn update_wikilinks_for_path_moves(
             Err(_) => continue,
         };
 
-        let mut updated_markdown = markdown;
+        let mut updated_markdown = markdown.clone();
         let mut changed = false;
         for (old_target_key, new_target, _, _) in &note_moves {
             let (rewritten, rewritten_changed) =
@@ -237,6 +260,11 @@ pub(crate) fn update_wikilinks_for_path_moves(
         fs::write(&canonical_candidate, &updated_markdown)?;
         record_workspace_mutation_write(&canonical_candidate, &updated_markdown);
         reindex_paths.insert(canonical_candidate.to_string_lossy().to_string());
+        rewritten_snapshots.push(ReferenceSnapshot {
+            path: canonical_candidate.to_string_lossy().to_string(),
+            before: markdown,
+            after: updated_markdown,
+        });
         changed_files += 1;
     }
 
@@ -252,6 +280,7 @@ pub(crate) fn update_wikilinks_for_path_moves(
         updated_files: changed_files,
         reindexed_files: reindex_paths.len(),
         moved_markdown_files,
+        rewritten_snapshots,
         expanded_markdown_moves: note_moves
             .into_iter()
             .map(|(_, _, old_note_path, moved_note_path)| PathMoveInput {

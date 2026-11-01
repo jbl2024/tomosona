@@ -1,6 +1,8 @@
-import type { Ref } from 'vue'
-import type { FavoriteEntry, PathMove, PathMoveRewriteResult } from '../../shared/api/apiTypes'
+import { computed, ref, type Ref } from 'vue'
+import type { FavoriteEntry, PathMove, PathMoveRewriteResult, WikilinkRewriteResult } from '../../shared/api/apiTypes'
+import { getParentPath } from '../../domains/explorer/lib/explorerTreeUtils'
 import { assessMutationReadiness, type OpenNoteBuffer } from '../lib/mutationReadiness'
+import { createOperationReceipt, planReceiptRestore, type OperationReceipt, type ReceiptReferenceSnapshot } from '../lib/operationReceipt'
 import { expandPathMoves, rewritePathWithMoves, sortPathMoves } from '../lib/pathMoves'
 import type { WorkspaceMutationResult } from './useAppIndexingController'
 import { createWorkspaceMutationScheduler } from './workspaceMutationScheduler'
@@ -26,7 +28,7 @@ export type UseWorkspaceMutationEffectsOptions = {
   applyImmediateLocalPathMoves: (moves: PathMove[], expandedMarkdownMoves: PathMove[]) => void
   applyDeferredLocalPathMoves: (moves: PathMove[], expandedMarkdownMoves: PathMove[]) => void
   renameFavorite: (fromPath: string, toPath: string) => Promise<void>
-  updateWikilinksForRename: (fromPath: string, toPath: string) => Promise<{ updated_files: number }>
+  updateWikilinksForRename: (fromPath: string, toPath: string) => Promise<WikilinkRewriteResult>
   updateWikilinksForPathMoves: (moves: PathMove[]) => Promise<PathMoveRewriteResult>
   moveNoteHistoryEntries: (moves: PathMove[]) => Promise<void>
   runWorkspaceMutation: (task: () => Promise<WorkspaceMutationResult>) => Promise<void>
@@ -34,6 +36,11 @@ export type UseWorkspaceMutationEffectsOptions = {
   listOpenNotes?: () => OpenNoteBuffer[]
   /** Saves the open buffer at the given (already moved) path; resolves false on conflict/failure. */
   saveOpenNote?: (path: string) => Promise<boolean>
+  /** IO ports used to validate and apply an undo receipt without overwriting. */
+  pathExists: (path: string) => Promise<boolean>
+  readTextFile: (path: string) => Promise<string>
+  writeTextFile: (path: string, content: string) => Promise<void>
+  moveEntry: (sourcePath: string, targetDirPath: string, strategy: 'fail' | 'rename' | 'overwrite') => Promise<string>
 }
 
 /**
@@ -80,6 +87,12 @@ async function renameFavoritesForMoves(
 export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffectsOptions) {
   let mutationQueue = Promise.resolve()
   const deferredScheduler = createWorkspaceMutationScheduler()
+  const lastReceipt = ref<OperationReceipt | null>(null)
+  const canUndo = computed(() => Boolean(lastReceipt.value))
+
+  function recordReceipt(kind: OperationReceipt['kind'], moves: PathMove[], snapshots: ReceiptReferenceSnapshot[]) {
+    lastReceipt.value = createOperationReceipt({ kind, moves, referenceSnapshots: snapshots })
+  }
 
   function enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
     const run = mutationQueue.catch(() => undefined).then(task)
@@ -120,6 +133,7 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     await options.runWorkspaceMutation(async () => {
       await reconcileDirtyOpenNotes(normalizedMoves, options)
       const result = await options.updateWikilinksForRename(payload.from, payload.to)
+      recordReceipt('rename', normalizedMoves, result.rewritten_snapshots)
       await scheduleDeferredLocalSync(normalizedMoves, normalizedMoves)
       try {
         await options.moveNoteHistoryEntries(normalizedMoves)
@@ -147,6 +161,7 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     await options.runWorkspaceMutation(async () => {
       await reconcileDirtyOpenNotes(normalizedMoves, options)
       const result = await options.updateWikilinksForPathMoves(normalizedMoves)
+      recordReceipt('move', normalizedMoves, result.rewritten_snapshots)
       await scheduleDeferredLocalSync(normalizedMoves, result.expanded_markdown_moves)
       try {
         await options.moveNoteHistoryEntries(result.expanded_markdown_moves)
@@ -175,8 +190,95 @@ export function useWorkspaceMutationEffects(options: UseWorkspaceMutationEffects
     return enqueueMutation(() => handlePathsMovedNow(moves))
   }
 
+  /**
+   * Restores the most recent recoverable mutation. Validates current disk state
+   * first and never overwrites: occupied originals, vanished destinations and
+   * externally changed files are reported and left intact. On any applied
+   * change the receipt is consumed and local views are re-synced.
+   */
+  async function undoLastMutation(): Promise<boolean> {
+    const current = lastReceipt.value
+    const root = options.workingFolderPath.value
+    if (!current || !root) return false
+
+    const involved = new Set<string>()
+    for (const move of current.moves) {
+      involved.add(move.from)
+      involved.add(move.to)
+    }
+    for (const snapshot of current.referenceSnapshots) {
+      involved.add(snapshot.path)
+    }
+    const currentPaths: string[] = []
+    await Promise.all(
+      Array.from(involved).map(async (path) => {
+        try {
+          if (await options.pathExists(path)) currentPaths.push(path)
+        } catch {
+          // Treat unreadable paths as absent; restoration stays conservative.
+        }
+      })
+    )
+    const currentContents: Record<string, string> = {}
+    for (const snapshot of current.referenceSnapshots) {
+      try {
+        currentContents[snapshot.path] = await options.readTextFile(snapshot.path)
+      } catch {
+        // Missing or unreadable: planReceiptRestore reports it as changed.
+      }
+    }
+
+    const plan = planReceiptRestore({ receipt: current, currentPaths, currentContents })
+    if (plan.issues.length) {
+      const reasons = plan.issues
+        .map((issue) => {
+          if (issue.reason === 'occupied_source') return `"${issue.path}" already exists`
+          if (issue.reason === 'missing_destination') return `"${issue.path}" no longer exists`
+          return `"${issue.path}" changed since the operation`
+        })
+        .join('; ')
+      options.filesystemErrorMessage.value = `Undo stopped safely: ${reasons}.`
+    }
+
+    const appliedMoves: PathMove[] = []
+    for (const move of plan.moves) {
+      try {
+        const restored = await options.moveEntry(move.from, getParentPath(move.to), 'fail')
+        appliedMoves.push({ from: move.from, to: restored })
+      } catch (err) {
+        options.filesystemErrorMessage.value = err instanceof Error ? err.message : `Could not restore "${move.from}".`
+      }
+    }
+    for (const restore of plan.referenceRestores) {
+      try {
+        await options.writeTextFile(restore.path, restore.content)
+      } catch (err) {
+        options.filesystemErrorMessage.value = err instanceof Error ? err.message : `Could not restore references in "${restore.path}".`
+      }
+    }
+
+    if (!appliedMoves.length && !plan.referenceRestores.length) {
+      return false
+    }
+
+    if (appliedMoves.length) {
+      applyImmediateLocalMoves(appliedMoves)
+      await scheduleDeferredLocalSync(appliedMoves, appliedMoves)
+      try {
+        await options.moveNoteHistoryEntries(appliedMoves)
+      } catch (err) {
+        options.filesystemErrorMessage.value = err instanceof Error ? err.message : 'Could not update note history.'
+      }
+    }
+    lastReceipt.value = null
+    return true
+  }
+
   return {
     handlePathRenamed,
-    handlePathsMoved
+    handlePathsMoved,
+    undoLastMutation,
+    canUndo,
+    lastReceipt
   }
 }

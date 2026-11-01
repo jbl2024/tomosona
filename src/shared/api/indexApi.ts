@@ -4,6 +4,7 @@ import type {
   IndexOverviewStats,
   PathMove,
   PathMoveRewriteResult,
+  WikilinkRewriteResult,
 } from './apiTypes'
 
 /**
@@ -39,7 +40,7 @@ export async function backlinksForPath(path: string): Promise<Array<{ path: stri
 export async function updateWikilinksForRename(
   oldPath: string,
   newPath: string
-): Promise<{ updated_files: number }> {
+): Promise<WikilinkRewriteResult> {
   return await invoke('update_wikilinks_for_rename', { oldPath, newPath })
 }
 

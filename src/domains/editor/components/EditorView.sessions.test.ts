@@ -122,9 +122,13 @@ describe('EditorView per-document sessions', () => {
         renameLaunchpadRecentNote: () => {}, virtualDocs: ref({}), backlinks: ref([])
       }, moves, expanded),
       applyDeferredLocalPathMoves: () => {}, renameFavorite: async () => {},
-      updateWikilinksForRename: async () => ({ updated_files: 0 }),
-      updateWikilinksForPathMoves: async () => ({ updated_files: 0, reindexed_files: 0, moved_markdown_files: 0, expanded_markdown_moves: [] }),
-      moveNoteHistoryEntries: async () => {}, runWorkspaceMutation: async () => {}
+      updateWikilinksForRename: async () => ({ updated_files: 0, rewritten_snapshots: [] }),
+      updateWikilinksForPathMoves: async () => ({ updated_files: 0, reindexed_files: 0, moved_markdown_files: 0, expanded_markdown_moves: [], rewritten_snapshots: [] }),
+      moveNoteHistoryEntries: async () => {}, runWorkspaceMutation: async () => {},
+      pathExists: async () => false,
+      readTextFile: async () => '',
+      writeTextFile: async () => {},
+      moveEntry: async (sourcePath: string) => sourcePath
     })
     await effects.handlePathRenamed({ from: original, to: renamed })
     await flushEditorUi()

@@ -15,6 +15,8 @@ type RootRuntimeLifecyclePort = {
 type RootWorkspaceMutationPort = {
   handlePathRenamed: (payload: { from: string; to: string; manual: boolean }) => Promise<void>
   handlePathsMoved: (moves: PathMove[]) => Promise<void>
+  undoLastMutation: () => Promise<boolean>
+  canUndo: Readonly<Ref<boolean>>
 }
 
 type RootIndexingPort = {
@@ -178,6 +180,15 @@ export function useAppShellRootWorkflow(options: RootOptions) {
     })
   }
 
+  async function undoLastWorkspaceMutation() {
+    const undone = await options.workspaceMutation.undoLastMutation()
+    if (undone) {
+      options.filesystem.notifySuccess('Last operation undone.')
+    } else if (!options.workspaceMutation.canUndo.value) {
+      options.filesystem.notifyInfo('Nothing to undo.')
+    }
+  }
+
   async function openActiveNoteHistory() {
     await options.editor.editorRef.value?.openNoteHistory()
   }
@@ -235,6 +246,7 @@ export function useAppShellRootWorkflow(options: RootOptions) {
     onEditorPathRenamed,
     onExplorerPathRenamed,
     onExplorerPathsMoved,
+    undoLastWorkspaceMutation,
     openActiveNoteHistory,
     onOutlineHeadingClick,
     toggleSpellcheckFromPalette,
