@@ -44,7 +44,7 @@ The strip SHALL distinguish active, unsaved, saving, protected, inaccessible, pi
 - **THEN** the strip shows at most the pinned and unsaved indicators and the tooltip carries the protection detail
 
 ### Requirement: Protection indication on tabs
-A protected document's tab SHALL indicate protection and SHALL distinguish a page that is locked from one unlocked for the current session. The tooltip SHALL state which, and SHALL NOT describe the page as encrypted unless the protection mechanism actually encrypts it.
+A protected document's tab SHALL indicate protection and SHALL distinguish a page that is locked from one unlocked for the current session. The indicator of a page unlocked for the session SHALL lock that page again when activated, without selecting the tab. The tooltip SHALL state which, and SHALL NOT describe the page as encrypted unless the protection mechanism actually encrypts it.
 
 #### Scenario: Unlocked protected page
 - **WHEN** a protected page is unlocked for the session
@@ -57,6 +57,10 @@ A protected document's tab SHALL indicate protection and SHALL distinguish a pag
 #### Scenario: Stable indicator
 - **WHEN** the user navigates between documents
 - **THEN** the protection indicator does not change appearance for the same protection state
+
+#### Scenario: Lock from the tab
+- **WHEN** the user activates the protection indicator of a page unlocked for the session
+- **THEN** the page is locked again and the indicator switches to the locked state
 
 ### Requirement: Close affordance
 Each tab SHALL reserve space for its close control so revealing it never moves the title. The close control SHALL be visible on the active tab and on hover or keyboard focus for inactive tabs, and SHALL remain reachable by keyboard and on touch.

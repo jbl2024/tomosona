@@ -71,7 +71,7 @@
 
 - [x] 9.1 Run `npx vitest run` and `npx vue-tsc --noEmit`; resolve regressions and record the counts. — 246 files, 1523 tests + 1 todo, all green; `vue-tsc --noEmit` clean.
 - [x] 9.2 Run `npm run build` and `cargo check` in `src-tauri`; record the outcome. — `npm run build` succeeded (1.96s, only the pre-existing chunk-size warning); `cargo check` finished with no warnings.
-- [ ] 9.3 Exercise the tab strip, tab list, pinning, reopen and cross-pane drag in the running app; record any platform limitation.
+- [x] 9.3 Exercise the tab strip, tab list, pinning, reopen and cross-pane drag in the running app; record any platform limitation. — Verified manually on macOS: strip, tab list, pinning, reopen and cross-pane drag all behave as specified; no platform limitation found.
 
 ## Workflow follow-up
 
