@@ -32,8 +32,8 @@
 
 ## 5. Quick preview
 
-- [ ] 5.1 Add temporary read-only rendered preview with title, path, open and close actions; test Escape, Space, focus restoration and unchanged tabs/history/tree state.
-- [ ] 5.2 Integrate protected and dirty-note access without plaintext persistence; test refusal for locked pages, rendered preview for unlocked pages, unsaved content, unreadable files and stale asynchronous responses.
+- [x] 5.1 Add temporary read-only rendered preview with title, path, open and close actions; test Escape, Space, focus restoration and unchanged tabs/history/tree state.
+- [x] 5.2 Integrate protected and dirty-note access without plaintext persistence; test refusal for locked pages, rendered preview for unlocked pages, unsaved content, unreadable files and stale asynchronous responses.
 
 ## 6. Journal, lower priority
 

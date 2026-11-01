@@ -26,6 +26,7 @@ function dirNode(path: string): TreeNode {
 function createKeyboard() {
   const focusedPath = ref('/vault/folder')
   const selected = ref<string[]>(['/vault/folder'])
+  const openPreview = vi.fn()
   const visibleNodePaths = computed(() => ['/vault/folder', '/vault/folder/a.md'])
   const childrenByDir = ref<Record<string, TreeNode[]>>({
     '/vault/folder': [fileNode('/vault/folder/a.md')]
@@ -53,11 +54,7 @@ function createKeyboard() {
     selectRange: (path) => {
       selected.value = ['/vault/folder', path]
     },
-    toggleSelection: (path) => {
-      selected.value = selected.value.includes(path)
-        ? selected.value.filter((item) => item !== path)
-        : [...selected.value, path]
-    },
+    openPreview,
     setSelection: (paths) => {
       selected.value = paths
     },
@@ -76,7 +73,7 @@ function createKeyboard() {
     requestCreate: vi.fn()
   })
 
-  return { keyboard, focusedPath, selected }
+  return { keyboard, focusedPath, selected, openPreview }
 }
 
 describe('useExplorerKeyboard', () => {
@@ -91,21 +88,16 @@ describe('useExplorerKeyboard', () => {
     expect(selected.value).toEqual(['/vault/folder/a.md'])
   })
 
-  it('toggles the focused row selection with Space without opening it', async () => {
-    const { keyboard, focusedPath, selected } = createKeyboard()
-    const openNode = vi.fn()
-    keyboard.onTreeKeydown.bind(keyboard)
+  it('opens a read-only preview with Space without changing selection or opening the note', async () => {
+    const { keyboard, focusedPath, selected, openPreview } = createKeyboard()
     const event = new KeyboardEvent('keydown', { key: ' ', cancelable: true })
     vi.spyOn(event, 'preventDefault')
 
     await keyboard.onTreeKeydown(event)
 
     expect(event.preventDefault).toHaveBeenCalled()
+    expect(openPreview).toHaveBeenCalledWith('/vault/folder')
     expect(focusedPath.value).toBe('/vault/folder')
-    expect(selected.value).toEqual([])
-    expect(openNode).not.toHaveBeenCalled()
-
-    await keyboard.onTreeKeydown(new KeyboardEvent('keydown', { key: ' ', cancelable: true }))
     expect(selected.value).toEqual(['/vault/folder'])
   })
 

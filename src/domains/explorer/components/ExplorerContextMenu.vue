@@ -19,6 +19,7 @@ export type MenuAction =
   | 'delete'
   | 'duplicate'
   | 'move-to'
+  | 'preview'
   | 'new-file'
   | 'new-folder'
   | 'cut'
@@ -33,6 +34,7 @@ const props = defineProps<{
   canRename: boolean
   canDelete: boolean
   canConvert: boolean
+  canPreview?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +56,7 @@ function createMenuItem(
 const items = computed((): Array<{ id: MenuAction; label: string; icon: Component | null }> => {
   return [
     createMenuItem('open', 'Open', null),
+    ...(props.canPreview ? [createMenuItem('preview', 'Quick preview', null)] : []),
     createMenuItem('open-external', 'Open externally', ArrowTopRightOnSquareIcon as Component),
     createMenuItem('reveal', 'Reveal in file manager', null),
     ...(props.canConvert ? [createMenuItem('convert-to-word', 'Convert to Word', null)] : []),

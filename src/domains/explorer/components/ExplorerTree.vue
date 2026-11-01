@@ -4,7 +4,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { EntryKind, TreeNode } from '../../../shared/api/apiTypes'
 import type { PathMove } from '../../../shared/api/apiTypes'
-import { createInlineNote, listenWorkspaceFsChanged, openPathExternal } from '../../../shared/api/workspaceApi'
+import { createInlineNote, listenWorkspaceFsChanged, openPathExternal, renderMarkdownPreviewHtml } from '../../../shared/api/workspaceApi'
+import { readNoteSnapshot } from '../../../shared/api/editorSyncApi'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
 import ExplorerConfirmDialog from './ExplorerConfirmDialog.vue'
 import ExplorerCreateInput from './ExplorerCreateInput.vue'
@@ -12,6 +13,7 @@ import ExplorerConflictDialog from './ExplorerConflictDialog.vue'
 import ExplorerContextMenu, { type MenuAction } from './ExplorerContextMenu.vue'
 import ExplorerItem from './ExplorerItem.vue'
 import ExplorerMoveDialog from './ExplorerMoveDialog.vue'
+import ExplorerQuickPreview from './ExplorerQuickPreview.vue'
 import ExplorerToolbar from './ExplorerToolbar.vue'
 import { useSelectionManager } from './composables/useSelectionManager'
 import { useExplorerDnD } from '../composables/useExplorerDnD'
@@ -55,6 +57,18 @@ const isFilterVisible = ref(false)
 const showExtensions = ref(false)
 const creatingNote = ref<{ parent: string; error: string; busy: boolean } | null>(null)
 const moveDialogSources = ref<string[] | null>(null)
+
+type QuickPreviewState = {
+  path: string
+  title: string
+  html: string
+  loading: boolean
+  error: string
+  locked: boolean
+}
+const preview = ref<QuickPreviewState | null>(null)
+let previewToken = 0
+
 let filterDebounceTimer: number | null = null
 let unfilteredScrollTop: number | null = null
 
@@ -110,6 +124,46 @@ async function confirmMoveDialog(destination: string) {
   if (!sources.length) return
   rememberMoveDestination(destination)
   await operations.executeMove(destination, sources)
+}
+
+/**
+ * Opens a temporary read-only preview. Uses readNoteSnapshot so protected pages
+ * follow the existing session rules: locked pages refuse, unlocked pages render
+ * from the in-memory decrypted snapshot without persisting plaintext.
+ */
+async function openPreview(path: string) {
+  const node = treeState.nodeByPath.value[path]
+  if (!node || node.is_dir || !node.is_markdown) return
+  const token = ++previewToken
+  preview.value = { path, title: node.name.replace(/\.(md|markdown)$/i, ''), html: '', loading: true, error: '', locked: false }
+
+  try {
+    const snapshot = await readNoteSnapshot(path)
+    if (token !== previewToken) return
+    const html = await renderMarkdownPreviewHtml(snapshot.content)
+    if (token !== previewToken) return
+    preview.value = { path, title: node.name.replace(/\.(md|markdown)$/i, ''), html, loading: false, error: '', locked: false }
+  } catch (err) {
+    if (token !== previewToken) return
+    const message = err instanceof Error ? err.message : 'Preview unavailable.'
+    const locked = /locked/i.test(message)
+    preview.value = { path, title: node.name.replace(/\.(md|markdown)$/i, ''), html: '', loading: false, error: locked ? '' : message, locked }
+  }
+}
+
+function closePreview() {
+  previewToken += 1
+  preview.value = null
+  // Return focus to the selected explorer row; editing context is untouched.
+  treeState.focusTree()
+  if (treeState.focusedPath.value) {
+    treeRef.value?.querySelector(`[data-explorer-path="${CSS.escape(treeState.focusedPath.value)}"]`)?.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+function openPreviewNote(path: string) {
+  closePreview()
+  emit('open', path)
 }
 
 function scrollStorageKey(workspace: string) {
@@ -237,7 +291,7 @@ const keyboard = useExplorerKeyboard({
   isMac,
   selectSingle: selectionManager.selectSingle,
   selectRange: selectionManager.selectRange,
-  toggleSelection: selectionManager.toggleSelection,
+  openPreview,
   setSelection: selectionManager.setSelection,
   emitSelection: (paths) => emit('select', paths),
   ensureFocusedPath,
@@ -495,6 +549,12 @@ async function onContextAction(action: MenuAction) {
     operations.startRename(targetPath)
   }
 
+  if (action === 'preview' && targetPath) {
+    void openPreview(targetPath)
+    closeContextMenu()
+    return
+  }
+
   if (action === 'delete') {
     operations.requestDelete(selection)
   }
@@ -533,6 +593,8 @@ watch(
     unfilteredScrollTop = null
     creatingNote.value = null
     moveDialogSources.value = null
+    preview.value = null
+    previewToken += 1
     loadRecentMoveDestinations()
     showExtensions.value = window.localStorage.getItem(`tomosona.explorer.extensions.${workspace}`) === 'true'
     treeState.resetState()
@@ -714,6 +776,7 @@ onBeforeUnmount(() => {
         :can-rename="Boolean(contextMenu.targetPath)"
         :can-delete="Boolean(contextMenu.targetPath)"
         :can-convert="Boolean(contextMenu.targetPath && treeState.nodeByPath.value[contextMenu.targetPath]?.is_markdown)"
+        :can-preview="Boolean(contextMenu.targetPath && treeState.nodeByPath.value[contextMenu.targetPath]?.is_markdown)"
         @action="onContextAction"
       />
 
@@ -742,6 +805,18 @@ onBeforeUnmount(() => {
         :parent-of="getParentPath"
         @cancel="moveDialogSources = null"
         @confirm="confirmMoveDialog"
+      />
+
+      <ExplorerQuickPreview
+        v-if="preview"
+        :path="preview.path"
+        :title="preview.title"
+        :html="preview.html"
+        :loading="preview.loading"
+        :error="preview.error"
+        :locked="preview.locked"
+        @close="closePreview"
+        @open="openPreviewNote"
       />
     </div>
   </DnDProvider>

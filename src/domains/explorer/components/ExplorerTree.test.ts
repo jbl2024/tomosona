@@ -7,6 +7,8 @@ import { openPathExternal } from '../../../shared/api/workspaceApi'
 const unlistenWorkspaceFsChanged = vi.fn()
 const listChildren = vi.fn()
 const createInlineNote = vi.fn()
+const renderMarkdownPreviewHtml = vi.fn(async (content: string) => `<p>${content}</p>`)
+const readNoteSnapshot = vi.fn(async (path: string) => ({ path, content: `# ${path.split('/').pop()}`, version: null }))
 
 vi.mock('../../../shared/api/workspaceApi', () => ({
   copyEntry: vi.fn(),
@@ -17,10 +19,19 @@ vi.mock('../../../shared/api/workspaceApi', () => ({
   moveEntry: vi.fn(),
   openPathExternal: vi.fn(),
   pathExists: vi.fn(async () => true),
+  renderMarkdownPreviewHtml: (content: string) => renderMarkdownPreviewHtml(content),
   isTextFile: vi.fn(async (path: string) => /\.(txt|text|md|markdown|ts|tsx|js|jsx|vue|css|scss|sass|less|cpp|c|h|hpp|rs|py|go|java|kt|sh|bash|zsh|fish|desktop)$/i.test(path) || !/\.(png|jpe?g|gif|webp|bmp|ico|pdf|zip|tar|gz|bz2|xz|7z|rar|docx?|xlsx?|pptx?|odt|ods|odp|epub|mp3|wav|flac|aac|ogg|m4a|mp4|mkv|mov|avi|webm|exe|dll|so|dylib|bin|iso|woff2?|ttf|otf|eot)$/i.test(path)),
   renameEntry: vi.fn(),
   revealInFileManager: vi.fn(),
-  trashEntry: vi.fn()
+  trashEntry: vi.fn(),
+  preflightMoveEntries: vi.fn(async (paths: string[]) => paths.map((p) => ({ sourcePath: p, destinationPath: null, sourceVersion: null, issue: null }))),
+  preflightRenameEntry: vi.fn(async (p: string) => ({ sourcePath: p, destinationPath: null, sourceVersion: null, issue: null })),
+  preflightTrashEntries: vi.fn(async (paths: string[]) => paths.map((p) => ({ sourcePath: p, destinationPath: null, sourceVersion: null, issue: null }))),
+  revalidateMoveEntry: vi.fn(async (p: string) => ({ sourcePath: p, destinationPath: null, sourceVersion: null, issue: null }))
+}))
+
+vi.mock('../../../shared/api/editorSyncApi', () => ({
+  readNoteSnapshot: (path: string) => readNoteSnapshot(path)
 }))
 
 function fileNode(path: string): TreeNode {
@@ -260,6 +271,69 @@ describe('ExplorerTree', () => {
     deleteButton.click()
     await nextTick()
     expect(mounted.root.querySelector('.explorer-modal-title')?.textContent).toContain('Delete 2 items?')
+
+    mounted.app.unmount()
+  })
+
+  it('opens a read-only preview with Space and closes it with Escape without opening a note', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/a.md'), fileNode('/vault/b.md')]
+      }
+      return []
+    })
+
+    const mounted = await mountHarness('/vault/a.md')
+    await vi.runAllTimersAsync()
+    await nextTick()
+    await nextTick()
+
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+    await nextTick()
+    await nextTick()
+    await vi.runAllTimersAsync()
+    await nextTick()
+
+    const dialog = mounted.root.querySelector('.explorer-preview') as HTMLElement
+    expect(dialog).not.toBeNull()
+    expect(dialog.textContent).toContain('a')
+    expect(dialog.textContent).toContain('/vault/a.md')
+    expect(renderMarkdownPreviewHtml).toHaveBeenCalled()
+    // Preview must not open a note tab.
+    expect(mounted.events.filter((event) => event.startsWith('open:'))).toEqual([])
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await nextTick()
+    expect(mounted.root.querySelector('.explorer-preview')).toBeNull()
+
+    mounted.app.unmount()
+  })
+
+  it('shows a locked explanation instead of content for a locked protected note', async () => {
+    listChildren.mockImplementation(async (dirPath: string) => {
+      if (dirPath === '/vault') {
+        return [fileNode('/vault/secret.md')]
+      }
+      return []
+    })
+    readNoteSnapshot.mockRejectedValueOnce(new Error('Page is locked'))
+
+    const mounted = await mountHarness('/vault/secret.md')
+    await vi.runAllTimersAsync()
+    await nextTick()
+    await nextTick()
+
+    const tree = mounted.root.querySelector('[tabindex="0"]') as HTMLElement
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+    await nextTick()
+    await vi.runAllTimersAsync()
+    await nextTick()
+
+    const dialog = mounted.root.querySelector('.explorer-preview') as HTMLElement
+    expect(dialog).not.toBeNull()
+    expect(dialog.textContent).toContain('protected and locked')
+    expect(renderMarkdownPreviewHtml).not.toHaveBeenCalled()
 
     mounted.app.unmount()
   })

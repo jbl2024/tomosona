@@ -6,7 +6,7 @@ use std::{
     env, fs,
     io::Read,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -1601,6 +1601,68 @@ fn render_pandoc_preview_html_sync(path: String) -> Result<String> {
 #[tauri::command]
 pub async fn render_pandoc_preview_html(path: String) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || render_pandoc_preview_html_sync(path))
+        .await
+        .map_err(|_| AppError::OperationFailed)?
+}
+
+fn pandoc_spawn_error(err: std::io::Error) -> AppError {
+    if err.kind() == std::io::ErrorKind::NotFound {
+        AppError::InvalidOperation(
+            "Pandoc is not available. Install it to preview this file type.".to_string(),
+        )
+    } else {
+        AppError::OperationFailed
+    }
+}
+
+fn pandoc_failure_error(stderr: Vec<u8>) -> AppError {
+    AppError::InvalidOperation(
+        String::from_utf8(stderr)
+            .ok()
+            .and_then(|stderr| stderr.lines().next().map(str::to_owned))
+            .filter(|line| !line.trim().is_empty())
+            .unwrap_or_else(|| "Pandoc preview conversion failed.".to_string()),
+    )
+}
+
+/// Renders Markdown from memory via Pandoc stdin; the plaintext is never written to disk.
+fn render_markdown_preview_html_sync(content: String) -> Result<String> {
+    use std::io::Write;
+    let pandoc_binary = resolve_pandoc_binary().unwrap_or_else(|| PathBuf::from("pandoc"));
+    let mut child = Command::new(pandoc_binary)
+        .arg("--from")
+        .arg("markdown")
+        .arg("--to")
+        .arg("html5")
+        .arg("--standalone")
+        .arg("--wrap")
+        .arg("none")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(pandoc_spawn_error)?;
+
+    {
+        let stdin = child.stdin.take().ok_or(AppError::OperationFailed)?;
+        let mut stdin = stdin;
+        stdin.write_all(content.as_bytes()).map_err(|_| AppError::OperationFailed)?;
+    }
+
+    let output = child.wait_with_output().map_err(|_| AppError::OperationFailed)?;
+    if !output.status.success() {
+        return Err(pandoc_failure_error(output.stderr));
+    }
+
+    let html = String::from_utf8(output.stdout).map_err(|_| AppError::OperationFailed)?;
+    let html = unwrap_pandoc_list_blockquotes(html);
+    let decorated = decorate_pandoc_preview_html(html, "Preview");
+    Ok(decorated)
+}
+
+#[tauri::command]
+pub async fn render_markdown_preview_html(content: String) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || render_markdown_preview_html_sync(content))
         .await
         .map_err(|_| AppError::OperationFailed)?
 }
