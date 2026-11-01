@@ -55,6 +55,7 @@ describe('useAppShellPaneRuntime', () => {
       propertyParseErrorCount: ref(0),
       copyNoteLink: vi.fn(),
       revealPathInExplorer: vi.fn(),
+      lockNote: vi.fn(),
       createNoteInPane: vi.fn()
     })
 
@@ -120,6 +121,7 @@ describe('useAppShellPaneRuntime', () => {
       propertyParseErrorCount: ref(0),
       copyNoteLink: vi.fn(),
       revealPathInExplorer: vi.fn(),
+      lockNote: vi.fn(),
       createNoteInPane: vi.fn()
     })
 
@@ -158,6 +160,7 @@ describe('useAppShellPaneRuntime', () => {
     const closeTabInPane = vi.fn()
     const setTabPinnedInPane = vi.fn()
     const moveTabToPane = vi.fn()
+    const lockNote = vi.fn()
 
     const api = useAppShellPaneRuntime({
       activeFilePath: ref('/vault/a.md'),
@@ -214,10 +217,11 @@ describe('useAppShellPaneRuntime', () => {
       propertyParseErrorCount: ref(0),
       copyNoteLink: vi.fn(),
       revealPathInExplorer: vi.fn(),
+      lockNote,
       createNoteInPane: vi.fn()
     })
 
-    return { api, openDocumentInPane, closeTabInPane, setTabPinnedInPane, moveTabToPane }
+    return { api, openDocumentInPane, closeTabInPane, setTabPinnedInPane, moveTabToPane, lockNote }
   }
 
   it('relocates a tab dropped on another pane instead of reopening it', () => {
@@ -238,5 +242,21 @@ describe('useAppShellPaneRuntime', () => {
     expect(harness.moveTabToPane).not.toHaveBeenCalled()
     expect(harness.openDocumentInPane).not.toHaveBeenCalled()
     expect(harness.closeTabInPane).not.toHaveBeenCalled()
+  })
+
+  it('locks the note behind the tab that was clicked', () => {
+    const harness = createDropHarness()
+
+    harness.api.onPaneTabLock({ paneId: 'pane-1', tabId: 'doc:/vault/a.md' })
+
+    expect(harness.lockNote).toHaveBeenCalledWith('/vault/a.md')
+  })
+
+  it('ignores a lock request for a tab that no longer exists', () => {
+    const harness = createDropHarness()
+
+    harness.api.onPaneTabLock({ paneId: 'pane-1', tabId: 'doc:/vault/gone.md' })
+
+    expect(harness.lockNote).not.toHaveBeenCalled()
   })
 })

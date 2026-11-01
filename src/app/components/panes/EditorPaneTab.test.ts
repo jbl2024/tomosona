@@ -45,7 +45,8 @@ function mountTab(tab: EditorPaneTabView, index: number, paneTabIds: string[] = 
           pinnedCount: 0,
           paneTabIds,
           onSelect: () => events.push('select'),
-          onClose: () => events.push('close')
+          onClose: () => events.push('close'),
+          onLock: () => events.push('lock')
         })
     }
   }))
@@ -77,6 +78,31 @@ describe('EditorPaneTab', () => {
     await nextTick()
 
     expect(draggablePayloads[0]?.()).toEqual([1, ids])
+
+    mounted.app.unmount()
+  })
+
+  it('locks the note from the open padlock without selecting the tab', async () => {
+    const mounted = mountTab(tabView({ protected: true, locked: false, protectionLabel: 'Protected note, unlocked for this session' }), 0)
+    await nextTick()
+
+    const lock = mounted.root.querySelector<HTMLButtonElement>('.pane-tab-lock')
+    expect(lock?.getAttribute('aria-label')).toBe('Lock a')
+    expect(lock?.getAttribute('title')).toContain('Click to lock')
+    lock?.click()
+    await nextTick()
+
+    expect(mounted.events).toEqual(['lock'])
+
+    mounted.app.unmount()
+  })
+
+  it('keeps the closed padlock inert', async () => {
+    const mounted = mountTab(tabView({ protected: true, locked: true, protectionLabel: 'Locked protected note' }), 0)
+    await nextTick()
+
+    expect(mounted.root.querySelector('.pane-tab-lock')).toBeNull()
+    expect(mounted.root.querySelector('.pane-tab-flag')?.getAttribute('title')).toBe('Locked protected note')
 
     mounted.app.unmount()
   })

@@ -51,6 +51,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: []
   close: []
+  lock: []
   contextmenu: [event: MouseEvent]
   auxclick: [event: MouseEvent]
 }>()
@@ -111,14 +112,25 @@ makeDraggable(rootRef, {
     >
       <ExclamationTriangleIcon class="h-4 w-4" />
     </span>
+    <button
+      v-else-if="tab.protected && !tab.locked"
+      type="button"
+      class="pane-tab-flag pane-tab-lock"
+      :title="`${tab.protectionLabel}. Click to lock.`"
+      :aria-label="`Lock ${tab.title}`"
+      @click.stop="emit('lock')"
+      @keydown.enter.stop
+      @keydown.space.stop
+    >
+      <LockOpenIcon class="h-4 w-4" />
+    </button>
     <span
       v-else-if="tab.protected"
       class="pane-tab-flag"
       :title="tab.protectionLabel"
       :aria-label="tab.protectionLabel"
     >
-      <LockClosedIcon v-if="tab.locked" class="h-4 w-4" />
-      <LockOpenIcon v-else class="h-4 w-4" />
+      <LockClosedIcon class="h-4 w-4" />
     </span>
     <span v-if="tab.stateMarker" class="pane-tab-state" :title="tab.stateLabel" :aria-label="tab.stateLabel">
       {{ tab.stateMarker }}
@@ -211,6 +223,21 @@ makeDraggable(rootRef, {
 
 .pane-tab-pin {
   opacity: 0.9;
+}
+
+/* The open padlock is the only interactive flag: it locks the note in place. */
+.pane-tab-lock {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pane-tab-lock:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 14%, transparent);
 }
 
 .pane-tab-state {

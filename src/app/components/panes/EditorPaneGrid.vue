@@ -113,7 +113,7 @@ const emit = defineEmits<{
   'pane-tab-close-all': [payload: { paneId: string }]
   'pane-tab-close-unpinned': [payload: { paneId: string }]
   'pane-tab-pin': [payload: { paneId: string; tabId: string; pinned: boolean }]
-  'pane-tab-duplicate-in-other-pane': [payload: { paneId: string; tabId: string }]
+  'pane-tab-lock': [payload: { paneId: string; tabId: string }]
   'pane-tab-move-to-other-pane': [payload: { paneId: string; tabId: string }]
   'pane-tab-copy-link': [payload: { paneId: string; tabId: string }]
   'pane-tab-reveal-in-explorer': [payload: { paneId: string; tabId: string }]
@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
           @tab-close-all="emit('pane-tab-close-all', $event)"
           @tab-close-unpinned="emit('pane-tab-close-unpinned', $event)"
           @tab-pin="emit('pane-tab-pin', $event)"
-          @tab-duplicate-in-other-pane="emit('pane-tab-duplicate-in-other-pane', $event)"
+          @tab-lock="emit('pane-tab-lock', $event)"
           @tab-move-to-other-pane="emit('pane-tab-move-to-other-pane', $event)"
           @tab-copy-link="emit('pane-tab-copy-link', $event)"
           @tab-reveal-in-explorer="emit('pane-tab-reveal-in-explorer', $event)"

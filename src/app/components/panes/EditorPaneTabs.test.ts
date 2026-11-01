@@ -64,6 +64,7 @@ function mountTabs(pane: PaneState, options: MountOptions = {}) {
           onTabCloseUnpinned: (payload: { paneId: string }) => events.push(`close-unpinned:${payload.paneId}`),
           onTabPin: (payload: { paneId: string; tabId: string; pinned: boolean }) =>
             events.push(`pin:${payload.tabId}:${payload.pinned}`),
+          onTabLock: (payload: { paneId: string; tabId: string }) => events.push(`lock:${payload.tabId}`),
           onTabMoveToOtherPane: (payload: { paneId: string; tabId: string }) =>
             events.push(`move-to-pane:${payload.tabId}`),
           onTabCopyLink: (payload: { paneId: string; tabId: string }) => events.push(`copy-link:${payload.tabId}`),
@@ -571,9 +572,25 @@ describe('EditorPaneTabs', () => {
 
     const tabs = tabItems(mounted.root)
     expect(tabs[0]?.querySelector('[aria-label="Locked protected note"]')).not.toBeNull()
-    expect(tabs[1]?.querySelector('[aria-label="Protected note, unlocked for this session"]')).not.toBeNull()
+    expect(tabs[1]?.querySelector('button[aria-label="Lock protected-unlocked"]')).not.toBeNull()
     expect(tabs[0]?.getAttribute('title')).toContain('Locked protected note')
     expect(tabs[1]?.getAttribute('title')).toContain('Protected note, unlocked for this session')
+
+    mounted.app.unmount()
+  })
+
+  it('locks the note from the open padlock of its tab', async () => {
+    const mounted = mountTabs({
+      id: 'pane-1', activeTabId: 'doc-1', activePath: '/vault/protected-unlocked.md',
+      recentTabIds: [],
+      openTabs: [documentTab('doc-2', '/vault/protected-unlocked.md')]
+    })
+    await flush()
+
+    tabItems(mounted.root)[0]?.querySelector<HTMLButtonElement>('.pane-tab-lock')?.click()
+    await flush()
+
+    expect(mounted.events).toEqual(['lock:doc-2'])
 
     mounted.app.unmount()
   })

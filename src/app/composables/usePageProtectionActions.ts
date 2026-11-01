@@ -64,5 +64,21 @@ export function usePageProtectionActions(options: PageProtectionActionOptions) {
       options.reportError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Page protection failed.')
     }
   }
-  return { run }
+  /**
+   * Locks a note that is not the active document.
+   *
+   * Such a tab has no live editor, so there is nothing to save and no reload to
+   * perform: only the native lock and the badge refresh apply.
+   */
+  async function lockPath(path: string) {
+    if (!path || !options.canProtect(path)) return
+    try {
+      await lockPage(path)
+      window.dispatchEvent(new Event('page-protection-changed'))
+      await options.refresh(path)
+    } catch (error) {
+      options.reportError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Page protection failed.')
+    }
+  }
+  return { run, lockPath }
 }

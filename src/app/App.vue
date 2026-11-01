@@ -1209,6 +1209,10 @@ const paneRuntime = useAppShellPaneRuntime({
   revealPathInExplorer: (path: string) => {
     void showExplorerForActiveFile({ focusTree: true, path })
   },
+  lockNote: (path: string) => {
+    if (path === activeFilePath.value) void onPageProtectionAction('lock')
+    else void lockPath(path)
+  },
   createNoteInPane: () => {
     void createNewFileFromActiveDirectory()
   }
@@ -1227,6 +1231,7 @@ const {
   onPaneTabMoveToOtherPane,
   onPaneTabCopyLink,
   onPaneTabRevealInExplorer,
+  onPaneTabLock,
   onPaneCreateNote,
   closeActiveTab,
   onEditorStatus,
@@ -1277,7 +1282,7 @@ const onProtectionChanged = () => { void refreshActiveProtection(activeFilePath.
 onMounted(() => window.addEventListener('page-protection-changed', onProtectionChanged))
 onBeforeUnmount(() => window.removeEventListener('page-protection-changed', onProtectionChanged))
 
-const { run: onPageProtectionAction } = usePageProtectionActions({
+const { run: onPageProtectionAction, lockPath } = usePageProtectionActions({
   currentPath: () => activeFilePath.value,
   canProtect: isMarkdownPath,
   isUnsaved: () => Boolean(activeStatus.value.dirty || activeStatus.value.saving || activeStatus.value.saveError),
@@ -2108,6 +2113,7 @@ useAppShellKeyboard({
           @pane-tab-move-to-other-pane="onPaneTabMoveToOtherPane($event)"
           @pane-tab-copy-link="onPaneTabCopyLink($event)"
           @pane-tab-reveal-in-explorer="onPaneTabRevealInExplorer($event)"
+          @pane-tab-lock="onPaneTabLock($event)"
           @pane-create-note="onPaneCreateNote($event)"
           @pane-request-move-tab="multiPane.moveActiveTabToAdjacentPane($event.direction)"
           @external-reload="filesystem.notifyInfo(`Reloaded ${basenameLabel($event.path)} from disk.`)"

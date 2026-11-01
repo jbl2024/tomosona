@@ -58,7 +58,7 @@ const emit = defineEmits<{
   'tab-close-all': [payload: { paneId: string }]
   'tab-close-unpinned': [payload: { paneId: string }]
   'tab-pin': [payload: { paneId: string; tabId: string; pinned: boolean }]
-  'tab-duplicate-in-other-pane': [payload: { paneId: string; tabId: string }]
+  'tab-lock': [payload: { paneId: string; tabId: string }]
   'tab-move-to-other-pane': [payload: { paneId: string; tabId: string }]
   'tab-copy-link': [payload: { paneId: string; tabId: string }]
   'tab-reveal-in-explorer': [payload: { paneId: string; tabId: string }]
@@ -552,6 +552,7 @@ onBeforeUnmount(() => {
         :pane-tab-ids="paneTabIds"
         @select="selectTab(tab.id)"
         @close="requestClose(tab)"
+        @lock="emit('tab-lock', { paneId: pane.id, tabId: tab.id })"
         @contextmenu="openContextMenu(tab.id, $event)"
         @auxclick="onTabAuxClick(tab, $event)"
       />

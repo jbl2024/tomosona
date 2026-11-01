@@ -75,6 +75,8 @@ type Options = {
   copyNoteLink: (path: string) => void
   /** Reveals a path in the explorer tree. */
   revealPathInExplorer: (path: string) => void
+  /** Locks the protected note at the given path. */
+  lockNote: (path: string) => void
   /** Starts the new-note flow for the given pane. */
   createNoteInPane: (paneId: string) => void
 }
@@ -189,6 +191,11 @@ export function useAppShellPaneRuntime(options: Options) {
     if (path) options.revealPathInExplorer(path)
   }
 
+  function onPaneTabLock(payload: { paneId: string; tabId: string }) {
+    const path = tabPathInPane(payload.paneId, payload.tabId)
+    if (path) options.lockNote(path)
+  }
+
   function onPaneCreateNote(payload: { paneId: string }) {
     options.multiPane.setActivePane(payload.paneId)
     options.createNoteInPane(payload.paneId)
@@ -277,6 +284,7 @@ export function useAppShellPaneRuntime(options: Options) {
     onPaneTabMoveToOtherPane,
     onPaneTabCopyLink,
     onPaneTabRevealInExplorer,
+    onPaneTabLock,
     onPaneCreateNote,
     closeActiveTab,
     onEditorStatus,

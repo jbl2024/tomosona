@@ -4,7 +4,7 @@ import { usePageProtectionActions } from './usePageProtectionActions'
 const api = vi.hoisted(() => ({ protectPage: vi.fn(), unprotectPage: vi.fn(), changePagePassword: vi.fn(), lockPage: vi.fn() }))
 vi.mock('../../shared/api/pageProtectionApi', () => api)
 
-function harness(passwords: string[] = ['secret']) {
+function harness(passwords: string[] = ['secret'], canProtect: (path: string) => boolean = () => true) {
   let dirty = false
   const reload = vi.fn(async () => {})
   const refresh = vi.fn(async () => {})
@@ -12,7 +12,7 @@ function harness(passwords: string[] = ['secret']) {
   const reportError = vi.fn()
   const prompt = vi.fn(async (_title: string, action: (password: string) => Promise<void>) => { await action(passwords.shift() ?? '') })
   const controller = usePageProtectionActions({
-    currentPath: () => '/vault/page.md', canProtect: () => true,
+    currentPath: () => '/vault/page.md', canProtect,
     isUnsaved: () => dirty, save, reload, refresh, prompt, reportError
   })
   return { ...controller, reload, refresh, save, prompt, reportError, setDirty: (value: boolean) => { dirty = value } }
@@ -67,6 +67,38 @@ describe('page protection actions', () => {
     await failure.run('lock')
     expect(api.lockPage).not.toHaveBeenCalled()
     expect(failure.reportError).toHaveBeenCalledWith('Save failed.')
+  })
+
+  it('locks a background tab without touching the active editor', async () => {
+    const h = harness()
+    const changed = vi.fn()
+    window.addEventListener('page-protection-changed', changed)
+    await h.lockPath('/vault/other.md')
+    window.removeEventListener('page-protection-changed', changed)
+    expect(api.lockPage).toHaveBeenCalledWith('/vault/other.md')
+    expect(h.save).not.toHaveBeenCalled()
+    expect(h.reload).not.toHaveBeenCalled()
+    expect(h.refresh).toHaveBeenCalledWith('/vault/other.md')
+    expect(changed).toHaveBeenCalledOnce()
+  })
+
+  it('ignores a background lock for a path that cannot be protected', async () => {
+    const empty = harness()
+    await empty.lockPath('')
+    expect(api.lockPage).not.toHaveBeenCalled()
+    expect(empty.refresh).not.toHaveBeenCalled()
+    const notMarkdown = harness(['secret'], () => false)
+    await notMarkdown.lockPath('/vault/image.png')
+    expect(api.lockPage).not.toHaveBeenCalled()
+    expect(notMarkdown.refresh).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed background lock', async () => {
+    const h = harness()
+    api.lockPage.mockRejectedValueOnce(new Error('Lock failed.'))
+    await h.lockPath('/vault/other.md')
+    expect(h.reportError).toHaveBeenCalledWith('Lock failed.')
+    expect(h.refresh).not.toHaveBeenCalled()
   })
 
   it('does not protect a page when saving fails', async () => {
