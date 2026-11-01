@@ -99,6 +99,11 @@ export async function createEntry(
   return await invoke('create_entry', { parentPath, name, kind, conflictStrategy })
 }
 
+/** Creates a uniquely named Markdown note with its initial title heading. */
+export async function createInlineNote(parentPath: string, name: string): Promise<string> {
+  return await invoke('create_inline_note', { parentPath, name })
+}
+
 /** Creates a new markdown note from extracted selection content. */
 export async function createExtractedNote(
   sourcePath: string,

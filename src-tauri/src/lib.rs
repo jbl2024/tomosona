@@ -30,12 +30,12 @@ use thiserror::Error;
 use docx::convert_markdown_to_docx;
 use editor_sync::{read_note_snapshot, save_note_buffer};
 use fs_ops::{
-    clear_working_folder, copy_entry, create_entry, create_extracted_note, duplicate_entry,
-    import_asset_files, is_text_file, list_children, list_markdown_files, move_entry,
-    open_external_url, open_path_external, path_exists, read_file_metadata, read_image_data_url,
-    read_pdf_data_url, read_text_file, rename_entry, render_pandoc_preview_html,
-    render_spreadsheet_preview_html, reveal_in_file_manager, select_working_folder,
-    set_working_folder, trash_entry, write_text_file,
+    clear_working_folder, copy_entry, create_entry, create_extracted_note, create_inline_note,
+    duplicate_entry, import_asset_files, is_text_file, list_children, list_markdown_files,
+    move_entry, open_external_url, open_path_external, path_exists, read_file_metadata,
+    read_image_data_url, read_pdf_data_url, read_text_file, rename_entry,
+    render_pandoc_preview_html, render_spreadsheet_preview_html, reveal_in_file_manager,
+    select_working_folder, set_working_folder, trash_entry, write_text_file,
 };
 use index_schema::{
     ensure_index_schema, init_db as init_db_impl, list_markdown_files_via_find, min_max_normalize,
@@ -352,6 +352,7 @@ pub fn run() {
             restore_note_history_snapshot,
             move_note_history_entries,
             create_entry,
+            create_inline_note,
             create_extracted_note,
             rename_entry,
             duplicate_entry,

@@ -6,9 +6,11 @@ import { openPathExternal } from '../../../shared/api/workspaceApi'
 
 const unlistenWorkspaceFsChanged = vi.fn()
 const listChildren = vi.fn()
+const createInlineNote = vi.fn()
 
 vi.mock('../../../shared/api/workspaceApi', () => ({
   copyEntry: vi.fn(),
+  createInlineNote: (...args: unknown[]) => createInlineNote(...args),
   duplicateEntry: vi.fn(),
   listChildren: (...args: unknown[]) => listChildren(...args),
   listenWorkspaceFsChanged: vi.fn(async () => unlistenWorkspaceFsChanged),
@@ -98,6 +100,7 @@ describe('ExplorerTree', () => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     listChildren.mockReset()
+    createInlineNote.mockReset()
     unlistenWorkspaceFsChanged.mockReset()
     document.body.innerHTML = ''
     window.localStorage.clear()
@@ -383,6 +386,54 @@ describe('ExplorerTree', () => {
     await nextTick()
     await nextTick()
     expect(tree.scrollTop).toBe(42)
+    mounted.app.unmount()
+  })
+
+  it('creates a note inline in a closed folder and supports cancellation and invalid names', async () => {
+    listChildren.mockImplementation(async (path: string) => path === '/vault' ? [{ name: 'notes', path: '/vault/notes', is_dir: true, is_markdown: false, has_children: true }] : [])
+    createInlineNote.mockResolvedValue('/vault/notes/Idea.md')
+    const mounted = await mountHarness('')
+    const plus = mounted.root.querySelector('button[aria-label="New note in notes"]') as HTMLButtonElement
+    plus.click()
+    await vi.advanceTimersByTimeAsync(1)
+    await nextTick()
+    let input = mounted.root.querySelector('input[aria-label="New note name"]') as HTMLInputElement
+    expect(input).toBeTruthy()
+    expect(input.title).toContain('/vault/notes')
+    input.value = 'bad/name'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await nextTick()
+    expect(createInlineNote).not.toHaveBeenCalled()
+    expect(mounted.root.querySelector('[role="alert"]')?.textContent).toContain('valid')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await nextTick()
+    expect(mounted.root.querySelector('input[aria-label="New note name"]')).toBeNull()
+    plus.click()
+    await nextTick()
+    input = mounted.root.querySelector('input[aria-label="New note name"]') as HTMLInputElement
+    input.value = 'Idea'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.advanceTimersByTimeAsync(1)
+    expect(createInlineNote).toHaveBeenCalledWith('/vault/notes', 'Idea')
+    expect(mounted.events).toContain('open:/vault/notes/Idea.md')
+    mounted.app.unmount()
+  })
+
+  it('keeps inline creation open with a clear collision message', async () => {
+    listChildren.mockResolvedValue([])
+    createInlineNote.mockRejectedValue('Already exists')
+    const mounted = await mountHarness('')
+    ;(mounted.root.querySelector('button[aria-label="New note"]') as HTMLButtonElement).click()
+    await nextTick()
+    const input = mounted.root.querySelector('input[aria-label="New note name"]') as HTMLInputElement
+    input.value = 'Existing'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mounted.root.querySelector('[role="alert"]')?.textContent).toContain('already exists')
+    expect(input.disabled).toBe(false)
     mounted.app.unmount()
   })
 

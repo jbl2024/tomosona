@@ -1671,6 +1671,42 @@ pub fn create_entry(
     Ok(destination.to_string_lossy().to_string())
 }
 
+/// Creates a Markdown note exclusively and seeds its portable title heading.
+#[tauri::command]
+pub fn create_inline_note(parent_path: String, name: String) -> Result<String> {
+    use std::io::Write;
+    let root = active_workspace_root()?;
+    let parent = normalize_existing_dir(&parent_path)?;
+    ensure_within_root(&root, &parent)?;
+    let supplied = name.trim();
+    let stem = if supplied.to_ascii_lowercase().ends_with(".md") {
+        &supplied[..supplied.len() - 3]
+    } else {
+        supplied
+    };
+    let stem = validate_name(stem)?;
+    let file_name = validate_name(&format!("{stem}.md"))?;
+    let destination = parent.join(file_name);
+    ensure_parent_within_root(&root, &destination)?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&destination)
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::AlreadyExists {
+                AppError::AlreadyExists
+            } else {
+                error.into()
+            }
+        })?;
+    if let Err(error) = file.write_all(format!("# {stem}").as_bytes()) {
+        drop(file);
+        let _ = fs::remove_file(&destination);
+        return Err(error.into());
+    }
+    Ok(destination.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub fn create_extracted_note(source_path: String, content: String) -> Result<ExtractedNoteResult> {
     let root = active_workspace_root()?;
@@ -1990,7 +2026,7 @@ mod tests {
     use calamine::Data;
 
     use super::{
-        copy_entry, create_entry, create_extracted_note, decorate_pandoc_html,
+        copy_entry, create_entry, create_extracted_note, create_inline_note, decorate_pandoc_html,
         decorate_spreadsheet_preview_html, duplicate_entry, is_text_file, list_children,
         list_markdown_files, move_entry, open_external_url, open_path_external,
         pandoc_input_format_for_path, preview_srcdoc_csp_meta, read_pdf_data_url, read_text_file,
@@ -2013,6 +2049,26 @@ mod tests {
         let guard = crate::workspace_test_guard();
         crate::set_active_workspace(&root.to_string_lossy()).expect("set active workspace");
         guard
+    }
+
+    #[test]
+    fn inline_note_seeds_heading_and_never_overwrites_existing_files() {
+        let dir = make_temp_dir();
+        let _guard = activate_workspace(&dir);
+        let root = dir.to_string_lossy().to_string();
+        let path = create_inline_note(root.clone(), "Fresh Idea".into()).expect("create note");
+        assert_eq!(fs::read_to_string(&path).unwrap(), "# Fresh Idea");
+        assert!(create_inline_note(root.clone(), "Fresh Idea.md".into()).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "# Fresh Idea");
+        assert!(create_inline_note(root.clone(), "../escape".into()).is_err());
+        assert!(create_inline_note(root, "CON".into()).is_err());
+        let outside = make_temp_dir();
+        assert!(
+            create_inline_note(outside.to_string_lossy().to_string(), "Outside".into()).is_err()
+        );
+        assert!(!outside.join("Outside.md").exists());
+        fs::remove_dir_all(outside).expect("cleanup outside");
+        fs::remove_dir_all(dir).expect("cleanup");
     }
 
     #[test]

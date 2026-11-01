@@ -4,9 +4,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { EntryKind, TreeNode } from '../../../shared/api/apiTypes'
 import type { PathMove } from '../../../shared/api/apiTypes'
-import { listenWorkspaceFsChanged, openPathExternal } from '../../../shared/api/workspaceApi'
+import { createInlineNote, listenWorkspaceFsChanged, openPathExternal } from '../../../shared/api/workspaceApi'
 import UiInput from '../../../shared/components/ui/UiInput.vue'
 import ExplorerConfirmDialog from './ExplorerConfirmDialog.vue'
+import ExplorerCreateInput from './ExplorerCreateInput.vue'
 import ExplorerConflictDialog from './ExplorerConflictDialog.vue'
 import ExplorerContextMenu, { type MenuAction } from './ExplorerContextMenu.vue'
 import ExplorerItem from './ExplorerItem.vue'
@@ -46,6 +47,7 @@ const debouncedFilterQuery = ref('')
 const filterInputRef = ref<InstanceType<typeof UiInput> | null>(null)
 const isFilterVisible = ref(false)
 const showExtensions = ref(false)
+const creatingNote = ref<{ parent: string; error: string; busy: boolean } | null>(null)
 let filterDebounceTimer: number | null = null
 let unfilteredScrollTop: number | null = null
 
@@ -187,7 +189,7 @@ const keyboard = useExplorerKeyboard({
 let selectingWithPointer = false
 
 function updateSortFreeze() {
-  treeState.setSortFrozen(selectingWithPointer || Boolean(operations.editingPath.value))
+  treeState.setSortFrozen(selectingWithPointer || Boolean(operations.editingPath.value) || Boolean(creatingNote.value))
 }
 
 function beginPointerSelection(event: PointerEvent) {
@@ -201,7 +203,7 @@ function endPointerSelection() {
   updateSortFreeze()
 }
 
-watch(operations.editingPath, updateSortFreeze, { flush: 'sync' })
+watch([operations.editingPath, creatingNote], updateSortFreeze, { flush: 'sync' })
 
 function currentContextTarget(): string | null {
   return contextMenu.value?.targetPath ?? null
@@ -276,6 +278,38 @@ async function onFilterKeydown(event: KeyboardEvent) {
       const node = treeState.nodeByPath.value[rows[0].path]
       if (node && !node.is_dir) await operations.openNode(node.path)
     }
+  }
+}
+
+async function beginInlineNote(parent: string) {
+  if (!parent || hasFilterText.value) return
+  if (parent !== props.folderPath && !treeState.expandedPaths.value.has(parent)) {
+    try { await treeState.toggleExpand(parent) } catch { emit('error', 'Could not open the destination folder.'); return }
+  }
+  creatingNote.value = { parent, error: '', busy: false }
+}
+
+async function confirmInlineNote(name: string) {
+  const current = creatingNote.value
+  if (!current || current.busy) return
+  const workspace = props.folderPath
+  const trimmed = name.trim()
+  if (!trimmed || /[\\/<>:"|?*\x00-\x1f]/.test(trimmed)) {
+    current.error = 'Enter a valid note name.'
+    return
+  }
+  current.busy = true
+  current.error = ''
+  try {
+    const path = await createInlineNote(current.parent, trimmed)
+    if (workspace !== props.folderPath || creatingNote.value !== current) return
+    creatingNote.value = null
+    try { await treeState.loadChildren(current.parent) } catch { emit('error', 'Note created, but the explorer could not refresh.') }
+    if (workspace === props.folderPath) emit('open', path)
+  } catch (error) {
+    if (workspace !== props.folderPath || creatingNote.value !== current) return
+    current.error = String(error).toLowerCase().includes('already exists') ? 'A note with this name already exists.' : 'Could not create the note. Check the name and folder permissions.'
+    current.busy = false
   }
 }
 
@@ -368,7 +402,8 @@ async function onContextAction(action: MenuAction) {
 
   if (action === 'new-file' || action === 'new-folder') {
     const parent = targetNode?.is_dir ? targetNode.path : targetPath ? treeState.parentByPath.value[targetPath] ?? props.folderPath : props.folderPath
-    operations.requestCreate(parent || props.folderPath, action === 'new-file' ? 'file' : 'folder')
+    if (action === 'new-file') void beginInlineNote(parent || props.folderPath)
+    else operations.requestCreate(parent || props.folderPath, 'folder')
     closeContextMenu()
     return
   }
@@ -426,6 +461,7 @@ watch(
       window.localStorage.setItem(scrollStorageKey(previous), String(treeRef.value.scrollTop))
     }
     unfilteredScrollTop = null
+    creatingNote.value = null
     showExtensions.value = window.localStorage.getItem(`tomosona.explorer.extensions.${workspace}`) === 'true'
     treeState.resetState()
     await treeState.initializeExplorer()
@@ -502,7 +538,7 @@ onBeforeUnmount(() => {
         :can-reveal="Boolean(activePath)"
         :show-extensions="showExtensions"
         :sort-order="treeState.sortOrder.value"
-        @create-file="operations.requestCreate(folderPath, 'file')"
+        @create-file="beginInlineNote(folderPath)"
         @create-folder="operations.requestCreate(folderPath, 'folder')"
         @expand-all="treeState.expandAllDirs"
         @collapse-all="treeState.collapseAllDirs"
@@ -553,10 +589,11 @@ onBeforeUnmount(() => {
           <template v-else>No files or folders. Use New file or New folder.</template>
         </p>
 
-        <template v-else>
+        <template v-if="creatingNote?.parent === folderPath">
+          <ExplorerCreateInput :parent-path="creatingNote.parent" :error="creatingNote.error" :busy="creatingNote.busy" @confirm="confirmInlineNote" @cancel="creatingNote && !creatingNote.busy && (creatingNote = null)" />
+        </template>
+        <template v-for="row in filteredRows" :key="row.path">
           <ExplorerItem
-            v-for="row in filteredRows"
-            :key="row.path"
             :node="treeState.nodeByPath.value[row.path]"
             :depth="row.depth"
             :expanded="treeState.expandedPaths.value.has(row.path)"
@@ -570,6 +607,7 @@ onBeforeUnmount(() => {
             :show-extensions="showExtensions"
             :context-active="contextPathSet.has(row.path)"
             :dnd="dnd"
+            @create-note="beginInlineNote"
             @toggle="treeState.toggleExpand"
             @click="handleRowClick"
             @doubleclick="handleDoubleClick"
@@ -579,6 +617,7 @@ onBeforeUnmount(() => {
             @rename-confirm="operations.confirmRename"
             @rename-cancel="operations.cancelRename"
           />
+          <ExplorerCreateInput v-if="creatingNote?.parent === row.path" :style="{ paddingLeft: `${(row.depth + 1) * 14 + 8}px` }" :parent-path="creatingNote.parent" :error="creatingNote.error" :busy="creatingNote.busy" @confirm="confirmInlineNote" @cancel="creatingNote && !creatingNote.busy && (creatingNote = null)" />
         </template>
       </div>
 

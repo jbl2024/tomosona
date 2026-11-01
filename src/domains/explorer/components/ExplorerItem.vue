@@ -3,7 +3,7 @@ import { makeDraggable, makeDroppable, type IPlacement } from '@vue-dnd-kit/core
 import { computed, ref } from 'vue'
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { ChevronDownIcon, ChevronRightIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import type { ExplorerDnDController } from '../composables/useExplorerDnD'
 import type { ExplorerDropIntent } from '../lib/explorerDndRules'
 import { explorerMatchPositions } from '../lib/explorerFilter'
@@ -33,6 +33,7 @@ const emit = defineEmits<{
   renameUpdate: [value: string]
   renameConfirm: []
   renameCancel: []
+  createNote: [path: string]
 }>()
 
 function iconForNode(node: TreeNode) {
@@ -208,6 +209,15 @@ const dndState = computed(() => props.dnd?.rowDropState(
       <button type="button" aria-label="Password protected" title="About page protection" @click.stop="showProtectionInfo = !showProtectionInfo"><LockClosedIcon class="h-4 w-4" /></button>
       <span v-if="showProtectionInfo" role="status" class="ui-menu absolute right-0 top-full z-50 w-56 p-2 text-xs" @click.stop>This page's content is encrypted and requires its password while locked. Its filename remains visible.</span>
     </span>
+
+    <button
+      v-if="node.is_dir"
+      type="button"
+      class="explorer-item-action rounded-md p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+      :aria-label="`New note in ${node.name}`"
+      :title="`New note in ${node.name}`"
+      @click.stop="emit('createNote', node.path)"
+    ><PlusIcon class="h-4 w-4" /></button>
 
     <button
       type="button"
