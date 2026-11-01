@@ -2,7 +2,7 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import EditorPathBreadcrumb from './EditorPathBreadcrumb.vue'
 
-type SegmentAction = { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }
+type SegmentAction = { kind: 'folder' | 'document'; path: string; action: 'reveal-in-explorer' | 'reveal-in-file-manager' | 'copy-link' }
 
 /** Captures the observer callback so a test can drive the overflow measurement. */
 class FakeResizeObserver {
@@ -96,7 +96,7 @@ describe('EditorPathBreadcrumb', () => {
 
     mounted.segments()[0].click()
 
-    expect(mounted.actions).toEqual([{ kind: 'folder', path: '/vault/Projets', action: 'reveal' }])
+    expect(mounted.actions).toEqual([{ kind: 'folder', path: '/vault/Projets', action: 'reveal-in-explorer' }])
     expect(mounted.path.value).toBe('/vault/Projets/AsciiArts.md')
 
     mounted.app.unmount()
@@ -110,12 +110,20 @@ describe('EditorPathBreadcrumb', () => {
     await nextTick()
 
     expect(mounted.menuItems().map((item) => item.textContent?.trim())).toEqual([
-      'Reveal in explorer',
+      'Reveal in file manager',
       'Copy note link'
     ])
 
+    mounted.menuItems()[0].click()
+    expect(mounted.actions).toEqual([
+      { kind: 'document', path: '/vault/Projets/AsciiArts.md', action: 'reveal-in-file-manager' }
+    ])
+
     mounted.menuItems()[1].click()
-    expect(mounted.actions).toEqual([{ kind: 'document', path: '/vault/Projets/AsciiArts.md', action: 'copy-link' }])
+    expect(mounted.actions).toEqual([
+      { kind: 'document', path: '/vault/Projets/AsciiArts.md', action: 'reveal-in-file-manager' },
+      { kind: 'document', path: '/vault/Projets/AsciiArts.md', action: 'copy-link' }
+    ])
 
     mounted.app.unmount()
   })
@@ -126,14 +134,16 @@ describe('EditorPathBreadcrumb', () => {
 
     mounted.segments()[0].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
     await nextTick()
-    expect(mounted.menuItems().map((item) => item.textContent?.trim())).toEqual(['Reveal in explorer'])
+    expect(mounted.menuItems().map((item) => item.textContent?.trim())).toEqual(['Reveal in file manager'])
     mounted.menuItems()[0].click()
-    expect(mounted.actions).toEqual([{ kind: 'folder', path: '/vault/Projets', action: 'reveal' }])
+    expect(mounted.actions).toEqual([
+      { kind: 'folder', path: '/vault/Projets', action: 'reveal-in-file-manager' }
+    ])
 
     mounted.segments()[1].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
     await nextTick()
     expect(mounted.menuItems().map((item) => item.textContent?.trim())).toEqual([
-      'Reveal in explorer',
+      'Reveal in file manager',
       'Copy note link'
     ])
 
@@ -164,7 +174,7 @@ describe('EditorPathBreadcrumb', () => {
 
     mounted.menuItems()[1].click()
     expect(mounted.actions).toEqual([
-      { kind: 'folder', path: '/vault/Connaissances/Methodes/Organisation', action: 'reveal' }
+      { kind: 'folder', path: '/vault/Connaissances/Methodes/Organisation', action: 'reveal-in-explorer' }
     ])
 
     mounted.app.unmount()

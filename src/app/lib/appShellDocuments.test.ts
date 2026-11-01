@@ -6,6 +6,7 @@ import {
   isReservedEntryName,
   isSourceTextPath,
   markdownExtensionFromPath,
+  noteLinkToken,
   noteTitleFromPath,
   parentPrefixForModal,
   sourceEditorLanguageLabelForPath,
@@ -17,6 +18,20 @@ describe('appShellDocuments', () => {
   it('derives note titles and markdown extensions from paths', () => {
     expect(noteTitleFromPath('/vault/notes/Hello.md')).toBe('Hello')
     expect(markdownExtensionFromPath('/vault/notes/Hello.markdown')).toBe('.markdown')
+  })
+
+  it('builds a note link from the workspace-relative path, not the bare title', () => {
+    expect(noteLinkToken('/vault', '/vault/bar/foo.md')).toBe('[[bar/foo|foo]]')
+    expect(noteLinkToken('/vault', '/vault/bar/baz/foo.markdown')).toBe('[[bar/baz/foo|foo]]')
+  })
+
+  it('keeps a root-level note link free of a folder segment', () => {
+    expect(noteLinkToken('/vault', '/vault/foo.md')).toBe('[[foo]]')
+  })
+
+  it('falls back to the bare title for a note outside the workspace', () => {
+    expect(noteLinkToken('/vault', '/elsewhere/foo.md')).toBe('[[foo]]')
+    expect(noteLinkToken('', '/elsewhere/foo.md')).toBe('[[foo]]')
   })
 
   it('classifies source text files and editor surfaces by extension', () => {

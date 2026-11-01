@@ -46,8 +46,11 @@
 - Source/raw-text surface rendering: `SourceEditorPane.vue`
 - Document location breadcrumb: `EditorPathBreadcrumb.vue`
   Segment building and condensation live in `lib/breadcrumbSegments.ts`. The component
-  owns no explorer or clipboard access: it emits `segment-action` and the shell routes
-  it to its ports, so revealing a folder never changes the active document.
+  owns no explorer, file-manager or clipboard access: it emits `segment-action` and the
+  shell routes it to its ports, so no reveal path changes the active document.
+  Two reveal intents are kept apart: clicking a folder segment navigates the explorer
+  tree (`reveal-in-explorer`), while the menu entry hands the path to the OS
+  (`reveal-in-file-manager`), matching the explorer's own context menu label.
 
 ## Invariants
 - `EditorView.vue` stays a shell; it wires runtimes and template, but does not own editor workflows directly.

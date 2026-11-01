@@ -21,7 +21,12 @@ import {
   type BreadcrumbSegment
 } from '../../lib/breadcrumbSegments'
 
-export type BreadcrumbAction = 'reveal' | 'copy-link'
+/**
+ * `reveal-in-explorer` is navigation: it expands the tree to the segment.
+ * `reveal-in-file-manager` is the native reveal, matching the explorer's own
+ * context menu entry of the same name.
+ */
+export type BreadcrumbAction = 'reveal-in-explorer' | 'reveal-in-file-manager' | 'copy-link'
 
 type MenuItem = { id: string; label: string; run: () => void }
 type OpenMenu = { x: number; y: number; items: MenuItem[] }
@@ -68,13 +73,25 @@ function runMenuItem(item: MenuItem) {
   item.run()
 }
 
-function reveal(segment: BreadcrumbSegment) {
-  emit('segment-action', { kind: segment.kind, path: segment.path, action: 'reveal' })
+function revealInExplorer(segment: BreadcrumbSegment) {
+  emit('segment-action', { kind: segment.kind, path: segment.path, action: 'reveal-in-explorer' })
+}
+
+function revealInFileManager(segment: BreadcrumbSegment): MenuItem {
+  return {
+    id: 'reveal-in-file-manager',
+    label: 'Reveal in file manager',
+    run: () => emit('segment-action', {
+      kind: segment.kind,
+      path: segment.path,
+      action: 'reveal-in-file-manager'
+    })
+  }
 }
 
 function documentActions(segment: BreadcrumbSegment): MenuItem[] {
   return [
-    { id: 'reveal', label: 'Reveal in explorer', run: () => reveal(segment) },
+    revealInFileManager(segment),
     {
       id: 'copy-link',
       label: 'Copy note link',
@@ -86,7 +103,7 @@ function documentActions(segment: BreadcrumbSegment): MenuItem[] {
 /** A folder segment navigates straight away; the document segment offers its actions. */
 function onSegmentClick(event: MouseEvent, segment: BreadcrumbSegment) {
   if (segment.kind === 'folder') {
-    reveal(segment)
+    revealInExplorer(segment)
     return
   }
   openMenu(event, documentActions(segment))
@@ -95,9 +112,7 @@ function onSegmentClick(event: MouseEvent, segment: BreadcrumbSegment) {
 function onSegmentContextMenu(event: MouseEvent, segment: BreadcrumbSegment) {
   openMenu(
     event,
-    segment.kind === 'folder'
-      ? [{ id: 'reveal', label: 'Reveal in explorer', run: () => reveal(segment) }]
-      : documentActions(segment)
+    segment.kind === 'folder' ? [revealInFileManager(segment)] : documentActions(segment)
   )
 }
 
@@ -108,7 +123,7 @@ function onEllipsisClick(event: MouseEvent) {
     layout.value.hidden.map((segment) => ({
       id: `hidden:${segment.path}`,
       label: segment.label,
-      run: () => reveal(segment)
+      run: () => revealInExplorer(segment)
     }))
   )
 }

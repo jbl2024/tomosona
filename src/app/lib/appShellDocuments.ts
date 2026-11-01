@@ -1,4 +1,9 @@
-import { normalizeWorkspacePath, toWorkspaceRelativePath } from '../../domains/explorer/lib/workspacePaths'
+import {
+  isWorkspacePathOrDescendant,
+  normalizeWorkspacePath,
+  toWorkspaceRelativePath
+} from '../../domains/explorer/lib/workspacePaths'
+import { buildWikilinkToken } from '../../domains/editor/lib/wikilinks'
 import { fileName, isMarkdownPath } from './appShellPaths'
 export { resolveExistingWikilinkPath } from '../../domains/editor/lib/wikilinkResolution'
 
@@ -111,6 +116,27 @@ const SOURCE_FILE_NAMES = new Set([
 export function noteTitleFromPath(path: string): string {
   const filename = fileName(path).replace(/\.(md|markdown)$/i, '')
   return filename || 'Untitled'
+}
+
+/**
+ * Builds the wikilink token copied for a note.
+ *
+ * The target is the workspace-relative path without its Markdown extension, so
+ * the link resolves from the workspace root instead of depending on the folder
+ * of the note it is pasted into: a bare `[[foo]]` only resolves next to the
+ * source note. `buildWikilinkToken` adds the file name as the display alias for
+ * a nested path, so `bar/foo.md` copies as `[[bar/foo|foo]]`.
+ *
+ * Falls back to the bare title when the path sits outside the workspace, which
+ * keeps the token usable for a note opened from elsewhere.
+ */
+export function noteLinkToken(workspacePath: string, path: string): string {
+  const relative = isWorkspacePathOrDescendant(workspacePath, path)
+    ? toWorkspaceRelativePath(workspacePath, path)
+    : ''
+  const usable = relative && relative !== '.' ? relative : ''
+  const target = (usable || noteTitleFromPath(path)).replace(/\.(md|markdown)$/i, '')
+  return buildWikilinkToken(target)
 }
 
 /** Returns the markdown extension preserved for rename operations. */

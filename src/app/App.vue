@@ -30,7 +30,6 @@ import {
 } from '../shared/api/workspaceApi'
 import { convertMarkdownToDocx } from '../shared/api/docxConversionApi'
 import { writeClipboardText } from '../shared/api/clipboardApi'
-import { buildWikilinkToken } from '../domains/editor/lib/wikilinks'
 import {
   addFavorite,
   listFavorites,
@@ -74,6 +73,7 @@ import {
   extractHeadingsFromMarkdown,
   hasForbiddenEntryNameChars,
   isReservedEntryName,
+  noteLinkToken,
   noteTitleFromPath,
   parentPrefixForModal,
   resolveExistingWikilinkPath,
@@ -1153,6 +1153,11 @@ function onQuickOpenSelectPaletteResult(result: PaletteResult, target: PaletteOp
   }
 }
 
+/** Copies the wikilink token for a note, resolved from the workspace root. */
+function copyNoteLinkToken(path: string) {
+  void writeClipboardText(noteLinkToken(filesystem.workingFolderPath.value, path))
+}
+
 /**
  * Runs a secondary action from a note result's Tab menu. Copy-link and the
  * favorite toggle keep the palette open for successive operations; opening
@@ -1160,7 +1165,7 @@ function onQuickOpenSelectPaletteResult(result: PaletteResult, target: PaletteOp
  */
 function onQuickOpenRunTabMenuAction(menu: QuickOpenTabMenu, action: PaletteTabActionId) {
   if (action === 'copy-link') {
-    void writeClipboardText(buildWikilinkToken(menu.title))
+    copyNoteLinkToken(menu.path)
     closeQuickOpenTabMenu()
     return
   }
@@ -1199,7 +1204,7 @@ const paneRuntime = useAppShellPaneRuntime({
   propertiesPreview,
   propertyParseErrorCount,
   copyNoteLink: (path: string) => {
-    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(path)))
+    copyNoteLinkToken(path)
   },
   revealPathInExplorer: (path: string) => {
     void showExplorerForActiveFile({ focusTree: true, path })
@@ -1236,12 +1241,17 @@ const {
 /**
  * Routes a breadcrumb segment action to the shell ports.
  *
- * A folder segment only reveals its folder: the active document must not
- * change, so this never goes through the open flow.
+ * Neither reveal path opens the document, so the active document never changes.
+ * `reveal-in-explorer` expands the tree to the segment; `reveal-in-file-manager`
+ * hands the path to the OS, matching the explorer's own context menu entry.
  */
-function onBreadcrumbAction(payload: { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }) {
+function onBreadcrumbAction(payload: { kind: 'folder' | 'document'; path: string; action: 'reveal-in-explorer' | 'reveal-in-file-manager' | 'copy-link' }) {
   if (payload.action === 'copy-link') {
-    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(payload.path)))
+    copyNoteLinkToken(payload.path)
+    return
+  }
+  if (payload.action === 'reveal-in-file-manager') {
+    void revealInFileManager(payload.path)
     return
   }
   void showExplorerForActiveFile({ focusTree: true, path: payload.path })
@@ -1628,7 +1638,7 @@ entryActions.bindShellPaletteActionPort({
     return true
   },
   copyExplorerSelectionLink: (path: string) => {
-    void writeClipboardText(buildWikilinkToken(noteTitleFromPath(path)))
+    copyNoteLinkToken(path)
     return true
   },
   addExplorerSelectionToFavorites: (path: string) => {

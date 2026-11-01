@@ -59,7 +59,7 @@ const emit = defineEmits<{
   properties: [payload: { path: string; items: Array<{ key: string; value: string }>; parseErrorCount: number }]
   'signal-summary': [payload: EditorSignalSummary]
   'external-reload': [payload: { path: string }]
-  'breadcrumb-action': [payload: { kind: 'folder' | 'document'; path: string; action: 'reveal' | 'copy-link' }]
+  'breadcrumb-action': [payload: { kind: 'folder' | 'document'; path: string; action: 'reveal-in-explorer' | 'reveal-in-file-manager' | 'copy-link' }]
   'open-note': [path: string]
   'launchpad-open-workspace': []
   'launchpad-open-wizard': []
