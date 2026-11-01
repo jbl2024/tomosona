@@ -87,4 +87,38 @@ describe('ExplorerContextMenu', () => {
 
     mounted.unmount()
   })
+
+  it('explains disabled actions with a reason instead of hiding them silently', async () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const app = createApp(defineComponent({
+      setup() {
+        return () =>
+          h(ExplorerContextMenu, {
+            x: 24,
+            y: 24,
+            canOpen: false,
+            canPaste: false,
+            canRename: false,
+            canDelete: false,
+            canConvert: false,
+            onAction: () => {}
+          })
+      }
+    }))
+    app.mount(root)
+    await nextTick()
+
+    const buttons = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.explorer-context-menu-item'))
+    const pasteButton = buttons.find((button) => button.textContent?.trim() === 'Paste')!
+    expect(pasteButton.disabled).toBe(true)
+    expect(pasteButton.getAttribute('aria-disabled')).toBe('true')
+    expect(pasteButton.title).toBe('Copy or cut something first')
+
+    const openButton = buttons.find((button) => button.textContent?.trim() === 'Open')!
+    expect(openButton.disabled).toBe(true)
+    expect(openButton.title).toBe('Select a file or folder first')
+
+    app.unmount()
+  })
 })

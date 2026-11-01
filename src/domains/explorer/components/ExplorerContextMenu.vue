@@ -81,6 +81,16 @@ function isDisabled(id: MenuAction): boolean {
   return false
 }
 
+/** Explains why an action is unavailable instead of silently disabling it. */
+function disabledReason(id: MenuAction): string {
+  if ((id === 'open' || id === 'open-external' || id === 'reveal') && !props.canOpen) return 'Select a file or folder first'
+  if (id === 'convert-to-word' && !props.canConvert) return 'Only Markdown notes can be converted'
+  if (id === 'rename' && !props.canRename) return 'Select an entry to rename'
+  if (id === 'delete' && !props.canDelete) return 'Select an entry to delete'
+  if (id === 'paste' && !props.canPaste) return 'Copy or cut something first'
+  return ''
+}
+
 function onAction(id: MenuAction) {
   if (isDisabled(id)) return
   emit('action', id)
@@ -140,6 +150,8 @@ onBeforeUnmount(() => {
         class="ui-menu-item explorer-context-menu-item"
         :data-tone="item.id === 'delete' ? 'danger' : undefined"
         :disabled="isDisabled(item.id)"
+        :title="isDisabled(item.id) ? disabledReason(item.id) : undefined"
+        :aria-disabled="isDisabled(item.id)"
         @click="onAction(item.id)"
       >
         <span v-if="item.icon" class="ui-menu-item-icon" aria-hidden="true">
