@@ -69,6 +69,7 @@ defineProps<{
   propertiesPreview: PropertyPreviewRow[]
   propertyParseErrorCount: number
   canUndo?: boolean
+  knownFilePaths?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -160,6 +161,7 @@ defineExpose<AppShellWorkspaceSurfaceExposed>({
       :to-relative-path="toRelativePath"
       :parse-search-snippet="parseSearchSnippet"
       :can-undo="canUndo"
+      :known-file-paths="knownFilePaths"
       @set-sidebar-mode="emit('setSidebarMode', $event)"
       @explorer-open="emit('explorerOpen', $event)"
       @explorer-path-renamed="emit('explorerPathRenamed', $event)"

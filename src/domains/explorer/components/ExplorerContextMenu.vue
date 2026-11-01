@@ -18,6 +18,7 @@ export type MenuAction =
   | 'rename'
   | 'delete'
   | 'duplicate'
+  | 'move-to'
   | 'new-file'
   | 'new-folder'
   | 'cut'
@@ -58,6 +59,7 @@ const items = computed((): Array<{ id: MenuAction; label: string; icon: Componen
     ...(props.canConvert ? [createMenuItem('convert-to-word', 'Convert to Word', null)] : []),
     createMenuItem('rename', 'Rename', null),
     createMenuItem('duplicate', 'Duplicate', null),
+    createMenuItem('move-to', 'Move to…', null),
     createMenuItem('delete', 'Delete', TrashIcon as Component),
     createMenuItem('new-file', 'New note', DocumentPlusIcon as Component),
     createMenuItem('new-folder', 'New folder', FolderPlusIcon as Component),

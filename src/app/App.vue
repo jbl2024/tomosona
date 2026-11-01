@@ -1965,6 +1965,7 @@ useAppShellKeyboard({
       :properties-preview="activeProtection.isLocked ? [] : propertiesPreview"
       :property-parse-error-count="activeProtection.isLocked ? 0 : propertyParseErrorCount"
       :can-undo="workspaceMutationEffects.canUndo.value"
+      :known-file-paths="allWorkspaceFiles"
       @set-sidebar-mode="setSidebarMode"
       @explorer-open="onExplorerOpen"
       @explorer-path-renamed="onExplorerPathRenamed"

@@ -37,6 +37,7 @@ const props = defineProps<{
   toRelativePath: (path: string) => string
   parseSearchSnippet: (snippet: string) => Array<{ text: string; highlighted: boolean }>
   canUndo?: boolean
+  knownFilePaths?: string[]
 }>()
 
 /** Events emitted by sidebar controls so the parent shell remains the only state owner. */
@@ -133,6 +134,7 @@ defineExpose({
           :folder-path="workingFolderPath"
           :active-path="activeFilePath"
           :can-undo="props.canUndo"
+          :known-file-paths="props.knownFilePaths"
           @open="emit('explorerOpen', $event)"
           @path-renamed="emit('explorerPathRenamed', $event)"
           @paths-moved="emit('explorerPathsMoved', $event)"

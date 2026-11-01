@@ -11,6 +11,7 @@ import ExplorerCreateInput from './ExplorerCreateInput.vue'
 import ExplorerConflictDialog from './ExplorerConflictDialog.vue'
 import ExplorerContextMenu, { type MenuAction } from './ExplorerContextMenu.vue'
 import ExplorerItem from './ExplorerItem.vue'
+import ExplorerMoveDialog from './ExplorerMoveDialog.vue'
 import ExplorerToolbar from './ExplorerToolbar.vue'
 import { useSelectionManager } from './composables/useSelectionManager'
 import { useExplorerDnD } from '../composables/useExplorerDnD'
@@ -19,6 +20,8 @@ import { useExplorerKeyboard } from '../composables/useExplorerKeyboard'
 import { useExplorerOperations } from '../composables/useExplorerOperations'
 import { useExplorerTreeState } from '../composables/useExplorerTreeState'
 import { explorerNameMatches, filterExplorerRows } from '../lib/explorerFilter'
+import { getParentPath } from '../lib/explorerTreeUtils'
+import { normalizeDraggedPaths } from '../lib/explorerDndRules'
 import { isTextFile } from '../../../shared/api/workspaceApi'
 
 const props = defineProps<{
@@ -27,6 +30,7 @@ const props = defineProps<{
   contextPaths?: string[]
   rowActionMode?: 'menu' | 'context-toggle'
   canUndo?: boolean
+  knownFilePaths?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -50,8 +54,63 @@ const filterInputRef = ref<InstanceType<typeof UiInput> | null>(null)
 const isFilterVisible = ref(false)
 const showExtensions = ref(false)
 const creatingNote = ref<{ parent: string; error: string; busy: boolean } | null>(null)
+const moveDialogSources = ref<string[] | null>(null)
 let filterDebounceTimer: number | null = null
 let unfilteredScrollTop: number | null = null
+
+const moveRecentKey = computed(() => `tomosona.explorer.moveRecent.${props.folderPath}`)
+const recentMoveDestinations = ref<string[]>([])
+
+/** All known folder paths: workspace root, loaded tree dirs, and parents of known files. */
+const knownFolderPaths = computed(() => {
+  const folders = new Set<string>([props.folderPath])
+  for (const dir of Object.keys(treeState.childrenByDir.value)) folders.add(dir)
+  for (const path of Object.keys(treeState.nodeByPath.value)) {
+    let parent = treeState.parentByPath.value[path] ?? getParentPath(path)
+    while (parent && parent !== props.folderPath) {
+      folders.add(parent)
+      parent = getParentPath(parent)
+    }
+  }
+  for (const filePath of props.knownFilePaths ?? []) {
+    let parent = getParentPath(filePath)
+    while (parent && parent !== props.folderPath && parent.startsWith(`${props.folderPath}/`)) {
+      folders.add(parent)
+      parent = getParentPath(parent)
+    }
+  }
+  return Array.from(folders)
+})
+
+function loadRecentMoveDestinations() {
+  try {
+    const raw = window.localStorage.getItem(moveRecentKey.value)
+    recentMoveDestinations.value = raw ? (JSON.parse(raw) as string[]) : []
+  } catch {
+    recentMoveDestinations.value = []
+  }
+}
+
+function rememberMoveDestination(destination: string) {
+  recentMoveDestinations.value = [destination, ...recentMoveDestinations.value.filter((path) => path !== destination)].slice(0, 8)
+  try {
+    window.localStorage.setItem(moveRecentKey.value, JSON.stringify(recentMoveDestinations.value))
+  } catch {
+    // Recent destinations are a convenience only.
+  }
+}
+
+function openMoveDialog(sources: string[]) {
+  moveDialogSources.value = normalizeDraggedPaths(sources, treeState.parentByPath.value)
+}
+
+async function confirmMoveDialog(destination: string) {
+  const sources = moveDialogSources.value ?? []
+  moveDialogSources.value = null
+  if (!sources.length) return
+  rememberMoveDestination(destination)
+  await operations.executeMove(destination, sources)
+}
 
 function scrollStorageKey(workspace: string) {
   return `tomosona.explorer.scroll.${workspace}`
@@ -442,6 +501,12 @@ async function onContextAction(action: MenuAction) {
     await operations.runDuplicate(selection)
   }
 
+  if (action === 'move-to') {
+    openMoveDialog(selection)
+    closeContextMenu()
+    return
+  }
+
   if (action === 'copy') {
     operations.setClipboard('copy', selection)
   }
@@ -465,6 +530,8 @@ watch(
     }
     unfilteredScrollTop = null
     creatingNote.value = null
+    moveDialogSources.value = null
+    loadRecentMoveDestinations()
     showExtensions.value = window.localStorage.getItem(`tomosona.explorer.extensions.${workspace}`) === 'true'
     treeState.resetState()
     await treeState.initializeExplorer()
@@ -515,6 +582,7 @@ onMounted(() => {
   window.addEventListener('blur', endPointerSelection)
   fsSync.start()
   treeState.focusTree()
+  loadRecentMoveDestinations()
   if (hasFilterText.value) {
     isFilterVisible.value = true
   }
@@ -653,6 +721,17 @@ onBeforeUnmount(() => {
         :detail="operations.confirmPrompt.value.detail"
         @cancel="operations.cancelConfirmPrompt"
         @confirm="operations.confirmPromptAction(currentContextTarget())"
+      />
+
+      <ExplorerMoveDialog
+        v-if="moveDialogSources"
+        :root="folderPath"
+        :folders="knownFolderPaths"
+        :sources="moveDialogSources"
+        :recent-destinations="recentMoveDestinations"
+        :parent-of="getParentPath"
+        @cancel="moveDialogSources = null"
+        @confirm="confirmMoveDialog"
       />
     </div>
   </DnDProvider>
