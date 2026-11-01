@@ -14,6 +14,7 @@ export type UseExplorerKeyboardOptions = {
   isMac: boolean
   selectSingle: (path: string) => void
   selectRange: (path: string, orderedPaths: string[]) => void
+  toggleSelection: (path: string) => void
   setSelection: (paths: string[]) => void
   emitSelection: (paths: string[]) => void
   ensureFocusedPath: (defaultToFirst?: boolean) => string
@@ -132,6 +133,14 @@ export function useExplorerKeyboard(options: UseExplorerKeyboardOptions) {
       if (options.selectionPaths.value.length === 1) {
         options.startRename(options.selectionPaths.value[0])
       }
+      return
+    }
+
+    // Space toggles selection of the focused row without opening the note.
+    if (key === ' ' && !ctrlOrMeta && !event.shiftKey) {
+      event.preventDefault()
+      options.toggleSelection(focused)
+      options.emitSelection(options.selectionPaths.value)
       return
     }
 

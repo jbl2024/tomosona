@@ -176,6 +176,7 @@ const keyboard = useExplorerKeyboard({
   isMac,
   selectSingle: selectionManager.selectSingle,
   selectRange: selectionManager.selectRange,
+  toggleSelection: selectionManager.toggleSelection,
   setSelection: selectionManager.setSelection,
   emitSelection: (paths) => emit('select', paths),
   ensureFocusedPath,
