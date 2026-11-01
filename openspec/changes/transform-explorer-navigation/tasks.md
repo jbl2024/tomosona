@@ -3,7 +3,7 @@
 ## 1. Presentation and contextual creation
 
 - [ ] 1.1 Simplify toolbar and add overflow options, shared context menus and disabled reasons; test mouse, keyboard, placement near the target, viewport positioning, group order, destination labels, favorite state and menu parity.
-- [ ] 1.2 Add chevrons, distinct active/focused/selected states, extension preference, truncation and lock explanation; test narrow widths, protection and preference persistence.
+- [x] 1.2 Add chevrons, distinct active/focused/selected states, extension preference, truncation and lock explanation; test narrow widths, protection and preference persistence.
 - [ ] 1.3 Add accessible folder plus and inline creation in the intended destination; test closed folders, cancellation, invalid names and existing creation/title-heading behavior.
 - [ ] 1.4 Add folders-first alphabetical default and persistent sort choices; test stable order during edits, existing workspaces and malformed preferences.
 
@@ -26,7 +26,7 @@
 ## 4. Filtering and navigation state
 
 - [x] 4.1 Extend the local tree filter with match highlighting, counts, empty state, Enter and two-step Escape while retaining accent-insensitive fuzzy behavior; test matching folders without nonmatching descendants, ancestors, unloaded branches and unique results.
-- [ ] 4.2 Preserve expansion and scroll around filtering and across workspace restarts; test collapsed parents, stale paths, external changes and explicit reveal without unwanted navigation.
+- [x] 4.2 Preserve expansion and scroll around filtering and across workspace restarts; test collapsed parents, stale paths, external changes and explicit reveal without unwanted navigation.
 - [ ] 4.3 Complete tree keyboard controls, focus restoration and accessible labels; test synchronized single selection and focus, independent active-note state, traversal, arrows, F2, Space and key isolation in inputs and dialogs.
 - [ ] 4.4 Ensure deeply nested active paths remain accessible from the editor and test explorer/editor synchronization on navigation and rename.
 

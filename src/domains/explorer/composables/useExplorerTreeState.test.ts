@@ -95,6 +95,46 @@ describe('useExplorerTreeState', () => {
     expect(state.visibleRows.value.map((row) => row.path)).toEqual(['/vault/notes', '/vault/notes/today.md'])
   })
 
+  it('sorts folders first and persists the chosen alphabetical direction', async () => {
+    listChildren.mockResolvedValue([fileNode('/vault/z.md'), dirNode('/vault/b'), fileNode('/vault/a.md'), dirNode('/vault/a')])
+    const { state } = createState()
+    await state.initializeExplorer()
+    expect(state.visibleNodePaths.value).toEqual(['/vault/a', '/vault/b', '/vault/a.md', '/vault/z.md'])
+    state.setSortOrder('descending')
+    expect(state.visibleNodePaths.value).toEqual(['/vault/b', '/vault/a', '/vault/z.md', '/vault/a.md'])
+    const reopened = createState()
+    await reopened.state.initializeExplorer()
+    expect(reopened.state.visibleNodePaths.value).toEqual(['/vault/b', '/vault/a', '/vault/z.md', '/vault/a.md'])
+    window.localStorage.setItem('tomosona.explorer.sort./vault', 'invalid')
+    const fallback = createState()
+    await fallback.state.initializeExplorer()
+    expect(fallback.state.sortOrder.value).toBe('ascending')
+  })
+
+  it('restores expanded descendants under a collapsed parent and prunes stale paths', async () => {
+    window.localStorage.setItem('tomosona.explorer.expanded./vault', JSON.stringify(['/vault/parent/child', '/vault/missing', '/other/secret']))
+    listChildren.mockImplementation(async (path) => {
+      if (path === '/vault') return [dirNode('/vault/parent')]
+      if (path === '/vault/parent') return [dirNode('/vault/parent/child')]
+      return []
+    })
+    const { state } = createState()
+    await state.initializeExplorer()
+    expect([...state.expandedPaths.value]).toEqual(['/vault/parent/child'])
+    expect(state.visibleRows.value.map((row) => row.path)).toEqual(['/vault/parent'])
+    expect(listChildren).not.toHaveBeenCalledWith('/other/secret')
+    await state.toggleExpand('/vault/parent')
+    expect(state.expandedPaths.value.has('/vault/parent/child')).toBe(true)
+  })
+
+  it('ignores malformed stored expansion state', async () => {
+    window.localStorage.setItem('tomosona.explorer.expanded./vault', JSON.stringify({ invalid: true }))
+    listChildren.mockResolvedValue([])
+    const { state } = createState()
+    await state.initializeExplorer()
+    expect(state.expandedPaths.value.size).toBe(0)
+  })
+
   it('reveals a path in view and scrolls only when needed', async () => {
     listChildren.mockImplementation(async (dirPath: string) => {
       if (dirPath === '/vault') {

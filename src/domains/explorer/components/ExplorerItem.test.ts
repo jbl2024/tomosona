@@ -1,4 +1,4 @@
-import { createApp, defineComponent, h, ref } from 'vue'
+import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ExplorerItem from './ExplorerItem.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
@@ -23,7 +23,7 @@ describe('ExplorerItem', () => {
     document.body.innerHTML = ''
   })
 
-  it('marks a protected page', () => {
+  it('explains a protected page', async () => {
     const root = document.createElement('div')
     const app = createApp(() => h(ExplorerItem, {
       node: { ...fileNode('/vault/a.md'), isProtected: true }, depth: 0,
@@ -31,7 +31,28 @@ describe('ExplorerItem', () => {
       cutPending: false, editing: false, renameValue: ''
     }))
     app.mount(root)
-    expect(root.querySelector('[aria-label="Password protected"]')).not.toBeNull()
+    const lock = root.querySelector('[aria-label="Password protected"]') as HTMLButtonElement
+    expect(lock).not.toBeNull()
+    lock.click()
+    await nextTick()
+    expect(root.textContent).toContain('encrypted')
+    app.unmount()
+  })
+
+  it('provides an accessible folder chevron and preserves the full path on a truncated label', () => {
+    const root = document.createElement('div')
+    const app = createApp(() => h(ExplorerItem, {
+      node: { ...fileNode('/vault/a very long folder'), is_dir: true, is_markdown: false }, depth: 0,
+      expanded: false, selected: true, active: true, focused: true,
+      cutPending: false, editing: false, renameValue: ''
+    }))
+    app.mount(root)
+    const chevron = root.querySelector('button[aria-label="Expand folder"]')
+    expect(chevron?.getAttribute('aria-expanded')).toBe('false')
+    const label = root.querySelector('.explorer-item-label')
+    expect(label?.classList.contains('truncate')).toBe(true)
+    expect(label?.getAttribute('title')).toBe('/vault/a very long folder')
+    expect(root.querySelector('.explorer-item--active.explorer-item--selected.explorer-item--focused')).toBeTruthy()
     app.unmount()
   })
 

@@ -333,6 +333,39 @@ describe('ExplorerTree', () => {
     mounted.app.unmount()
   })
 
+  it('hides Markdown extensions by default and persists the display option', async () => {
+    listChildren.mockResolvedValue([fileNode('/vault/a.md')])
+    const mounted = await mountHarness('/vault/a.md')
+    const label = mounted.root.querySelector('.explorer-item-label') as HTMLElement
+    expect(label.textContent?.trim()).toBe('a')
+    const toggle = [...mounted.root.querySelectorAll('button')].find((button) => button.textContent?.includes('Show extensions')) as HTMLButtonElement
+    toggle.click()
+    await nextTick()
+    expect(label.textContent?.trim()).toBe('a.md')
+    expect(window.localStorage.getItem('tomosona.explorer.extensions./vault')).toBe('true')
+    mounted.app.unmount()
+    const reopened = await mountHarness('/vault/a.md')
+    expect(reopened.root.querySelector('.explorer-item-label')?.textContent?.trim()).toBe('a.md')
+    reopened.app.unmount()
+  })
+
+  it('reveals the active note only on request', async () => {
+    listChildren.mockImplementation(async (path: string) => {
+      if (path === '/vault') return [{ name: 'notes', path: '/vault/notes', is_dir: true, is_markdown: false, has_children: true }]
+      if (path === '/vault/notes') return [fileNode('/vault/notes/a.md')]
+      return []
+    })
+    const mounted = await mountHarness('/vault/notes/a.md')
+    expect(mounted.root.querySelector('[data-explorer-path="/vault/notes/a.md"]')).toBeNull()
+    ;(mounted.root.querySelector('summary[aria-label="Explorer options"]') as HTMLElement).click()
+    const reveal = [...mounted.root.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Reveal active note') as HTMLButtonElement
+    reveal.click()
+    await vi.advanceTimersByTimeAsync(1)
+    await nextTick()
+    expect(mounted.root.querySelector('[data-explorer-path="/vault/notes/a.md"]')).toBeTruthy()
+    mounted.app.unmount()
+  })
+
   it('restores the unfiltered scroll position after clearing the filter', async () => {
     listChildren.mockResolvedValue([fileNode('/vault/a.md'), fileNode('/vault/b.md')])
     const mounted = await mountHarness('/vault/a.md')

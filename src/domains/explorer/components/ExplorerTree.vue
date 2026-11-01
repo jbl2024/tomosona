@@ -45,11 +45,17 @@ const filterQuery = ref('')
 const debouncedFilterQuery = ref('')
 const filterInputRef = ref<InstanceType<typeof UiInput> | null>(null)
 const isFilterVisible = ref(false)
+const showExtensions = ref(false)
 let filterDebounceTimer: number | null = null
 let unfilteredScrollTop: number | null = null
 
 function scrollStorageKey(workspace: string) {
   return `tomosona.explorer.scroll.${workspace}`
+}
+
+function toggleExtensions() {
+  showExtensions.value = !showExtensions.value
+  window.localStorage.setItem(`tomosona.explorer.extensions.${props.folderPath}`, String(showExtensions.value))
 }
 
 function persistScroll() {
@@ -401,6 +407,7 @@ watch(
       window.localStorage.setItem(scrollStorageKey(previous), String(treeRef.value.scrollTop))
     }
     unfilteredScrollTop = null
+    showExtensions.value = window.localStorage.getItem(`tomosona.explorer.extensions.${workspace}`) === 'true'
     treeState.resetState()
     await treeState.initializeExplorer()
     if (workspace !== props.folderPath) return
@@ -467,11 +474,17 @@ onBeforeUnmount(() => {
       <ExplorerToolbar
         :disabled="!folderPath"
         :search-open="isFilterVisible"
+        :can-reveal="Boolean(activePath)"
+        :show-extensions="showExtensions"
+        :sort-order="treeState.sortOrder.value"
         @create-file="operations.requestCreate(folderPath, 'file')"
         @create-folder="operations.requestCreate(folderPath, 'folder')"
         @expand-all="treeState.expandAllDirs"
         @collapse-all="treeState.collapseAllDirs"
         @refresh="fsSync.refreshLoadedDirs"
+        @reveal-active="activePath && treeState.revealPathInView(activePath)"
+        @toggle-extensions="toggleExtensions"
+        @set-sort="treeState.setSortOrder"
         @toggle-search="toggleFilterVisibility"
       />
 
@@ -528,6 +541,7 @@ onBeforeUnmount(() => {
             :editing="operations.editingPath.value === row.path"
             :rename-value="operations.editingValue.value"
             :filter-query="debouncedFilterQuery"
+            :show-extensions="showExtensions"
             :context-active="contextPathSet.has(row.path)"
             :dnd="dnd"
             @toggle="treeState.toggleExpand"

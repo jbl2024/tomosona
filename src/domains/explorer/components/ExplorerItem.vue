@@ -3,7 +3,7 @@ import { makeDraggable, makeDroppable, type IPlacement } from '@vue-dnd-kit/core
 import { computed, ref } from 'vue'
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import type { ExplorerDnDController } from '../composables/useExplorerDnD'
 import type { ExplorerDropIntent } from '../lib/explorerDndRules'
 import { explorerMatchPositions } from '../lib/explorerFilter'
@@ -19,6 +19,7 @@ const props = defineProps<{
   editing: boolean
   renameValue: string
   filterQuery?: string
+  showExtensions?: boolean
   contextActive?: boolean
   dnd?: ExplorerDnDController
 }>()
@@ -42,7 +43,9 @@ function iconForNode(node: TreeNode) {
   return DocumentIcon
 }
 
-const matchPositions = computed(() => explorerMatchPositions(props.node.name, props.filterQuery ?? ''))
+const displayName = computed(() => props.node.is_markdown && !props.showExtensions ? props.node.name.replace(/\.md$/i, '') : props.node.name)
+const matchPositions = computed(() => explorerMatchPositions(displayName.value, props.filterQuery ?? ''))
+const showProtectionInfo = ref(false)
 const rowRef = ref<HTMLElement | null>(null)
 
 function onRowPointerDown(event: PointerEvent) {
@@ -168,12 +171,17 @@ const dndState = computed(() => props.dnd?.rowDropState(
       aria-hidden="true"
     />
     <button
+      v-if="node.is_dir"
       type="button"
-      class="explorer-item-icon inline-flex h-4 w-4 items-center justify-center rounded text-[10px]"
-      @click.stop="node.is_dir && emit('toggle', node.path)"
+      class="explorer-item-icon inline-flex h-4 w-4 shrink-0 items-center justify-center rounded"
+      :aria-label="expanded ? 'Collapse folder' : 'Expand folder'"
+      :aria-expanded="expanded"
+      @click.stop="emit('toggle', node.path)"
     >
-      <component :is="iconForNode(node)" class="h-4 w-4" />
+      <component :is="expanded ? ChevronDownIcon : ChevronRightIcon" class="h-4 w-4" />
     </button>
+    <span v-else class="h-4 w-4 shrink-0" aria-hidden="true" />
+    <component :is="iconForNode(node)" class="explorer-item-icon h-4 w-4 shrink-0" aria-hidden="true" />
 
     <div class="explorer-item-drag-handle min-w-0 flex-1">
       <ExplorerRenameInput
@@ -192,11 +200,14 @@ const dndState = computed(() => props.dnd?.rowDropState(
         ]"
         :title="node.path"
       >
-        <template v-for="(character, index) in Array.from(node.name)" :key="index"><mark v-if="matchPositions.has(index)">{{ character }}</mark><template v-else>{{ character }}</template></template>
+        <template v-for="(character, index) in Array.from(displayName)" :key="index"><mark v-if="matchPositions.has(index)">{{ character }}</mark><template v-else>{{ character }}</template></template>
       </span>
     </div>
 
-    <span v-if="node.isProtected" title="Password protected" aria-label="Password protected"><LockClosedIcon class="h-4 w-4" /></span>
+    <span v-if="node.isProtected" class="relative">
+      <button type="button" aria-label="Password protected" title="About page protection" @click.stop="showProtectionInfo = !showProtectionInfo"><LockClosedIcon class="h-4 w-4" /></button>
+      <span v-if="showProtectionInfo" role="status" class="ui-menu absolute right-0 top-full z-50 w-56 p-2 text-xs" @click.stop>This page's content is encrypted and requires its password while locked. Its filename remains visible.</span>
+    </span>
 
     <button
       type="button"
@@ -232,12 +243,11 @@ const dndState = computed(() => props.dnd?.rowDropState(
 }
 
 .explorer-item--active {
-  background: var(--explorer-row-active-bg);
   color: var(--explorer-row-active-text);
 }
 
 .explorer-item--focused {
-  background: var(--explorer-row-focused-bg);
+  box-shadow: inset 0 0 0 1px var(--explorer-row-indicator);
 }
 
 .explorer-item--interactive:hover {

@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import {
-  ArrowPathIcon,
-  ChevronDoubleDownIcon,
-  ChevronDoubleUpIcon,
   DocumentPlusIcon,
   FolderPlusIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  EllipsisHorizontalIcon
 } from '@heroicons/vue/24/outline'
 
 defineProps<{
   disabled: boolean
   searchOpen?: boolean
+  canReveal?: boolean
+  showExtensions?: boolean
+  sortOrder?: 'ascending' | 'descending'
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +21,9 @@ const emit = defineEmits<{
   collapseAll: []
   refresh: []
   toggleSearch: []
+  revealActive: []
+  toggleExtensions: []
+  setSort: [order: 'ascending' | 'descending']
 }>()
 </script>
 
@@ -48,36 +52,6 @@ const emit = defineEmits<{
     <button
       type="button"
       class="explorer-toolbar-btn inline-flex h-6.5 w-6.5 items-center justify-center rounded-md border border-transparent transition disabled:opacity-40 disabled:hover:bg-transparent"
-      title="Expand all folders"
-      aria-label="Expand all folders"
-      :disabled="disabled"
-      @click="emit('expandAll')"
-    >
-      <ChevronDoubleDownIcon class="h-3.5 w-3.5" />
-    </button>
-    <button
-      type="button"
-      class="explorer-toolbar-btn inline-flex h-6.5 w-6.5 items-center justify-center rounded-md border border-transparent transition disabled:opacity-40 disabled:hover:bg-transparent"
-      title="Collapse all folders"
-      aria-label="Collapse all folders"
-      :disabled="disabled"
-      @click="emit('collapseAll')"
-    >
-      <ChevronDoubleUpIcon class="h-3.5 w-3.5" />
-    </button>
-    <button
-      type="button"
-      class="explorer-toolbar-btn inline-flex h-6.5 w-6.5 items-center justify-center rounded-md border border-transparent transition disabled:opacity-40 disabled:hover:bg-transparent"
-      title="Refresh explorer"
-      aria-label="Refresh explorer"
-      :disabled="disabled"
-      @click="emit('refresh')"
-    >
-      <ArrowPathIcon class="h-3.5 w-3.5" />
-    </button>
-    <button
-      type="button"
-      class="explorer-toolbar-btn inline-flex h-6.5 w-6.5 items-center justify-center rounded-md border border-transparent transition disabled:opacity-40 disabled:hover:bg-transparent"
       :class="{ 'explorer-toolbar-btn--active': searchOpen }"
       title="Toggle filter"
       aria-label="Toggle filter"
@@ -86,6 +60,18 @@ const emit = defineEmits<{
     >
       <MagnifyingGlassIcon class="h-3.5 w-3.5" />
     </button>
+    <details class="explorer-toolbar-more relative ml-auto">
+      <summary class="explorer-toolbar-btn inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md" aria-label="Explorer options" title="Explorer options"><EllipsisHorizontalIcon class="h-4 w-4" /></summary>
+      <div class="ui-menu absolute right-0 top-full z-50 mt-1 min-w-48 p-1" @click="($event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')">
+        <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('expandAll')">Expand all folders</button>
+        <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('collapseAll')">Collapse all folders</button>
+        <button type="button" class="ui-menu-item" :disabled="disabled || !canReveal" @click="emit('revealActive')">Reveal active note</button>
+        <button type="button" class="ui-menu-item" role="menuitemradio" :aria-checked="sortOrder !== 'descending'" :disabled="disabled" @click="emit('setSort', 'ascending')">{{ sortOrder !== 'descending' ? '✓ ' : '' }}Sort A to Z</button>
+        <button type="button" class="ui-menu-item" role="menuitemradio" :aria-checked="sortOrder === 'descending'" :disabled="disabled" @click="emit('setSort', 'descending')">{{ sortOrder === 'descending' ? '✓ ' : '' }}Sort Z to A</button>
+        <button type="button" class="ui-menu-item" role="menuitemcheckbox" :aria-checked="Boolean(showExtensions)" :disabled="disabled" @click="emit('toggleExtensions')">{{ showExtensions ? '✓ ' : '' }}Show extensions</button>
+        <button type="button" class="ui-menu-item" :disabled="disabled" @click="emit('refresh')">Refresh explorer</button>
+      </div>
+    </details>
   </div>
 </template>
 
@@ -93,6 +79,9 @@ const emit = defineEmits<{
 .explorer-toolbar {
   border-color: color-mix(in srgb, var(--border-strong) 72%, transparent);
 }
+
+.explorer-toolbar-more summary { list-style: none; }
+.explorer-toolbar-more summary::-webkit-details-marker { display: none; }
 
 .explorer-toolbar-btn {
   color: var(--text-soft);

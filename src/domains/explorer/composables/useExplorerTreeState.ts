@@ -39,6 +39,7 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
   const loadingDirs = ref<Set<string>>(new Set())
   const pendingReloadDirs = ref<Set<string>>(new Set())
   const focusedPath = ref('')
+  const sortOrder = ref<'ascending' | 'descending'>('ascending')
 
   const visibleRows = computed<ExplorerVisibleRow[]>(() => {
     const rows: ExplorerVisibleRow[] = []
@@ -77,11 +78,25 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
     if (!raw) return
 
     try {
-      const parsed = JSON.parse(raw) as string[]
-      expandedPaths.value = new Set(parsed)
+      const parsed: unknown = JSON.parse(raw)
+      expandedPaths.value = new Set(Array.isArray(parsed) ? parsed.filter((path): path is string => typeof path === 'string') : [])
     } catch {
       expandedPaths.value = new Set()
     }
+  }
+
+  function sortChildren(children: TreeNode[]): TreeNode[] {
+    const direction = sortOrder.value === 'ascending' ? 1 : -1
+    return [...children].sort((a, b) => {
+      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
+      return direction * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    })
+  }
+
+  function setSortOrder(order: 'ascending' | 'descending') {
+    sortOrder.value = order
+    if (options.folderPath.value) window.localStorage.setItem(`tomosona.explorer.sort.${options.folderPath.value}`, order)
+    for (const dir of Object.keys(childrenByDir.value)) childrenByDir.value[dir] = sortChildren(childrenByDir.value[dir])
   }
 
   async function loadChildren(dirPath: string) {
@@ -97,7 +112,7 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
 
     try {
       const children = await listChildren(dirPath)
-      childrenByDir.value[dirPath] = children
+      childrenByDir.value[dirPath] = sortChildren(children)
 
       for (const child of children) {
         nodeByPath.value[child.path] = child
@@ -210,18 +225,30 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
     }
 
     loadExpandedState()
+    sortOrder.value = window.localStorage.getItem(`tomosona.explorer.sort.${options.folderPath.value}`) === 'descending' ? 'descending' : 'ascending'
     await loadChildren(options.folderPath.value)
 
-    const expanded = Array.from(expandedPaths.value)
+    // A collapsed parent can still contain remembered expanded descendants.
+    // Load their ancestors without expanding them, and discard stale paths.
+    const expanded = Array.from(expandedPaths.value).sort((a, b) => a.length - b.length)
+    const restored = new Set<string>()
     for (const dirPath of expanded) {
-      if (dirPath !== options.folderPath.value) {
-        try {
-          await loadChildren(dirPath)
-        } catch {
-          // Ignore stale expanded folders.
+      const ancestors = getAncestorDirs(options.folderPath.value, dirPath)
+      const root = options.folderPath.value.replace(/\/+$/, '')
+      if (!dirPath.startsWith(`${root}/`) || dirPath.split('/').some((part) => part === '..' || part === '.')) continue
+      try {
+        let valid = true
+        for (const path of [...ancestors, dirPath]) {
+          if (!nodeByPath.value[path]?.is_dir) { valid = false; break }
+          if (!childrenByDir.value[path]) await loadChildren(path)
         }
+        if (valid) restored.add(dirPath)
+      } catch {
+        // An externally removed or unreadable folder cannot be restored.
       }
     }
+    expandedPaths.value = restored
+    persistExpandedState()
 
     if (!options.selection.selectedPaths.value.length && visibleNodePaths.value.length) {
       options.selection.selectSingle(visibleNodePaths.value[0])
@@ -282,6 +309,8 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
     loadingDirs,
     pendingReloadDirs,
     focusedPath,
+    sortOrder,
+    setSortOrder,
     visibleRows,
     visibleNodePaths,
     loadChildren,
