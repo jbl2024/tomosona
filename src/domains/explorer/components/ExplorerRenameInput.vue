@@ -3,6 +3,7 @@ import { nextTick, onMounted, ref } from 'vue'
 
 const props = defineProps<{
   modelValue: string
+  selectionEnd?: number
 }>()
 
 const emit = defineEmits<{
@@ -15,8 +16,16 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
 onMounted(async () => {
   await nextTick()
-  inputRef.value?.focus()
-  inputRef.value?.select()
+  const input = inputRef.value
+  if (!input) return
+  input.focus()
+  // Select only the editable stem when the caller keeps an extension out of
+  // the selection, e.g. "Topic" in "Topic.md".
+  if (props.selectionEnd != null && props.selectionEnd >= 0 && props.selectionEnd <= input.value.length) {
+    input.setSelectionRange(0, props.selectionEnd)
+  } else {
+    input.select()
+  }
 })
 </script>
 

@@ -58,6 +58,32 @@
 The typed workspace API exposes read-only move, rename and trash preflight, plus source-metadata
 revalidation for moves. Results are advisory snapshots: permissions, paths, contents and
 filesystem identities can change afterward, and size/mtime alone cannot prove
-identity. Existing mutations do not yet use these commands. The future mutation
-workflow must validate again at the write boundary and handle failures and
-partial results without assuming a preflight guarantees success.
+identity. Rename, move, cut/paste, delete and drag-and-drop all run through this
+boundary in `useExplorerOperations.ts` (`planMoveBatch` + `moveEntriesWithRevalidation`),
+and `lib/mutationPreflight.ts` classifies results into ready, collision and blocked
+so blocking issues stop the batch with a clear message while collisions keep using
+the existing conflict prompt. Preflight never authorizes a write: every move is
+revalidated at execution time and per-entry failures are reported without
+assuming the batch succeeded.
+
+## Safe mutation support modules
+
+Shell-level pure helpers in `src/app/lib` back the mutation workflow; they never
+touch the filesystem themselves:
+
+- `noteLinkResolution.ts` shares note-link resolution with navigation so planning
+  and opening use identical root/relative/ambiguity rules.
+- `noteReferences.ts`, `noteReferenceImpact.ts`, `noteReferencePlan.ts` and
+  `workspaceReferencePlan.ts` extract wiki/Markdown references from content and
+  plan per-note and workspace-wide rewrites for proposed path moves. Aliases,
+  fragments and untouched links are preserved; ambiguous, unresolved or
+  unsupported references become warnings instead of silent rewrites, and locked
+  protected notes are reported as uninspectable rather than assumed safe.
+- `mutationReadiness.ts` maps open editor buffers through proposed moves and
+  flags unsaved ones so the shell can reconcile them through the existing
+  save/conflict flow before files change.
+- `operationReceipt.ts` models the latest recoverable operation as a bounded
+  session receipt (path mappings plus before/after reference contents).
+  `planReceiptRestore` validates current state and never overwrites: occupied
+  original paths, vanished destinations and externally changed files are
+  reported as issues and left intact.

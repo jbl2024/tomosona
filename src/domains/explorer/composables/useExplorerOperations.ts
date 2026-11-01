@@ -4,16 +4,21 @@ import {
   duplicateEntry,
   moveEntry,
   openPathExternal,
+  preflightMoveEntries,
+  preflightRenameEntry,
+  preflightTrashEntries,
+  revalidateMoveEntry,
   renameEntry,
   revealInFileManager,
   trashEntry
 } from '../../../shared/api/workspaceApi'
-import type { ConflictStrategy, EntryKind, TreeNode } from '../../../shared/api/apiTypes'
+import type { ConflictStrategy, EntryKind, MovePreflightEntry, TreeNode } from '../../../shared/api/apiTypes'
 import {
   errorMessage,
   getParentPath,
   isConflictError
 } from '../lib/explorerTreeUtils'
+import { preflightIssueMessage, summarizePreflight } from '../lib/mutationPreflight'
 import type { PathMove } from '../../../shared/api/apiTypes'
 
 /** Explorer clipboard state shared across menu, keyboard, and row actions. */
@@ -65,6 +70,8 @@ export type UseExplorerOperationsOptions = {
 export function useExplorerOperations(options: UseExplorerOperationsOptions) {
   const editingPath = ref('')
   const editingValue = ref('')
+  const editingExtension = ref('')
+  const editingSelectionEnd = ref(0)
   const clipboard = ref<ExplorerClipboard | null>(null)
   const conflictPrompt = ref<ExplorerConflictPrompt | null>(null)
   const confirmPrompt = ref<ExplorerConfirmPrompt | null>(null)
@@ -122,12 +129,19 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
     const node = options.nodeByPath.value[path]
     if (!node) return
     editingPath.value = path
-    editingValue.value = node.name
+    // Markdown files edit only the stem: the extension stays out of the
+    // initial selection and is re-applied on confirm, e.g. "Topic.md" -> "Topic".
+    const extension = node.is_markdown ? node.name.match(/(\.(?:md|markdown))$/i)?.[1] ?? '' : ''
+    editingExtension.value = extension
+    editingValue.value = extension ? node.name.slice(0, -extension.length) : node.name
+    editingSelectionEnd.value = editingValue.value.length
   }
 
   function cancelRename() {
     editingPath.value = ''
     editingValue.value = ''
+    editingExtension.value = ''
+    editingSelectionEnd.value = 0
   }
 
   async function confirmRename() {
@@ -135,9 +149,23 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
     if (!path || !options.folderPath.value) return
 
     const wasMarkdown = /\.(md|markdown)$/i.test(path)
-    const newName = editingValue.value.trim()
+    let newName = editingValue.value.trim()
     if (!newName) {
       options.emitError('Name cannot be empty.')
+      return
+    }
+    if (/[\\/<>:"|?*\x00-\x1f]/.test(newName)) {
+      options.emitError('Name contains invalid characters.')
+      return
+    }
+    if (editingExtension.value && !/\.(md|markdown)$/i.test(newName)) {
+      newName = `${newName}${editingExtension.value}`
+    }
+
+    const preflight = await preflightRenameEntry(path, newName)
+    if (preflight.issue && preflight.issue !== 'collision') {
+      // Stay in edit mode so the user can correct or cancel the rename.
+      options.emitError(preflightIssueMessage(preflight.issue))
       return
     }
 
@@ -184,9 +212,17 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
 
   async function executeDelete(paths: string[]) {
     if (!options.folderPath.value || !paths.length) return
+    const preflight = summarizePreflight(await preflightTrashEntries(paths))
+    const blockedSources = new Set(preflight.blocked.map((entry) => entry.sourcePath))
+    for (const blocked of preflight.blocked) {
+      options.emitError(blocked.message)
+    }
+    const deletable = paths.filter((path) => !blockedSources.has(path))
+    if (!deletable.length) return
+
     const deletedPaths: string[] = []
 
-    for (const path of paths) {
+    for (const path of deletable) {
       try {
         await trashEntry(path)
         deletedPaths.push(path)
@@ -229,19 +265,28 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
 
     const sources = pathsOverride ?? clipboard.value.paths
     const mode = clipboard.value.mode
+    // Cut/paste moves go through the same preflight and revalidation boundary
+    // as direct moves and drag-and-drop.
+    const plannedBySource = mode === 'cut' ? await planMoveBatch(targetDir, sources) : null
+    if (mode === 'cut' && !plannedBySource) return
 
     await runWithConflictModal(
       async (strategy) => {
+        const movedPairs: PathMove[] = []
         for (const source of sources) {
           if (mode === 'copy') {
             await copyEntry(source, targetDir, strategy)
           } else {
-            await moveEntry(source, targetDir, strategy)
+            const { movedPairs: batchPairs } = await moveEntriesWithRevalidation(targetDir, [source], plannedBySource ?? new Map(), strategy)
+            movedPairs.push(...batchPairs)
           }
         }
 
         if (mode === 'cut') {
           clipboard.value = null
+          if (movedPairs.length) {
+            options.emitPathsMoved(movedPairs)
+          }
         }
         await options.refreshLoadedDirs()
       },
@@ -255,21 +300,65 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
    * Drag and drop reuses this path so folder confirmations, conflict handling,
    * refresh behavior, and selection updates stay aligned with paste.
    */
-  async function executeMove(targetDir: string, sourcePaths: string[]) {
-    if (!options.folderPath.value || !targetDir || !sourcePaths.length) return
+  /**
+   * Runs the advisory native preflight for a move batch. Returns the planned
+   * entries keyed by source, or null after reporting why the batch must stop.
+   */
+  async function planMoveBatch(targetDir: string, sourcePaths: string[]): Promise<Map<string, MovePreflightEntry> | null> {
+    const preflight = summarizePreflight(await preflightMoveEntries(sourcePaths, targetDir))
+    if (preflight.hasBlockingIssues) {
+      options.emitError(preflight.blocked[0].message)
+      return null
+    }
+    const plannedBySource = new Map<string, MovePreflightEntry>()
+    for (const entry of [...preflight.ready, ...preflight.collisions]) {
+      plannedBySource.set(entry.sourcePath, entry)
+    }
+    return plannedBySource
+  }
 
+  /**
+   * Moves entries one by one, rechecking each advisory preflight version so a
+   * source that changed on disk since planning fails safely instead of moving
+   * stale content. Collisions fall through to the caller's conflict strategy.
+   */
+  async function moveEntriesWithRevalidation(
+    targetDir: string,
+    sourcePaths: string[],
+    plannedBySource: Map<string, MovePreflightEntry>,
+    strategy: ConflictStrategy
+  ): Promise<{ movedPaths: string[]; movedPairs: PathMove[] }> {
     const movedPaths: string[] = []
     const movedPairs: PathMove[] = []
 
+    for (const source of sourcePaths) {
+      const planned = plannedBySource.get(source)
+      if (planned?.sourceVersion) {
+        const recheck = await revalidateMoveEntry(source, targetDir, planned.sourceVersion)
+        if (recheck.issue && recheck.issue !== 'collision') {
+          options.emitError(preflightIssueMessage(recheck.issue))
+          continue
+        }
+      }
+      const moved = await moveEntry(source, targetDir, strategy)
+      movedPaths.push(moved)
+      if (moved && moved !== source) {
+        movedPairs.push({ from: source, to: moved })
+      }
+    }
+
+    return { movedPaths, movedPairs }
+  }
+
+  async function executeMove(targetDir: string, sourcePaths: string[]) {
+    if (!options.folderPath.value || !targetDir || !sourcePaths.length) return
+
+    const plannedBySource = await planMoveBatch(targetDir, sourcePaths)
+    if (!plannedBySource) return
+
     await runWithConflictModal(
       async (strategy) => {
-        for (const source of sourcePaths) {
-          const moved = await moveEntry(source, targetDir, strategy)
-          movedPaths.push(moved)
-          if (moved && moved !== source) {
-            movedPairs.push({ from: source, to: moved })
-          }
-        }
+        const { movedPaths, movedPairs } = await moveEntriesWithRevalidation(targetDir, sourcePaths, plannedBySource, strategy)
 
         await options.refreshLoadedDirs()
         options.setSelection(movedPaths)
@@ -408,6 +497,8 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
   return {
     editingPath,
     editingValue,
+    editingExtension,
+    editingSelectionEnd,
     clipboard,
     conflictPrompt,
     confirmPrompt,
@@ -424,6 +515,7 @@ export function useExplorerOperations(options: UseExplorerOperationsOptions) {
     movePaths,
     runPaste,
     executePaste,
+    executeMove,
     openNode,
     openSelected,
     openExternal,

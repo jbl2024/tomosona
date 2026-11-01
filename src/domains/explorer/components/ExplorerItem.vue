@@ -18,6 +18,7 @@ const props = defineProps<{
   cutPending: boolean
   editing: boolean
   renameValue: string
+  renameSelectionEnd?: number
   filterQuery?: string
   showExtensions?: boolean
   contextActive?: boolean
@@ -188,6 +189,7 @@ const dndState = computed(() => props.dnd?.rowDropState(
       <ExplorerRenameInput
         v-if="editing"
         :model-value="renameValue"
+        :selection-end="renameSelectionEnd"
         @update:model-value="emit('renameUpdate', $event)"
         @confirm="emit('renameConfirm')"
         @cancel="emit('renameCancel')"

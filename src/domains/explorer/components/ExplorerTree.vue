@@ -603,6 +603,7 @@ onBeforeUnmount(() => {
             :cut-pending="Boolean(operations.clipboard.value?.mode === 'cut' && operations.clipboard.value.paths.includes(row.path))"
             :editing="operations.editingPath.value === row.path"
             :rename-value="operations.editingValue.value"
+            :rename-selection-end="operations.editingSelectionEnd.value"
             :filter-query="debouncedFilterQuery"
             :show-extensions="showExtensions"
             :context-active="contextPathSet.has(row.path)"

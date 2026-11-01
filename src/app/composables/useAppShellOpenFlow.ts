@@ -7,7 +7,8 @@ import { type HeadingNode } from '../../domains/editor/composables/useEditorStat
 import type { PaletteOpenTarget } from './useAppQuickOpen'
 import type { QuickOpenResult } from './useAppQuickOpen'
 import type { SidebarMode } from './useWorkspaceState'
-import { isAbsoluteWorkspacePath, normalizeWorkspacePath, toWorkspaceRelativePath } from '../../domains/explorer/lib/workspacePaths'
+import { isAbsoluteWorkspacePath, normalizeWorkspacePath } from '../../domains/explorer/lib/workspacePaths'
+import { resolveNoteLinkPath } from '../lib/noteLinkResolution'
 
 /** Attempts and delay for the passage-reveal retry budget (~1.8s at defaults). */
 const REVEAL_RETRY_ATTEMPTS = 12
@@ -109,75 +110,6 @@ export type RefreshBacklinksOptions = {
 export type SearchHit = {
   path: string
   snippet: string
-}
-
-function splitWorkspacePath(path: string): { prefix: string; segments: string[] } | null {
-  const normalized = normalizeWorkspacePath(path)
-  if (!normalized) return null
-  if (/^[A-Za-z]:\//.test(normalized)) {
-    return {
-      prefix: normalized.slice(0, 3),
-      segments: normalized.slice(3).split('/').filter(Boolean)
-    }
-  }
-  if (normalized.startsWith('/')) {
-    return {
-      prefix: '/',
-      segments: normalized.slice(1).split('/').filter(Boolean)
-    }
-  }
-  return {
-    prefix: '',
-    segments: normalized.split('/').filter(Boolean)
-  }
-}
-
-function workspaceDirectoryPath(path: string): string | null {
-  const base = splitWorkspacePath(path)
-  if (!base) return null
-  const segments = base.segments.slice(0, -1)
-  return base.prefix === '/'
-    ? `/${segments.join('/')}`
-    : base.prefix
-      ? `${base.prefix}${segments.join('/')}`
-      : segments.join('/')
-}
-
-function resolveRelativeWorkspacePath(basePath: string, relativePath: string): string | null {
-  const base = splitWorkspacePath(basePath)
-  if (!base) return null
-
-  const segments = base.segments.slice()
-  for (const segment of normalizeWorkspacePath(relativePath).split('/')) {
-    if (!segment || segment === '.') continue
-    if (segment === '..') {
-      if (!segments.length) return null
-      segments.pop()
-      continue
-    }
-    segments.push(segment)
-  }
-
-  return base.prefix === '/'
-    ? `/${segments.join('/')}`
-    : base.prefix
-      ? `${base.prefix}${segments.join('/')}`
-      : segments.join('/')
-}
-
-function findExistingMarkdownTarget(
-  targetPath: string,
-  root: string,
-  markdownFiles: string[],
-  resolveExistingWikilinkPath: (target: string, markdownFiles: string[]) => string | null
-): string | null {
-  const exact = resolveExistingWikilinkPath(targetPath, markdownFiles)
-  if (exact) return exact
-
-  if (!isAbsoluteWorkspacePath(targetPath)) return null
-  const relativeTarget = toWorkspaceRelativePath(root, targetPath)
-  if (!relativeTarget || relativeTarget === targetPath) return null
-  return resolveExistingWikilinkPath(relativeTarget, markdownFiles)
 }
 
 /**
@@ -309,9 +241,6 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
     const parsed = parseWikilinkTarget(target)
     const anchor = parsed.anchor
     const rawTarget = normalizeWorkspacePath(parsed.notePath).trim()
-    const currentDirectory = isAbsoluteWorkspacePath(options.editorPort.activeFilePath.value)
-      ? workspaceDirectoryPath(options.editorPort.activeFilePath.value) ?? root
-      : root
     const revealAnchor = async () => {
       if (!anchor) return true
       await nextTick()
@@ -329,27 +258,15 @@ export function useAppShellOpenFlow(options: AppShellOpenFlowOptions) {
       return await revealAnchor()
     }
 
-    const shouldResolveFromRoot =
-      !rawTarget.startsWith('./') &&
-      !rawTarget.startsWith('../') &&
-      (rawTarget.includes('/') || rawTarget.includes('\\') || /\.(md|markdown)$/i.test(rawTarget))
-
-    const targetPath = isAbsoluteWorkspacePath(rawTarget)
-      ? rawTarget
-      : resolveRelativeWorkspacePath(shouldResolveFromRoot ? root : currentDirectory, rawTarget)
-
-    if (!targetPath) {
+    const sourcePath = options.editorPort.activeFilePath.value
+    const candidate = resolveNoteLinkPath(rawTarget, root, sourcePath, [], options.dataPort.resolveExistingWikilinkPath)
+    if (!candidate) {
       options.workspacePort.errorMessage.value = 'Invalid link target.'
       return false
     }
-
     const markdownFiles = await options.dataPort.loadWikilinkTargets()
-    const existing = findExistingMarkdownTarget(
-      targetPath,
-      root,
-      markdownFiles,
-      options.dataPort.resolveExistingWikilinkPath
-    )
+    const resolution = resolveNoteLinkPath(rawTarget, root, sourcePath, markdownFiles, options.dataPort.resolveExistingWikilinkPath)
+    const { targetPath, existing } = resolution ?? candidate
 
     if (existing) {
       const opened = await options.navigationPort.openTabWithAutosave(
