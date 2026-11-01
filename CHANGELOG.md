@@ -1,5 +1,47 @@
 # Changelog
 
+## [20261101.1] - 2026-11-01
+
+### Added
+- feat(panes): lock a note from its tab padlock (19b11e20)
+- feat(panes): turn the tab strip into a navigation surface (0ab73967)
+- feat(explorer): add the chronological journal view (c6fc4d0f)
+- feat(explorer): explain disabled context menu actions (b7177795)
+- feat(explorer): temporary read-only quick preview with protection rules (b9217c24)
+- feat(explorer): hover-expand closed folders during drag (53888aa8)
+- feat(explorer): group action bar for multi-selection (0837b339)
+- feat(explorer): searchable move destination picker (3b984dff)
+- feat(explorer): toggle tree row selection with Space (dc602c6a)
+- feat(explorer): expose undo last operation in the toolbar menu (f3446e30)
+- feat(workspace): undo receipts with validated restore and reference snapshots (085fb447)
+- feat(editor): flush affected dirty buffers before link rewrites (ed51c511)
+- feat(explorer): safe mutation planning, preflight routing, and inline rename extension (74fc0c17)
+- feat(explorer): preflight workspace mutations (47462b6c)
+- feat(explorer): add move preflight and editor location (e77c21c7)
+- feat(editor): unlock protected notes inline (87dd257f)
+- feat(explorer): create notes inline in folders (fe5c38cf)
+- feat(explorer): preserve tree context and improve display (80b758e9)
+- feat(explorer): improve local tree filtering (6c358936)
+
+### Changed
+- docs(openspec): archive transform-tab-navigation and sync its specs (0fb0b252)
+- refactor(panes): drop the inert duplicate-view tab actions (e1c45183)
+- docs(openspec): drop duplicate views from the tab navigation change (9e4a9339)
+- docs(openspec): propose transform-tab-navigation change for the tab strip (ff669100)
+- docs(openspec): archive transform-explorer-navigation and sync its specs (0abcf20f)
+- test(explorer): remove timing flake from the pointerdown guard test (c048a99d)
+- docs(openspec): plan explorer navigation improvements (6bba410e)
+
+### Fixed
+- fix(editor): use distinct icons for removing protection and locking (44755cf7)
+- fix(explorer): reveal the protection note on hover (25ae59d1)
+- fix(explorer): give the protection note an opaque surface (868be73c)
+- fix(breadcrumb): reveal in the file manager and copy root-relative links (ea9f879b)
+- fix(editor): place the caret after opening or creating a note (510e3f85)
+- fix(explorer): render note previews in-app instead of via pandoc (472da8f2)
+- fix(explorer): render toolbar options as a styled menu (6fa70ef2)
+- fix(explorer): keep sorting stable during interactions (f3958eec)
+
 ## [20261031.4] - 2026-10-31
 
 ### Added
