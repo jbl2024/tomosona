@@ -111,6 +111,20 @@ describe('useExplorerTreeState', () => {
     expect(fallback.state.sortOrder.value).toBe('ascending')
   })
 
+  it('keeps existing row order during an interaction and sorts after it ends', async () => {
+    listChildren.mockResolvedValueOnce([fileNode('/vault/b.md'), fileNode('/vault/d.md')])
+    const { state } = createState()
+    await state.initializeExplorer()
+    state.setSortFrozen(true)
+    listChildren.mockResolvedValueOnce([fileNode('/vault/a.md'), fileNode('/vault/b.md'), fileNode('/vault/d.md')])
+    await state.loadChildren('/vault')
+    expect(state.visibleNodePaths.value).toEqual(['/vault/b.md', '/vault/d.md', '/vault/a.md'])
+    state.setSortOrder('descending')
+    expect(state.visibleNodePaths.value).toEqual(['/vault/b.md', '/vault/d.md', '/vault/a.md'])
+    state.setSortFrozen(false)
+    expect(state.visibleNodePaths.value).toEqual(['/vault/d.md', '/vault/b.md', '/vault/a.md'])
+  })
+
   it('restores expanded descendants under a collapsed parent and prunes stale paths', async () => {
     window.localStorage.setItem('tomosona.explorer.expanded./vault', JSON.stringify(['/vault/parent/child', '/vault/missing', '/other/secret']))
     listChildren.mockImplementation(async (path) => {

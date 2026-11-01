@@ -40,6 +40,7 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
   const pendingReloadDirs = ref<Set<string>>(new Set())
   const focusedPath = ref('')
   const sortOrder = ref<'ascending' | 'descending'>('ascending')
+  let sortFrozen = false
 
   const visibleRows = computed<ExplorerVisibleRow[]>(() => {
     const rows: ExplorerVisibleRow[] = []
@@ -93,10 +94,21 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
     })
   }
 
+  function applySort() {
+    for (const dir of Object.keys(childrenByDir.value)) childrenByDir.value[dir] = sortChildren(childrenByDir.value[dir])
+  }
+
+  /** Defers reordering while the user is editing or selecting tree rows. */
+  function setSortFrozen(frozen: boolean) {
+    if (sortFrozen === frozen) return
+    sortFrozen = frozen
+    if (!frozen) applySort()
+  }
+
   function setSortOrder(order: 'ascending' | 'descending') {
     sortOrder.value = order
     if (options.folderPath.value) window.localStorage.setItem(`tomosona.explorer.sort.${options.folderPath.value}`, order)
-    for (const dir of Object.keys(childrenByDir.value)) childrenByDir.value[dir] = sortChildren(childrenByDir.value[dir])
+    if (!sortFrozen) applySort()
   }
 
   async function loadChildren(dirPath: string) {
@@ -112,7 +124,18 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
 
     try {
       const children = await listChildren(dirPath)
-      childrenByDir.value[dirPath] = sortChildren(children)
+      const previous = childrenByDir.value[dirPath]
+      if (sortFrozen && previous) {
+        const byPath = new Map(children.map((child) => [child.path, child]))
+        const retained = previous.flatMap((child) => {
+          const updated = byPath.get(child.path)
+          byPath.delete(child.path)
+          return updated ? [updated] : []
+        })
+        childrenByDir.value[dirPath] = [...retained, ...sortChildren([...byPath.values()])]
+      } else {
+        childrenByDir.value[dirPath] = sortChildren(children)
+      }
 
       for (const child of children) {
         nodeByPath.value[child.path] = child
@@ -311,6 +334,7 @@ export function useExplorerTreeState(options: UseExplorerTreeStateOptions) {
     focusedPath,
     sortOrder,
     setSortOrder,
+    setSortFrozen,
     visibleRows,
     visibleNodePaths,
     loadChildren,

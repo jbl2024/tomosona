@@ -184,6 +184,25 @@ const keyboard = useExplorerKeyboard({
   requestCreate: operations.requestCreate
 })
 
+let selectingWithPointer = false
+
+function updateSortFreeze() {
+  treeState.setSortFrozen(selectingWithPointer || Boolean(operations.editingPath.value))
+}
+
+function beginPointerSelection(event: PointerEvent) {
+  if (event.button !== 0) return
+  selectingWithPointer = true
+  updateSortFreeze()
+}
+
+function endPointerSelection() {
+  selectingWithPointer = false
+  updateSortFreeze()
+}
+
+watch(operations.editingPath, updateSortFreeze, { flush: 'sync' })
+
 function currentContextTarget(): string | null {
   return contextMenu.value?.targetPath ?? null
 }
@@ -452,6 +471,9 @@ defineExpose({
 
 onMounted(() => {
   window.addEventListener('click', closeContextMenu)
+  window.addEventListener('pointerup', endPointerSelection)
+  window.addEventListener('pointercancel', endPointerSelection)
+  window.addEventListener('blur', endPointerSelection)
   fsSync.start()
   treeState.focusTree()
   if (hasFilterText.value) {
@@ -461,6 +483,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('click', closeContextMenu)
+  window.removeEventListener('pointerup', endPointerSelection)
+  window.removeEventListener('pointercancel', endPointerSelection)
+  window.removeEventListener('blur', endPointerSelection)
   if (filterDebounceTimer) {
     window.clearTimeout(filterDebounceTimer)
   }
@@ -516,6 +541,7 @@ onBeforeUnmount(() => {
         ref="treeRef"
         tabindex="0"
         class="min-h-0 flex-1 overflow-auto bg-transparent p-0.5 outline-none focus-visible:ring-0"
+        @pointerdown.capture="beginPointerSelection"
         @scroll="persistScroll"
         @keydown="keyboard.onTreeKeydown"
         @contextmenu.prevent="onTreeContextMenu"

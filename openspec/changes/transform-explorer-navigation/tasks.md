@@ -5,7 +5,7 @@
 - [ ] 1.1 Simplify toolbar and add overflow options, shared context menus and disabled reasons; test mouse, keyboard, placement near the target, viewport positioning, group order, destination labels, favorite state and menu parity.
 - [x] 1.2 Add chevrons, distinct active/focused/selected states, extension preference, truncation and lock explanation; test narrow widths, protection and preference persistence.
 - [ ] 1.3 Add accessible folder plus and inline creation in the intended destination; test closed folders, cancellation, invalid names and existing creation/title-heading behavior.
-- [ ] 1.4 Add folders-first alphabetical default and persistent sort choices; test stable order during edits, existing workspaces and malformed preferences.
+- [x] 1.4 Add folders-first alphabetical default and persistent sort choices; test stable order during edits, existing workspaces and malformed preferences.
 
 ## 2. Safe mutations and recovery
 
