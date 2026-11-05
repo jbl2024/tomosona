@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261105.2] - 2026-11-05
+
+### Fixed
+- fix(explorer): define file icon colors in theme tokens (c462e07d)
+
 ## [20261105.1] - 2026-11-05
 
 ### Added
