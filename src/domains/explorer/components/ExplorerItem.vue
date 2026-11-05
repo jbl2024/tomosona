@@ -353,19 +353,19 @@ watch(dndState, (state) => {
 }
 
 /* light-dark follows the resolved color-scheme of every built-in theme. */
-.explorer-file-icon { color: light-dark(#687487, #a5b1c2); stroke-width: 1.8; }
-.explorer-file-icon--folder { color: light-dark(#b27614, #f0bd5c); }
-.explorer-file-icon--markdown { color: light-dark(#4168b2, #8db6ff); }
-.explorer-file-icon--text, .explorer-file-icon--document { color: light-dark(#2864b4, #83b9ff); }
-.explorer-file-icon--pdf { color: light-dark(#c34745, #ff9390); }
-.explorer-file-icon--image { color: light-dark(#a34293, #ed9bdf); }
-.explorer-file-icon--spreadsheet { color: light-dark(#27805a, #72d6a3); }
-.explorer-file-icon--presentation { color: light-dark(#bd6033, #ffad7d); }
-.explorer-file-icon--audio { color: light-dark(#8650ad, #c7a0f0); }
-.explorer-file-icon--video { color: light-dark(#b04470, #f293ba); }
-.explorer-file-icon--archive { color: light-dark(#947126, #e1c270); }
-.explorer-file-icon--code { color: light-dark(#167d89, #6fd1dc); }
-.explorer-file-icon--data { color: light-dark(#a76622, #efb977); }
+.explorer-file-icon { color: var(--explorer-icon-file); stroke-width: 1.8; }
+.explorer-file-icon--folder { color: var(--explorer-icon-folder); }
+.explorer-file-icon--markdown { color: var(--explorer-icon-markdown); }
+.explorer-file-icon--text, .explorer-file-icon--document { color: var(--explorer-icon-document); }
+.explorer-file-icon--pdf { color: var(--explorer-icon-pdf); }
+.explorer-file-icon--image { color: var(--explorer-icon-image); }
+.explorer-file-icon--spreadsheet { color: var(--explorer-icon-spreadsheet); }
+.explorer-file-icon--presentation { color: var(--explorer-icon-presentation); }
+.explorer-file-icon--audio { color: var(--explorer-icon-audio); }
+.explorer-file-icon--video { color: var(--explorer-icon-video); }
+.explorer-file-icon--archive { color: var(--explorer-icon-archive); }
+.explorer-file-icon--code { color: var(--explorer-icon-code); }
+.explorer-file-icon--data { color: var(--explorer-icon-data); }
 
 .explorer-item-label--dir {
   color: var(--explorer-row-text-strong);

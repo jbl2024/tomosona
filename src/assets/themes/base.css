@@ -279,6 +279,20 @@
   --editor-table-border: rgb(203 213 225);
   --editor-table-cell-border: rgb(226 232 240);
   --editor-table-hover: rgb(248 250 252);
+  /* File type colors adapt to the resolved light or dark color scheme. */
+  --explorer-icon-file: light-dark(#687487, #a5b1c2);
+  --explorer-icon-folder: light-dark(#b27614, #f0bd5c);
+  --explorer-icon-markdown: light-dark(#4168b2, #8db6ff);
+  --explorer-icon-document: light-dark(#2864b4, #83b9ff);
+  --explorer-icon-pdf: light-dark(#c34745, #ff9390);
+  --explorer-icon-image: light-dark(#a34293, #ed9bdf);
+  --explorer-icon-spreadsheet: light-dark(#27805a, #72d6a3);
+  --explorer-icon-presentation: light-dark(#bd6033, #ffad7d);
+  --explorer-icon-audio: light-dark(#8650ad, #c7a0f0);
+  --explorer-icon-video: light-dark(#b04470, #f293ba);
+  --explorer-icon-archive: light-dark(#947126, #e1c270);
+  --explorer-icon-code: light-dark(#167d89, #6fd1dc);
+  --explorer-icon-data: light-dark(#a76622, #efb977);
   --explorer-row-text: var(--text-soft);
   --explorer-row-text-strong: var(--text-main);
   --explorer-row-hover-bg: #eceff6;
