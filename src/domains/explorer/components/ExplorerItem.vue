@@ -3,10 +3,11 @@ import { makeDraggable, makeDroppable, type IPlacement } from '@vue-dnd-kit/core
 import { computed, ref, watch } from 'vue'
 import ExplorerRenameInput from './ExplorerRenameInput.vue'
 import type { TreeNode } from '../../../shared/api/apiTypes'
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon, LockClosedIcon, PhotoIcon, TableCellsIcon, PresentationChartBarIcon, MusicalNoteIcon, FilmIcon, ArchiveBoxIcon, CodeBracketIcon, CircleStackIcon } from '@heroicons/vue/24/outline'
 import type { ExplorerDnDController } from '../composables/useExplorerDnD'
 import type { ExplorerDropIntent } from '../lib/explorerDndRules'
 import { explorerMatchPositions } from '../lib/explorerFilter'
+import { explorerFileBadge, explorerFileKind } from '../lib/explorerFileIcon'
 
 const props = defineProps<{
   node: TreeNode
@@ -37,13 +38,23 @@ const emit = defineEmits<{
   createNote: [path: string]
 }>()
 
-function iconForNode(node: TreeNode) {
-  if (node.is_dir) return props.expanded ? FolderOpenIcon : FolderIcon
-  if (node.is_markdown) return DocumentTextIcon
-  const ext = node.name.split('.').pop()?.toLowerCase() || ''
-  if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'webp' || ext === 'svg') return PhotoIcon
-  return DocumentIcon
-}
+const fileKind = computed(() => explorerFileKind(props.node))
+const fileBadge = computed(() => explorerFileBadge(props.node))
+const fileIcon = computed(() => {
+  switch (fileKind.value) {
+    case 'folder': return props.expanded ? FolderOpenIcon : FolderIcon
+    case 'markdown': case 'text': case 'document': return DocumentTextIcon
+    case 'image': return PhotoIcon
+    case 'spreadsheet': return TableCellsIcon
+    case 'presentation': return PresentationChartBarIcon
+    case 'audio': return MusicalNoteIcon
+    case 'video': return FilmIcon
+    case 'archive': return ArchiveBoxIcon
+    case 'code': return CodeBracketIcon
+    case 'data': return CircleStackIcon
+    default: return DocumentIcon
+  }
+})
 
 const displayName = computed(() => props.node.is_markdown && !props.showExtensions ? props.node.name.replace(/\.md$/i, '') : props.node.name)
 const matchPositions = computed(() => explorerMatchPositions(displayName.value, props.filterQuery ?? ''))
@@ -194,7 +205,13 @@ watch(dndState, (state) => {
       <component :is="expanded ? ChevronDownIcon : ChevronRightIcon" class="h-4 w-4" />
     </button>
     <span v-else class="h-4 w-4 shrink-0" aria-hidden="true" />
-    <component :is="iconForNode(node)" class="explorer-item-icon h-4 w-4 shrink-0" aria-hidden="true" />
+    <svg v-if="fileBadge" class="explorer-file-icon h-4 w-4 shrink-0" :class="`explorer-file-icon--${fileKind}`" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 2.75h9l5 5v13.5H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+      <path d="M14 2.75v5h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+      <path d="M2.5 12h19v6.5h-19z" fill="currentColor" />
+      <text x="12" y="16.9" text-anchor="middle" fill="var(--surface-bg)" stroke="none" :font-size="fileBadge.length > 4 ? 3.8 : 5.3" font-weight="800" font-family="sans-serif" textLength="17" lengthAdjust="spacingAndGlyphs">{{ fileBadge }}</text>
+    </svg>
+    <component v-else :is="fileIcon" class="explorer-file-icon h-4 w-4 shrink-0" :class="`explorer-file-icon--${fileKind}`" aria-hidden="true" />
 
     <div class="explorer-item-drag-handle min-w-0 flex-1">
       <ExplorerRenameInput
@@ -334,6 +351,21 @@ watch(dndState, (state) => {
 .explorer-item-action {
   color: var(--text-dim);
 }
+
+/* light-dark follows the resolved color-scheme of every built-in theme. */
+.explorer-file-icon { color: light-dark(#687487, #a5b1c2); stroke-width: 1.8; }
+.explorer-file-icon--folder { color: light-dark(#b27614, #f0bd5c); }
+.explorer-file-icon--markdown { color: light-dark(#4168b2, #8db6ff); }
+.explorer-file-icon--text, .explorer-file-icon--document { color: light-dark(#2864b4, #83b9ff); }
+.explorer-file-icon--pdf { color: light-dark(#c34745, #ff9390); }
+.explorer-file-icon--image { color: light-dark(#a34293, #ed9bdf); }
+.explorer-file-icon--spreadsheet { color: light-dark(#27805a, #72d6a3); }
+.explorer-file-icon--presentation { color: light-dark(#bd6033, #ffad7d); }
+.explorer-file-icon--audio { color: light-dark(#8650ad, #c7a0f0); }
+.explorer-file-icon--video { color: light-dark(#b04470, #f293ba); }
+.explorer-file-icon--archive { color: light-dark(#947126, #e1c270); }
+.explorer-file-icon--code { color: light-dark(#167d89, #6fd1dc); }
+.explorer-file-icon--data { color: light-dark(#a76622, #efb977); }
 
 .explorer-item-label--dir {
   color: var(--explorer-row-text-strong);
