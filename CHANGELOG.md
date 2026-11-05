@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261105.3] - 2026-11-05
+
+### Fixed
+- fix(editor): improve list splitting and indentation (919df233)
+
 ## [20261105.2] - 2026-11-05
 
 ### Fixed
