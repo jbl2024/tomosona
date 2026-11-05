@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261105.4] - 2026-11-05
+
+### Fixed
+- fix(editor): preserve empty paragraph when splitting lists (991d7522)
+
 ## [20261105.3] - 2026-11-05
 
 ### Fixed
