@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261105.1] - 2026-11-05
+
+### Added
+- feat(explorer): add colorful file type icons (5c177fe2)
+
 ## [20261101.1] - 2026-11-01
 
 ### Added
