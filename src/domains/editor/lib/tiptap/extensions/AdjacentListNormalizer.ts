@@ -14,7 +14,7 @@ export const AdjacentListNormalizer = Extension.create({
 
   addProseMirrorPlugins() {
     return [new Plugin({
-      appendTransaction(transactions, _oldState, newState) {
+      appendTransaction(transactions, oldState, newState) {
         if (!transactions.some((transaction) => transaction.docChanged)) return null
 
         const transaction = newState.tr
@@ -38,7 +38,15 @@ export const AdjacentListNormalizer = Extension.create({
           const isEmptySeparator = next.type.name === 'paragraph' && next.content.size === 0
           const listsAroundSeparator = LIST_NODE_NAMES.has(current.type.name)
             && current.type === following?.type
-          if (isEmptySeparator && listsAroundSeparator) {
+          // Only remove a separator that was emptied by this edit. A newly
+          // created empty paragraph is an intentional split between lists.
+          let oldBoundary = boundary
+          for (let i = transactions.length - 1; i >= 0; i -= 1) {
+            oldBoundary = transactions[i].mapping.invert().map(oldBoundary, 1)
+          }
+          const oldSeparator = oldState.doc.nodeAt(oldBoundary)
+          const wasNonEmptyParagraph = oldSeparator?.type.name === 'paragraph' && oldSeparator.content.size > 0
+          if (isEmptySeparator && listsAroundSeparator && wasNonEmptyParagraph) {
             transaction.delete(boundary, boundary + next.nodeSize)
             continue
           }

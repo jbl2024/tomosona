@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { ListKit } from '@tiptap/extension-list'
+import { AdjacentListNormalizer } from './tiptap/extensions/AdjacentListNormalizer'
 import { adjustListLevelFromTab, liftListItemFromShortcut } from './editorInteractions'
 
 function editorWith(content: string, selected: string) {
   const editor = new Editor({
-    extensions: [StarterKit.configure({ bulletList: false, orderedList: false, listItem: false, listKeymap: false }), ListKit.configure({ taskItem: { nested: true } })],
+    extensions: [StarterKit.configure({ bulletList: false, orderedList: false, listItem: false, listKeymap: false }), ListKit.configure({ taskItem: { nested: true } }), AdjacentListNormalizer],
     content
   })
   let pos = 0
@@ -32,6 +33,23 @@ describe('list keyboard interactions', () => {
     expect(editor.state.doc.child(1).type.name).toBe('paragraph')
     expect(editor.state.doc.child(1).textContent).toBe('two')
     expect(editor.state.doc.child(2).textContent).toBe('three')
+    editor.destroy()
+  })
+
+  it('keeps an empty paragraph when splitting a list at an empty item', () => {
+    const editor = editorWith('<ul><li><p>one</p></li><li><p></p></li><li><p>three</p></li></ul>', 'one')
+    const first = editor.state.doc.firstChild!
+    editor.commands.setTextSelection(1 + first.child(0).nodeSize + 2)
+    expect(press(editor, 'Enter', { metaKey: true }).handled).toBe(true)
+    expect(editor.state.doc.child(0).textContent).toBe('one')
+    expect(editor.state.doc.child(1).type.name).toBe('paragraph')
+    expect(editor.state.doc.child(1).textContent).toBe('')
+    expect(editor.state.doc.child(2).textContent).toBe('three')
+    editor.view.dispatch(editor.state.tr.insertText('!', 3))
+    expect(editor.state.doc.child(1).type.name).toBe('paragraph')
+    editor.commands.setTextSelection(editor.state.doc.child(0).nodeSize + 1)
+    editor.commands.insertContent('separator')
+    expect(editor.state.doc.child(1).textContent).toBe('separator')
     editor.destroy()
   })
 
