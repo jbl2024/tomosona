@@ -22,7 +22,7 @@ import { PassageHighlightExtension } from '../lib/tiptap/extensions/PassageHighl
 import { SpellcheckExtension, refreshSpellcheckDecorations } from '../lib/tiptap/extensions/Spellcheck'
 import { PastedLinkBoundary } from '../lib/tiptap/extensions/PastedLinkBoundary'
 import { AdjacentListNormalizer } from '../lib/tiptap/extensions/AdjacentListNormalizer'
-import { adjustHeadingLevelFromTab, adjustListLevelFromTab } from '../lib/editorInteractions'
+import { adjustHeadingLevelFromTab, adjustListLevelFromTab, liftListItemFromShortcut } from '../lib/editorInteractions'
 import { decodeWorkspacePathSegments, isAbsoluteWorkspacePath, normalizeWorkspacePath } from '../../explorer/lib/workspacePaths'
 import { parseRelativeMarkdownHref } from '../lib/markdownBlocks'
 import type { SpellcheckLanguage } from '../lib/spellcheck'
@@ -472,6 +472,7 @@ export function useEditorTiptapSetup(options: UseEditorTiptapSetupOptions) {
           click: (view: ProseMirrorEditorView, event: MouseEvent) => handleAnchorClick(view, path, -1, event)
         },
         handleKeyDown: (view: ProseMirrorEditorView, event: KeyboardEvent) => {
+          if (liftListItemFromShortcut(view, event)) return true
           if (adjustListLevelFromTab(view, event)) return true
           if (adjustHeadingLevelFromTab(view, event)) return true
           if (

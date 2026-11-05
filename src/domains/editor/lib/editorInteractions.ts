@@ -100,11 +100,13 @@ function isTabNavigationKey(event: Pick<KeyboardEvent, 'key' | 'code'>): boolean
   return event.key === 'Tab' || event.key === 'ISO_Left_Tab' || event.code === 'Tab'
 }
 
-function isWithinNodeType($from: { depth: number; node: (depth: number) => { type: { name: string } } }, typeName: string): boolean {
-  for (let depth = $from.depth; depth >= 0; depth -= 1) {
-    if ($from.node(depth).type.name === typeName) return true
+function nearestListItem(view: EditorView): NodeType | undefined {
+  const { $from } = view.state.selection
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const type = $from.node(depth).type
+    if (type.name === 'listItem' || type.name === 'taskItem') return type
   }
-  return false
+  return undefined
 }
 
 type ListTabCommands = {
@@ -123,29 +125,24 @@ export function adjustListLevelFromTab(
   event: Pick<KeyboardEvent, 'key' | 'code' | 'shiftKey' | 'preventDefault' | 'stopPropagation'>,
   commands: ListTabCommands = { sinkListItem, liftListItem }
 ): boolean {
-  if (!isTabNavigationKey(event)) return false
+  if (!isTabNavigationKey(event) || !view.state.schema?.nodes) return false
 
-  const schemaNodes = view.state.schema?.nodes
-  if (!schemaNodes) return false
-
-  const itemTypes = ['taskItem', 'listItem']
-    .map((typeName) => schemaNodes[typeName])
-    .filter((nodeType): nodeType is NodeType => nodeType !== undefined)
-
-  if (!itemTypes.length) return false
-
-  const {$from} = view.state.selection
-  const isInList = itemTypes.some((nodeType) => isWithinNodeType($from, nodeType.name))
-  if (!isInList) return false
+  const itemType = nearestListItem(view)
+  if (!itemType) return false
 
   const commandFactory = event.shiftKey ? commands.liftListItem : commands.sinkListItem
+  commandFactory(itemType)(view.state, view.dispatch)
 
-  for (const itemType of itemTypes) {
-    if (commandFactory(itemType)(view.state, view.dispatch)) {
-      break
-    }
-  }
+  event.preventDefault()
+  event.stopPropagation()
+  return true
+}
 
+/** Lifts the current list item one level, splitting its surrounding list when needed. */
+export function liftListItemFromShortcut(view: EditorView, event: KeyboardEvent): boolean {
+  if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return false
+  const itemType = nearestListItem(view)
+  if (!itemType || !liftListItem(itemType)(view.state, view.dispatch)) return false
   event.preventDefault()
   event.stopPropagation()
   return true

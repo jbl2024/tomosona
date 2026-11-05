@@ -177,6 +177,13 @@ export function buildShortcutSections(options: BuildShortcutSectionsOptions): Sh
       ]
     },
     {
+      title: 'Editor',
+      items: [
+        { keys: 'Tab / Shift+Tab', action: 'Indent / outdent list item' },
+        { keys: `${mod}+Enter`, action: 'Lift list item and split list' }
+      ]
+    },
+    {
       title: 'Editor Zoom',
       items: [
         { keys: `${mod}++`, action: 'Zoom in' },
