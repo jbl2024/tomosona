@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261106.1] - 2026-11-06
+
+### Fixed
+- fix(editor): add keyboard exit from quotes and callouts (136a39b6)
+
 ## [20261105.4] - 2026-11-05
 
 ### Fixed
