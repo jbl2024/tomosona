@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261106.2] - 2026-11-06
+
+### Added
+- feat(editor): improve note companion panel and backlinks (d1fba854)
+
 ## [20261106.1] - 2026-11-06
 
 ### Fixed
