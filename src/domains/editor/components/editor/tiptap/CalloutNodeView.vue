@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onMounted, ref, watch, type Component } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
+import type { Editor } from '@tiptap/core'
+import { exitAtomBlock } from '../../../lib/tiptap/exitAtomBlock'
 import {
   useTextareaBlockCursor,
   resolveTextareaBlockCursorOptions
@@ -123,6 +125,7 @@ function onMessageInput(event: Event) {
 }
 
 function onMessageKeydown(event: KeyboardEvent) {
+  if (exitAtomBlock(event, props.editor as Editor, props.getPos)) return
   inlineTextCommands?.onKeydown(event, commandInput(event.currentTarget as HTMLTextAreaElement))
 }
 

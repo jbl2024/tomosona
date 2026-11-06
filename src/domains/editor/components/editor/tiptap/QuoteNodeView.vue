@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
+import type { Editor } from '@tiptap/core'
+import { exitAtomBlock } from '../../../lib/tiptap/exitAtomBlock'
 import { inlineTextToHtml } from '../../../lib/markdownBlocks'
 import { INLINE_TEXT_COMMAND_HANDLER } from '../../../lib/inlineTextCommands'
 import {
@@ -81,6 +83,7 @@ function onFocus() {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (exitAtomBlock(event, props.editor as Editor, props.getPos)) return
   const textarea = event.currentTarget as HTMLTextAreaElement
   inlineTextCommands?.onKeydown(event, commandInput(textarea))
 }
