@@ -1,5 +1,10 @@
 # Changelog
 
+## [20261106.3] - 2026-11-06
+
+### Changed
+- test(editor): update companion panel style contract (c8690c15)
+
 ## [20261106.2] - 2026-11-06
 
 ### Added
