@@ -71,27 +71,95 @@ pub(crate) fn backlinks_for_path(path: String) -> Result<Vec<Backlink>> {
         return Ok(vec![]);
     }
 
+    // Resolve indexed targets relative to their source, as note navigation does.
+    // The index stores normalized targets, so no reindex is needed for existing notes.
+    let note_keys: HashSet<String> = list_markdown_files_via_find(&root_canonical)?
+        .iter()
+        .filter_map(|file| normalize_note_key(&root_canonical, file).ok())
+        .collect();
     let conn = open_db()?;
     let mut stmt = conn.prepare(
-        r#"
-        SELECT DISTINCT source_path
-        FROM note_links
-        WHERE target_key = ?1
-        ORDER BY source_path COLLATE NOCASE
-    "#,
+        "SELECT DISTINCT source_path, target_key FROM note_links ORDER BY source_path COLLATE NOCASE",
     )?;
-    let rows = stmt.query_map([target_key.clone()], |row| row.get::<_, String>(0))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut sources = HashSet::new();
     let mut out: Vec<Backlink> = Vec::new();
     for row in rows {
-        let source_path = row?;
-        if source_path == target_key {
-            continue;
+        let (source_path, link_target) = row?;
+        let source_key = normalize_note_key(&root_canonical, &root_canonical.join(&source_path))?;
+        if source_key != target_key
+            && resolve_indexed_target(&source_key, &link_target, &note_keys).as_deref()
+                == Some(&target_key)
+            && sources.insert(source_path.clone())
+        {
+            out.push(Backlink {
+                path: workspace_absolute_path(&root_canonical, &source_path),
+            });
         }
-        out.push(Backlink {
-            path: workspace_absolute_path(&root_canonical, &source_path),
-        });
     }
     Ok(out)
+}
+
+// Indexed bare wikilinks are relative to the source note; paths with a slash
+// are workspace-relative. A missing target still identifies its prospective path.
+fn resolve_indexed_target(source: &str, target: &str, notes: &HashSet<String>) -> Option<String> {
+    let candidate = if target.contains('/') {
+        target.to_string()
+    } else if let Some((directory, _)) = source.rsplit_once('/') {
+        format!("{directory}/{target}")
+    } else {
+        target.to_string()
+    };
+    if notes.contains(&candidate) {
+        return Some(candidate);
+    }
+    let index = format!("{candidate}/index");
+    if notes.contains(&index) {
+        return Some(index);
+    }
+    let suffix = format!("/{candidate}");
+    let mut matches = notes.iter().filter(|note| note.ends_with(&suffix));
+    let first = matches.next();
+    if first.is_some() && matches.next().is_none() {
+        return first.cloned();
+    }
+    Some(candidate)
+}
+
+#[cfg(test)]
+mod backlink_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn resolves_local_and_explicit_targets_without_confusing_duplicate_names() {
+        let notes = [
+            "projets/roadmap",
+            "projets/lancement",
+            "other/lancement",
+            "docs/index",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+        assert_eq!(
+            resolve_indexed_target("projets/roadmap", "lancement", &notes).as_deref(),
+            Some("projets/lancement")
+        );
+        assert_eq!(
+            resolve_indexed_target("projets/roadmap", "other/lancement", &notes).as_deref(),
+            Some("other/lancement")
+        );
+        assert_eq!(
+            resolve_indexed_target("root", "docs", &notes).as_deref(),
+            Some("docs/index")
+        );
+        assert_eq!(
+            resolve_indexed_target("projets/roadmap", "missing", &notes).as_deref(),
+            Some("projets/missing")
+        );
+    }
 }
 
 pub(crate) fn update_wikilinks_for_rename(

@@ -38,35 +38,60 @@ function mountPane(overrides = {}) {
 describe('EditorRightPane', () => {
   afterEach(() => { document.body.innerHTML = '' })
 
-  it('keeps note tools and navigation without Pulse actions or a drawer', async () => {
+  it('shows contextual previews and keeps note navigation available', () => {
     const { root, props, app } = mountPane()
-    expect(Array.from(root.querySelectorAll('.section-title'), el => el.textContent?.trim())).toEqual([
-      'Active Note', 'Outline', 'Backlinks', 'Metadata', 'Properties'
-    ])
-    expect(root.textContent).not.toMatch(/Pulse|Transform with/)
-    expect(root.querySelector('[class*="pulse"]')).toBeNull()
+    expect(Array.from(root.querySelectorAll('.section-title'), el => el.textContent?.trim())).toEqual(['Outline', 'Backlinks', 'Details'])
+    expect(root.textContent).toContain('notes/a.md')
+    expect(root.textContent).toContain('Roadmap')
+    expect(root.textContent).toContain('notes/b.md')
+    expect(root.textContent).toContain('tags')
     expect(root.querySelector('.right-pane')?.getAttribute('style')).toContain('width: 320px;')
-
     ;(root.querySelector('.favorite-toggle-btn') as HTMLButtonElement).click()
     ;(root.querySelector('.history-toggle-btn') as HTMLButtonElement).click()
     ;(root.querySelector('.tertiary-note-btn') as HTMLButtonElement).click()
+    ;(root.querySelector('.outline-row') as HTMLButtonElement).click()
+    ;(root.querySelector('.backlink-row') as HTMLButtonElement).click()
     expect(props.onToggleFavorite).toHaveBeenCalledOnce()
     expect(props.onOpenNoteHistory).toHaveBeenCalledOnce()
     expect(props.onActiveNoteToggleSourceMode).toHaveBeenCalledOnce()
-
-    const toggles = root.querySelectorAll<HTMLButtonElement>('.section-toggle')
-    toggles[1].click()
-    toggles[2].click()
-    await nextTick()
-    const links = root.querySelectorAll<HTMLButtonElement>('.pane-item')
-    links[0].click()
-    links[1].click()
     expect(props.onOutlineClick).toHaveBeenCalledWith({ index: 0, heading: { level: 2, text: 'Roadmap' } })
     expect(props.onBacklinkOpen).toHaveBeenCalledWith('/wk/notes/b.md')
+    app.unmount()
+  })
 
-    toggles[0].click()
+  it('expands long previews and details', async () => {
+    const { root, app } = mountPane({
+      outline: Array.from({ length: 5 }, (_, i) => ({ level: 1, text: `Heading ${i}` })),
+      backlinks: Array.from({ length: 5 }, (_, i) => `/wk/${i}.md`),
+      propertiesPreview: [{ key: 'one', value: '1' }, { key: 'two', value: '2' }, { key: 'three', value: '3' }]
+    })
+    expect(root.textContent).not.toContain('Heading 4')
+    expect(root.textContent).not.toContain('4.md')
+    expect(root.textContent).not.toContain('three')
+    for (const button of root.querySelectorAll<HTMLButtonElement>('.more-button')) button.click()
     await nextTick()
-    expect(root.querySelector('.favorite-toggle-btn')).toBeNull()
+    expect(root.textContent).toContain('Heading 4')
+    expect(root.textContent).toContain('4.md')
+    expect(root.textContent).toContain('three')
+    expect(root.textContent).toContain('Path')
+    app.unmount()
+  })
+
+  it('only shows the state badge when the note needs attention', () => {
+    const saved = mountPane({ pageProtected: true })
+    expect(saved.root.querySelector('.note-status')?.textContent).not.toContain('saved')
+    expect(saved.root.querySelector('.note-status')?.textContent).toContain('Protected')
+    saved.app.unmount()
+    const editing = mountPane({ activeStateLabel: 'editing' })
+    expect(editing.root.querySelector('.note-status')?.textContent).toContain('editing')
+    editing.app.unmount()
+  })
+
+  it('hides an empty outline and surfaces property errors', () => {
+    const { root, app } = mountPane({ outline: [], propertyParseErrorCount: 2 })
+    expect(root.textContent).not.toContain('Outline')
+    expect(root.textContent).toContain('2 parse errors')
+    expect(root.textContent).not.toContain('tags')
     app.unmount()
   })
 
@@ -80,8 +105,6 @@ describe('EditorRightPane', () => {
 
   it('shows backlink failures instead of an empty state', async () => {
     const { root, app } = mountPane({ backlinks: [], backlinksError: 'Could not load backlinks.' })
-    root.querySelectorAll<HTMLButtonElement>('.section-toggle')[2].click()
-    await nextTick()
     expect(root.textContent).toContain('Could not load backlinks.')
     expect(root.textContent).not.toContain('No backlinks')
     app.unmount()
@@ -97,7 +120,7 @@ describe('EditorRightPane', () => {
       expect(button!.querySelector('svg')).toBeTruthy()
       button!.click()
     }
-    click(plain.root, 'Protect with password')
+    click(plain.root, 'Protect')
     expect(action).toHaveBeenCalledWith('protect')
     plain.app.unmount()
     const protectedPage = mountPane({ canProtectPage: true, pageProtected: true, pageLocked: false, onPageProtectionAction: action })
